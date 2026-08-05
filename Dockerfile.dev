@@ -1,0 +1,17 @@
+FROM node:24.15.0-alpine
+
+WORKDIR /workspace
+
+COPY package.json package-lock.json ./
+RUN npm ci \
+  && sha256sum package-lock.json | cut -d ' ' -f 1 > node_modules/.alabaster-lock-hash
+
+COPY docker/dev-entrypoint.sh /usr/local/bin/alabaster-dev-entrypoint
+RUN chmod +x /usr/local/bin/alabaster-dev-entrypoint
+
+COPY . .
+
+EXPOSE 5173
+
+ENTRYPOINT ["alabaster-dev-entrypoint"]
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173", "--strictPort"]

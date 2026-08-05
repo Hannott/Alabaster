@@ -1,0 +1,22 @@
+node_modules/
+dist/
+coverage/
+website/.vitepress/cache/
+website/.vitepress/dist/
+.DS_Store
+*.local
+*.log
+
+# Internal working material
+.claude/
+CLAUDE.md
+AGENTS.md
+docs/
+
+# A large G-code file copied here temporarily to serve the viewer's development
+# benchmark. Never part of a release.
+public/bench.gcode
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json

@@ -1,0 +1,2008 @@
+{
+  "app": {
+    "name": "Alabaster",
+    "skipToContent": "Hopp til hovedinnhold",
+    "playAnimation": "Spill Alabaster-logoanimasjonen"
+  },
+  "toast": {
+    "error": "Feil: {message}",
+    "commandFailedFallback": "Kommandoen feilet",
+    "dismiss": "Lukk"
+  },
+  "navigation": {
+    "label": "Hovednavigasjon",
+    "overview": "Dashbord",
+    "printFiles": "Utskriftsfiler",
+    "gcodeViewer": "G-kodeviser",
+    "history": "Historikk",
+    "timelapse": "Timelapse",
+    "calibration": "Kalibrering",
+    "configuration": "Konfigurasjon",
+    "machine": "Maskin",
+    "console": "Konsoll",
+    "settings": "Innstillinger",
+    "more": "Mer",
+    "collapseSidebar": "Slå sammen sidemenyen",
+    "expandSidebar": "Utvid sidemenyen",
+    "unsavedChanges": "Ulagrede endringer",
+    "loadingPage": "Laster {page}",
+    "pageFailed": {
+      "title": "{page} kunne ikke lastes",
+      "description": "En del av Alabaster nådde ikke fram til nettleseren. Last siden på nytt for å hente den igjen.",
+      "action": "Last Alabaster på nytt"
+    }
+  },
+  "printFiles": {
+    "title": "Utskriftsfiler",
+    "breadcrumbs": "Mappesti",
+    "root": "Alle filer",
+    "parentFolder": "Opp ett nivå",
+    "empty": "Ingen utskriftsfiler i denne mappen.",
+    "loadFailed": "Kunne ikke lese mappen.",
+    "printBusy": "En utskrift kjører allerede.",
+    "unknownValue": "—",
+    "dropHint": "Slipp en .gcode-, .g-, .gco-, .ufp- eller .nc-fil for å laste den opp",
+    "columns": {
+      "name": "Navn",
+      "size": "Størrelse",
+      "modified": "Endret"
+    },
+    "actions": {
+      "refresh": "Oppdater listen",
+      "upload": "Last opp",
+      "print": "Skriv ut denne filen",
+      "addToQueue": "Legg i køen",
+      "getAccurateEstimate": "Hent nøyaktig tidsestimat",
+      "closeDetail": "Lukk fildetaljer"
+    },
+    "metadata": {
+      "estimatedTime": "Beregnet tid",
+      "filament": "Filament",
+      "filamentValue": "{value} m",
+      "gramsValue": "{value} g",
+      "millimetres": "{value} mm",
+      "celsius": "{value}°C",
+      "layerHeight": "Laghøyde",
+      "objectHeight": "Objekthøyde",
+      "nozzleDiameter": "Dysediameter",
+      "extruderTemp": "Dysetemp.",
+      "bedTemp": "Platetemp.",
+      "chamberTemp": "Kammertemp.",
+      "slicer": "Kuttet med",
+      "thumbnailAlt": "Forhåndsvisning av {name}",
+      "loading": "Leser slicer-data …",
+      "none": "Filen har ingen slicer-data.",
+      "temperatureMismatch": "Lastet filament er satt til {filament}, denne filen varmer dysen til {file}"
+    }
+  },
+  "calibration": {
+    "title": "Kalibrering",
+    "map": {
+      "title": "Høydekart",
+      "probing": "Prober — {count} punkter så langt",
+      "provisional": "Formen er foreløpig mens den prober: hvert punkt plottes mot gjennomsnittet av kjøringen så langt, så den setter seg etter hvert som flere kommer inn.",
+      "scanningProbe": "Denne skriveren har en skannende probe, som sveiper over bedet i stedet for å berøre hvert punkt. Det finnes ingen rapport per punkt å følge, så kartet fylles ut når meshet er ferdig.",
+      "compareLabel": "Sammenlign med",
+      "compareOff": "Ingen"
+    },
+    "endstops": {
+      "title": "Endestopp",
+      "hint": "Klipper melder disse bare når den blir spurt, så de leses på nytt hvert par sekund mens skriveren er ledig.",
+      "refresh": "Les nå",
+      "empty": "Denne skriveren melder ingen endestopp.",
+      "failed": "Siste avlesning ble avvist. Verdiene under er fra forrige avlesning.",
+      "paused": "Avlesning er satt på pause mens en utskrift kjører, så disse er ikke ferske.",
+      "readAt": "Lest {time}.",
+      "state": {
+        "triggered": "Utløst",
+        "open": "Åpen",
+        "unknown": "Ukjent"
+      }
+    },
+    "probe": {
+      "title": "Probenøyaktighet",
+      "hint": "Gjentar ett punkt ti ganger på samme sted, så drift eller støy i selve proben vises før den skyldes på bedet.",
+      "run": "Kjør nøyaktighetstest",
+      "running": "Prober samme punkt gjentatte ganger — dette tar en liten stund.",
+      "outsideBed": "Probens offset vil føre den utenfor bedet herfra. Flytt skrivehodet før du kjører dette.",
+      "empty": "Ingen nøyaktighetstest er kjørt ennå.",
+      "maximum": "Høyeste",
+      "minimum": "Laveste",
+      "range": "Spredning",
+      "average": "Gjennomsnitt",
+      "median": "Median",
+      "standardDeviation": "Standardavvik",
+      "millimetres": "{value} mm"
+    },
+    "sensors": {
+      "title": "Tomkjøringssensorer",
+      "hint": "Lest direkte fra skriveren, så en sensor som utløses mens bedet probes vises her uten en oppdatering.",
+      "empty": "Denne skriveren melder ingen filamentsensorer.",
+      "detected": "Filament lastet",
+      "notDetected": "Ingen filament",
+      "disarmed": "Ikke aktivert"
+    },
+    "mesh": {
+      "title": "Bedmesh-profiler",
+      "hint": "Hver profil bærer spredningen Klipper målte for den, så de kan sammenlignes uten å laste hver enkelt inn på skriveren.",
+      "calibrate": "Kalibrer mesh",
+      "save": "Lagre innlastet mesh",
+      "saveTitle": "Lagre innlastet mesh",
+      "saveLabel": "Profilnavn",
+      "nameEmpty": "Gi profilen et navn.",
+      "nameAscii": "Bruk bare vanlige bokstaver, tall og tegnsetting.",
+      "nameTaken": "En profil med det navnet finnes allerede.",
+      "load": "Last inn",
+      "rename": "Gi nytt navn",
+      "renameHint": "Klipper kan bare gi nytt navn til profilen som er lastet inn.",
+      "renameTitle": "Gi profilen nytt navn",
+      "renameLabel": "Nytt navn",
+      "delete": "Slett",
+      "deleteTitle": "Slette denne profilen?",
+      "deleteConfirm": "Meshet lagret som {name} fjernes fra skriveren.",
+      "spread": "Spredning {value}",
+      "millimetres": "{value} mm",
+      "noProfiles": "Ingen mesh-profiler er lagret på denne skriveren ennå.",
+      "noneLoaded": "Ingen mesh er lastet inn, så det er ingenting å lagre ennå."
+    },
+    "tuning": {
+      "title": "Tuning-resultater",
+      "hint": "Shake&Tunes egne diagnosegrafer, lest direkte fra skriverens config-mappe.",
+      "refresh": "Oppdater",
+      "open": "Åpne {name} i full størrelse",
+      "run": "Kjør",
+      "runLabel": "Kjør {category}",
+      "empty": "Ingenting registrert for denne testen ennå.",
+      "checkNoise": "Sjekk akselerometerstøy",
+      "noiseHint": "Leser bakgrunnsvibrasjon i 2 sekunder, så et løst feste eller en vifte som berører skrivehodet vises før en ekte test bruker flere minutter på det.",
+      "noiseReading": "{axis}-akse-akselerometer — x {x}, y {y}, z {z}",
+      "category": {
+        "inputShaper": "Input shaper",
+        "belts": "Belte-sammenligning",
+        "vibrations": "Vibrasjonsprofil",
+        "axesMap": "Akse-kart",
+        "staticFrequency": "Statisk frekvens"
+      }
+    }
+  },
+  "history": {
+    "title": "Historikk",
+    "noValue": "—",
+    "filamentValue": "{value} m",
+    "totals": {
+      "title": "Totaler",
+      "jobs": "Registrerte jobber",
+      "printTime": "Tid brukt på utskrift",
+      "occupiedTime": "Tid opptatt",
+      "filament": "Filament brukt",
+      "longestPrint": "Lengste utskrift"
+    },
+    "stats": {
+      "title": "Statistikk",
+      "failed": "Statistikkvinduet kunne ikke leses. Det som vises er siste vellykkede avlesning.",
+      "successRate": "Andel fullførte (siste {count})",
+      "period": {
+        "label": "Periode",
+        "option": {
+          "30d": "30 dager",
+          "90d": "90 dager",
+          "12m": "12 måneder",
+          "all": "Hele historikken"
+        },
+        "jobCount": "{count} jobber, komplett for perioden",
+        "jobCountAll": "{count} jobber, hele historikken"
+      },
+      "measure": {
+        "label": "Mål",
+        "jobs": "Jobber",
+        "filament": "Filament",
+        "time": "Tid"
+      },
+      "outcomes": {
+        "empty": "Ingen jobber i denne perioden.",
+        "columnOutcome": "Utfall",
+        "columnJobs": "Jobber",
+        "columnShare": "Andel",
+        "columnFilament": "Filament",
+        "columnTime": "Tid"
+      },
+      "trend": {
+        "title": "Trend",
+        "description": "{count} perioder, {measure} per periode, fullført mot alt annet.",
+        "axisHours": "{value}t",
+        "tooltipRange": "{start} – {end}",
+        "tooltipCompleted": "Fullført",
+        "tooltipNotCompleted": "Alt annet"
+      },
+      "distribution": {
+        "title": "Utskriftslengde",
+        "range": "{lower} – {upper}",
+        "rangeOpen": "{lower} og over",
+        "jobCount": "{count} jobber"
+      }
+    },
+    "jobs": {
+      "title": "Fullførte jobber",
+      "refresh": "Oppdater",
+      "empty": "Ingen fullførte jobber er registrert ennå.",
+      "failed": "Historikken kunne ikke leses. Det som vises er siste vellykkede avlesning.",
+      "loadMore": "Last eldre jobber",
+      "scrollToTop": "Tilbake til toppen",
+      "reprint": "Skriv ut igjen",
+      "reprintTitle": "Skrive ut denne filen igjen?",
+      "reprintConfirm": "Skriveren starter {name} nå.",
+      "fileGone": "Denne filen finnes ikke lenger på skriveren.",
+      "delete": "Fjern",
+      "deleteTitle": "Fjerne denne jobben fra historikken?",
+      "deleteConfirm": "Oppføringen for {name} slettes. Totalene beholder den.",
+      "auxiliary": {
+        "spool": "Spole {id}",
+        "spools": "Spoler {ids}"
+      },
+      "detail": {
+        "close": "Lukk jobbdetaljer",
+        "started": "Startet",
+        "ended": "Avsluttet",
+        "printDuration": "Utskriftstid",
+        "occupiedTime": "Tid opptatt",
+        "filament": "Filament brukt",
+        "addToQueue": "Legg i køen"
+      }
+    },
+    "outcome": {
+      "completed": "Fullført",
+      "cancelled": "Avbrutt",
+      "error": "Mislyktes",
+      "interrupted": "Forstyrret",
+      "unknown": "Ukjent"
+    }
+  },
+  "timelapse": {
+    "title": "Timelapse",
+    "list": "Timelapse-videoer",
+    "refresh": "Oppdater",
+    "empty": "Ingen ferdige timelapser ennå. En dukker opp her når en utskrift er ferdig rendret.",
+    "failed": "Timelapse-mappen kunne ikke leses.",
+    "download": "Last ned",
+    "close": "Lukk",
+    "delete": "Slett",
+    "deleteTitle": "Slette denne timelapsen?",
+    "deleteConfirm": "Videoen {name} fjernes fra skriveren.",
+    "noValue": "—"
+  },
+  "header": {
+    "applyConfig": {
+      "label": "Start på nytt",
+      "title": "En konfigurasjonsfil er lagret. Klipper kjører videre på konfigurasjonen den lastet inn til fastvaren starter på nytt."
+    },
+    "printerLabel": "Skriver",
+    "printerName": "Verkstedskriver",
+    "openNavigation": "Åpne navigasjon",
+    "notifications": {
+      "label": "Varsler",
+      "title": "Nylig aktivitet",
+      "announcementsTitle": "Kunngjøringer",
+      "dismiss": "Lukk «{title}»",
+      "highPriority": "Høy prioritet"
+    },
+    "power": {
+      "label": "Strøm- og tjenestekontroller",
+      "klipperControl": "Klipper-kontroll",
+      "restartKlipper": "Start Klipper på nytt",
+      "firmwareRestart": "Fastvare-restart",
+      "restartKlipperConfirm": "Klipper laster konfigurasjonen på nytt, og utskriften på platen avsluttes der den står. Omstart er dagligdags på en ledig maskin; denne kjører en jobb.",
+      "firmwareRestartConfirm": "Kontrollerkortet nullstilles sammen med Klipper, og utskriften på platen avsluttes der den står. Omstart er dagligdags på en ledig maskin; denne kjører en jobb.",
+      "serviceControl": "Tjenestekontroll",
+      "restartMoonraker": "Start Moonraker på nytt",
+      "hostControl": "Vertskontroll",
+      "rebootHost": "Restart verten",
+      "rebootHostConfirm": "Dette starter datamaskinen som kjører Moonraker på nytt. En aktiv utskrift vil bli avbrutt.",
+      "shutdownHost": "Slå av verten",
+      "shutdownHostConfirm": "Dette slår av datamaskinen som kjører Moonraker. Du må ha fysisk tilgang for å skru den på igjen.",
+      "devicePower": "Strømbrytere",
+      "turnDeviceOn": "Slå på {name}",
+      "turnDeviceOff": "Slå av {name}",
+      "deviceLockedWhilePrinting": "Låst under utskrift"
+    },
+    "printers": {
+      "label": "Velg skriver",
+      "title": "Skrivere",
+      "manage": "Legg til eller administrer skrivere …"
+    }
+  },
+  "locale": {
+    "en": "Engelsk",
+    "nb": "Norsk"
+  },
+  "status": {
+    "label": "Tilkoblingsstatus",
+    "disconnected": "Ikke tilkoblet",
+    "ready": "Klar",
+    "printing": "Skriver ut",
+    "paused": "Pauset",
+    "error": "Krever oppmerksomhet"
+  },
+  "saveConfig": {
+    "open": "Lagre ny konfigurasjon",
+    "title": "Lagre ny konfigurasjon?",
+    "description": "Klipper holder disse endringene. Lagring skriver dem til printer.cfg og starter Klipper på nytt.",
+    "save": "Lagre og start på nytt",
+    "discard": "Forkast og start på nytt",
+    "whilePrinting": "En utskrift kjører, og begge handlingene starter Klipper på nytt — det ville avbryte den. Begge venter til utskriften er ferdig.",
+    "valueCount": "{count} verdier",
+    "summary": {
+      "probe": "Probe-offset",
+      "heaterModel": "Varmemodell · {count} innstillinger",
+      "bedMesh": "Mesh · {count} punkter",
+      "generic": "{count} innstillinger"
+    }
+  },
+  "availability": {
+    "available": "Tilgjengelig",
+    "moonrakerConnecting": "Kobler til Moonraker",
+    "moonrakerReconnecting": "Moonraker starter på nytt",
+    "moonrakerDisconnected": "Moonraker er utilgjengelig",
+    "klipperStarting": "Klipper starter",
+    "printerSynchronizing": "Oppdaterer skriverdata",
+    "klipperDisconnected": "Klipper starter på nytt",
+    "klipperError": "Klipper kunne ikke starte",
+    "klipperShutdown": "Klipper har stanset",
+    "lastKnownData": "Viser sist kjente data"
+  },
+  "printerFault": {
+    "openLogs": "Åpne logger",
+    "expand": "Vis hva Klipper meldte",
+    "collapse": "Skjul hva Klipper meldte"
+  },
+  "dashboard": {
+    "connect": "Koble til skriver",
+    "connectionSettings": "Tilkoblingsinnstillinger",
+    "telemetryTitle": "Direkte telemetri",
+    "telemetryDescription": "Verdiene vises når Moonraker er tilkoblet.",
+    "transport": "Moonraker / WS",
+    "hotend": "Dyse",
+    "bed": "Bed",
+    "fan": "Delekjøling",
+    "temperatureUnit": "°C",
+    "percentUnit": "%",
+    "weightUnit": "g",
+    "lengthUnit": "m",
+    "unavailableValue": "—",
+    "targetValue": "Mål {value}{unit}",
+    "rpmValue": "{value} o/min",
+    "activityTitle": "Maskinaktivitet",
+    "activityDescription": "Hendelsesstrømmen vises her.",
+    "activityEmpty": "Venter på den første skriverhendelsen",
+    "activityHint": "Statusendringer bruker symbol og tekst, aldri bare farge.",
+    "quickActionsTitle": "Hurtighandlinger",
+    "loadFile": "Velg fil",
+    "emergencyStop": "Nødstopp",
+    "emergencyStopShort": "Stopp",
+    "emergencyStopConfirm": "Stoppe skriveren umiddelbart? Varmeelementer og bevegelser blir slått av.",
+    "unavailableAction": "Tilgjengelig når en skriver er tilkoblet",
+    "operationalTitle": "Kontrollpanel",
+    "cancel": "Avbryt",
+    "commandFailed": "Kommandoen kunne ikke fullføres. Kontroller skriveren og prøv igjen.",
+    "modules": {
+      "print": "Utskrift",
+      "camera": "Kamera",
+      "temperatures": "Temperaturer",
+      "movement": "Bevegelse",
+      "controls": "Utganger",
+      "machine": "Maskin",
+      "macros": "Makroer",
+      "console": "Konsoll",
+      "activity": "Aktivitet",
+      "extruder": "Ekstruder",
+      "bedMesh": "Bednett",
+      "jobQueue": "Jobbkø",
+      "spool": "Spoolman",
+      "maintenance": "Vedlikehold"
+    },
+    "layout": {
+      "customize": "Tilpass",
+      "done": "Ferdig",
+      "title": "Rediger kontrollpanelet",
+      "description": "Dra moduler eller bruk knappene for å endre kolonne, rekkefølge og synlighet.",
+      "viewportLabel": "Oppsettprofil",
+      "viewport": {
+        "desktop": "Datamaskin",
+        "tablet": "Nettbrett",
+        "mobile": "Mobil"
+      },
+      "reset": "Tilbakestill dette oppsettet",
+      "drag": "Dra modul",
+      "moveEarlier": "Flytt {module} tidligere",
+      "moveLater": "Flytt {module} senere",
+      "moveToPreviousColumn": "Flytt {module} til forrige kolonne",
+      "moveToNextColumn": "Flytt {module} til neste kolonne",
+      "hide": "Skjul {module}",
+      "empty": "Alle modulene i kontrollpanelet er skjult.",
+      "availableModules": "Tilgjengelige moduler",
+      "availableDescription": "Gjenopprett skjulte moduler i denne oppsettprofilen.",
+      "noneHidden": "Alle modulene er synlige",
+      "collapse": "Slå sammen {module}",
+      "expand": "Utvid {module}",
+      "settings": "Innstillinger for {module}",
+      "settingsTooltip": "Innstillinger for {module} — Ctrl-klikk for fulle innstillinger",
+      "duplicate": "Legg til et nytt {module}-kort",
+      "remove": "Fjern dette {module}-kortet",
+      "rename": "Navn på dette {module}-kortet",
+      "presetLabel": "Bruk et oppsett",
+      "preset": {
+        "minimal": "Minimalt",
+        "standard": "Standard",
+        "tuning": "Tuning"
+      },
+      "columnWidthLabel": "Kolonnebredder",
+      "columnShape": {
+        "equal": "Lik",
+        "wide": "Bred",
+        "narrow": "Smal"
+      },
+      "columnNumber": "Kolonne {number}"
+    },
+    "duration": {
+      "hoursMinutes": "{hours} t {minutes} min",
+      "minutes": "{minutes} min",
+      "seconds": "{seconds} s"
+    },
+    "print": {
+      "maintenanceOverdue": "Vedlikehold forfalt — åpne Vedlikehold",
+      "progressTitle": "Framdrift og gjenstående tid",
+      "state": {
+        "standby": "Skriveren er klar",
+        "printing": "Skriver ut",
+        "paused": "Utskriften er satt på pause",
+        "complete": "Utskriften er ferdig",
+        "cancelled": "Utskriften er avbrutt",
+        "error": "Utskriften krever oppmerksomhet"
+      },
+      "unnamedFile": "Utskrift uten navn",
+      "progress": "Framdrift",
+      "elapsed": "Forløpt",
+      "remaining": "Gjenstår",
+      "readyTitle": "Start neste utskrift",
+      "pause": "Pause",
+      "resume": "Fortsett",
+      "cancel": "Avbryt",
+      "cancelPrint": "Avbryt utskrift",
+      "keepPrinting": "Fortsett utskriften",
+      "chooseFile": "Velg fil",
+      "recent": "Nylige filer",
+      "start": "Start utskrift",
+      "noFiles": "Moonraker returnerte ingen G-kodefiler.",
+      "recentFailed": "Fillisten kunne ikke leses.",
+      "confirmStart": "Starte utskrift av {filename}?",
+      "confirmCancel": "Dette kan ikke angres — jobben stopper der den er og kan ikke gjenopptas.",
+      "closeRecent": "Lukk nylige filer",
+      "startFile": "Start {filename}",
+      "confirmStartTitle": "Start denne utskriften?",
+      "confirmCancelTitle": "Avbryt denne utskriften?",
+      "layer": "Lag",
+      "layerOf": "{current} av {total}",
+      "height": "Høyde",
+      "heightOf": "{current} / {total} mm",
+      "finishesAt": "Ferdig",
+      "driftAhead": "{percent} % foran slicerens estimat",
+      "driftBehind": "{percent} % bak slicerens estimat",
+      "filamentUsed": "{used} m",
+      "filamentOf": "{used} av {total} m",
+      "showThumbnail": "Vis slicer-forhåndsvisning",
+      "expandThumbnail": "Utvid slicer-forhåndsvisningen",
+      "collapseThumbnail": "Krymp slicer-forhåndsvisningen",
+      "showFilament": "Vis brukt filament",
+      "estimateSource": "Gjenstående tid fra",
+      "estimateAuto": "Beste tilgjengelige kilde",
+      "estimate": {
+        "slicer": "Slicerens estimat",
+        "file": "Filposisjon",
+        "filament": "Brukt filament"
+      },
+      "showDrift": "Varsle når utskriften ligger foran eller bak estimatet",
+      "driftThreshold": "Meld avvik over så mange prosent",
+      "printAgain": "Skriv ut igjen",
+      "dropHint": "Slipp en fil for å laste den opp og starte utskriften",
+      "useSlicerProgress": "Bruk slicerens framdrift (M73)",
+      "slicerProgressHint": "Slå på M73-utdata i sliceren. Uten det rapporterer skriveren ingen slicer-framdrift, og G-kode-posisjonen brukes i stedet.",
+      "slicerProgressMissing": "Denne skriveren rapporterer ikke M73-framdrift.",
+      "totalTime": "Total tid",
+      "printingTime": "Utskriftstid",
+      "filament": "Filament",
+      "metres": "{value} m",
+      "clear": "Nullstill",
+      "clearTitle": "Nullstill den fullførte jobben og gå til klar",
+      "resetOnFinishTitle": "Nullstill hastighet og flow når utskriften",
+      "resetOnComplete": "Fullføres",
+      "resetOnCancelled": "Avbrytes",
+      "resetOnError": "Feiler",
+      "upload": "Last opp",
+      "confirmationsTitle": "Bekreftelser",
+      "skipStartWarning": "Start en utskrift uten bekreftelse",
+      "skipCancelWarning": "Avbryt en utskrift uten bekreftelse",
+      "excludeObject": "Ekskluder objekt",
+      "pauseAtLayer": "Pause ved et lag…",
+      "pauseAtLayerTitle": "Pause ved et lag",
+      "pauseAtLayerDescription": "Utskriften pauser så snart dette laget starter.",
+      "pauseAtLayerLabel": "Lag",
+      "pauseAtLayerConfirm": "Aktiver pause",
+      "pauseAtLayerInvalid": "Skriv inn et helt tall større enn det nåværende laget.",
+      "pauseNextLayer": "Pause når dette laget er fullført",
+      "upNext": "Neste i køen",
+      "upNextMore": "+{count} til i køen",
+      "startNow": "Start nå",
+      "removeFromQueue": "Fjern fra køen"
+    },
+    "temperature": {
+      "chartTitle": "Historikkgraf",
+      "targetLabel": "Måltemperatur for {heater}",
+      "targetLabelCurrent": "Måltemperatur for {heater}, nå {current}{unit}",
+      "readingLabel": "Temperatur målt av {sensor}",
+      "readingAt": "Avlesning {time}",
+      "chartLabel": "Temperaturhistorikk for de valgte sensorene",
+      "showChart": "Vis historikkgrafen",
+      "passive": "Kun måling",
+      "presetDetail": "Dyse {hotend}{unit}, bed {bed}{unit}",
+      "presetDetailHotendOnly": "Dyse {hotend}{unit}, bed uendret",
+      "presetDetailBedOnly": "Bed {bed}{unit}, dyse uendret",
+      "cooldown": "Kjøl ned",
+      "quickOff": "Slå av {heater}",
+      "quickOffBlocked": "{heater} kan ikke slås av mens en jobb er lastet",
+      "presetBlocked": "Et forvalg kan ikke brukes mens en jobb er lastet",
+      "cooldownBlocked": "Skriveren kan ikke kjøles ned mens en jobb er lastet",
+      "calibrateBlocked": "Kalibrering kan ikke kjøres mens en jobb er lastet",
+      "targetAdjust": "Juster mål for {heater} med {amount}°",
+      "eta": "~{duration}",
+      "rate": "{rate}°/min",
+      "stalled": "Stiger ikke",
+      "chartHeight": "Grafhøyde",
+      "chartHeightOption": {
+        "compact": "Kompakt",
+        "standard": "Standard",
+        "tall": "Høy"
+      },
+      "chartWindow": "Tidsvindu",
+      "chartWindowOption": "{minutes} min",
+      "calibrationTitle": "Kalibrering",
+      "calibrationHint": "Kjører i flere minutter og varmer opp skriveren fysisk. Ikke start dette under en utskrift.",
+      "calibratePid": "Kalibrer PID",
+      "calibrateMpc": "Kalibrer MPC",
+      "calibrationOutputLabel": "Kalibreringslogg",
+      "calibrationRunning": "Kalibrerer …",
+      "calibratePromptTitle": "Kalibrer {heater}",
+      "calibratePromptDescription": "Velg temperaturen kalibreringen skal ta utgangspunkt i — vanligvis materialet du skriver ut mest med.",
+      "calibratePromptLabel": "Måltemperatur",
+      "calibrateInvalid": "Angi en temperatur over 0.",
+      "calibrateTooHigh": "{max}° er høyeste tillatte temperatur for denne varmeren.",
+      "calibrateConfirmTitle": "Kalibrer {heater}?",
+      "calibrateConfirmDescription": "Dette varmer {heater} til {target}{unit} og kjører i flere minutter. Ikke start dette under en utskrift.",
+      "calibrateConfirmAction": "Kalibrer",
+      "off": "Av",
+      "atTarget": "På mål",
+      "cooldownIdle": "Ingenting varmes opp.",
+      "chartAutoScale": "Skaler grafen til gjeldende verdier",
+      "chartAutoScaleHint": "Skru av for å holde grafens skala fast til skriverens konfigurerte maks-temperatur.",
+      "chartZeroBaseline": "Start skalaen på 0",
+      "almostThere": "Nesten på mål",
+      "sensorsTitle": "Sensorer",
+      "columnList": "Liste",
+      "columnChart": "Graf",
+      "listToggle": "Vis {sensor} på kortet",
+      "chartToggle": "Tegn {sensor} i grafen",
+      "colorChoice": "{sensor} i {color}",
+      "color": {
+        "orange": "Oransje",
+        "sky": "Himmelblå",
+        "green": "Grønn",
+        "purple": "Lilla",
+        "blue": "Blå",
+        "red": "Vermillion",
+        "yellow": "Gul"
+      },
+      "presetsTitle": "Materialforvalg",
+      "presetsHint": "Hva hver knapp på kortet setter dyse og bed til. La ett felt stå tomt, og forvalget lar den varmeren stå som den er.",
+      "presetName": "Navn på forvalg",
+      "presetHotend": "Dysetemperatur",
+      "presetBed": "Bedtemperatur",
+      "presetRemove": "Fjern {preset}",
+      "presetUnnamed": "forvalg uten navn",
+      "presetAdd": "Legg til forvalg",
+      "presetAddFromCatalogue": "Søk i katalogen",
+      "chartShowPower": "Tegn varmeeffekt",
+      "chartShowTargets": "Tegn måltemperaturer",
+      "confirmationsTitle": "Bekreftelser",
+      "skipCalibrationWarning": "Start en kalibrering uten bekreftelse",
+      "calibrationStaged": "Kalibrert. Den nye modellen er klargjort — lagre den nye konfigurasjonen for å beholde den."
+    },
+    "movement": {
+      "axisX": "X-akse",
+      "axisY": "Y-akse",
+      "axisZ": "Z-akse",
+      "jog": "{axis} {distance}",
+      "axisTargetLabel": "Målposisjon for {axis}",
+      "notHomed": "Uten nullpunkt",
+      "showZOffset": "Vis Z-offset-kontroller",
+      "showSpeedFactor": "Vis hastighetsfaktor",
+      "speedFactor": "Hastighetsfaktor",
+      "swapZDirection": "Bytt Z-retning",
+      "swapZDirectionHint": "For skrivere der bedet beveger seg i stedet for gantryet, slik at Z 0 er øverst på glidebryteren i stedet for nederst.",
+      "zOffsetStep": "Z-offset-steg",
+      "homeAll": "Kjør alle akser til nullpunkt",
+      "machineActions": "Maskinhandlinger",
+      "homeAllShort": "Alle",
+      "feedrateUnit": "mm/s",
+      "feedrateLabel": "Hastighet på skrivehodet",
+      "zOffsetUnsaved": "Lagt inn i proben. Lagre den nye konfigurasjonen for å beholde den.",
+      "planarStepLabel": "Steglengde for X og Y",
+      "verticalStepLabel": "Steglengde for Z",
+      "zOffsetAdjust": "Juster Z-offset med {amount} {unit} — {direction}",
+      "zOffsetCloser": "dysen nærmere bedet",
+      "zOffsetFarther": "dysen bort fra bedet",
+      "zOffsetLegendCloser": "nærmere bedet",
+      "zOffsetLegendFarther": "bort fra bedet",
+      "zOffsetReset": "Nullstill Z-offset",
+      "zOffsetTitle": {
+        "micrometre": "Z-offset · µm",
+        "millimetre": "Z-offset · mm"
+      },
+      "zOffsetUnitLabel": "Enhet for Z-offset",
+      "zOffsetUnit": {
+        "micrometre": "µm",
+        "millimetre": "mm"
+      },
+      "zOffsetUnitHint": "Stegene blir {steps}; skriveren får millimeter uansett.",
+      "screwColumnName": "Skrue",
+      "screwColumnAdjustment": "Justering",
+      "summaryHeight": "Z {height}",
+      "positionMode": "Posisjon: {mode}",
+      "positionModeAbsolute": "Absolutt",
+      "positionModeRelative": "Relativ",
+      "motorsOff": "Slå av motorer",
+      "motorsOffShort": "Av",
+      "motorsOffConfirmTitle": "Frigjør motorene?",
+      "motorsOffConfirmDescription": "Aksene kan da flyttes for hånd, og skriveren glemmer hvor de står til den kjører til nullpunkt igjen.",
+      "showParking": "Vis parkeringsposisjoner",
+      "showBedPlan": "Vis bedkartet",
+      "showBedPlanWhilePrinting": "Vis under utskrift",
+      "planGo": "Kjør",
+      "planGoTo": "Flytt til {target}",
+      "planTargetAt": "X {x}, Y {y}",
+      "planNozzleAt": "Bedkart. Dysen står på X {x}, Y {y}. Trykk eller bruk piltastene for å velge hvor den skal, og dobbeltklikk eller trykk Enter for å sende den dit.",
+      "planNotHomed": "Bedkart. Dyseposisjonen er ukjent til skriveren har kjørt til nullpunkt.",
+      "planUnknown": "Bedkart. Skriveren har ikke rapportert byggevolumet.",
+      "zAxisNozzleAt": "Z-akse. Dysen står i Z {z}.",
+      "zAxisNotHomed": "Z-akse. Dysehøyden er ukjent til Z har kjørt til nullpunkt.",
+      "park": {
+        "center": "Parker i midten",
+        "front": "Parker foran"
+      },
+      "zOffsetApply": "Lagre offset",
+      "zOffsetApplyProbeTitle": "Legg gjeldende offset inn i probens egen Z-offset",
+      "zOffsetApplyEndstopTitle": "Legg gjeldende offset inn i Z-endestoppens posisjon",
+      "zOffsetApplyTitle": "Legg gjeldende offset inn i probens egen Z-offset",
+      "leveling": {
+        "quadGantryLevel": "Niveller gantry",
+        "zTilt": "Juster Z-vipp",
+        "screwsTiltAdjust": "Sjekk bedskruer",
+        "bedScrews": "Juster bedskruer",
+        "deltaCalibrate": "Kalibrer delta"
+      },
+      "levelingUnapplied": {
+        "quadGantryLevel": "Gantryet er ikke nivellert siden motorene sist var av.",
+        "zTilt": "Z-motorene er ikke justert siden motorene sist var av."
+      },
+      "levelingConfirmTitle": "Start nivellering?",
+      "levelingConfirmDescription": "{method} beveger skriveren og prober bedet, noe som tar noen minutter. Ikke start dette under en utskrift.",
+      "levelingConfirmAction": "Start",
+      "screwBase": "Referanse",
+      "screwLevel": "I nivå",
+      "screwClockwise": "med klokka",
+      "screwCounterClockwise": "mot klokka",
+      "screwTurnsAndMinutes": "{direction} {turns} omdreininger {minutes} min",
+      "screwTurnAndMinutes": "{direction} {turns} omdreining {minutes} min",
+      "screwMinutes": "{direction} {minutes} min",
+      "homeAxisHomed": "Kjør {axis} til nullpunkt igjen",
+      "homeAxisNotHomed": "{axis} mangler nullpunkt — kjør den dit",
+      "homeAxisBlocked": "{axis} kan ikke kjøres til nullpunkt mens en jobb er lastet",
+      "stepsTitle": "Stegstørrelser",
+      "stepsHint": "Z-jogging stopper på 0,1 mm; mindre bevegelser hører til Z-offset-stegene under.",
+      "confirmationsTitle": "Bekreftelser",
+      "skipMotorsOffWarning": "Slå av motorer uten bekreftelse",
+      "skipLevelingWarning": "Start bednivellering uten bekreftelse"
+    },
+    "controls": {
+      "partFan": "Delevifte",
+      "showOutputPins": "Vis utgangspinner",
+      "showMonitoredFans": "Vis viftene Klipper styrer",
+      "pinLevel": "Nivå for {pin}",
+      "pinToggle": "Slå {pin} av eller på",
+      "monitoredFans": "Vifter Klipper styrer",
+      "velocity": "Hastighet",
+      "velocityUnit": "mm/s",
+      "accel": "Akselerasjon",
+      "accelUnit": "mm/s²",
+      "squareCornerVelocity": "Hjørnehastighet",
+      "squareCornerVelocityUnit": "mm/s",
+      "minimumCruiseRatio": "Minste cruise-andel",
+      "iconsTitle": "Ikoner",
+      "chooseIcon": "Velg ikon for {label}",
+      "chooseIconTitle": "Velg et ikon — {label}",
+      "icon": {
+        "fan": "Vifte",
+        "bulb": "Lys",
+        "probe": "Probe",
+        "temperature": "Temperatur",
+        "bolt": "Strøm"
+      }
+    },
+    "machine": {
+      "lockDuringPrint": "Lås grensene under utskrift",
+      "resetOnFinishTitle": "Nullstill grensene når utskriften",
+      "resetOnComplete": "Fullføres",
+      "resetOnCancelled": "Avbrytes",
+      "resetOnError": "Feiler"
+    },
+    "macros": {
+      "hideMissing": "Skjul makroer skriveren ikke lenger har",
+      "allMissing": "Alle makroene på dette kortet mangler på skriveren.",
+      "empty": "Ingen makroer på dashbordet ennå.",
+      "choose": "Velg makroer",
+      "searchLabel": "Søk i makroer",
+      "refresh": "Oppdater makrolisten",
+      "availableTitle": "Tilgjengelige makroer",
+      "selectedTitle": "På dashbordet",
+      "add": "Legg til {macro}",
+      "remove": "Fjern {macro}",
+      "moveEarlier": "Flytt {macro} tidligere",
+      "moveLater": "Flytt {macro} senere",
+      "run": "Kjør {macro}",
+      "missing": "{macro} finnes ikke lenger i skriverkonfigurasjonen",
+      "missingShort": "Mangler",
+      "noneReported": "Moonraker rapporterte ingen makroer for denne skriveren.",
+      "noMatches": "Ingen makroer treffer søket.",
+      "noneSelected": "Legg til makroer fra listen over.",
+      "loadFailed": "Makrolisten kunne ikke lastes. Prøv igjen.",
+      "paramsFor": "Parametere for {macro}",
+      "openParams": "Kjør {macro} med parametere",
+      "send": "Send",
+      "paramsHint": "Et tomt felt lar makroen bruke sin egen standardverdi.",
+      "groupsTitle": "Makrogrupper",
+      "switchToGroup": "Bytt til {group}",
+      "titleLabel": "Gruppenavn",
+      "color": {
+        "orange": "Oransje",
+        "sky": "Himmelblå",
+        "green": "Grønn",
+        "purple": "Lilla",
+        "blue": "Blå",
+        "red": "Rødoransje",
+        "yellow": "Gul"
+      },
+      "colorNone": "Ingen farge",
+      "colorCycle": "{macro}-farge: {color}. Klikk for å endre.",
+      "groupVisibilityTitle": "Vis dette kortet når skriveren er",
+      "visibility": {
+        "standby": "Vis i hvile",
+        "paused": "Vis ved pause",
+        "printing": "Vis under utskrift"
+      },
+      "visibilityFor": "{macro}: {state}",
+      "hiddenWhile": {
+        "standby": "Skjult i hvile.",
+        "paused": "Skjult ved pause.",
+        "printing": "Skjult under utskrift."
+      },
+      "addGroup": "Legg til gruppe",
+      "addDivider": "Legg til overskrift",
+      "dividerLabelField": "Overskrift for seksjon",
+      "untitledDivider": "Overskrift uten tekst"
+    },
+    "console": {
+      "openPage": "Åpne konsollsiden",
+      "clear": "Tøm konsollutdata"
+    },
+    "camera": {
+      "alt": "Direktevisning fra {name}",
+      "notConfigured": "Ingen kamera konfigurert",
+      "failed": "Kamerastrømmen er utilgjengelig",
+      "hint": "Alabaster bruker det første aktiverte webkameraet fra Moonraker.",
+      "retry": "Prøv kameraet igjen"
+    },
+    "activity": {
+      "empty": "Skriverhendelser vises her når de oppstår.",
+      "printerReady": "Skriveren er synkronisert",
+      "printStarted": "Utskriften startet",
+      "commandSent": "Kommando sendt",
+      "printState": {
+        "standby": "Skriveren gikk tilbake til ventemodus",
+        "printing": "Utskriften startet",
+        "paused": "Utskriften er satt på pause",
+        "complete": "Utskriften er ferdig",
+        "cancelled": "Utskriften er avbrutt",
+        "error": "Skriveren rapporterte en utskriftsfeil"
+      }
+    },
+    "extruder": {
+      "showManualExtrusion": "Vis manuell ekstrudering",
+      "showLoadMacros": "Vis makroknapper",
+      "showPressureAdvance": "Vis pressure advance",
+      "manualTitle": "Manuell ekstrudering",
+      "length": "Filamentlengde",
+      "feedrate": "Ekstruderingshastighet",
+      "lengthPresets": "Forhåndsvalg for filamentlengde",
+      "feedratePresets": "Forhåndsvalg for hastighet",
+      "setLength": "Sett filamentlengde til {value} mm",
+      "setFeedrate": "Sett hastighet til {value} mm/s",
+      "ready": "Klar til ekstrudering",
+      "tooCold": "Varm dysen over {value}{unit} for å ekstrudere",
+      "retract": "Trekk tilbake",
+      "extrude": "Ekstruder",
+      "extrusionPreview": "Ekstrudering: ~{length} mm \\@ {flow} mm³/s - Ø {nozzle} mm",
+      "pressureAdvance": "Pressure advance",
+      "advance": "Advance",
+      "smoothTime": "Smooth time",
+      "applyAdvance": "Bruk",
+      "currentAdvance": "Aktiv: {value}",
+      "factor": "Ekstruderingsfaktor",
+      "resetFactor": "Nullstill ekstruderingsfaktoren til 100 %",
+      "secondsUnit": "s",
+      "pressureAdvanceConfigured": "Pressure advance-modell",
+      "macrosTitle": "Makroknapper",
+      "macrosEmpty": "Ingen makroer valgt ennå. Klipper definerer ingen selv, så velg dem denne skriveren har.",
+      "macrosNoneSelected": "Legg til makroer fra listen under.",
+      "macrosAllSelected": "Alle makroene denne skriveren rapporterer ligger allerede på kortet.",
+      "showRetraction": "Vis fastvare-retraksjon",
+      "retractionTitle": "Fastvare-retraksjon",
+      "millimetresUnit": "mm",
+      "millimetresPerSecondUnit": "mm/s",
+      "cubicMillimetresPerSecondUnit": "mm³/s",
+      "retraction": {
+        "retract_length": "Retraksjonslengde",
+        "retract_speed": "Retraksjonshastighet",
+        "unretract_extra_length": "Ekstra lengde ved utmating",
+        "unretract_speed": "Utmatingshastighet",
+        "z_hop_height": "Z-hopphøyde"
+      }
+    },
+    "spool": {
+      "eyebrow": "Aktiv spole",
+      "disconnected": "Spoolman er ikke tilkoblet",
+      "none": "Ingen aktiv spole",
+      "unnamedFilament": "Navnløst filament",
+      "remainingWeight": "Vekt igjen",
+      "remainingLength": "Lengde igjen",
+      "fits": "Nok filament til neste utskrift",
+      "short": "Ikke nok filament igjen — trenger {needed}{unit}, denne spolen har {remaining}{unit}",
+      "temperatureMismatch": "Lastet filament er satt til {filament}°C, neste utskrift varmer dysen til {file}°C",
+      "noSpoolOption": "Ingen aktiv spole",
+      "switchLabel": "Aktiv spole",
+      "automationTitle": "Automatikk",
+      "autoPauseHint": "Basert på Spoolmans egen registrerte gjenværende vekt, ikke en sensor på skriveren.",
+      "autoPauseOnEmpty": "Sett utskriften automatisk på pause når Spoolman melder at spolen er tom"
+    },
+    "maintenance": {
+      "empty": "Ingen vedlikeholdsintervaller ennå.",
+      "summaryOverdue": "Forfalt",
+      "addInterval": "Legg til intervall",
+      "add": "Legg til",
+      "nameLabel": "Navn",
+      "namePlaceholder": "Stramme reimer",
+      "kindLabel": "Målt i",
+      "kind": {
+        "printtime": "Utskriftstid",
+        "filament": "Filament",
+        "date": "Kalender"
+      },
+      "valueLabel": {
+        "printtime": "Timer",
+        "filament": "Meter",
+        "date": "Dager"
+      },
+      "markPerformed": "Utført",
+      "delete": "Fjern {name}",
+      "needsBaseline": "Trenger ny basislinje",
+      "dueInHours": "om {count}t",
+      "overdueHours": "{count}t over",
+      "dueInFilament": "om {count} m",
+      "overdueFilament": "{count} m over",
+      "dueInDays": "om {count}d",
+      "overdueDays": "{count}d over",
+      "reminderTitle": "Vedlikehold er forfalt",
+      "reminderStartAnyway": "Start likevel",
+      "reminderOpen": "Åpne Vedlikehold",
+      "reminderNotNow": "Ikke nå"
+    },
+    "bedMesh": {
+      "profile": "Aktiv profil",
+      "statusNone": "Ingen kalibreringsdata",
+      "statusUnloaded": "Ingen mesh lastet",
+      "statusLoaded": "Mesh lastet: {name}",
+      "summaryRange": "Spenn: {range}",
+      "summaryUnloaded": "Ikke lastet",
+      "summaryNone": "Ingen data",
+      "loadProfile": "Last en mesh-profil",
+      "clear": "Tøm mesh",
+      "mapLabel": "Bednett {profile} med et samlet spenn på {range} mm",
+      "surfaceLabel": "Høydekart over bednett {profile}, med et samlet spenn på {range} mm",
+      "toggleView": "Bytt mellom flatt kart og høydekart",
+      "view2d": "2D-visning",
+      "view3d": "3D-visning",
+      "lowest": "Lavest",
+      "highest": "Høyest",
+      "range": "Spenn",
+      "outOfTolerance": "Bedet varierer med {range} mm, mer enn de {limit} mm du har satt som akseptabelt.",
+      "scaleToMesh": "Skaler fargene til denne mesh-en",
+      "showProbes": "Vis målepunkter",
+      "layers": "Vis",
+      "layerMesh": "Mesh",
+      "layerProbed": "Målt",
+      "layerFlat": "Plan",
+      "wireframe": "Rutenett",
+      "axisX": "X",
+      "axisY": "Y",
+      "axisZ": "Z",
+      "readout": "X {x} · Y {y} · {z} mm",
+      "resetView": "Tilbakestill vinkel",
+      "lockView": "Lås visningen",
+      "viewTitle": "Høydekart",
+      "zMax": "Høydeakse (± mm)",
+      "zMaxHint": "Den går aldri lavere enn spennet denne mesh-en trenger.",
+      "projection": "Projeksjon",
+      "projectionHint": "Gjelder bare 3D-visningen; det flate kartet er alltid ovenfra.",
+      "projections": {
+        "perspective": "Perspektiv",
+        "orthographic": "Ortografisk",
+        "isometric": "Isometrisk",
+        "dimetric": "Dimetrisk",
+        "trimetric": "Trimetrisk",
+        "cavalier": "Kavaler",
+        "cabinet": "Kabinett",
+        "onePoint": "Ettpunkts",
+        "twoPoint": "Topunkts",
+        "fisheye": "Fisheye"
+      },
+      "projectionFamilies": {
+        "axonometric": "Aksonometrisk",
+        "oblique": "Skjev",
+        "vanishingPoints": "Forsvinningspunkter",
+        "other": "Annet"
+      },
+      "showExtras": "Vis ekstra projeksjoner og tegnemåter",
+      "voyage": "Lett anker! Hold stø kurs og pass på dønningene — ti sekunder på åpent hav, så tilbake til bedet.",
+      "renderStyle": "Tegnemåte",
+      "renderStyleHint": "Kotelinjer og terrassetrinn bruker samme intervall som høydeaksen. Kun 3D-visningen bruker denne; det flate kartet vises alltid som mosaikk.",
+      "renderStyles": {
+        "surface": "Flate",
+        "bars": "Søyler",
+        "contour": "Kotelinjer",
+        "terraced": "Terrasser",
+        "mosaic": "Mosaikk"
+      },
+      "orientation": "Standardvinkel",
+      "orientationIgnored": "Denne projeksjonen låser sin egen synsvinkel, så standardvinkelen og dragning har ingen effekt.",
+      "orientations": {
+        "rightFront": "Høyre foran",
+        "leftFront": "Venstre foran",
+        "front": "Forfra",
+        "top": "Ovenfra"
+      },
+      "resetZMax": "Tilbakestill høydeakse",
+      "resetFixedLimit": "Tilbakestill fast skala",
+      "resetRangeWarning": "Tilbakestill varselgrense",
+      "profilesTitle": "Lagrede profiler",
+      "noProfiles": "Ingen mesh-profiler er lagret på denne skriveren ennå.",
+      "activeProfile": "Lastet",
+      "profileSpread": "Lavest {lowest} mm, høyest {highest} mm",
+      "saveProfile": "Lagre som",
+      "saveProfileTitle": "Lagre denne mesh-en",
+      "saveProfileHint": "En mesh som bare er kalibrert, går tapt ved neste omstart.",
+      "saveProfileFailed": "Mesh-en kunne ikke lagres.",
+      "renameProfile": "Gi {name} nytt navn",
+      "renameProfileTitle": "Gi profilen nytt navn",
+      "rename": "Gi nytt navn",
+      "deleteProfile": "Slett {name}",
+      "deleteProfileTitle": "Slett mesh-profil",
+      "deleteProfileDescription": "Den lagrede mesh-en fjernes fra skriverens konfigurasjon.",
+      "delete": "Slett",
+      "confirmationsTitle": "Bekreftelser",
+      "skipDeleteProfileWarning": "Slett en mesh-profil uten bekreftelse",
+      "name": "Profilnavn",
+      "nameEmpty": "Gi profilen et navn.",
+      "nameAscii": "Bruk bare vanlige bokstaver, tall og tegnsetting.",
+      "nameTaken": "En profil med det navnet finnes allerede.",
+      "scaleTitle": "Fargeskala",
+      "fixedLimit": "Fast skala (± mm)",
+      "fixedLimitHint": "To mesh-er lest mot samme faste skala kan sammenlignes; en som skaleres til seg selv kan ikke det.",
+      "rangeWarning": "Bedets spenn (mm)",
+      "rangeWarningHint": "Kortet varsler når bedets samlede spenn passerer dette; null slår det av.",
+      "temperatureWarning": "Avvik i måletemperatur (°C)",
+      "temperatureWarningHint": "Kortet varsler når den aktive profilen ble målt så langt fra bedets nåværende måltemperatur; null slår det av.",
+      "resetTemperatureWarning": "Nullstill temperaturvarselgrense",
+      "temperatureMismatch": "Denne mesh-en ble målt ved {probed}°C, men bedet er nå satt til {target}°C — kalibrer på nytt før du stoler på den.",
+      "empty": "Ingen mesh er lastet. Kalibrer for å måle bedet.",
+      "calibrate": "Kalibrer mesh",
+      "warningsTitle": "Varsler"
+    },
+    "jobQueue": {
+      "state": {
+        "ready": "Køen er klar",
+        "loading": "Køen laster",
+        "starting": "Køen starter",
+        "paused": "Køen er pauset"
+      },
+      "count": "{count} jobber i kø",
+      "start": "Start køen",
+      "pause": "Pause køen",
+      "clear": "Tøm køen",
+      "remove": "Fjern {filename} fra køen",
+      "empty": "Køen er tom.",
+      "loadFailed": "Jobbkøen kunne ikke lastes.",
+      "dropHint": "Slipp en fil for å laste den opp og legge den i køen",
+      "clearConfirmTitle": "Tømme køen?",
+      "clearConfirm": "Alle jobber i køen fjernes. En jobb som allerede skrives ut påvirkes ikke, og køen kan ikke gjenopprettes."
+    },
+    "surface": {
+      "open": "Alle innstillinger",
+      "title": "Innstillinger for {module}",
+      "close": "Lukk innstillinger",
+      "quickTitle": "Vises på kortet",
+      "quickToggleAdd": "Legg {setting} til hurtiginnstillinger",
+      "quickToggleRemove": "Fjern {setting} fra hurtiginnstillinger",
+      "cardSection": "På kortet",
+      "quickLayerTitle": "Hurtiginnstillinger"
+    }
+  },
+  "excludeObject": {
+    "title": "Ekskluder et objekt",
+    "description": "Klipper slutter å skrive ut det valgte objektet og fortsetter med resten av platen. Dette kan ikke angres for den pågående utskriften.",
+    "close": "Lukk",
+    "empty": "Denne filen definerer ingen objekter som kan ekskluderes.",
+    "printingNow": "Skrives ut nå",
+    "exclude": "Ekskluder",
+    "excluded": "Ekskludert",
+    "confirmTitle": "Ekskludere dette objektet?",
+    "confirmDescription": "Klipper slutter å skrive ut {name} og fortsetter med resten av platen."
+  },
+  "manualProbe": {
+    "open": "Manuell probing",
+    "openTitle": "En manuell probing venter på en høyde",
+    "title": "Manuell probing",
+    "description": "Klipper har stoppet og venter på dysehøyden. Gå nedover til dysen så vidt holder et papirark mot bedet, og godta deretter.",
+    "dismiss": "Lukk",
+    "dismissTitle": "Lukker bare dette vinduet — probingen fortsetter å vente, og toppfeltet henter den tilbake",
+    "height": "Dysehøyde (mm)",
+    "noHeight": "Ikke rapportert ennå",
+    "triedBelow": "Prøvd under",
+    "triedAbove": "Prøvd over",
+    "noBound": "Ingenting ennå",
+    "bisectTitle": "Halver avstanden",
+    "bisectHint": "Hvert trykk halverer det som står igjen til nærmeste høyde som alt er prøvd den veien. Klippers egen grense er 0,2 mm per trykk.",
+    "bracketClosed": "Ingenting igjen å halvere — dette er nærmeste høyde som alt er prøvd.",
+    "stepsTitle": "Flytt",
+    "stepDown": "Flytt {step} mm ned",
+    "stepUp": "Flytt {step} mm opp",
+    "refused": "Klipper avviste probingen: {reason}",
+    "accept": "Godta",
+    "abort": "Avbryt"
+  },
+  "gcodeViewer": {
+    "title": "G-kodeviser",
+    "loadedFile": "Lastet fil",
+    "stageLabel": "Interaktiv visning av G-kodebanen",
+    "help": "Dra med venstre museknapp for å rotere, dra med høyre for å panorere, og bruk musehjulet for å zoome. Bruk piltastene for å panorere, Shift og piltastene for å rotere, og 0 for å tilbakestille med tastaturet.",
+    "files": {
+      "title": "Last inn G-kode",
+      "printerFile": "Skriverfil",
+      "select": "Velg en G-kodefil",
+      "load": "Last inn",
+      "refresh": "Oppdater filer",
+      "loadCurrent": "Last inn aktiv utskrift",
+      "or": "eller",
+      "openLocal": "Åpne lokal fil",
+      "search": "Finn en fil",
+      "searchPlaceholder": "Søk i {count} filer"
+    },
+    "view": {
+      "title": "Visning",
+      "description": "Perspektivisk 3D-visning · venstre knapp roterer · høyre knapp panorerer",
+      "reset": "Tilbakestill",
+      "zoomIn": "Zoom inn",
+      "zoomOut": "Zoom ut",
+      "axisX": "X",
+      "axisY": "Y",
+      "axisZ": "Z",
+      "screenshot": "Lagre et skjermbilde"
+    },
+    "layers": {
+      "title": "Lag og sporing",
+      "layer": "Synlig lag",
+      "value": "{current} av {total} · Z {height} mm",
+      "previous": "Vis tidligere lag",
+      "travels": "Vis forflytninger",
+      "toolhead": "Vis jevn direktebevegelse",
+      "floor": "Laveste synlige lag"
+    },
+    "statistics": {
+      "title": "Filstatistikk",
+      "layers": "Lag",
+      "moves": "Gjengitte bevegelser",
+      "extrusions": "Ekstruderinger",
+      "travels": "Forflytninger",
+      "fileSize": "Filstørrelse"
+    },
+    "simulation": {
+      "title": "Simuleringsmodus",
+      "description": "Forhåndsvis skrivehodets bane jevnt uten å sende kommandoer til skriveren.",
+      "enter": "Start simulering",
+      "exit": "Avslutt simulering",
+      "position": "Posisjon i verktøybanen",
+      "moveValue": "{current} / {total} bevegelser",
+      "play": "Spill av simulering",
+      "pause": "Sett simulering på pause",
+      "restart": "Start simulering på nytt",
+      "finish": "Gå til slutten",
+      "speedLabel": "Simuleringshastighet",
+      "speedValue": "{speed}×"
+    },
+    "size": {
+      "bytes": "{value} B",
+      "kilobytes": "{value} KB",
+      "megabytes": "{value} MB"
+    },
+    "empty": {
+      "title": "Velg en G-kodefil",
+      "description": "Last inn en fil fra Moonraker eller denne enheten for å undersøke lag og verktøybane."
+    },
+    "loading": {
+      "title": "Strømmer og behandler",
+      "cancel": "Avbryt",
+      "followGate": "Direktefølging og simulering låses opp når behandlingen er ferdig."
+    },
+    "errors": {
+      "download": {
+        "title": "G-koden kunne ikke lastes inn",
+        "description": "Kontroller filen og Moonraker-tilkoblingen, og prøv igjen."
+      },
+      "empty": {
+        "title": "Fant ingen verktøybane",
+        "description": "Filen inneholdt ingen støttede G0-, G1-, G2- eller G3-bevegelseskommandoer."
+      },
+      "renderer": {
+        "title": "Maskinvaregjengivelse er utilgjengelig",
+        "description": "Denne viseren krever WebGL 2 slik at store filer ikke blokkerer grensesnittet."
+      },
+      "tooLarge": {
+        "title": "Filen er for stor",
+        "description": "Filer over 4 GB kan ikke kartlegges for avspilling. Del opp modellen i mindre jobber."
+      }
+    },
+    "legend": {
+      "toolpath": "Verktøybane",
+      "printed": "Skrevet ut",
+      "travel": "Forflytning",
+      "toolhead": "Direkte skrivehode",
+      "simulationToolhead": "Simulert skrivehode",
+      "features": {
+        "perimeterOuter": "Ytre kontur",
+        "perimeterInner": "Indre kontur",
+        "infill": "Fyll",
+        "infillSolid": "Massivt fyll",
+        "bridge": "Bro",
+        "support": "Støtte",
+        "skirt": "Skjørt og brem",
+        "other": "Uklassifisert"
+      },
+      "feedSlow": "{value} mm/s",
+      "feedFast": "{value} mm/s"
+    },
+    "settings": {
+      "open": "Innstillinger for visningen",
+      "title": "Innstillinger for visningen",
+      "description": "Innstillingene lagres i denne nettleseren.",
+      "close": "Ferdig",
+      "appearance": "Utseende",
+      "orbitMode": {
+        "label": "Rotasjonspunkt",
+        "center": "Midten av visningen",
+        "centerHint": "Roterer rundt punktet midten av visningen treffer.",
+        "pointer": "Pekerposisjon",
+        "pointerHint": "Roterer rundt punktet under pekeren der draget starter."
+      },
+      "snapToCenter": {
+        "label": "Flytt til midten",
+        "hint": "Glir punktet du klikker på inn til midten av visningen først."
+      },
+      "highlightSeams": {
+        "label": "Marker sømmer",
+        "hint": "Farger den første og siste millimeteren av hver ekstruderingsbane."
+      },
+      "extrusion": "Ekstrudering",
+      "nozzle": {
+        "label": "Dysediameter (mm)",
+        "hint": "Brukes bare for bevegelser som ikke oppgir hvor mye filament de ekstruderer. Tom følger skriveren, som oppgir {value} mm.",
+        "hintUnknown": "Brukes bare for bevegelser som ikke oppgir hvor mye filament de ekstruderer. Skriveren har ikke oppgitt dysediameter, så tom betyr 0,4 mm.",
+        "unknown": "Fra skriveren"
+      }
+    },
+    "confirmLoad": {
+      "title": "Laste inn en veldig stor fil?",
+      "description": "{name} er {size}. Gjengivelsen kan bruke mye minne på denne enheten.",
+      "confirm": "Last inn filen"
+    },
+    "quality": {
+      "title": "Gjengivelseskvalitet",
+      "description": "Auto måler denne enheten og justerer detaljnivået for å holde visningen responsiv.",
+      "modes": {
+        "quality": "Kvalitet",
+        "auto": "Auto",
+        "performance": "Ytelse"
+      },
+      "stateFull": "Full detaljgrad",
+      "stateReduced": "Detaljnivå redusert for å holde følge ({step} av {total})",
+      "stateSquareBeads": "Ekstruderingene tegnes firkantet i stedet for avrundet, som er raskere og roligere på store filer."
+    },
+    "color": {
+      "title": "Farge",
+      "modes": {
+        "single": "Enkel",
+        "feature": "Funksjon",
+        "feedrate": "Matehastighet"
+      },
+      "feedRange": "Skalaen dekker {slow}–{fast} mm/s, hastighetene denne filen bruker.",
+      "seams": "Marker skjøter"
+    }
+  },
+  "console": {
+    "title": "Konsoll",
+    "transcriptLabel": "Konsollutdata",
+    "empty": "Ingenting fra skriveren ennå.",
+    "commandLabel": "G-kodekommando",
+    "placeholder": "Send G-kode",
+    "send": "Send kommando",
+    "reuseCommand": "Legg kommandoen tilbake i feltet",
+    "clear": "Tøm",
+    "clearTitle": "Tøm konsollet?",
+    "clearConfirm": "Transkriptet tømmes på denne enheten, og det skriveren tok vare på fra før nå blir liggende skjult — tømmingen huskes over omlastinger. Ingenting som allerede er sendt til skriveren angres.",
+    "clearHistory": "Tøm kommandohistorikk",
+    "clearHistoryTitle": "Tøm kommandohistorikken?",
+    "clearHistoryAction": "Tøm historikk",
+    "clearHistoryConfirm": "Kommandoene du har skrevet på denne skriveren glemmes, så piltastene begynner forfra. Transkriptet står som det er.",
+    "history": "Kommandohistorikk",
+    "historyHint": "Lagret i denne nettleseren for denne skriveren, nyeste først, og sendes ingen steder.",
+    "historyCount": "{count} husket",
+    "historyEmpty": "Ingenting skrevet på denne skriveren ennå.",
+    "closePanel": "Lukk panel",
+    "kind": {
+      "command": "Sendt",
+      "error": "Feil"
+    },
+    "hiddenCount": "{count} skjult av filtre",
+    "settings": {
+      "title": "Konsoll",
+      "open": "Konsollinnstillinger",
+      "filters": "Filtre",
+      "filtersHint": "Skjulte linjer sendes fortsatt av skriveren; det er bare denne visningen som utelater dem.",
+      "hideTemperatureReports": "Skjul temperaturmeldinger",
+      "hideTimelapseCommands": "Skjul timelapse-kommandoer",
+      "display": "Visning",
+      "inputPosition": "Kommandofelt",
+      "inputBottom": "Nederst",
+      "inputTop": "Øverst",
+      "showTimestamps": "Vis klokkeslett",
+      "compact": "Kompakte rader",
+      "rawOutput": "Vis Klippers egne prefikser",
+      "followNewest": "Automatisk scroll",
+      "visibleLines": "Synlige linjer"
+    },
+    "help": {
+      "title": "Kommandoer",
+      "open": "Utforsk kommandoer",
+      "search": "Søk i kommandoer",
+      "searchLabel": "Søk i tilgjengelige kommandoer",
+      "empty": "Ingen kommando passer med det.",
+      "unavailable": "Skriveren har ikke rapportert kommandoene sine ennå.",
+      "count": "{count} kommandoer",
+      "insert": "Legg {command} i feltet",
+      "noHelp": "Ingen beskrivelse rapportert."
+    }
+  },
+  "configuration": {
+    "actions": {
+      "refresh": "Oppdater mappe",
+      "newFile": "Ny fil",
+      "newFolder": "Ny mappe",
+      "upload": "Last opp",
+      "saveAll": "Lagre alle filer",
+      "discardAll": "Forkast alle endringer",
+      "newFilePrompt": "Gi den nye konfigurasjonsfilen et navn",
+      "newFileDefault": "ny-konfigurasjon.cfg",
+      "newFolderPrompt": "Gi den nye mappen et navn"
+    },
+    "contextMenu": {
+      "label": "Handlinger for {name}",
+      "rename": "Gi nytt navn",
+      "download": "Last ned",
+      "addToPrinterConfig": "Legg til i printer.cfg",
+      "removeFromPrinterConfig": "Fjern fra printer.cfg",
+      "delete": "Slett"
+    },
+    "deleteEntry": {
+      "file": "Slette {name}? Dette kan ikke angres.",
+      "folder": "Slette mappen {name} og alt innholdet? Dette kan ikke angres.",
+      "title": "Slett {name}",
+      "confirm": "Slett"
+    },
+    "roots": {
+      "label": "Hvilke filer",
+      "config": "Konfig",
+      "logs": "Logger"
+    },
+    "discardAll": {
+      "title": "Forkaste alle endringer?",
+      "description": "Ulagrede endringer i disse filene vil gå tapt:",
+      "confirm": "Forkast alle"
+    },
+    "editor": {
+      "title": "Konfigurasjonsredigering",
+      "back": "Tilbake til konfigurasjonsfilene",
+      "close": "Lukk redigering",
+      "displayMode": "Visningsmodus for redigering",
+      "maximized": "Maksimert",
+      "fullscreen": "Fullskjerm",
+      "save": "Lagre",
+      "saveRestart": "Lagre og start på nytt",
+      "discard": "Forkast endringer",
+      "discardConfirm": "Forkast",
+      "discardTitle": "Forkaste endringer?",
+      "discardDescription": "Endringer som ikke er lagret i {name} vil gå tapt.",
+      "saveRestartConfirm": "Lagre og start",
+      "saveAllRestartTitle": "Lagre alt og start på nytt?",
+      "saveAllRestartDescription": "Andre filer har også ulagrede endringer. Disse lagres før fastvaren starter på nytt:",
+      "unsaved": "Ikke lagret",
+      "readOnly": "Skrivebeskyttet",
+      "history": "Filhistorikk",
+      "historyBack": "Forrige fil",
+      "historyForward": "Neste fil",
+      "contentLabel": "Innholdet i {name}",
+      "opening": "Åpner {name} …",
+      "openInclude": "Ctrl-klikk for å åpne {path}",
+      "deadIncludeTooltip": "{path} finnes ikke. Ctrl-klikk for å opprette den.",
+      "createIncludeTitle": "Opprett den manglende filen?",
+      "createIncludeDescription": "{path} finnes ikke ennå. Opprett den som en tom fil, slik at den kan redigeres?",
+      "createIncludeWithFolderDescription": "Verken mappen {directory} eller {path} finnes ennå. Opprett mappen og filen?",
+      "createIncludeConfirm": "Opprett fil",
+      "createIncludeWithFolderConfirm": "Opprett mappe og fil",
+      "emptyTitle": "Velg en konfigurasjonsfil",
+      "emptyDescription": "Velg en tekstfil fra utforskeren for å undersøke eller redigere den. Velg standard visning under.",
+      "openAnyway": "Åpne likevel",
+      "unsupportedTitle": "Ukjent filtype",
+      "unsupportedDescription": "{name} er ikke en konfigurasjonsfil eller et støttet bilde eller nettside, og vises kanskje ikke riktig. Åpne den likevel?",
+      "largeFileTitle": "Stor fil",
+      "largeFileDescription": "{name} er {size}. Åpning kan gå tregt. Åpne den likevel?",
+      "imageAlt": "Forhåndsvisning av {name}",
+      "htmlTitle": "Forhåndsvisning av {name}"
+    },
+    "errors": {
+      "directory": "Mappen kunne ikke oppdateres. Eksisterende filer forblir synlige.",
+      "file": "Filen kunne ikke åpnes.",
+      "save": "Filen kunne ikke lagres. Endringene forblir i redigeringen.",
+      "saveAll": "Enkelte filer kunne ikke lagres. De forblir ulagret i redigeringen.",
+      "mutation": "Filoperasjonen kunne ikke fullføres.",
+      "restart": "Filen ble lagret, men fastvaren kunne ikke startes på nytt."
+    },
+    "files": {
+      "title": "Konfigurasjonsutforsker",
+      "path": "Gjeldende konfigurasjonssti",
+      "pathLabel": "Sti:",
+      "recentFiles": "Sist redigerte filer",
+      "recentFileLabel": "Sist redigert:",
+      "recentFileNone": "Ingenting åpnet ennå",
+      "search": "Søk i alle filer",
+      "contents": "Mappeinnhold",
+      "name": "Navn",
+      "size": "Størrelse",
+      "modified": "Endret",
+      "folder": "-",
+      "parent": "Overordnet mappe",
+      "readOnlyShort": "Skrivebeskyttet",
+      "includedInPrimaryConfig": "Inkludert i printer.cfg",
+      "empty": "Denne mappen er tom",
+      "noResults": "Ingen filer samsvarer med filteret",
+      "searchingContents": "Søker i filinnhold…"
+    },
+    "move": {
+      "dropHint": "Flytt til {name}",
+      "includeTitle": "Denne filen er inkludert i printer.cfg",
+      "includeQuestion": "Vil du endre",
+      "includeChange": "{from} til {to}",
+      "includeSave": "og lagre printer.cfg?",
+      "includeConfirm": "Flytt og oppdater",
+      "includeSkip": "Bare flytt",
+      "includeCancel": "Ikke flytt"
+    },
+    "notices": {
+      "saved": "Filen er lagret.",
+      "savedRestarting": "Filen er lagret. Fastvaren starter på nytt.",
+      "savedAll": "Alle filer er lagret.",
+      "savedAllRestarting": "Alle filer er lagret. Fastvaren starter på nytt.",
+      "created": "Elementet er opprettet.",
+      "uploaded": "Opplastingen er fullført.",
+      "renamed": "Filen har fått nytt navn.",
+      "deleted": "Filen er slettet.",
+      "moved": "Filen er flyttet.",
+      "includeUpdated": "include i printer.cfg er oppdatert.",
+      "includeAdded": "Lagt til i printer.cfg.",
+      "includeAlreadyAdded": "printer.cfg inkluderer allerede denne filen.",
+      "includeRemoved": "Fjernet fra printer.cfg.",
+      "includeNotFound": "printer.cfg inkluderte ikke denne filen."
+    },
+    "prompts": {
+      "nameLabel": "Navn",
+      "nameRequired": "Angi et navn",
+      "create": "Opprett"
+    },
+    "rename": {
+      "promptFile": "Velg et nytt filnavn",
+      "promptFolder": "Velg et nytt mappenavn",
+      "confirm": "Gi nytt navn",
+      "unchanged": "Navnet er uendret"
+    },
+    "saveAll": {
+      "title": "Lagre alle filer?",
+      "description": "Disse filene skrives til skriveren:",
+      "confirm": "Lagre alle"
+    },
+    "settings": {
+      "open": "Innstillinger for utforskeren",
+      "visibility": "Filsynlighet",
+      "showHiddenFiles": {
+        "label": "Vis skjulte filer",
+        "hint": "Viser filer og mapper hvis navn starter med et punktum."
+      },
+      "showBackupFiles": {
+        "label": "Vis sikkerhetskopier",
+        "hint": "Viser sikkerhetskopifiler og -mapper, som Klippers SAVE_CONFIG-kopier."
+      },
+      "showReadOnlyFiles": {
+        "label": "Vis skrivebeskyttede filer",
+        "hint": "Viser filer og mapper du ikke har rettigheter til å redigere."
+      },
+      "search": "Søk",
+      "searchInFileContents": {
+        "label": "Søk i filer",
+        "hint": "Treffer også filer der innholdet inneholder søketeksten, ikke bare navnet."
+      }
+    },
+    "shortcuts": {
+      "title": "Tastatursnarveier",
+      "open": "Tastatursnarveier",
+      "close": "Lukk",
+      "groups": {
+        "editing": "Redigering",
+        "navigation": "Navigering",
+        "file": "Denne filen"
+      },
+      "items": {
+        "comment": {
+          "keys": "Ctrl + /",
+          "label": "Kommenter eller opphev kommentar på de valgte linjene"
+        },
+        "move": {
+          "keys": "Alt + ↑ / ↓",
+          "label": "Flytt de valgte linjene opp eller ned"
+        },
+        "duplicate": {
+          "keys": "Shift + Alt + ↑ / ↓",
+          "label": "Dupliser de valgte linjene"
+        },
+        "indent": {
+          "keys": "Tab",
+          "label": "Øk innrykket på de valgte linjene"
+        },
+        "outdent": {
+          "keys": "Shift + Tab",
+          "label": "Reduser innrykket på de valgte linjene"
+        },
+        "format": {
+          "keys": "Shift + Alt + F",
+          "label": "Rett opp innrykket i hele filen"
+        },
+        "continue": {
+          "keys": "Enter",
+          "label": "Start neste linje med samme innrykk som denne"
+        },
+        "historyBack": {
+          "keys": "Alt + ←  /  Mus tilbake",
+          "label": "Tilbake til filen du kom fra"
+        },
+        "historyForward": {
+          "keys": "Alt + →  /  Mus fram",
+          "label": "Framover igjen gjennom filene du har åpnet"
+        },
+        "openInclude": {
+          "keys": "Ctrl + klikk",
+          "label": "Åpne filen en [include]-linje peker til"
+        },
+        "exitFullscreen": {
+          "keys": "Esc",
+          "label": "Gå ut av fullskjerm"
+        },
+        "save": {
+          "keys": "Ctrl + S",
+          "label": "Lagre denne filen"
+        },
+        "saveRestart": {
+          "keys": "Ctrl + Alt + S",
+          "label": "Lagre denne filen og start fastvaren på nytt"
+        }
+      }
+    },
+    "storage": {
+      "label": "Konfigurasjonslagring",
+      "config": "Konfigurasjonslagring"
+    },
+    "structure": {
+      "title": "Filstruktur",
+      "expand": "Utvid filstruktur",
+      "collapse": "Skjul filstruktur"
+    }
+  },
+  "imageViewer": {
+    "zoomGroupLabel": "Bildezoom",
+    "zoomIn": "Zoom inn",
+    "zoomOut": "Zoom ut",
+    "reset": "Tilbakestill visning",
+    "loadError": "Bildet kunne ikke lastes.",
+    "close": "Lukk"
+  },
+  "filamentCatalogue": {
+    "title": "Legg til et filament fra katalogen",
+    "searchLabel": "Søk på produsent, navn eller materiale",
+    "noQuery": "Begynn å skrive en produsent, et navn eller et materiale.",
+    "loading": "Søker …",
+    "noResults": "Ingen filamenter samsvarte med søket.",
+    "failed": "Fikk ikke kontakt med katalogen.",
+    "selectAria": "Legg til {filament} som forvalg",
+    "celsius": "{value}°C",
+    "close": "Lukk"
+  },
+  "iconPicker": {
+    "close": "Lukk",
+    "none": "Ingen"
+  },
+  "field": {
+    "increase": "Øk {field}",
+    "decrease": "Reduser {field}",
+    "reset": "Tilbakestill {field} til konfigurert verdi"
+  },
+  "units": {
+    "size": {
+      "bytes": "{value} B",
+      "kilobytes": "{value} KB",
+      "megabytes": "{value} MB",
+      "gigabytes": "{value} GB"
+    },
+    "storageFree": "{value} ledig",
+    "emptySize": "—"
+  },
+  "machine": {
+    "title": "Maskin",
+    "host": "Vert",
+    "error": "Vertsstatusen kunne ikke leses. Tidligere innlastede data forblir synlige.",
+    "system": {
+      "title": "Systeminfo",
+      "temperature": "Temperatur: {value}°C",
+      "bandwidth": "Båndbredde: {value}/s",
+      "cpu": "CPU",
+      "memory": "RAM",
+      "uptime": "Oppetid: {value} t",
+      "freeMemory": "Ledig minne: {value}"
+    },
+    "services": {
+      "title": "Tjenester",
+      "open": "Åpne {name} i en ny fane",
+      "status": {
+        "active": "Kjører",
+        "failed": "Feilet",
+        "inactive": "Stoppet"
+      }
+    },
+    "modules": {
+      "version": "Versjon: {version}",
+      "load": "Last: {value}",
+      "frequencyKHz": "Frekv.: {value} kHz",
+      "frequencyMHz": "Frekv.: {value} MHz",
+      "frequencyGHz": "Frekv.: {value} GHz",
+      "unknown": "Ukjent",
+      "disconnected": "Frakoblet"
+    },
+    "peripherals": {
+      "title": "Tilkoblet maskinvare",
+      "refresh": "Oppdater",
+      "serialTitle": "Serielle enheter",
+      "usbTitle": "USB-enheter",
+      "serialType": {
+        "hardware_uart": "Innebygd UART",
+        "usb": "USB",
+        "unknown": "Ukjent"
+      }
+    },
+    "updates": {
+      "title": "Oppdateringer",
+      "packages": "{count} pakkeoppdateringer",
+      "dirty": "Lokale endringer oppdaget",
+      "empty": "Moonraker rapporterte ingen oppdateringskilder.",
+      "check": "Se etter oppdateringer",
+      "checkOne": "Se etter oppdateringer for {name}",
+      "checking": "Sjekker",
+      "checkFailed": "Oppdateringssjekken kunne ikke fullføres. Sist kjente lagerstatus forblir synlig.",
+      "updateAll": "Oppdater alle",
+      "updateNow": "Oppdater nå",
+      "investigate": "Undersøk",
+      "investigateOne": "Undersøk {name}",
+      "updateAllConfirmTitle": "Oppdatere all programvare?",
+      "updateAllConfirmDescription": "Disse kildene oppdateres: {names}. Klipper og Moonraker starter på nytt når sin egen oppdatering er ferdig, så skriveren må ikke skrive ut.",
+      "updateOne": "Oppdater {name}",
+      "updateOneConfirmTitle": "Oppdatere {name}?",
+      "updateOneConfirmDescription": "Moonraker installerer tilgjengelig versjon og starter den berørte tjenesten på nytt. Skriveren må ikke skrive ut.",
+      "changelogCommits": "{count} commits vil bli lagt til:",
+      "changelogPackages": "Disse pakkene vil bli oppgradert:",
+      "updateConfirm": "Start oppdatering",
+      "updating": "Oppdaterer",
+      "updateFailed": "Oppdateringen kunne ikke startes. Utdataene nedenfor viser hva Moonraker rapporterte.",
+      "updateInterrupted": "Moonraker koblet fra under oppdateringen. Den starter på nytt som del av sin egen oppdatering, så arbeidet kan være fullført på verten — se etter oppdateringer igjen for å bekrefte.",
+      "status": {
+        "current": "Oppdatert",
+        "available": "Oppdatering tilgjengelig",
+        "attention": "Krever oppmerksomhet"
+      }
+    },
+    "recovery": {
+      "title": "Undersøk {name}",
+      "description": "Moonraker oppdaterer ikke dette lageret før den lokale tilstanden er ryddet opp.",
+      "reasonCorrupt": "Lageret er ødelagt.",
+      "reasonInvalid": "Moonraker merket lageret som ugyldig, noe som deaktiverer oppdateringer.",
+      "reasonDirty": "Lageret har lokale endringer.",
+      "reasonDetached": "Lageret står på en frakoblet HEAD i stedet for en gren.",
+      "unknownBranch": "ukjent gren",
+      "viewDifferences": "Vis forskjeller",
+      "back": "Tilbake",
+      "branchSummary": "Lokal {local} er {count} commits bak {remote}. Moonraker rapporterer commitene fra oppstrøms og git-utdataene nedenfor; det finnes ingen fil-diff i API-et.",
+      "reportedTitle": "Rapportert av Moonraker",
+      "noDetail": "Moonraker rapporterte ingen commits fra oppstrøms og ingen ytterligere detaljer for dette lageret.",
+      "resetBranch": "Tvangsnullstill grenen",
+      "reclone": "Klon lageret på nytt"
+    },
+    "output": {
+      "title": "Oppdateringskonsoll",
+      "openConsole": "Vis konsoll",
+      "close": "Lukk oppdateringskonsollen",
+      "consoleLabel": "Oppdateringsutdata fra Moonraker",
+      "empty": "Utdata vises her mens en oppdatering kjører.",
+      "running": "Kjører",
+      "finished": "Ferdig",
+      "clear": "Tøm utdata"
+    }
+  },
+  "settings": {
+    "title": "Innstillinger",
+    "categoriesLabel": "Innstillingskategorier",
+    "categories": {
+      "all": "Vis alle innstillinger"
+    }
+  },
+  "connection": {
+    "eyebrow": "Skrivertjeneste",
+    "title": "Moonraker-tilkobling",
+    "description": "Alabaster kobler til igjen i bakgrunnen og beholder gjeldende skjermbilde mens Moonraker eller Klipper starter på nytt.",
+    "endpointLabel": "Moonraker-adresse",
+    "endpointHint": "Skriv inn et vertsnavn, en HTTP-adresse eller en fullstendig WebSocket-adresse. Alabaster legger til /websocket når det trengs.",
+    "endpointPlaceholder": "skriver.local:7125",
+    "saveAndConnect": "Lagre og koble til",
+    "disconnect": "Koble fra",
+    "status": {
+      "disconnected": "Frakoblet",
+      "connecting": "Kobler til",
+      "identifying": "Starter økt",
+      "connected": "Tilkoblet",
+      "reconnecting": "Kobler til igjen"
+    },
+    "errors": {
+      "invalidEndpoint": "Skriv inn en gyldig Moonraker-adresse.",
+      "unauthorized": "Denne skriveren krever at du logger inn. Logg inn fra Kontoer-kategorien nedenfor.",
+      "connectionFailed": "Kunne ikke nå Moonraker. Alabaster fortsetter å prøve i bakgrunnen.",
+      "originRefused": "Noe svarte på den adressen, men avviste tilkoblingen. Hvis det er Moonraker, legg til denne nettleserens adresse i autorisasjonsinnstillingene.",
+      "requestFailed": "Moonraker ga et uventet svar. Alabaster fortsetter å prøve."
+    }
+  },
+  "language": {
+    "eyebrow": "Språk",
+    "title": "Språk og format",
+    "description": "Språk er også tilgjengelig fra toppfeltet, uansett hvor du er i Alabaster. Tid- og datoformat gjelder overalt Alabaster viser et av dem — tidsstempler, fildatoer, historikk og konsollen.",
+    "selectLabel": "Grensesnittspråk"
+  },
+  "theme": {
+    "eyebrow": "Utseende",
+    "title": "Temapakke",
+    "description": "Velg den semantiske fargefordelingen som brukes i hele Alabaster. Lys og mørk modus er tilgjengelig for alle pakker.",
+    "modeLabel": "Modus",
+    "mode": {
+      "light": "Lys",
+      "dark": "Mørk",
+      "system": "System"
+    },
+    "packLabel": "Aktiv temapakke",
+    "packHint": "Installerte temapakker vises her automatisk når de er registrert.",
+    "packs": {
+      "alabaster": "Alabaster"
+    },
+    "fontLabel": "Skrifttype",
+    "fontHint": "Gjelder overalt der Alabaster viser tekst.",
+    "fonts": {
+      "sourceCodePro": "Source Code Pro",
+      "robotoMono": "Roboto Mono",
+      "overpassMono": "Overpass Mono",
+      "publicSans": "Public Sans",
+      "openDyslexic": "OpenDyslexic (dysleksivennlig)"
+    },
+    "textWeightLabel": "Teksttykkelse",
+    "textWeight": {
+      "light": "Lett",
+      "regular": "Normal",
+      "medium": "Middels",
+      "semibold": "Halvfet",
+      "bold": "Fet"
+    },
+    "consoleFontLabel": "Skrifttype for konsoll",
+    "consoleFontHint": "Gjelder konsollens logg, kommandofeltet og kommandohistorikken — på dashbordkortet og på Konsoll-siden.",
+    "consoleFontMatch": "Følg grensesnittets skrifttype",
+    "consoleWeightLabel": "Tykkelse for konsoll",
+    "consoleWeight": {
+      "regular": "Normal",
+      "bold": "Fet"
+    }
+  },
+  "display": {
+    "eyebrow": "Skjerm",
+    "title": "Hold skjermen våken",
+    "description": "Nyttig på en skjerm i verkstedet eller et nettbrett som følger med på en utskrift. Dette gjelder bare mens fanen er åpen og aktiv — å bytte bort eller la skjermen låse seg opphever det til du kommer tilbake.",
+    "toggle": "Hold skjermen våken mens denne fanen er åpen",
+    "unsupportedBrowser": "Nettleseren din støtter ikke å holde skjermen våken.",
+    "requiresSecureContext": "Ikke tilgjengelig over en usikker adresse som en lokal IP eller et vertsnavn. Dette fungerer når Alabaster åpnes på localhost, eller leveres over HTTPS.",
+    "active": "Holder for øyeblikket skjermen våken.",
+    "inactiveWhileHidden": "Fortsetter når denne fanen er aktiv igjen."
+  },
+  "editor": {
+    "eyebrow": "Redigering",
+    "title": "Innrykk",
+    "description": "Hvordan konfigurasjonsredigeringen rykker inn når du trykker Tab, og når en ny linje viderefører en egenskap som G-koden i en makro. Den setter inn mellomrom, slik at en fil du redigerer her leses med samme bredde overalt den åpnes.",
+    "indentLabel": "Bredde på innrykk",
+    "indentOption": "{count} mellomrom",
+    "indentHint": "Dette gjelder det du skriver. Innrykk som allerede finnes i en fil beholdes nøyaktig som det er, også tabulatorer — som vises med denne bredden."
+  },
+  "formats": {
+    "timeLabel": "Klokkeslett",
+    "time": {
+      "auto": "Følg språket",
+      "h23": "24-timers",
+      "h12": "12-timers"
+    },
+    "dateLabel": "Dato",
+    "optionExample": "{label} ({example})",
+    "date": {
+      "auto": "Følg språket",
+      "browser": "Nettleser",
+      "iso": "ISO",
+      "mm-dd-yyyy": "MM-DD-ÅÅÅÅ",
+      "mm-dd-yy": "MM-DD-ÅÅ",
+      "m-d-yyyy": "M-D-ÅÅÅÅ",
+      "m-d-yy": "M-D-ÅÅ",
+      "dd-mm-yyyy": "DD-MM-ÅÅÅÅ",
+      "dd-mm-yy": "DD-MM-ÅÅ",
+      "dd-mm-yyyy-dot": "DD.MM.ÅÅÅÅ",
+      "dd-mm-yy-dot": "DD.MM.ÅÅ",
+      "d-m-yyyy-dot": "D.M.ÅÅÅÅ",
+      "d-m-yy-dot": "D.M.ÅÅ",
+      "yyyy-mm-dd-dot": "ÅÅÅÅ.MM.DD",
+      "yy-mm-dd-dot": "ÅÅ.MM.DD",
+      "custom": "Egendefinert…",
+      "customInputLabel": "Ditt mønster",
+      "customPreview": "Vises som: {example}",
+      "customLegendTitle": "Symboler (store/små bokstaver spiller ingen rolle)",
+      "customLegend": {
+        "yyyy": "4-sifret år",
+        "yy": "2-sifret år",
+        "mm": "2-sifret måned",
+        "m": "Måned, uten ledende null",
+        "mmm": "Forkortet månedsnavn",
+        "mmmm": "Fullt månedsnavn",
+        "dd": "2-sifret dag",
+        "d": "Dag, uten ledende null",
+        "ddd": "Forkortet ukedagsnavn",
+        "dddd": "Fullt ukedagsnavn"
+      }
+    }
+  },
+  "printers": {
+    "eyebrow": "Skrivere",
+    "title": "Lagrede skrivere",
+    "description": "Hvilken skriver som er tilkoblet, og alle du har lagret. Bytt herfra eller fra toppfeltet.",
+    "empty": "Ingen skrivere lagret enda. Koble til en ovenfor, eller legg til adressen nedenfor.",
+    "active": "Aktiv",
+    "switch": "Bytt",
+    "rename": "Endre navn på {name}",
+    "remove": "Fjern {name}",
+    "renameTitle": "Endre skrivernavn",
+    "renameLabel": "Navn",
+    "renameHint": "La stå tomt for å vise adressen, {host}, i stedet.",
+    "renameConfirm": "Endre navn",
+    "removeTitle": "Fjern {name}",
+    "removeDescription": "Fjerne {name}? Kontrollpanelet og andre innstillinger blir lagret, og dukker opp igjen hvis du legger den til på nytt.",
+    "removeConfirm": "Fjern",
+    "addTitle": "Legg til en skriver",
+    "addEndpointLabel": "Adresse",
+    "addEndpointPlaceholder": "printer.local:7125",
+    "addNameLabel": "Navn",
+    "addNamePlaceholder": "Valgfritt",
+    "addSubmit": "Legg til skriver",
+    "copyTitle": "Kontrollpanel",
+    "copyBlank": "Start med et tomt kontrollpanel",
+    "copyFrom": "Kopier kontrollpanelet fra"
+  },
+  "users": {
+    "eyebrow": "Kontoer",
+    "title": "Brukere",
+    "description": "Denne skriverens egen Moonraker-innlogging og brukerkontoer. Vises bare når dens Moonraker har autorisasjon konfigurert — de fleste skrivere har aldri det.",
+    "session": {
+      "loggedInAs": "Logget inn som {name}",
+      "trusted": "Tilkoblet som en tiltrodd klient — ingen innlogging kreves",
+      "notLoggedIn": "Ikke logget inn",
+      "logout": "Logg ut"
+    },
+    "login": {
+      "title": "Logg inn",
+      "description": "Logg inn som deg selv eller en annen konto på denne skriveren. Alabaster husker økten på denne enheten, så dette trengs vanligvis bare én gang — eller igjen etter å ha opprettet en bruker, som logger denne enheten inn som kontoen den nettopp opprettet.",
+      "usernameLabel": "Brukernavn",
+      "passwordLabel": "Passord",
+      "sourceLabel": "Autentiseringskilde",
+      "submit": "Logg inn",
+      "failed": "Innlogging mislyktes. Kontroller brukernavn og passord."
+    },
+    "changePassword": {
+      "title": "Endre passordet ditt",
+      "currentLabel": "Nåværende passord",
+      "newLabel": "Nytt passord",
+      "submit": "Endre passord",
+      "failed": "Kunne ikke endre passordet. Kontroller det nåværende passordet."
+    },
+    "list": {
+      "title": "Andre brukere",
+      "empty": "Ingen andre brukere på denne skriveren.",
+      "remove": "Fjern {name}",
+      "removeTitle": "Fjern {name}",
+      "removeDescription": "Fjerne {name}? De trenger en ny konto for å logge inn igjen.",
+      "removeConfirm": "Fjern"
+    },
+    "add": {
+      "title": "Legg til en bruker",
+      "description": "Å opprette en bruker logger denne enheten inn som dem med det samme — på samme måte som å registrere seg andre steder. Logg inn som deg selv igjen etterpå hvis du skulle fortsette å administrere denne skriveren.",
+      "usernameLabel": "Brukernavn",
+      "passwordLabel": "Passord",
+      "submit": "Legg til bruker",
+      "failed": "Kunne ikke opprette brukeren. Navnet kan allerede være i bruk."
+    },
+    "apiKey": {
+      "title": "API-nøkkel",
+      "description": "Brukes av andre Moonraker-klienter — mobilapper, skript — som ikke kan logge inn interaktivt.",
+      "loading": "Laster …",
+      "regenerate": "Generer på nytt",
+      "regenerateTitle": "Generer API-nøkkelen på nytt",
+      "regenerateDescription": "Alle klienter som bruker den nåværende nøkkelen trenger den nye. Dette påvirker ikke en allerede åpen, allerede innlogget Alabaster-økt.",
+      "regenerateConfirm": "Generer på nytt"
+    }
+  },
+  "confirmations": {
+    "eyebrow": "Sikkerhet",
+    "title": "Bekreftelser",
+    "description": "Alle bekreftelsesdialoger i Alabaster, på ett sted. Å hake av en boks hopper over den ene dialogen fra nå av, på samme måte på hver skriver — denne innstillingen er ikke knyttet til en bestemt skriver.",
+    "skipAll": "Hopp over alle bekreftelsesdialoger",
+    "globalOverride": "Overstyrt av global innstilling",
+    "groups": {
+      "power": "Strøm",
+      "printInterrupting": "Avbryter en aktiv utskrift",
+      "bedMesh": "Bednett",
+      "console": "Konsoll",
+      "configuration": "Konfigurasjon",
+      "history": "Historikk",
+      "machine": "Maskin",
+      "printers": "Skrivere",
+      "accounts": "Kontoer",
+      "gcodeViewer": "G-kode-viser",
+      "timelapse": "Tidsforløp",
+      "maintenance": "Vedlikehold",
+      "backup": "Sikkerhetskopi og synkronisering"
+    },
+    "items": {
+      "emergencyStop": "Nødstopp",
+      "rebootHost": "Omstart av vert",
+      "shutdownHost": "Slå av vert",
+      "restartKlipper": "Start Klipper på nytt mens en jobb er lastet",
+      "firmwareRestart": "Start fastvaren på nytt mens en jobb er lastet",
+      "clearJobQueue": "Tøm jobbkøen",
+      "excludeObject": "Utelat et objekt fra utskriften som pågår",
+      "deleteUser": "Slett en Moonraker-bruker",
+      "regenerateApiKey": "Generer API-nøkkelen på nytt",
+      "openLargeGcodeFile": "Åpne en stor fil i G-kode-viseren",
+      "deleteMeshProfile": "Slett en bednettprofil, fra Kalibrering-siden",
+      "clearConsole": "Tøm konsolltranskriptet",
+      "clearCommandHistory": "Tøm historikken over skrevne kommandoer",
+      "discardFileChanges": "Forkast ulagrede endringer i en fil",
+      "saveAllFiles": "Lagre alle filer",
+      "discardAllFiles": "Forkast alle ulagrede endringer",
+      "saveAllAndRestart": "Lagre alt og start på nytt",
+      "deleteFileEntry": "Slett en fil eller mappe",
+      "openUnsupportedFile": "Åpne en ustøttet eller stor fil",
+      "createIncludeTarget": "Opprett en manglende include-fil",
+      "deleteHistoryJob": "Slett en jobb fra historikken",
+      "reprintJob": "Skriv ut en jobb fra historikken på nytt",
+      "installUpdate": "Installer en oppdatering",
+      "removePrinter": "Fjern en lagret skriver",
+      "deleteTimelapseVideo": "Slett en tidsforløpsvideo",
+      "maintenanceReminder": "Spør før en utskrift startes mens et vedlikeholdsintervall er forfalt",
+      "importSettings": "Importer en sikkerhetskopi av innstillinger",
+      "resetSettings": "Tilbakestill innstillinger til standard",
+      "forgetSyncedData": "Glem innstillinger synkronisert til en skriver"
+    },
+    "groupOverride": "Gruppeinnstilling overstyrer",
+    "printInterruptingSkipAll": "Hopp over alle bekreftelser som avbryter en aktiv utskrift",
+    "printInterruptingDescription": "Disse spør bare mens en jobb er lastet. Uten en utskrift i gang er hver av dem en helt vanlig handling og utføres uten spørsmål."
+  },
+  "backup": {
+    "eyebrow": "Sikkerhetskopi",
+    "title": "Sikkerhetskopi og synkronisering",
+    "description": "Lagre alle innstillinger og denne skriverens dashbordoppsett til en fil, gjenopprett fra en, eller tilbakestill alt til standard.",
+    "export": "Eksporter",
+    "import": "Importer",
+    "importError": "Denne filen kunne ikke leses som en sikkerhetskopi av Alabaster-innstillinger.",
+    "importConfirmTitle": "Importere innstillinger?",
+    "importConfirmDescription": "Dette erstatter dine nåværende innstillinger for tema, språk, format, bekreftelser og dashbordoppsett med det filen inneholder.",
+    "reset": "Tilbakestill til standard",
+    "resetConfirmTitle": "Tilbakestille innstillinger til standard?",
+    "resetConfirmDescription": "Innstillinger for tema, språk, format, bekreftelser og dashbordoppsett går alle tilbake til hvordan Alabaster starter. Skriverne du har lagt til, og eventuelle innlogginger, påvirkes ikke.",
+    "sync": {
+      "title": "Synkroniser til denne skriveren",
+      "description": "Holder innstillingene over, og denne skriverens dashbordoppsett, i skriverens egen Moonraker-database — slik at de følger deg tilbake hit fra en annen nettleser eller enhet. Av som standard.",
+      "toggle": "Synkroniser innstillinger og oppsett til denne skriveren",
+      "lastSynced": "Sist synkronisert {value}",
+      "neverSynced": "Ikke synkronisert enda",
+      "now": "Synkroniser nå",
+      "forget": "Glem synkroniserte data",
+      "forgetConfirmTitle": "Glemme synkroniserte data på denne skriveren?",
+      "forgetConfirmDescription": "Fjerner innstillingene og oppsettet lagret i denne skriverens Moonraker-database. Ingenting endres her i nettleseren.",
+      "restoredToast": "Innstillinger gjenopprettet fra denne skriveren."
+    }
+  },
+  "bedScrews": {
+    "open": "Bedskruer",
+    "openTitle": "En bedskrue venter på justering",
+    "title": "Juster bedskruer",
+    "description": "Klipper har flyttet dysen til en bedskrue og venter. Vri skruen til dysen så vidt holder et papirark mot bedet, og godta deretter.",
+    "dismiss": "Lukk",
+    "dismissTitle": "Lukker bare dette vinduet — runden venter videre, og topplinjen henter den tilbake",
+    "pass": "Runde",
+    "passCoarse": "Grov",
+    "passFine": "Fin",
+    "screw": "Skrue",
+    "screwNumber": "Skrue {number}",
+    "unnamedScrew": "X {x}, Y {y}",
+    "accepted": "Godtatt",
+    "progressValue": "{accepted} av {total}",
+    "noProgress": "Ikke rapportert ennå",
+    "adjustedHint": "Justert starter runden på nytt — en skrue du har vridd mye endrer de andre.",
+    "accept": "Godta",
+    "acceptTitle": "Godta denne skruen og gå til neste",
+    "adjusted": "Justert",
+    "adjustedTitle": "Godta etter en merkbar vridning, og start runden på nytt",
+    "abort": "Avbryt"
+  }
+}

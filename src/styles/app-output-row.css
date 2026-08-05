@@ -1,0 +1,97 @@
+/*
+ * `AppOutputRow` — an icon, a Title Case label, and a trailing reading or
+ * switch. Controls' monitored fans and digital output pins are the two
+ * instances; both are basic enough that one prop-driven component covers
+ * them rather than bespoke markup per module.
+ *
+ * The height tiers are shorter than `AppField`/`AppSlider`'s own — 40/44/48px
+ * against their 44/48/52px — because a plain row carries no border box to
+ * hold clear of, so it needs less clearance than a field does. `.pin-row`'s
+ * shared height floor in `main.css` moves to match this component's `sm`
+ * tier for the same reason its comment already gives: a digital toggle row
+ * (this component), a PWM row (still hand-rolled — see that file), and a
+ * monitored-fan row (this component again) sit in one flush list in
+ * Controls, and a floor set for one row shape but not the others is how a
+ * mixed list starts stepping up and down row to row.
+ *
+ * The label is Title Case via `text-transform: capitalize`, the same
+ * technique — and the same reason — as `AppField`/`AppSlider`: a fan or pin
+ * name is read straight from the printer's own config, not always a string
+ * Alabaster controls the casing of.
+ */
+.app-output-row {
+  --app-output-row-block-size: 2.75rem;
+  --app-output-row-icon-size: 1.5rem;
+
+  display: flex;
+  box-sizing: border-box;
+  min-width: 0;
+  align-items: center;
+  gap: 0.6rem;
+  block-size: var(--app-output-row-block-size);
+}
+
+.app-output-row--size-xs {
+  --app-output-row-block-size: 2.5rem;
+  --app-output-row-icon-size: 1.25rem;
+}
+
+.app-output-row--size-md {
+  --app-output-row-block-size: 3rem;
+  --app-output-row-icon-size: 1.75rem;
+}
+
+/*
+ * `disabled` dims only the switch itself, through the shared
+ * `input[type='checkbox']:disabled` rule in main.css — not the whole row.
+ * `pendingCommands.pin` is one flag for every digital pin, not one per pin
+ * (`src/stores/commandRunner.ts`), so toggling any pin disables every pin's
+ * switch at once; a row-level dim would read as the entire card breaking
+ * rather than one in-flight command.
+ *
+ * Sized off its own `--app-output-row-icon-size`, not
+ * `--app-output-row-block-size`: the icon is a fixed `flex: none` box
+ * centered by the row's own `align-items: center`, so growing it (up from
+ * the 1rem the gigantic-icon regression above was fixed to) never touches
+ * the row's height, only the icon's share of it. The icon custom property
+ * still steps with the tier — 20/24/28px against the row's 40/44/48px — so a
+ * `size` change scales both together instead of the icon staying frozen
+ * while only its clearance grows.
+ */
+.app-output-row__icon {
+  flex: none;
+  width: var(--app-output-row-icon-size);
+  height: var(--app-output-row-icon-size);
+  color: var(--text-muted);
+}
+
+.app-output-row__label {
+  overflow: hidden;
+  flex: 1 1 auto;
+  min-width: 0;
+  color: var(--text-primary);
+  font-size: var(--text-field-label-size);
+  font-weight: var(--font-weight);
+  text-overflow: ellipsis;
+  text-transform: capitalize;
+  white-space: nowrap;
+}
+
+.app-output-row__value {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: var(--text-value-size);
+  font-weight: var(--font-weight);
+  font-variant-numeric: tabular-nums;
+  text-align: end;
+}
+
+.app-output-row__unit {
+  margin-inline-start: 0.125rem;
+  color: var(--text-muted);
+  font-size: var(--text-field-unit-size);
+}
+
+.app-output-row__switch {
+  flex: none;
+}

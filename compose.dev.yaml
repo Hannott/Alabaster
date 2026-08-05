@@ -1,0 +1,27 @@
+# Local development only. Raspberry Pi installations use a static release.
+name: alabaster
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    init: true
+    restart: unless-stopped
+    ports:
+      - '127.0.0.1:${ALABASTER_PORT:-4173}:5173'
+    environment:
+      VITE_USE_POLLING: 'true'
+    volumes:
+      - .:/workspace
+      - node_modules:/workspace/node_modules
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -q -O /dev/null http://127.0.0.1:5173/ || exit 1']
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 20s
+    stop_grace_period: 5s
+
+volumes:
+  node_modules:

@@ -1,0 +1,92 @@
+name: Release
+
+# Tagging is the trigger, so a release is always a commit someone chose to
+# release rather than whatever happened to land on a branch.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to release, such as v0.2.0'
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+
+      - run: npm ci
+
+      # The same gate a pull request has to pass. A release that skipped it
+      # would be the one build nobody checked.
+      - run: npm run check
+
+      - name: Resolve the version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            version='${{ inputs.tag }}'
+          else
+            version="${GITHUB_REF#refs/tags/}"
+          fi
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+
+      - name: Assemble the release
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          staging="$(mktemp -d)"
+          cp -R dist/. "${staging}/"
+
+          # Moonraker reads this to know which version is installed. Its
+          # `version` must match the release tag exactly, or every update check
+          # reports an update that is already installed.
+          cat > "${staging}/release_info.json" <<JSON
+          {
+            "project_name": "alabaster",
+            "project_owner": "Hannott",
+            "version": "${VERSION}"
+          }
+          JSON
+
+          # The installer's primary path clones alabaster.cfg straight from
+          # this repository's own tag, so it can be tracked by Moonraker's own
+          # git_repo update manager. The copy embedded here is the fallback for
+          # an offline or --from-zip install where that clone cannot be made —
+          # kept so the archive is still a complete, self-sufficient artifact.
+          mkdir -p "${staging}/klipper" "${staging}/deploy" "${staging}/scripts"
+          cp klipper/alabaster.cfg "${staging}/klipper/"
+          cp -R deploy/. "${staging}/deploy/"
+          # The uninstaller travels with the release it will remove, so it is
+          # never a newer script guessing at an older layout — and it works
+          # without network access.
+          cp scripts/install.sh scripts/uninstall.sh "${staging}/scripts/"
+          chmod +x "${staging}/scripts/"*.sh
+
+          # The asset name is not cosmetic: Moonraker looks for an asset named
+          # after its own config section, so `[update_manager alabaster]`
+          # requires exactly alabaster.zip.
+          ( cd "${staging}" && zip -qr "${GITHUB_WORKSPACE}/alabaster.zip" . )
+          sha256sum alabaster.zip > alabaster.zip.sha256
+          cat alabaster.zip.sha256
+
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          gh release create "${VERSION}" \
+            --title "${VERSION}" \
+            --generate-notes \
+            alabaster.zip alabaster.zip.sha256

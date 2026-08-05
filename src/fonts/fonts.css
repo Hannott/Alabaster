@@ -1,0 +1,104 @@
+/*
+ * `--font-sans` is set directly here, not through an indirection like the
+ * theme packs' `--color-canvas: var(--surface-canvas)`. That indirection
+ * exists so a pack can vary the primitive while Tailwind's generated utility
+ * name stays put; a typeface has no such second name to protect, so
+ * overriding the Tailwind theme token directly is the whole mechanism. This
+ * file is plain, unlayered CSS — imported after `@tailwindcss`'s own `@layer
+ * theme` in `main.css` — so every rule below wins regardless of selector
+ * order, the same reason `themes/packs/*.css` never needs `!important`
+ * either.
+ *
+ * Each family's stack is named once, as `--font-<id>`, matching
+ * `src/fonts/registry.ts`'s `FontId`s — never repeated as a literal string a
+ * second time. `--font-sans` and the console's own `--console-font-family`
+ * (`src/composables/useConsoleFont.ts`) both just point at one of these, so a
+ * font's fallback stack is written in exactly one place regardless of how
+ * many surfaces can select it independently.
+ *
+ * `--font-mono` always tracks `--font-sans`, for every entry, rather than
+ * naming its own family per font. Numeric readouts, macro buttons, and the
+ * console all render in `--font-mono` — see
+ * `docs/design/interface-standards.md`'s Typography section — and the whole
+ * point of this feature is that the chosen typeface applies to the entire
+ * interface, not to prose alone. An earlier version paired every non-mono
+ * font with a real monospace companion (JetBrains Mono or IBM Plex Mono) for
+ * fixed-width digit alignment; that shipped as "half the interface changes
+ * font, half does not," which is the opposite of what selecting a typeface
+ * means.
+ *
+ * `--console-font-family` defaults to `var(--font-mono)` — the console
+ * follows the interface typeface until a reader names one of its own — and
+ * is otherwise completely independent, set from `data-console-font` rather
+ * than `data-font`.
+ */
+:root {
+  --font-sourceCodePro:
+    'Source Code Pro', ui-monospace, SFMono-Regular, Consolas, 'Liberation Mono', monospace;
+  --font-robotoMono:
+    'Roboto Mono', ui-monospace, SFMono-Regular, Consolas, 'Liberation Mono', monospace;
+  --font-overpassMono:
+    'Overpass Mono', ui-monospace, SFMono-Regular, Consolas, 'Liberation Mono', monospace;
+  --font-publicSans:
+    'Public Sans', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI',
+    sans-serif;
+  --font-openDyslexic:
+    'OpenDyslexic', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI',
+    sans-serif;
+
+  --font-mono: var(--font-sans);
+  --console-font-family: var(--font-mono);
+}
+
+/*
+ * Keep this list in the same order as `registry.ts` and give every entry both
+ * a bare `:root` (documenting the resting default) and a scoped
+ * `:root[data-font='…']` rule, exactly as `themes/packs/alabaster.css` pairs
+ * its own default selector with an explicit one.
+ */
+:root,
+:root[data-font='sourceCodePro'] {
+  --font-sans: var(--font-sourceCodePro);
+}
+
+:root[data-font='robotoMono'] {
+  --font-sans: var(--font-robotoMono);
+}
+
+:root[data-font='overpassMono'] {
+  --font-sans: var(--font-overpassMono);
+}
+
+:root[data-font='publicSans'] {
+  --font-sans: var(--font-publicSans);
+}
+
+:root[data-font='openDyslexic'] {
+  --font-sans: var(--font-openDyslexic);
+}
+
+/*
+ * The console's own typeface — `data-console-font`, set only once a reader
+ * names one explicitly (`useConsoleFont.ts` never writes the attribute for
+ * `'match'`), so absent it the `--console-font-family: var(--font-mono)`
+ * default above is the only rule in effect.
+ */
+:root[data-console-font='sourceCodePro'] {
+  --console-font-family: var(--font-sourceCodePro);
+}
+
+:root[data-console-font='robotoMono'] {
+  --console-font-family: var(--font-robotoMono);
+}
+
+:root[data-console-font='overpassMono'] {
+  --console-font-family: var(--font-overpassMono);
+}
+
+:root[data-console-font='publicSans'] {
+  --console-font-family: var(--font-publicSans);
+}
+
+:root[data-console-font='openDyslexic'] {
+  --console-font-family: var(--font-openDyslexic);
+}

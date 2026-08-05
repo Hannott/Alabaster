@@ -1,0 +1,453 @@
+/*
+ * The named text-style roles every component reaches for instead of writing
+ * its own `font-size`/`font-weight`/`letter-spacing`. Before this file, the
+ * same handful of jobs — a page title, a small-caps label above one, a
+ * numeric readout, a list row's name — were done by well over a hundred
+ * near-duplicate rules across `main.css` and by copy-pasted Tailwind utility
+ * combinations in templates, each landing on its own slightly different rem
+ * value with no one deciding whether 0.7rem or 0.72rem or 0.75rem was the
+ * eyebrow size this time. None of that variation carried meaning — it was
+ * never a case of "this eyebrow is deliberately smaller than that one" — so
+ * consolidating it loses nothing and is why this file exists.
+ *
+ * Sizes come in two layers, and the split is the point.
+ *
+ * **The scale** (`--type-scale-*`, below) is the closed set of sizes the
+ * product is allowed to render at — seven steps, each a fixed factor of one
+ * `--type-base`. Naming the roles was only half the job: it stopped the same
+ * number being written twice, but it never decided how many *different*
+ * numbers there should be, and the answer drifted to sixteen. Eleven of those
+ * sat between `0.62rem` and `0.95rem`, in steps of two or three hundredths —
+ * `0.72rem` and `0.75rem` differ by less than half a pixel at a 16px root.
+ * That is not a design decision anyone made or could see; it is what happens
+ * when every new role picks its own number. A role may now only choose a
+ * step, so the set cannot grow again without someone deciding it should.
+ *
+ * **The roles** (`--text-<role>-size` / `--text-<role>-tracking`) each point
+ * at a step. The indirection stays because it is what lets one role be
+ * retuned — moved a step up, given its own tracking — without hunting down
+ * every selector that happens to share its current value, and it is why
+ * `main.css`'s ~200 `var(--text-…-size)` call sites needed no edit when the
+ * scale arrived. Several roles resolve to the same step today; that is
+ * expected, not redundancy to collapse. `.text-badge` and `.text-value-micro`
+ * are different jobs that currently agree about size, and either may stop
+ * agreeing later.
+ *
+ * `--type-base` is the one number that moves everything. Every step is
+ * `calc()`'d from it rather than written out, so a density pass — or a future
+ * reader-facing "Text size" setting, the counterpart to "Text weight" — is a
+ * single-line change here and nowhere else.
+ *
+ * Weight is deliberately not re-declared per role: every role uses
+ * `--font-weight` or `--font-weight-increased` from `src/fonts/weights.css`
+ * (see there for why `font-bold` itself is a separate, untouched token), so
+ * the "Text weight" setting continues to move every role at once rather than
+ * needing a third place taught about it.
+ *
+ * Tracking is deliberately *not* derived from the scale, unlike size. What a
+ * line needs is a function of whether it is uppercase — an eyebrow at
+ * `0.16em` and a page title at `-0.045em` are not two points on one curve —
+ * so tracking stays a role-level decision even where size no longer is.
+ *
+ * A role is a class, not a mixin: `.text-value` on an element that also needs
+ * `color` or `text-align` gets those from its own selector alongside this
+ * class, the same way `.field--value` already combines with `.field`.
+ */
+
+/* --- The scale --- */
+
+:root {
+  --type-base: 1rem;
+
+  /* A badge shrunk to sit inline in a filename — the one step below caption. */
+  --type-scale-micro: calc(var(--type-base) * 0.7);
+  /* Small-caps labels, badges, and micro readouts. */
+  --type-scale-caption: calc(var(--type-base) * 0.8);
+  /* Control labels, list-row names, ordinary readouts. */
+  --type-scale-small: calc(var(--type-base) * 0.9);
+  /* Body prose, card titles, metadata rows. */
+  --type-scale-body: var(--type-base);
+  /* A section's own title, a host's identity line. */
+  --type-scale-subtitle: calc(var(--type-base) * 1.1);
+  /* A dialog or workspace pane title. */
+  --type-scale-title: calc(var(--type-base) * 1.25);
+  /* A route title or the largest readout on a page. */
+  --type-scale-headline: calc(var(--type-base) * 1.4);
+}
+
+/* --- Identity hierarchy: page, section, and card titles --- */
+
+:root {
+  --text-page-title-size: var(--type-scale-headline);
+  --text-page-title-tracking: -0.02em;
+
+  --text-dialog-title-size: var(--type-scale-title);
+  --text-dialog-title-tracking: -0.02em;
+
+  --text-section-title-size: var(--type-scale-subtitle);
+  --text-section-title-tracking: -0.02em;
+
+  --text-card-title-size: var(--type-scale-body);
+  --text-card-title-tracking: 0.02em;
+
+  --text-group-title-size: var(--type-scale-body);
+
+  --text-eyebrow-size: var(--type-scale-caption);
+  --text-eyebrow-tracking: 0.16em;
+
+  --text-label-caps-size: var(--type-scale-caption);
+  --text-label-caps-tracking: 0.07em;
+}
+
+/** The route's own `<h1>`. Exactly one per standard page — see interface-standards.md. */
+.text-page-title {
+  font-size: var(--text-page-title-size);
+  font-weight: var(--font-weight-increased);
+  letter-spacing: var(--text-page-title-tracking);
+}
+
+/** A dialog's or a workspace pane's own title — one step below a page title. */
+.text-dialog-title {
+  font-size: var(--text-dialog-title-size);
+  font-weight: var(--font-weight-increased);
+  letter-spacing: var(--text-dialog-title-tracking);
+}
+
+/** A settings card, calibration panel, or similar named section within a page. */
+.text-section-title {
+  font-size: var(--text-section-title-size);
+  font-weight: var(--font-weight-increased);
+  letter-spacing: var(--text-section-title-tracking);
+}
+
+/** A dashboard module card's own title, or an equivalently-scoped row heading. */
+.text-card-title {
+  font-size: var(--text-card-title-size);
+  font-weight: var(--font-weight-increased);
+  letter-spacing: var(--text-card-title-tracking);
+}
+
+/**
+ * The small-caps line above a title — never a second title, per
+ * interface-standards.md's page-heading contract. Color is a separate,
+ * already-existing concern (`text-data-blue`, `text-data-sky`, `text-muted`);
+ * this role only ever states the shared size and shape.
+ */
+.text-eyebrow {
+  font-size: var(--text-eyebrow-size);
+  font-weight: var(--font-weight-increased);
+  letter-spacing: var(--text-eyebrow-tracking);
+  text-transform: uppercase;
+}
+
+/**
+ * A sentence-case sub-heading introducing a cluster of related controls
+ * within an already-titled section — Settings' "Mode", "Time", "Date", or
+ * "Text weight" above their own radio/select rows. One step below
+ * `.text-section-title`, and never uppercase or tracked the way
+ * `.text-label-caps` is: this is a short heading a reader reads as words, not
+ * a label they skim as a category tag.
+ */
+.text-group-title {
+  font-size: var(--text-group-title-size);
+  font-weight: var(--font-weight-increased);
+}
+
+/**
+ * A smaller, denser small-caps label: a table/column header, a fieldset
+ * legend — anywhere `.text-eyebrow` would read as too large for a label that
+ * repeats once per row rather than once per section.
+ */
+.text-label-caps {
+  font-size: var(--text-label-caps-size);
+  font-weight: var(--font-weight-increased);
+  letter-spacing: var(--text-label-caps-tracking);
+  text-transform: uppercase;
+}
+
+/* --- Numeric readouts --- */
+
+:root {
+  --text-value-large-size: var(--type-scale-headline);
+  --text-value-size: var(--type-scale-small);
+  --text-value-micro-size: var(--type-scale-caption);
+}
+
+/** The largest readout on a page: a host meter, a lifetime total, a print's own progress figure. */
+.text-value-large {
+  font-family: var(--font-mono);
+  font-size: var(--text-value-large-size);
+  font-weight: var(--font-weight-increased);
+  font-variant-numeric: tabular-nums;
+}
+
+/** The ordinary numeric readout — a temperature, a table cell, a collapsed card's headline value. */
+.text-value {
+  font-family: var(--font-mono);
+  font-size: var(--text-value-size);
+  font-weight: var(--font-weight);
+  font-variant-numeric: tabular-nums;
+}
+
+/** A small inline readout beside other chrome: an axis position overlay, a mesh point, a legend value. */
+.text-value-micro {
+  font-family: var(--font-mono);
+  font-size: var(--text-value-micro-size);
+  font-weight: var(--font-weight);
+  font-variant-numeric: tabular-nums;
+}
+
+/**
+ * A fixed-width slot for a live readout's own digits — four characters,
+ * wide enough for "xx.x" or "xxxx", the two shapes the dashboard's flow and
+ * feed-rate readouts print. Paired with a fixed icon before it, an
+ * unreserved number changes the whole line's width every time its digit
+ * count does, and a `justify-content: space-between` row (Movement's own
+ * header) turns that into the icon sliding sideways rather than the number
+ * simply growing in place. Right-aligned so a short reading sits flush
+ * against a long one's last digit instead of floating at its own width;
+ * combine with `font-variant-numeric: tabular-nums` (already the readout's
+ * own role) so every digit inside the slot is the same width too.
+ */
+.text-value-slot {
+  display: inline-block;
+  min-width: 4ch;
+  text-align: right;
+}
+
+/* --- Names and labels --- */
+
+:root {
+  --text-row-name-size: var(--type-scale-small);
+  --text-mono-name-size: var(--type-scale-small);
+  --text-field-label-size: var(--type-scale-caption);
+  /*
+   * A field's trailing unit — `mm/s`, `mm³`, `%`. Its own role rather than the
+   * `--text-meta-size` it used to borrow, because a unit is subordinate to its
+   * number by definition and metadata rows are not: two strings at parity
+   * inside one box read as two values rather than a value and its unit, and the
+   * reader has to work out which of the two they came to read.
+   *
+   * **Defined as one step below `--control-field-sm-size`, not as a step in its
+   * own right.** It is `micro` because the field is `caption`; if the field tier
+   * ever moves, this moves with it, and `typography.spec.ts` fails if the two
+   * ever land on the same step. Pinning it to an absolute step is how it drew
+   * level with the value the first time.
+   */
+  --text-field-unit-size: var(--type-scale-micro);
+  --text-host-identity-size: var(--type-scale-subtitle);
+}
+
+/** A list row's primary name, in the interface typeface — a file, a sensor, a job, a profile. */
+.text-row-name {
+  font-size: var(--text-row-name-size);
+  font-weight: var(--font-weight);
+}
+
+/** A row name that is itself a command or identifier — a macro, an endstop, a console entry — so it renders in the mono family regardless of the interface typeface. */
+.text-mono-name {
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-name-size);
+  font-weight: var(--font-weight-increased);
+}
+
+/** A form field's or settings row's own label. */
+.text-field-label {
+  font-size: var(--text-field-label-size);
+  font-weight: var(--font-weight);
+}
+
+/** A machine's own identity line — larger than an ordinary row name because it is the one name the page is about. */
+.text-host-identity {
+  font-size: var(--text-host-identity-size);
+}
+
+/* --- Supporting text --- */
+
+:root {
+  --text-alert-inline-size: var(--type-scale-small);
+  --text-meta-size: var(--type-scale-body);
+  --text-badge-size: var(--type-scale-caption);
+  --text-badge-tracking: 0.04em;
+  /*
+   * A step below `caption`: at `caption` a hint sat only 1.6px under the
+   * `small`-step control text it explains, close enough that "this line is
+   * secondary" did not read at a glance. `micro` is the one step further
+   * down, shared with the inline badge, so a hint stays visually subordinate
+   * to the row it belongs to rather than nearly matching it.
+   */
+  --text-hint-size: var(--type-scale-micro);
+  --text-note-size: var(--type-scale-small);
+  --text-panel-message-size: var(--type-scale-body);
+  --text-lead-description-size: var(--type-scale-body);
+  --text-overlay-label-size: var(--type-scale-caption);
+  --text-inline-mark-size: var(--type-scale-micro);
+}
+
+/**
+ * An inline error or refusal reason inside a dashboard module — the
+ * `text-xs font-bold text-danger` idiom repeated across nearly every module,
+ * now one class instead of three copy-pasted utilities.
+ */
+.text-alert-inline {
+  color: var(--status-danger-text);
+  font-size: var(--text-alert-inline-size);
+  font-weight: var(--font-weight);
+}
+
+/** A metadata facts row: file size, modified date, filament used — muted, mono, never the primary reading. */
+.text-meta {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-meta-size);
+}
+
+/**
+ * A small uppercase status word — connected/disconnected, completed/failed —
+ * paired with an icon or color, never alone. Tracked, like every uppercase
+ * role here: set in caps at this size, untracked letters close up into a
+ * block. Two badge families (`.machine-readonly-mark` and
+ * `.history-job__outcome`) said `0.04em` themselves rather than the role
+ * saying it once, which is the same drift in tracking that the scale fixes in
+ * size.
+ */
+.text-badge {
+  font-size: var(--text-badge-size);
+  font-weight: var(--font-weight-increased);
+  letter-spacing: var(--text-badge-tracking);
+  text-transform: uppercase;
+}
+
+/**
+ * A short muted note or caption attached to what it explains: a settings
+ * hint, an empty-state line, a caution aside. Never the primary reading on
+ * its own — see `.text-note` for the longer, multi-line form of the same job.
+ * Color is a separate concern the caller states alongside this class, the
+ * same way `.text-eyebrow` leaves color to its caller.
+ */
+.text-hint {
+  font-size: var(--text-hint-size);
+}
+
+/**
+ * A muted explanatory paragraph that wraps onto more than one line — a
+ * loaded file's description, an update's recovery note, a details row's
+ * supporting line. One step larger than `.text-hint` because it carries more
+ * words, not because it means something different.
+ */
+.text-note {
+  font-size: var(--text-note-size);
+}
+
+/**
+ * The body text of a full placeholder panel: an empty state, a load
+ * failure, a disconnected module. It is the only content in its region, so
+ * it reads a step larger than an attached hint or note.
+ */
+.text-panel-message {
+  font-size: var(--text-panel-message-size);
+}
+
+/**
+ * The lead-in paragraph under a page or dropdown-menu heading that
+ * introduces the view before any card or hint takes over — one step larger
+ * again because it is the first thing the reader reads on the screen.
+ */
+.text-lead-description {
+  font-size: var(--text-lead-description-size);
+}
+
+/** A label overlaid on a dark stage — the camera feed, the g-code viewer legend — never on an ordinary surface. */
+.text-overlay-label {
+  font-size: var(--text-overlay-label-size);
+  font-weight: var(--font-weight);
+}
+
+/** A badge shrunk to sit inline beside a file name instead of in its own row. */
+.text-inline-mark {
+  font-size: var(--text-inline-mark-size);
+}
+
+/* --- Control and display text ---
+ *
+ * These sizes are not this file's own decision — button-system.md's size
+ * scale sets the control tiers and its nav exception, and interface-
+ * standards.md's console contract derives its line-box math from the console
+ * tier. But the *value* still only has one place to live, or the next person
+ * tuning a tier edits the doc and then goes hunting through `main.css` for
+ * every selector that happened to copy the number down. Centralizing it here
+ * costs nothing: the doc stays the authority on *why*, this file stays the
+ * one place to change *what*.
+ *
+ * **A tier is never larger than the tier above it.** That sounds too obvious to
+ * write down, and it is the invariant this block broke: `md` sat at `small` while
+ * `sm` sat at `body`, so the smaller control drew the larger text and `xs` drew
+ * larger text than `sm` too. Nothing catches that by reading one line — each
+ * looks reasonable on its own, and the mistake is only visible in the
+ * relationship — so `typography.spec.ts` now asserts the ordering instead.
+ *
+ * The field tiers land on the same steps as the text tiers, which is deliberate
+ * rather than duplication waiting to be merged: a field and the button beside it
+ * already share the height and radius scale, and matching their type means the
+ * two read as one control at every tier. They stay separate tokens so one can
+ * move later without dragging the other, exactly as the size-scale section says
+ * about roles that currently agree.
+ */
+
+:root {
+  --control-text-md-size: var(--type-scale-small);
+  --control-text-sm-size: var(--type-scale-caption);
+  --control-field-md-size: var(--type-scale-small);
+  --control-field-sm-size: var(--type-scale-caption);
+  --control-field-xs-size: var(--type-scale-caption);
+  --nav-text-md-size: var(--type-scale-body);
+  --nav-text-sm-size: var(--type-scale-caption);
+  --console-text-size: var(--type-scale-small);
+  --console-output-text-size: var(--type-scale-caption);
+  --console-editor-text-size: var(--type-scale-small);
+  --console-prompt-text-size: var(--type-scale-body);
+}
+
+/* --- Tailwind's own size utilities, pulled onto the scale ---
+ *
+ * `text-xs`, `text-sm`, `text-base`, and `text-xl` are still written directly
+ * in about seventy places in templates, from before the roles existed. Left
+ * alone they are a second size system: Tailwind's own `0.75`/`0.875`/`1`/
+ * `1.25rem` ladder, which answers to no base and lands between this file's
+ * steps. Overriding the four theme tokens is the same unlayered-`:root` trick
+ * `weights.css` uses for `--font-weight-black` — Tailwind's `@layer theme`
+ * declaration loses to it regardless of order — so every one of those
+ * utilities resolves to a step without a single template being touched.
+ *
+ * This is also why the scale is named `--type-*` and not `--text-*`: Tailwind
+ * v4's font-size namespace *is* `--text-*`, so a base called `--text-base`
+ * would be this very override's target, and `--text-base: var(--type-scale-…)`
+ * would resolve through a step `calc()`'d from `--text-base` — a cycle that
+ * silently drops every size in the product to `medium`. The scale sits in its
+ * own namespace so a step can never collide with a utility token.
+ *
+ * This is a floor, not the destination. A `text-xs font-black uppercase` in a
+ * template is still an unnamed `.text-eyebrow`, and converting the remainder
+ * to real roles is the open work interface-standards.md describes. What this
+ * guarantees meanwhile is that no element renders at a size outside the scale.
+ */
+:root {
+  --text-xs: var(--type-scale-small);
+  --text-sm: var(--type-scale-body);
+  --text-base: var(--type-scale-subtitle);
+  --text-xl: var(--type-scale-title);
+}
+
+/**
+ * Weight only, no size: for the rare element that needs to respond to the
+ * "Text weight" setting but does not fit any role's own size — Tailwind's
+ * `sm:` breakpoint utilities on the header's printer name, for instance. A
+ * role's `font-size` is unlayered and always wins over a layered Tailwind
+ * utility on the same property, which is exactly backwards for a size that is
+ * deliberately responsive; this touches only `font-weight`, so it never
+ * competes with one. Reach for a real role first — this exists for the
+ * exception, not as a shortcut around naming one.
+ */
+.font-weight-base {
+  font-weight: var(--font-weight);
+}

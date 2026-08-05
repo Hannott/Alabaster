@@ -1,0 +1,200 @@
+:root,
+:root[data-theme-pack='alabaster'][data-theme='light'] {
+  color-scheme: light;
+  --surface-canvas: color-mix(in srgb, var(--neutral-white) 96%, var(--ito-sky-blue));
+  --surface-canvas-glass: color-mix(in srgb, var(--neutral-white) 88%, transparent);
+  --surface-raised: var(--neutral-white);
+  --surface-soft: color-mix(in srgb, var(--neutral-white) 94%, var(--ito-black));
+  --surface-strong: var(--ito-black);
+  --surface-on-strong-soft: color-mix(in srgb, var(--neutral-white) 14%, transparent);
+  --viewer-surface: color-mix(in srgb, var(--neutral-white) 96%, var(--ito-sky-blue));
+  --viewer-grid: color-mix(in srgb, var(--ito-black) 28%, transparent);
+  --viewer-shadow: color-mix(in srgb, var(--ito-black) 18%, transparent);
+  --viewer-nozzle: color-mix(in srgb, var(--ito-orange) 74%, var(--neutral-white));
+  --viewer-extrusion: var(--ito-sky-blue);
+  --viewer-progress: var(--ito-orange);
+  --viewer-seam: var(--ito-reddish-purple);
+  --viewer-axis-x: var(--ito-orange);
+  --viewer-axis-y: var(--ito-sky-blue);
+  --viewer-axis-z: var(--ito-bluish-green);
+  --viewer-accent: var(--ito-sky-blue);
+  --viewer-feature-perimeter-outer: var(--ito-sky-blue);
+  --viewer-feature-perimeter-inner: var(--ito-blue);
+  --viewer-feature-infill: var(--ito-orange);
+  --viewer-feature-infill-solid: var(--ito-vermillion);
+  --viewer-feature-bridge: var(--ito-bluish-green);
+  --viewer-feature-support: var(--ito-reddish-purple);
+  --viewer-feature-skirt: var(--ito-yellow);
+  --viewer-feature-other: color-mix(in srgb, var(--ito-black) 45%, var(--neutral-white));
+  --viewer-feed-slow: var(--ito-blue);
+  --viewer-feed-fast: var(--ito-vermillion);
+  --mesh-low-deep: color-mix(in srgb, var(--ito-blue) 65%, var(--ito-black));
+  --mesh-low: var(--ito-blue);
+  --mesh-middle: color-mix(in srgb, var(--neutral-white) 92%, var(--ito-black));
+  --mesh-high: var(--ito-vermillion);
+  --mesh-high-deep: color-mix(in srgb, var(--ito-vermillion) 65%, var(--ito-black));
+  --mesh-plane: color-mix(in srgb, var(--ito-black) 25%, var(--neutral-white));
+  --text-primary: var(--ito-black);
+  --text-muted: color-mix(in srgb, var(--ito-black) 62%, transparent);
+  --text-on-strong: var(--neutral-white);
+  --text-on-strong-muted: color-mix(in srgb, var(--neutral-white) 68%, transparent);
+  --text-on-strong-faint: color-mix(in srgb, var(--neutral-white) 40%, transparent);
+  --border-subtle: color-mix(in srgb, var(--ito-black) 12%, transparent);
+  --action-primary: var(--ito-blue);
+  --action-on-primary: var(--neutral-white);
+  --accent-primary: var(--action-primary);
+  /*
+   * Sky blue reaches only 2.3:1 against this mode's near-white surfaces, so the
+   * focus indicator would fail WCAG 1.4.11. Blue clears it at 5.2:1. Dark mode
+   * keeps sky blue, where it contrasts against the near-black surfaces.
+   */
+  --focus-ring: var(--ito-blue);
+  --interaction-veil: color-mix(in srgb, var(--ito-black) 6%, transparent);
+  --interaction-veil-strong: color-mix(in srgb, var(--ito-black) 9%, transparent);
+  --status-offline: color-mix(in srgb, var(--ito-black) 48%, transparent);
+  --status-available: var(--ito-bluish-green);
+  --status-recovering: var(--ito-orange);
+  --status-danger: var(--ito-vermillion);
+  --status-danger-soft: color-mix(in srgb, var(--ito-vermillion) 12%, transparent);
+  --status-danger-text: color-mix(in srgb, var(--ito-vermillion) 62%, var(--ito-black));
+  /*
+   * 88%, which only became safe once `critical` started darkening on hover by
+   * `filter: brightness()` rather than taking the neutral veil. Under the veil
+   * this was capped at 78%: dark mode's veil is white, so it lightened this
+   * fill toward its own white label and hover, not rest, was the binding case
+   * (4.23:1 at 88%). Darkening moves contrast the other way, so the constraint
+   * is back on the idle state at 4.82:1 -- ten points more vermillion, and
+   * visibly a red rather than a rust. The value is pack- and mode-independent:
+   * it mixes only with black and is opaque, so no surface reaches it.
+   */
+  --status-danger-strong: color-mix(in srgb, var(--ito-vermillion) 88%, var(--ito-black));
+  --status-on-danger: var(--neutral-white);
+  /*
+   * The border of an outline control, budgeted to WCAG 1.4.11's 3:1 for a
+   * non-text boundary rather than the 4.5:1 that caps --status-danger-text.
+   * That extra headroom is the whole point: by the time the label value is
+   * legible at its size, the accessibility floor has flattened most of the
+   * vermillion out of it, and a border reusing it reads no more urgent than a
+   * neutral one. 90% vermillion is the most this mode can carry -- 95% leaves
+   * 3.25:1 and raw vermillion falls to 2.97:1 on --surface-soft.
+   */
+  --status-danger-border: color-mix(in srgb, var(--ito-vermillion) 90%, var(--ito-black));
+  /*
+   * Raw --ito-orange reaches only ~1.6:1 on this mode's near-white surfaces --
+   * the same problem vermillion had, worse -- so the caution label mixes toward
+   * black.
+   *
+   * 52%, not the 62% this shipped with. The old value came from matching
+   * --status-danger-text's percentage, on the reasoning that the same share
+   * gives the same ratio. It does not: orange starts far lighter than
+   * vermillion, so 62% orange measures 3.83:1 against --surface-soft where 62%
+   * vermillion measures 6.21:1. That left the caution label under the 4.5:1
+   * text floor for as long as it existed, and no test caught it, because the
+   * control contrast contract only walked button variants and this label is not
+   * one. It is asserted directly now. 52% measures 4.98:1; 55% leaves 4.60:1.
+   */
+  --status-caution-text: color-mix(in srgb, var(--ito-orange) 52%, var(--ito-black));
+  /*
+   * The caution ring and veil that mark a control as disruptive to a running
+   * print. The ring is a non-text boundary at 3:1, so it keeps far more orange
+   * than --status-caution-text can: 65% measures 3.80:1 on the tightest
+   * surface, where 70% leaves only 3.35:1 and 80% fails outright at 2.65:1.
+   *
+   * The veil composites over whatever the control's resting fill already is,
+   * exactly as --interaction-veil does, so it has to keep a label readable over
+   * --action-primary as well as over a soft neutral. At 20% the tightest of
+   * those is 4.84:1; the same value serves both modes because orange sits near
+   * the middle of the luminance range and so darkens a light fill and lightens
+   * a dark one by comparable amounts.
+   */
+  --status-caution-border: color-mix(in srgb, var(--ito-orange) 65%, var(--ito-black));
+  --status-caution-veil: color-mix(in srgb, var(--ito-orange) 20%, transparent);
+}
+
+:root[data-theme-pack='alabaster'][data-theme='dark'] {
+  color-scheme: dark;
+  --surface-canvas: color-mix(in srgb, var(--ito-black) 94%, var(--ito-blue));
+  --surface-canvas-glass: color-mix(in srgb, var(--ito-black) 88%, transparent);
+  --surface-raised: color-mix(in srgb, var(--ito-black) 88%, var(--ito-sky-blue));
+  --surface-soft: color-mix(in srgb, var(--ito-black) 84%, var(--neutral-white));
+  --surface-strong: var(--ito-black);
+  --surface-on-strong-soft: color-mix(in srgb, var(--neutral-white) 16%, transparent);
+  --viewer-surface: color-mix(in srgb, var(--ito-black) 90%, var(--ito-blue));
+  --viewer-grid: color-mix(in srgb, var(--neutral-white) 56%, transparent);
+  --viewer-shadow: color-mix(in srgb, var(--ito-black) 34%, transparent);
+  --viewer-nozzle: color-mix(in srgb, var(--ito-orange) 66%, var(--neutral-white));
+  --viewer-extrusion: var(--ito-sky-blue);
+  --viewer-progress: var(--ito-orange);
+  --viewer-seam: var(--ito-reddish-purple);
+  --viewer-axis-x: var(--ito-orange);
+  --viewer-axis-y: var(--ito-sky-blue);
+  --viewer-axis-z: var(--ito-bluish-green);
+  --viewer-accent: var(--ito-sky-blue);
+  --viewer-feature-perimeter-outer: var(--ito-sky-blue);
+  --viewer-feature-perimeter-inner: var(--ito-blue);
+  --viewer-feature-infill: var(--ito-orange);
+  --viewer-feature-infill-solid: var(--ito-vermillion);
+  --viewer-feature-bridge: var(--ito-bluish-green);
+  --viewer-feature-support: var(--ito-reddish-purple);
+  --viewer-feature-skirt: var(--ito-yellow);
+  --viewer-feature-other: color-mix(in srgb, var(--neutral-white) 45%, var(--neutral-white));
+  --viewer-feed-slow: var(--ito-blue);
+  --viewer-feed-fast: var(--ito-vermillion);
+  --mesh-low-deep: color-mix(in srgb, var(--ito-blue) 65%, var(--ito-black));
+  --mesh-low: var(--ito-blue);
+  --mesh-middle: color-mix(in srgb, var(--neutral-white) 94%, var(--ito-yellow));
+  --mesh-high: var(--ito-vermillion);
+  --mesh-high-deep: color-mix(in srgb, var(--ito-vermillion) 65%, var(--ito-black));
+  --mesh-plane: var(--neutral-white);
+  --text-primary: var(--neutral-white);
+  --text-muted: color-mix(in srgb, var(--neutral-white) 66%, transparent);
+  --text-on-strong: var(--neutral-white);
+  --text-on-strong-muted: color-mix(in srgb, var(--neutral-white) 68%, transparent);
+  --text-on-strong-faint: color-mix(in srgb, var(--neutral-white) 40%, transparent);
+  --border-subtle: color-mix(in srgb, var(--neutral-white) 16%, transparent);
+  --action-primary: var(--ito-sky-blue);
+  --action-on-primary: var(--ito-black);
+  --accent-primary: var(--action-primary);
+  --focus-ring: var(--ito-sky-blue);
+  --interaction-veil: color-mix(in srgb, var(--neutral-white) 8%, transparent);
+  --interaction-veil-strong: color-mix(in srgb, var(--neutral-white) 11%, transparent);
+  --status-offline: color-mix(in srgb, var(--neutral-white) 50%, transparent);
+  --status-available: var(--ito-bluish-green);
+  --status-recovering: var(--ito-orange);
+  --status-danger: var(--ito-vermillion);
+  --status-danger-soft: color-mix(in srgb, var(--ito-vermillion) 20%, transparent);
+  /*
+   * 60%, not the 54% this mode shipped with: measured at 4.65:1 against the
+   * worst backdrop (--surface-soft under the pressed veil), so it is the most
+   * vermillion a ~11px bold label can carry here. 62% lands on 4.52:1, a hair
+   * off the floor. Do not push further looking for a bigger visual jump --
+   * vermillion mixed toward white desaturates fast, and the jump has to come
+   * from --status-danger-border or a non-colour cue instead.
+   */
+  --status-danger-text: color-mix(in srgb, var(--ito-vermillion) 60%, var(--neutral-white));
+  /* 88% for the reason the light block states: brightness, not the veil. */
+  --status-danger-strong: color-mix(in srgb, var(--ito-vermillion) 88%, var(--ito-black));
+  --status-on-danger: var(--neutral-white);
+  /*
+   * 90% is this mode's ceiling as a boundary: 3.36:1 on --surface-soft, where
+   * 95% leaves 3.14:1 and raw vermillion falls to 2.94:1. Mixed toward white
+   * rather than black, because these surfaces are near-black.
+   */
+  --status-danger-border: color-mix(in srgb, var(--ito-vermillion) 90%, var(--neutral-white));
+  /*
+   * Orange starts much lighter than vermillion, so unlike danger-text this mode
+   * mixes toward white with a high orange share rather than a low one. 95%
+   * measures 4.77:1 against --surface-soft under the pressed veil; raw orange
+   * would still pass at 4.58:1, but 0.08 above the floor is not a margin.
+   */
+  --status-caution-text: color-mix(in srgb, var(--ito-orange) 95%, var(--neutral-white));
+  /*
+   * The one token that gets to be the palette primitive itself. A boundary owes
+   * 3:1 and raw --ito-orange measures 5.06:1 against these near-black surfaces,
+   * so there is nothing to gain by diluting it -- and a caution ring is the one
+   * place the interface wants the palette's actual orange rather than a
+   * legibility-flattened version of it.
+   */
+  --status-caution-border: var(--ito-orange);
+  --status-caution-veil: color-mix(in srgb, var(--ito-orange) 20%, transparent);
+}

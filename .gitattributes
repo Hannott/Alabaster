@@ -1,0 +1,7 @@
+# Store and check out every text file with LF, on every platform. Prettier is
+# configured for LF and several tests assert multi-line source excerpts, so a
+# CRLF working tree makes `npm run check` disagree with CI in both directions.
+* text=auto eol=lf
+
+*.png binary
+*.ico binary

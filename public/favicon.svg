@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <style>
+    .structure { fill: #000000; }
+    .primary { fill: #0072b2; }
+    .gantry { fill: #56b4e9; }
+    .accent { fill: #f0e442; }
+    @media (prefers-color-scheme: dark) {
+      .structure { fill: #ffffff; }
+      .primary { fill: #56b4e9; }
+    }
+  </style>
+  <path class="structure" d="M25 5h14l9 23h-9l-7-15-7 15h-9Z" />
+  <path class="primary" d="M16 28h9L13 59H4Z" />
+  <path class="structure" d="M39 28h9l12 31h-9Z" />
+  <path class="primary" d="M13 52h38l4 7H9Z" />
+  <path class="gantry" d="M9 25h16v6H9Zm30 0h16v6H39Z" />
+  <rect class="gantry" x="26" y="21" width="12" height="14" rx="1" />
+  <path class="primary" d="M28 36h8v7h-8Z" />
+  <path class="primary" d="m28 43 4 6 4-6Z" />
+  <path class="accent" d="M24 56h16v3H24Z" />
+</svg>

@@ -1,0 +1,406 @@
+/*
+ * `AppField`, the one text and number control. Every field in the product is
+ * this component; the classes below are its internals and are not written by
+ * hand anywhere.
+ *
+ * The shared field height, radius, border, fill, and focus edge remain in
+ * `main.css` beside `.field` and the other controls that consume the same
+ * scale. This file owns only AppField's anatomy and state. Module-specific
+ * overrides remain with their consumers.
+ *
+ * An embedded label used to sit above the field as its own row — a full text
+ * line plus a gap before the field's border even started — which is why five
+ * retraction settings in two columns ran to three rows of a settings pane.
+ * Setting the label into the field's top border, the way a `<fieldset>` legend
+ * would, removes that row entirely. It stays a plain absolutely-positioned
+ * span rather than a real `<legend>` so the `<label>`-wraps-`<input>` click
+ * forwarding keeps working, and a `<fieldset>`'s `min-width: auto` never fights
+ * the grid.
+ *
+ * The value and its unit share `.app-field__box`, matching the reference
+ * outlined text field's value/suffix anatomy. Paired steppers remain outside
+ * that box, in the number field's append-control position.
+ */
+.app-field {
+  /*
+   * The input box keeps the product-wide field tier. The complete component
+   * adds one small, fixed envelope around it: equal 0.5rem clearance above and
+   * below keeps the box geometrically centred, while the upper half contains
+   * the embedded label that rises over the border. Because the envelope belongs
+   * here rather than to `label-embed`, front, embed, and back all measure and
+   * centre exactly the same.
+   *
+   * `block-size`, rather than `min-block-size`, is intentional. An outside
+   * label that wraps must not turn label placement into a hidden height prop;
+   * that label ellipsizes below. The box tier is repeated as a custom property
+   * on the root because CSS cannot inherit a value upward from its child.
+   */
+  --app-field-box-block-size: 2.25rem;
+
+  box-sizing: border-box;
+  display: flex;
+  min-width: 0;
+  block-size: calc(var(--app-field-box-block-size) + 1rem);
+  align-items: center;
+  gap: 0.35rem;
+  padding-block: 0.5rem;
+}
+
+.app-field--size-sm {
+  --app-field-box-block-size: 2rem;
+}
+
+.app-field--size-xs {
+  --app-field-box-block-size: 1.75rem;
+}
+
+/*
+ * A front or back label sits beside the box instead of notched into it.
+ *
+ * **It is only as wide as those two things**, for the same reason `.check-row`
+ * is: the whole `<label>` forwards its click to the control inside it, so a
+ * full-width settings row hands focus to a field from empty space several
+ * centimetres past the end of its own words — and that distance grows with the
+ * card's column width. Shrinking the row to its content is what makes the hit
+ * area and the visible control the same shape.
+ */
+.app-field--label-front,
+.app-field--label-back {
+  width: fit-content;
+  max-width: 100%;
+  gap: 0.6rem;
+  font-size: var(--control-text-md-size);
+}
+
+/*
+ * The label is an icon slot plus the text, side by side — not the text alone
+ * — so an optional `labelIcon` composes at every position without a second
+ * markup shape. Truncation lives on `.app-field__label-text` rather than
+ * this row itself: `text-overflow: ellipsis` has no defined effect on a flex
+ * container, only on a block-level box, so the icon and the text each need
+ * their own box for the icon to stay put while only the words clip.
+ */
+.app-field__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.app-field__label-icon {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 0.8rem;
+  height: 0.8rem;
+  color: var(--text-muted);
+}
+
+/* An outside label may consume width, never a second line of height. */
+.app-field--label-front > .app-field__label .app-field__label-text,
+.app-field--label-back > .app-field__label .app-field__label-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* A field with an outside label keeps a content-sized value box. */
+.app-field--label-front .app-field__box,
+.app-field--label-back .app-field__box {
+  flex: 0 0 auto;
+  inline-size: 5.5rem;
+  /* Same rule as `.field--on-soft`: one contrast step from its surface. */
+  background-color: var(--surface-raised);
+}
+
+/*
+ * The reference outlined fields leave a plain notch for the floating label;
+ * the label is not a second bordered chip. Its background is split at the
+ * field edge: raised surface above, field fill below. That covers the outline
+ * with the correct token on both sides instead of choosing one surface and
+ * leaving a visible patch on the other.
+ *
+ * The label is anchored to the box, which is why the box is the positioning
+ * context: `top: 0` plus a half-height translate centres the notch on the box's
+ * own top border at every size. Hanging it off the outer field made an end
+ * label measure from a box that also holds the steppers or their reserved
+ * footprint, landing the label past the value it names.
+ */
+.app-field--label-embed .app-field__label {
+  position: absolute;
+  z-index: 1;
+  top: 0;
+  inset-inline-start: 0.5rem;
+  max-width: calc(100% - 1rem);
+  transform: translateY(-50%);
+  padding-inline: 0.25rem;
+  background: linear-gradient(to bottom, var(--surface-raised) 0 50%, var(--surface-soft) 50% 100%);
+  color: var(--text-muted);
+  font-size: var(--text-field-label-size);
+  font-weight: var(--font-weight);
+  line-height: 1.2;
+  pointer-events: none;
+}
+
+.app-field--label-embed .app-field__label .app-field__label-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-field--label-embed .app-field__label--end {
+  inset-inline: auto 0.5rem;
+}
+
+/*
+ * A visible reset owns the trailing 2.6rem: the box's 0.5rem padding, the
+ * 1.75rem xs target, and the 0.35rem flex gap before it. A long embedded label
+ * must end before that region rather than painting over the action. Start and
+ * end notches share the reduced width; the end-aligned one also moves its
+ * anchor to the action's leading edge.
+ */
+.app-field--label-embed .app-field__box--has-reset .app-field__label {
+  max-width: calc(100% - 3.1rem);
+}
+
+.app-field--label-embed .app-field__box--has-reset .app-field__label--end {
+  inset-inline: auto 2.6rem;
+}
+
+/*
+ * A steppered field spends one 1.75rem column plus the root's 0.35rem gap on
+ * its actions and gives the box what is left. `reserveStepperSpace` puts that
+ * same 2.1rem footprint on a plain peer instead of making a parent wrapper
+ * inspect its children with `:has()`; groups in which every field is plain
+ * reserve nothing.
+ */
+.app-field--reserve-steppers {
+  padding-inline-end: 2.1rem;
+}
+
+/*
+ * The box owns the shared field chrome and focus edge. Its nested input is
+ * deliberately borderless; the unit is a suffix inside the same box rather than
+ * a detached word between the field and its steppers.
+ */
+.app-field__box {
+  /* The embedded label's notch is positioned against this box. */
+  position: relative;
+  display: flex;
+  min-width: 0;
+  block-size: var(--app-field-box-block-size);
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+/* The box owns the visible edge, so the nested input yields its native outline. */
+.app-field__input:focus-visible {
+  outline: none;
+}
+
+.app-field__input {
+  min-width: 0;
+  min-height: 0;
+  flex: 1 1 auto;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: inherit;
+  font-family: var(--font-mono);
+  font-size: inherit;
+  font-weight: var(--font-weight);
+  font-variant-numeric: tabular-nums;
+}
+
+/*
+ * A read-only field is a reading, not a control, and this is the half of that
+ * the markup cannot state. `AppField` already keeps such a field out of the tab
+ * sequence and out of a `<label>` (see its `readonly` prop), which leaves the
+ * pointer: a bare `readonly` input still takes a click, shows a caret, and
+ * drag-selects — and `input` opts back into text selection in `main.css`, so the
+ * general `user-select: none` never reached it. Chromium keeps *painting* an
+ * input's selection after it is blurred, so one stray click left a value
+ * looking marked on a card the reader had already moved on from.
+ *
+ * `::selection` is reset alongside for the reason the document-level rule
+ * gives: `user-select` governs what can be selected, that governs what is
+ * painted, and a selection dragged across the whole card still paints over a
+ * range it will not copy.
+ *
+ * `:read-only` rather than `[readonly]` so a disabled field — which the
+ * pseudo-class also matches — is covered by the same rule instead of relying on
+ * `pointer-events` the disabled attribute happens to imply.
+ */
+.app-field__input:read-only {
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.app-field__input:read-only::selection {
+  background-color: transparent;
+}
+
+/*
+ * Which edge the digits hug. A field with an embedded label left-aligns by
+ * default — the one place `field`'s general end-alignment is deliberately
+ * overridden — because values otherwise end-align so a stacked column lines up
+ * its digits. An embedded label already answers "which value is this" without a
+ * column to read down; a field with an outside label is in such a column, so it
+ * end-aligns.
+ */
+.app-field__input--start {
+  text-align: start;
+}
+
+.app-field__input--end {
+  text-align: end;
+}
+
+.app-field__unit {
+  flex: 0 0 auto;
+  font-size: var(--text-field-unit-size);
+  font-weight: var(--font-weight);
+  color: var(--text-muted);
+}
+
+/*
+ * Reset is the box's trailing action: after the value and suffix in DOM and
+ * reading order, before the external stepper pair. It keeps the standard xs
+ * quiet-button target, so adding it cannot create a fourth field height.
+ *
+ * Chrome and hover/focus treatment match the steppers' own exception below
+ * rather than the standard quiet-icon-button veil: reset now sits in the same
+ * trailing group as the steppers (`AppSlider` already made this the shared
+ * contract for both controls), so the two read as one family of icon-only
+ * actions instead of reset looking like a different kind of button.
+ */
+.app-field__reset {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  width: 1.75rem;
+  height: 1.75rem;
+  flex: 0 0 auto;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 0.25rem;
+  background-color: transparent;
+  background-image: none;
+  color: var(--text-muted);
+}
+
+.app-field__reset:hover:not(:disabled, [aria-disabled='true']),
+.app-field__reset:active:not(:disabled, [aria-disabled='true']),
+.app-field__reset:focus-visible {
+  border-color: transparent;
+  background-color: transparent;
+  background-image: none;
+  color: var(--text-muted);
+}
+
+.app-field__reset-icon {
+  color: var(--text-muted);
+  transition: color var(--motion-duration-fast) var(--motion-ease-standard);
+}
+
+.app-field__reset:hover:not(:disabled, [aria-disabled='true']) .app-field__reset-icon,
+.app-field__reset:active:not(:disabled, [aria-disabled='true']) .app-field__reset-icon,
+.app-field__reset:focus-visible .app-field__reset-icon {
+  color: var(--text-primary);
+}
+
+.app-field__reset:focus-visible .app-field__reset-icon {
+  border-radius: 0.1rem;
+  box-shadow: inset 0 0 0 1px var(--focus-ring);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-field__reset-icon {
+    transition: none;
+  }
+}
+
+/*
+ * The paired step buttons form one narrow vertical column. Both keep the full
+ * 28px `button--xs` target — comfortably above WCAG 2.5.8's 24px minimum — and
+ * the fixed AppField root remains the measured geometry. At the sm tier the
+ * 56px pair reaches 4px past each edge of the 48px root; that overflow is
+ * deliberate and safe inside the field groups' 1.1rem row gap. Transparent
+ * chrome makes those touching target edges visually disappear without making
+ * their hit areas smaller.
+ *
+ * The glyphs stay `up` then `down` rather than rotating to `left`/`right` with
+ * the axis: every other increase/decrease pair in the product has that DOM and
+ * reading order, so a geometry fix must not change its tab sequence or names.
+ */
+.app-field__steppers {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+  align-self: center;
+  gap: 0;
+  margin-block: -0.25rem;
+}
+
+/*
+ * This is a bounded button-system exception approved for AppField's steppers.
+ * The whole 28px square remains clickable, but the shared hover/active veil is
+ * suppressed: only the arrow changes from the light-grey muted role to primary
+ * text. Keyboard focus follows the same arrow-only treatment and insets its ring
+ * around the glyph, because removing the full-button focus chrome without a
+ * replacement would make the transparent target invisible to keyboard users.
+ */
+.app-field__stepper {
+  background-color: transparent;
+  background-image: none;
+  color: var(--text-muted);
+}
+
+.app-field__steppers .app-field__stepper:hover:not(:disabled, [aria-disabled='true']),
+.app-field__steppers .app-field__stepper:active:not(:disabled, [aria-disabled='true']),
+.app-field__steppers .app-field__stepper:focus-visible {
+  border-color: transparent;
+  background-color: transparent;
+  background-image: none;
+  color: var(--text-muted);
+}
+
+.app-field__stepper-icon {
+  color: var(--text-muted);
+  transition: color var(--motion-duration-fast) var(--motion-ease-standard);
+}
+
+.app-field__steppers
+  .app-field__stepper:hover:not(:disabled, [aria-disabled='true'])
+  .app-field__stepper-icon,
+.app-field__steppers
+  .app-field__stepper:active:not(:disabled, [aria-disabled='true'])
+  .app-field__stepper-icon,
+.app-field__steppers .app-field__stepper:focus-visible .app-field__stepper-icon {
+  color: var(--text-primary);
+}
+
+.app-field__steppers .app-field__stepper:focus-visible .app-field__stepper-icon {
+  border-radius: 0.1rem;
+  box-shadow: inset 0 0 0 1px var(--focus-ring);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-field__stepper-icon {
+    transition: none;
+  }
+}
+
+/*
+ * The whole field dims, not just the input: a notched label and unit left at
+ * full contrast around a greyed-out number reads as a field that is still
+ * available and simply empty. This matches `.field:disabled`'s opacity.
+ */
+.app-field--disabled {
+  opacity: 0.5;
+}

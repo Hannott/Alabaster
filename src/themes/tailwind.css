@@ -1,0 +1,62 @@
+@theme {
+  --color-canvas: var(--surface-canvas);
+  --color-canvas-glass: var(--surface-canvas-glass);
+  --color-raised: var(--surface-raised);
+  --color-soft: var(--surface-soft);
+  --color-strong: var(--surface-strong);
+  --color-primary: var(--text-primary);
+  --color-muted: var(--text-muted);
+  --color-on-strong: var(--text-on-strong);
+  --color-on-strong-muted: var(--text-on-strong-muted);
+  --color-on-strong-faint: var(--text-on-strong-faint);
+  --color-on-strong-soft: var(--surface-on-strong-soft);
+  --color-subtle: var(--border-subtle);
+  /*
+   * Named `cta`, not `action`: Tailwind auto-generates a full utility family
+   * (`bg-*`, `text-*`, `border-*`, ...) from every `--color-*` key, and
+   * `text-action` is already the documented "text framed as clickable by its
+   * context" pattern in docs/design/button-system.md (main.css's `.text-action`,
+   * muted at rest). A same-named `text-action` utility here would silently
+   * fight that hand-authored rule for the same selector — which one won
+   * depended on build/HMR order, not on intent. `cta` keeps the two solid-fill
+   * pill links below on the real accent color without reopening that clash.
+   */
+  --color-cta: var(--action-primary);
+  --color-on-action: var(--action-on-primary);
+  --color-accent: var(--accent-primary);
+  --color-focus: var(--focus-ring);
+  --color-danger: var(--status-danger);
+  --color-danger-soft: var(--status-danger-soft);
+  --color-danger-text: var(--status-danger-text);
+  --color-danger-strong: var(--status-danger-strong);
+  --color-on-danger: var(--status-on-danger);
+  --color-caution-text: var(--status-caution-text);
+  --color-veil: var(--interaction-veil);
+  --color-veil-strong: var(--interaction-veil-strong);
+  --color-data-blue: var(--ito-blue);
+  --color-data-sky: var(--ito-sky-blue);
+  --color-data-green: var(--ito-bluish-green);
+  --color-data-orange: var(--ito-orange);
+  --color-data-purple: var(--ito-reddish-purple);
+  --color-data-red: var(--ito-vermillion);
+  --color-data-yellow: var(--ito-yellow);
+  --color-brand-ink: var(--ito-black);
+  --color-brand-paper: var(--neutral-white);
+  --color-brand-blue: var(--ito-blue);
+  --color-brand-sky: var(--ito-sky-blue);
+  --color-brand-yellow: var(--ito-yellow);
+  --default-transition-duration: var(--motion-duration-fast);
+  --default-transition-timing-function: var(--motion-ease-standard);
+  /*
+   * `src/fonts/fonts.css` overrides both of these for every `data-font`
+   * value, including the bare `:root` default — an unlayered rule always
+   * wins over this `@theme` block regardless of selector order, so what is
+   * declared here is never actually seen. They still have to name a real
+   * stack: Tailwind generates the `.font-sans`/`.font-mono` utilities and the
+   * document's default font family from these keys, and both need a value
+   * even before `fonts.css` finishes evaluating.
+   */
+  --font-sans:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
+}

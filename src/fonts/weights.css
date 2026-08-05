@@ -1,0 +1,85 @@
+/*
+ * `data-text-weight` (`src/composables/useTextWeight.ts`) lets a reader pick
+ * their own base weight — from the named OpenType scale, Light through Bold
+ * (300–700) — rather than Alabaster fixing one for them. `--font-weight` is
+ * always exactly that pick. `--font-weight-increased` and
+ * `--font-weight-decreased` sit two steps above and below it on the same
+ * 100-unit scale (Thin 100, Extra Light 200, Light 300, Regular 400, Medium
+ * 500, SemiBold 600, Bold 700, Extra Bold 800, Black 900), which is why the
+ * picker's own range stops at Light and Bold: two steps out from either end
+ * still lands inside 100–900 without clamping.
+ *
+ * Every hand-written `font-weight` in `main.css` and `typography.css` reaches
+ * for one of these three — never a raw number, and never `--font-weight-black`
+ * or `--font-weight-strong` (the two-tier tokens this replaced, back when the
+ * only choice was "standard" or "lighter"). `--font-weight-black` survives
+ * below only because Tailwind's `font-black` utility is wired to that exact
+ * theme-token name; nothing hand-written should reference it directly.
+ * `font-bold` (Tailwind's own fixed 700) stays untouched, same as before: it
+ * is the one weight every bundled font is guaranteed to carry, so it is the
+ * safe floor a decorative element can reach for without checking anything.
+ *
+ * Not every bundled font has a real face at every one of these nine steps —
+ * see `docs/design/interface-standards.md`'s Typography section for which
+ * family stops short of which weight. Requesting a weight with no loaded face
+ * does not fake one: `font-synthesis: none` means the browser's own nearest-
+ * weight matching quietly substitutes the closest face that *is* loaded, the
+ * same graceful-degradation this file already relied on before this feature
+ * existed.
+ */
+:root[data-text-weight='light'] {
+  --font-weight: 300;
+  --font-weight-increased: 500;
+  --font-weight-decreased: 100;
+}
+
+/*
+ * `regular` is the resting default, so it is the one level paired with a bare
+ * `:root` — matching how `fonts.css` pairs its default typeface. The pairing
+ * has to track `useTextWeight.ts`'s own default: the attribute is only on the
+ * element once that module has run, and the two disagreeing would mean the
+ * first paint renders at one weight and every later one at another.
+ */
+:root,
+:root[data-text-weight='regular'] {
+  --font-weight: 400;
+  --font-weight-increased: 600;
+  --font-weight-decreased: 200;
+}
+
+:root[data-text-weight='medium'] {
+  --font-weight: 500;
+  --font-weight-increased: 700;
+  --font-weight-decreased: 300;
+}
+
+:root[data-text-weight='semibold'] {
+  --font-weight: 600;
+  --font-weight-increased: 800;
+  --font-weight-decreased: 400;
+}
+
+:root[data-text-weight='bold'] {
+  --font-weight: 700;
+  --font-weight-increased: 900;
+  --font-weight-decreased: 500;
+}
+
+:root {
+  --font-weight-black: var(--font-weight-increased);
+}
+
+/*
+ * The console carries no weight of its own by default — `.gcode-console` and
+ * the prompt fields render at the browser's normal weight — so `regular` is
+ * the resting `:root` default rather than a named override, and `bold` is
+ * the only rule this needs. Independent of the scale above: the console has
+ * always been a fixed two-state toggle, not a reader-chosen base weight.
+ */
+:root {
+  --console-font-weight: 400;
+}
+
+:root[data-console-weight='bold'] {
+  --console-font-weight: 700;
+}

@@ -1,0 +1,980 @@
+<script setup lang="ts">
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
+import { RouterLink, RouterView } from 'vue-router'
+
+import ActivityList from '@/components/ActivityList.vue'
+import AlabasterMark from '@/components/AlabasterMark.vue'
+import AppIcon from '@/components/AppIcon.vue'
+import BedScrewsDialog from '@/components/BedScrewsDialog.vue'
+import ConfirmDialog from '@/components/ConfirmDialog.vue'
+import HeaderMenu from '@/components/HeaderMenu.vue'
+import ManualProbeDialog from '@/components/ManualProbeDialog.vue'
+import PrinterFaultNotice from '@/components/PrinterFaultNotice.vue'
+import SaveConfigDialog from '@/components/SaveConfigDialog.vue'
+import ToastStack from '@/components/ToastStack.vue'
+import { useAvailability } from '@/composables/useAvailability'
+import { useConsoleFont } from '@/composables/useConsoleFont'
+import { useConsoleWeight } from '@/composables/useConsoleWeight'
+import { useContextMenuGuard } from '@/composables/useContextMenuGuard'
+import { useFont } from '@/composables/useFont'
+import { useSelectValueOnFocus } from '@/composables/useSelectValueOnFocus'
+import { useSidebar } from '@/composables/useSidebar'
+import { useTextWeight } from '@/composables/useTextWeight'
+import { useWakeLock } from '@/composables/useWakeLock'
+import {
+  isDestinationSupported,
+  navigationDestinations,
+  type NavigationDestination,
+} from '@/navigation/destinations'
+import { readPendingConfig } from '@/features/config/pendingConfig'
+import { pagePrefetch } from '@/router/prefetch'
+import { useAnnouncementsStore } from '@/stores/announcements'
+import { useBedScrewsStore } from '@/stores/bedScrews'
+import { useActionGuard } from '@/composables/useActionGuard'
+import { useDevicePowerStore } from '@/stores/devicePower'
+import { useMachineFilesStore } from '@/stores/machineFiles'
+import { useManualProbeStore } from '@/stores/manualProbe'
+import { useMoonrakerStore } from '@/stores/moonraker'
+import { usePrinterStore } from '@/stores/printer'
+import { printerDisplayLabel, printerHost, usePrintersStore } from '@/stores/printers'
+import { usePrinterConfigStore } from '@/stores/printerConfig'
+import { useServerCapabilitiesStore } from '@/stores/serverCapabilities'
+
+const { t } = useI18n({ useScope: 'global' })
+// Only Settings reads the rest of this composable's return value, but the
+// module-level effect that actually holds the lock has to be live from the
+// moment the app boots, on whichever page that happens to be — not deferred
+// until the reader first opens Settings.
+useWakeLock()
+// Same reasoning as the wake lock above: the chosen typeface has to apply to
+// the whole document from boot, not only once Settings happens to be visited.
+useFont()
+useTextWeight()
+useConsoleFont()
+useConsoleWeight()
+const { isSidebarCollapsed, toggleSidebar } = useSidebar()
+const { availability: printerAvailability, messageKey: printerAvailabilityMessageKey } =
+  useAvailability('klipper')
+const { availability: moonrakerAvailability } = useAvailability('moonraker')
+
+/*
+ * The status pill's label is collapsed by default and only reveals itself on
+ * hover or focus (`.header-status__label` in main.css) -- but a status change
+ * is exactly the moment nobody is hovering it yet it is most worth reading.
+ * `status-flash` mirrors that reveal for `statusFlashDurationMs` after every
+ * change to the reason, refreshing on each new one, so a reader who glances at
+ * the header right after a reconnect sees the reason rather than only the dot.
+ */
+const statusFlashDurationMs = 5000
+const isStatusFlashing = ref(false)
+let statusFlashTimer: ReturnType<typeof window.setTimeout> | null = null
+
+watch(
+  () => printerAvailability.value.reason,
+  () => {
+    isStatusFlashing.value = true
+    if (statusFlashTimer !== null) window.clearTimeout(statusFlashTimer)
+    statusFlashTimer = window.setTimeout(() => {
+      isStatusFlashing.value = false
+      statusFlashTimer = null
+    }, statusFlashDurationMs)
+  },
+)
+
+onBeforeUnmount(() => {
+  if (statusFlashTimer !== null) window.clearTimeout(statusFlashTimer)
+})
+const printer = usePrinterStore()
+const devicePower = useDevicePowerStore()
+const announcements = useAnnouncementsStore()
+const machineFiles = useMachineFilesStore()
+const manualProbe = useManualProbeStore()
+const bedScrews = useBedScrewsStore()
+const printerConfig = usePrinterConfigStore()
+const printers = usePrintersStore()
+const moonraker = useMoonrakerStore()
+
+const serverCapabilities = useServerCapabilitiesStore()
+
+useContextMenuGuard()
+useSelectValueOnFocus()
+
+/*
+ * Warm every page's module while the browser is idle, in rail order, so the
+ * first visit to a destination costs no more than the second one. Deliberately
+ * the whole list rather than `supportedDestinations`: capabilities arrive with
+ * the connection, and waiting for them would start the warm-up at exactly the
+ * moment the reader starts clicking. An unsupported page costs one small request
+ * once; a cold page costs a click that appears to do nothing.
+ */
+onMounted(() => {
+  pagePrefetch.warmAll(navigationDestinations.map((destination) => destination.name))
+})
+
+onBeforeUnmount(() => {
+  pagePrefetch.cancel()
+})
+
+/*
+ * Restarting Klipper and restarting the firmware were the two sharpest holes in
+ * the whole button system: both end an active print outright, both fired on one
+ * click, and both wore `quiet` -- the lowest-emphasis variant there is, meant
+ * for menu entries and row chrome. Two items further down the same menu, behind
+ * the same divider, Reboot and Shutdown were already `danger-quiet` and already
+ * confirmed. Four entries in one menu, two of which killed a print silently and
+ * looked like the quietest things on screen.
+ *
+ * They join the same mechanism, but as tier 3b rather than 3a: their whole
+ * consequence is that a job is loaded. Against an idle machine a Klipper
+ * restart is something you do ten times while editing `printer.cfg`, so the
+ * dialog and the livery both arrive only when there is a print to lose.
+ */
+type ConfirmableAction =
+  'emergencyStop' | 'rebootHost' | 'shutdownHost' | 'restartKlipper' | 'firmwareRestart'
+const confirmingAction = ref<ConfirmableAction | null>(null)
+
+// Optional-called, so an environment without matchMedia still animates
+// rather than silently losing the motion — as dashboard/reveal.ts already does.
+function prefersReducedMotion(): boolean {
+  return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
+}
+
+const estopIcon = ref<InstanceType<typeof AppIcon> | null>(null)
+
+function estopIconSvg(): SVGSVGElement | undefined {
+  return estopIcon.value?.$el as SVGSVGElement | undefined
+}
+
+/**
+ * `emergencyStop`'s draw-in is SMIL (`<animate>`), not CSS, so it sits outside
+ * main.css's blanket `prefers-reduced-motion` rule — that rule only collapses
+ * `animation`/`transition` durations, a different mechanism than an SVG's own
+ * SMIL timeline. Reduced motion is honoured by hand instead: parked at its
+ * final frame on mount rather than left to play, and never rewound on hover
+ * or focus.
+ */
+function replayEstopIcon(): void {
+  if (prefersReducedMotion()) return
+  estopIconSvg()?.setCurrentTime?.(0)
+}
+
+onMounted(() => {
+  // 2s safely clears the animation's last frame (its final `<animate>` ends
+  // at 1.7s), landing on the fully-drawn glyph instead of an empty one.
+  if (prefersReducedMotion()) estopIconSvg()?.setCurrentTime?.(2)
+})
+
+const hasNotice = computed(
+  () =>
+    !printerAvailability.value.isAvailable ||
+    printer.lastCommandError !== null ||
+    announcements.hasEntries,
+)
+
+/**
+ * The rail renders every destination this machine can serve. The mobile bar
+ * shows the few that earn a permanent cell at 390 px and the overflow menu holds
+ * the rest — never a shorter list with the remainder dropped, which would leave
+ * a shipped destination unreachable on a phone.
+ */
+const supportedDestinations = computed(() =>
+  navigationDestinations.filter((destination) =>
+    isDestinationSupported(destination, {
+      hasRoot: (root) => serverCapabilities.hasRoot(root),
+      hasComponent: (component) => serverCapabilities.hasComponent(component),
+      hasConfigSection: (section) => printerConfig.hasSection(section),
+    }),
+  ),
+)
+
+const mobileBarDestinations = computed(() =>
+  supportedDestinations.value.filter((destination) => destination.mobile === 'bar'),
+)
+
+const mobileOverflowDestinations = computed(() =>
+  supportedDestinations.value.filter((destination) => destination.mobile === 'overflow'),
+)
+
+const sidebarLabel = computed(() =>
+  isSidebarCollapsed.value ? t('navigation.expandSidebar') : t('navigation.collapseSidebar'),
+)
+
+function isUnsavedNavItem(item: NavigationDestination): boolean {
+  return item.name === 'configuration' && machineFiles.hasUnsavedFiles
+}
+
+function navLinkTitle(item: NavigationDestination): string | undefined {
+  if (!isSidebarCollapsed.value) return undefined
+  const label = t(item.labelKey)
+  return isUnsavedNavItem(item) ? `${label} — ${t('navigation.unsavedChanges')}` : label
+}
+
+/** True when a destination the mobile bar does not show has unsaved work behind it. */
+const hasUnsavedOverflowItem = computed(() =>
+  mobileOverflowDestinations.value.some((destination) => isUnsavedNavItem(destination)),
+)
+
+const confirmDialogCopy = computed(() => {
+  if (confirmingAction.value === 'rebootHost') {
+    return {
+      title: t('header.power.rebootHost'),
+      description: t('header.power.rebootHostConfirm'),
+      confirmLabel: t('header.power.rebootHost'),
+    }
+  }
+  if (confirmingAction.value === 'shutdownHost') {
+    return {
+      title: t('header.power.shutdownHost'),
+      description: t('header.power.shutdownHostConfirm'),
+      confirmLabel: t('header.power.shutdownHost'),
+    }
+  }
+  if (confirmingAction.value === 'restartKlipper') {
+    return {
+      title: t('header.power.restartKlipper'),
+      description: t('header.power.restartKlipperConfirm'),
+      confirmLabel: t('header.power.restartKlipper'),
+    }
+  }
+  if (confirmingAction.value === 'firmwareRestart') {
+    return {
+      title: t('header.power.firmwareRestart'),
+      description: t('header.power.firmwareRestartConfirm'),
+      confirmLabel: t('header.power.firmwareRestart'),
+    }
+  }
+  return {
+    title: t('dashboard.emergencyStop'),
+    description: t('dashboard.emergencyStopConfirm'),
+    confirmLabel: t('dashboard.emergencyStopShort'),
+  }
+})
+
+function performAction(action: ConfirmableAction): Promise<unknown> {
+  if (action === 'rebootHost') return printer.rebootHost()
+  if (action === 'shutdownHost') return printer.shutdownHost()
+  if (action === 'restartKlipper') return printer.restartKlipper()
+  if (action === 'firmwareRestart') return printer.firmwareRestart()
+  return printer.emergencyStop()
+}
+
+/*
+ * One guard per menu entry rather than one for the menu, because the tier is
+ * per action: the three host-level ones are terminal whatever the printer is
+ * doing, the two restarts only once a job is loaded, and restarting Moonraker
+ * is not terminal at all -- it drops the socket while Klipper keeps printing,
+ * which ADR 0002 already requires the interface to survive without a reload.
+ * Marking that one terminal would teach the reader to distrust the signal.
+ */
+const printDerived = () =>
+  printer.hasActivePrint ? ('terminal' as const) : ('reversible' as const)
+
+const powerGuards = {
+  emergencyStop: useActionGuard({ tier: 'terminal', key: 'emergencyStop' }),
+  rebootHost: useActionGuard({ tier: 'terminal', emphasis: 'danger-quiet', key: 'rebootHost' }),
+  shutdownHost: useActionGuard({
+    tier: 'terminal',
+    emphasis: 'danger-quiet',
+    key: 'shutdownHost',
+  }),
+  restartKlipper: useActionGuard({
+    tier: printDerived,
+    emphasis: 'neutral',
+    key: 'restartKlipper',
+  }),
+  firmwareRestart: useActionGuard({
+    tier: printDerived,
+    emphasis: 'neutral',
+    key: 'firmwareRestart',
+  }),
+} as const
+
+const restartMoonrakerGuard = useActionGuard({
+  tier: () => (printer.hasActivePrint ? 'disruptive' : 'reversible'),
+})
+
+async function confirmPendingAction(): Promise<void> {
+  const action = confirmingAction.value
+  confirmingAction.value = null
+  if (action) await performAction(action)
+}
+
+/** Opens the confirmation, or skips straight to the action if the user turned it off. */
+function requestAction(action: ConfirmableAction): void {
+  powerGuards[action].request(
+    () => void performAction(action),
+    () => (confirmingAction.value = action),
+  )
+}
+
+/**
+ * `machine.device_power.*` keeps working while Klipper is down — this is the
+ * one control in the header power menu that only ever asks the state it
+ * already has for the opposite of itself, never a bare "toggle", so a stale
+ * read costs one more click rather than sending the command the wrong way.
+ */
+function toggleDevice(device: { device: string; status: string }): void {
+  void devicePower.setDevice(device.device, device.status === 'on' ? 'off' : 'on')
+}
+
+/*
+ * Writing the config is one printer-wide fact, so it gets one gate in the one
+ * place that is always on screen.
+ *
+ * It used to be two buttons on two cards, each appearing only when *that*
+ * surface had done the staging — so a mesh saved from Calibration staged a
+ * change and offered nothing at all, and the same pending state was reported by
+ * up to two cards and no page. `configfile.save_config_pending` is a fact about
+ * the printer, not about a card.
+ *
+ * The button appears only while something is staged rather than sitting
+ * permanently disabled: a header control that is dead most of the time is dead
+ * chrome, and its presence here *is* the notice that something is waiting.
+ */
+const isSaveConfigOpen = ref(false)
+
+const pendingConfigSections = computed(() =>
+  readPendingConfig(printer.saveConfigPendingItems, printerConfig.settings),
+)
+
+/**
+ * Driven by the subscribed flag rather than by the section list, so the button
+ * still appears on a firmware that reports `save_config_pending` without the
+ * items beside it — the list would be empty there, and offering no way to write
+ * a change Klipper is holding is worse than offering one that cannot describe
+ * itself.
+ */
+const hasPendingConfig = computed(() => printer.saveConfigPending)
+
+function closeSaveConfig(): void {
+  isSaveConfigOpen.value = false
+}
+
+/**
+ * `SAVE_CONFIG` writes the file and restarts Klipper in one step — the restart
+ * is not separable, see the dialog. The dialog closes first so the reconnect is
+ * not happening behind a modal.
+ */
+async function saveConfig(): Promise<void> {
+  isSaveConfigOpen.value = false
+  await printer.saveConfig()
+}
+
+/**
+ * Klipper has no command that unstages a pending block, so the only way to be
+ * rid of one is to make it re-read `printer.cfg` from disk. A firmware restart
+ * does that, and the button's own label says it restarts.
+ */
+async function discardPendingConfig(): Promise<void> {
+  isSaveConfigOpen.value = false
+  await printer.firmwareRestart()
+}
+</script>
+
+<template>
+  <a
+    href="#main-content"
+    class="fixed start-4 top-4 z-50 -translate-y-24 rounded-full bg-cta px-4 py-3 font-semibold text-on-action shadow-lg transition-transform focus:translate-y-0"
+  >
+    {{ t('app.skipToContent') }}
+  </a>
+
+  <div
+    class="app-shell min-h-screen bg-canvas text-primary"
+    :data-sidebar-collapsed="isSidebarCollapsed"
+  >
+    <aside class="desktop-sidebar border-e border-subtle bg-raised p-7 text-primary">
+      <div class="brand-grid" aria-hidden="true"></div>
+
+      <div class="sidebar-brand relative flex items-center gap-3">
+        <AlabasterMark class="size-11" />
+        <div class="sidebar-copy">
+          <p class="text-xl font-black tracking-[-0.04em]">{{ t('app.name') }}</p>
+        </div>
+      </div>
+
+      <nav
+        id="desktop-primary-navigation"
+        class="sidebar-navigation relative mt-8"
+        :aria-label="t('navigation.label')"
+      >
+        <ol class="space-y-2">
+          <li v-for="item in supportedDestinations" :key="item.name">
+            <RouterLink
+              :to="{ name: item.name }"
+              class="button button--quiet button--start button--block sidebar-nav-link group relative"
+              :class="{ 'nav-link--unsaved button--badged': isUnsavedNavItem(item) }"
+              :title="navLinkTitle(item)"
+              @pointerenter="pagePrefetch.prefetch(item.name)"
+              @focus="pagePrefetch.prefetch(item.name)"
+            >
+              <AppIcon
+                :name="item.icon"
+                class="size-5 shrink-0"
+                :class="
+                  isUnsavedNavItem(item)
+                    ? 'text-caution-text'
+                    : 'text-muted group-[.router-link-active]:text-action'
+                "
+                aria-hidden="true"
+              />
+              <span class="sidebar-nav-label">
+                {{ t(item.labelKey) }}
+                <span v-if="isUnsavedNavItem(item)" class="sr-only">
+                  — {{ t('navigation.unsavedChanges') }}
+                </span>
+              </span>
+            </RouterLink>
+          </li>
+        </ol>
+      </nav>
+
+      <button
+        type="button"
+        class="button button--icon sidebar-toggle relative mt-auto shrink-0 self-start"
+        :aria-label="sidebarLabel"
+        :aria-expanded="!isSidebarCollapsed"
+        aria-controls="desktop-primary-navigation"
+        :title="sidebarLabel"
+        @click="toggleSidebar"
+      >
+        <AppIcon
+          :name="isSidebarCollapsed ? 'sidebarExpand' : 'sidebarCollapse'"
+          class="size-5"
+          aria-hidden="true"
+        />
+      </button>
+    </aside>
+
+    <div class="app-content min-w-0 flex-1">
+      <header
+        class="app-header sticky top-0 z-30 flex min-h-20 items-center justify-between gap-3 border-b border-subtle bg-canvas-glass px-4 backdrop-blur-xl sm:px-6 lg:px-10"
+      >
+        <div class="header-identity flex min-w-0 items-center gap-3">
+          <AlabasterMark :label="t('app.name')" class="mobile-brand size-9 shrink-0" />
+          <div class="min-w-0">
+            <p class="text-eyebrow text-muted">
+              {{ t('header.printerLabel') }}
+            </p>
+            <div class="flex min-w-0 items-center gap-2">
+              <p class="truncate text-sm font-weight-base sm:text-base">
+                {{ printer.printerName || t('header.printerName') }}
+              </p>
+              <HeaderMenu
+                class="shrink-0"
+                :label="t('header.printers.label')"
+                align="start"
+                trigger-class="button button--quiet button--xs button--icon"
+              >
+                <template #trigger>
+                  <AppIcon name="down" class="size-4" aria-hidden="true" />
+                </template>
+                <template #default="{ close }">
+                  <p class="header-menu__section-title">{{ t('header.printers.title') }}</p>
+                  <ul class="grid gap-0.5">
+                    <li v-for="entry in printers.entries" :key="entry.id">
+                      <button
+                        type="button"
+                        class="button button--quiet button--sm button--start button--block"
+                        :aria-current="entry.id === printers.activeId ? 'true' : undefined"
+                        @click="
+                          () => {
+                            close()
+                            moonraker.selectPrinter(entry.id)
+                          }
+                        "
+                      >
+                        <AppIcon
+                          :name="entry.id === printers.activeId ? 'print' : 'globe'"
+                          class="size-4 shrink-0"
+                          aria-hidden="true"
+                        />
+                        <span class="min-w-0 flex-1 text-start">
+                          <strong class="block truncate">{{ printerDisplayLabel(entry) }}</strong>
+                          <span
+                            v-if="entry.label"
+                            class="block truncate text-[0.68rem] font-medium text-muted"
+                            >{{ printerHost(entry.endpoint) }}</span
+                          >
+                        </span>
+                      </button>
+                    </li>
+                  </ul>
+                  <div class="header-menu__divider" role="none"></div>
+                  <RouterLink
+                    :to="{ name: 'settings' }"
+                    class="button button--quiet button--sm button--start button--block"
+                    @click="close"
+                  >
+                    <AppIcon name="add" class="size-4" aria-hidden="true" />
+                    {{ t('header.printers.manage') }}
+                  </RouterLink>
+                </template>
+              </HeaderMenu>
+              <div
+                class="header-status text-xs font-semibold"
+                :class="{ 'header-status--flash': isStatusFlashing }"
+                role="status"
+                tabindex="0"
+                :aria-label="`${t('status.label')}: ${t(printerAvailabilityMessageKey)}`"
+              >
+                <span
+                  class="status-mark"
+                  :class="`status-mark--${printerAvailability.phase}`"
+                  aria-hidden="true"
+                ></span>
+                <span class="header-status__label" aria-hidden="true">{{
+                  t(printerAvailabilityMessageKey)
+                }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="header-actions">
+          <!--
+            One gate for writing the config, in the one place always on screen.
+            Shown only while Klipper is holding changes: a permanently disabled
+            header control is dead chrome, and its presence here is itself the
+            notice that something is waiting to be written. Nothing else in
+            the interface can write the config, so it stays at every width.
+
+            `primary`, which is this system's variant for "the one action a
+            surface exists to perform: Save, Print, Apply", and the header has no
+            other. A caution tint was the first idea and is not available: it
+            would put a `--status-caution-text` label on a translucent tint of
+            its own hue, which is the exact convergence `button-system.md`
+            measured at 3.3:1 and rejected when it made `danger` an outline
+            variant.
+
+            Icon and text, like the stop beside it: this is the only route to
+            writing the config, and a lone glyph is a poor way to name an action
+            nothing else in the interface offers. It fits because the row is
+            allowed to wrap at phone widths — see `.header-actions`.
+          -->
+          <!--
+            The way back into a manual probe that has been put aside, and the
+            only notice that one is waiting at all. Same reasoning as the save
+            gate below it: a probe holds the machine still until someone answers
+            it, and its presence in the one place always on screen is itself the
+            notice. Gone the instant the probe ends, from here or anywhere else.
+
+            Neutral, not `primary` — the save gate already holds this surface's
+            one primary, and both can be present at once: staging a probe offset
+            and then running another calibration is an ordinary evening.
+          -->
+          <button
+            v-if="manualProbe.isActive"
+            type="button"
+            class="button button--sm button--icon-lg"
+            :title="t('manualProbe.openTitle')"
+            @click="manualProbe.reopen()"
+          >
+            <AppIcon name="probe" class="size-5" aria-hidden="true" />
+            {{ t('manualProbe.open') }}
+          </button>
+          <!--
+            The same gate for a bed-screw round that has been put aside. A
+            separate control rather than one shared "a procedure is waiting"
+            button: the two helpers are different waits with different answers,
+            they can be told apart at a glance only by saying which, and Klipper
+            can only ever have one of them running — so the pair never both
+            appear and the row never grows by two.
+          -->
+          <button
+            v-if="bedScrews.isActive"
+            type="button"
+            class="button button--sm button--icon-lg"
+            :title="t('bedScrews.openTitle')"
+            @click="bedScrews.reopen()"
+          >
+            <AppIcon name="maintenance" class="size-5" aria-hidden="true" />
+            {{ t('bedScrews.open') }}
+          </button>
+          <button
+            v-if="hasPendingConfig"
+            type="button"
+            class="button button--primary button--sm button--icon-lg"
+            :data-pending="printer.pendingCommands.saveConfig ? 'true' : undefined"
+            :title="t('saveConfig.open')"
+            @click="isSaveConfigOpen = true"
+          >
+            <AppIcon name="save" class="size-5" aria-hidden="true" />
+            {{ t('saveConfig.open') }}
+          </button>
+          <!--
+            The notice that a saved config file has not taken effect yet, and the
+            action that applies it — one control, for the same reason the save
+            gate above is one: a header control that is only ever a notice is
+            chrome you cannot act on, and the action is the only thing anyone
+            wants once they have read it.
+
+            It exists because saving is not applying. `printer.cfg` on disk
+            changes the moment Save finishes, and Klipper runs the config it
+            loaded at startup until a firmware restart — while the editor's own
+            "Save and restart" disables itself the instant the buffer is clean.
+            So the state right after a plain Save had nothing anywhere saying the
+            change was not live, which is how a value gets edited, saved, and then
+            measured against a printer still running the old one.
+
+            Neutral, not `primary`: the save gate holds this surface's one
+            primary, and both can be present at once — Klipper holding staged
+            values and a file waiting for a restart are different waits. It reuses
+            the power menu's own `firmwareRestart` guard rather than declaring a
+            second one, so the confirmation, the tier that resolves to terminal
+            only while a print is running, and the variant are all decided once.
+          -->
+          <button
+            v-if="machineFiles.hasUnappliedConfigChanges"
+            type="button"
+            class="button button--sm button--icon-lg"
+            :class="powerGuards.firmwareRestart.variant.value ?? undefined"
+            v-bind="powerGuards.firmwareRestart.bind.value"
+            :disabled="
+              !moonrakerAvailability.isAvailable || printer.pendingCommands.firmwareRestart
+            "
+            :data-pending="printer.pendingCommands.firmwareRestart ? 'true' : undefined"
+            :title="t('header.applyConfig.title')"
+            @click="requestAction('firmwareRestart')"
+          >
+            <AppIcon name="refresh" class="size-5" aria-hidden="true" />
+            {{ t('header.applyConfig.label') }}
+          </button>
+          <!--
+            Text, not a button — outlier 1 in button-system.md. The one control
+            that has to be found before it is read, so shape (all caps, the
+            brake-alert glyph) and a fixed danger colour carry that instead of
+            button chrome. Still a real `<button>` for click, keyboard, and
+            `:disabled`; named in full rather than abbreviated to "Stop" for the
+            same reason as before — the row wraps now, so there is no width to
+            buy back by shortening the most consequential label in the product.
+          -->
+          <button
+            type="button"
+            class="header-estop"
+            :disabled="!printerAvailability.isAvailable || printer.pendingCommands.emergencyStop"
+            :data-pending="printer.pendingCommands.emergencyStop ? 'true' : undefined"
+            :title="t('dashboard.emergencyStop')"
+            @click="requestAction('emergencyStop')"
+            @mouseenter="replayEstopIcon"
+            @focus="replayEstopIcon"
+          >
+            <AppIcon ref="estopIcon" name="emergencyStop" class="size-5" aria-hidden="true" />
+            {{ t('dashboard.emergencyStop') }}
+          </button>
+
+          <HeaderMenu
+            :label="t('header.notifications.label')"
+            align="end"
+            trigger-class="button button--quiet button--icon"
+          >
+            <template #trigger>
+              <AppIcon :name="hasNotice ? 'bellNew' : 'bell'" class="size-5" aria-hidden="true" />
+            </template>
+            <template #default>
+              <!--
+                Moonraker/Klipper/component release notices — the header
+                notice docs/design/navigation-plan.md names as a real gap.
+                Above the activity feed: an announcement is something to act
+                on (read, dismiss), the activity feed is something to skim.
+              -->
+              <template v-if="announcements.hasEntries">
+                <p class="header-menu__section-title">
+                  {{ t('header.notifications.announcementsTitle') }}
+                </p>
+                <ul class="grid gap-1">
+                  <li
+                    v-for="entry in announcements.entries"
+                    :key="entry.entry_id"
+                    class="announcement-row"
+                    :class="{ 'announcement-row--high': entry.priority === 'high' }"
+                  >
+                    <AppIcon
+                      v-if="entry.priority === 'high'"
+                      name="warning"
+                      class="size-4 shrink-0 text-caution-text"
+                      aria-hidden="true"
+                    />
+                    <div class="min-w-0 flex-1">
+                      <span v-if="entry.priority === 'high'" class="sr-only">
+                        {{ t('header.notifications.highPriority') }}
+                      </span>
+                      <a
+                        v-if="entry.url"
+                        :href="entry.url"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="text-action block truncate text-xs font-black"
+                      >
+                        {{ entry.title }}
+                      </a>
+                      <strong v-else class="block truncate text-xs">{{ entry.title }}</strong>
+                      <span v-if="entry.description" class="mt-0.5 block text-[0.68rem] text-muted">
+                        {{ entry.description }}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      class="button button--quiet button--xs button--icon shrink-0"
+                      :disabled="announcements.dismissingIds.has(entry.entry_id)"
+                      :aria-label="t('header.notifications.dismiss', { title: entry.title })"
+                      :title="t('header.notifications.dismiss', { title: entry.title })"
+                      @click="announcements.dismiss(entry.entry_id)"
+                    >
+                      <AppIcon name="close" class="size-4" aria-hidden="true" />
+                    </button>
+                  </li>
+                </ul>
+                <p class="header-menu__divider" role="separator"></p>
+              </template>
+              <p class="header-menu__section-title">{{ t('header.notifications.title') }}</p>
+              <ActivityList variant="menu" />
+            </template>
+          </HeaderMenu>
+
+          <HeaderMenu
+            :label="t('header.power.label')"
+            align="end"
+            trigger-class="button button--quiet button--icon"
+          >
+            <template #trigger>
+              <AppIcon name="power" class="size-5" aria-hidden="true" />
+            </template>
+            <template #default="{ close }">
+              <p class="header-menu__section-title">{{ t('header.power.klipperControl') }}</p>
+              <button
+                type="button"
+                class="button button--sm button--start button--block"
+                :class="powerGuards.restartKlipper.variant.value ?? 'button--quiet'"
+                v-bind="powerGuards.restartKlipper.bind.value"
+                :disabled="
+                  !moonrakerAvailability.isAvailable || printer.pendingCommands.restartKlipper
+                "
+                @click="
+                  () => {
+                    requestAction('restartKlipper')
+                    close()
+                  }
+                "
+              >
+                <AppIcon name="refresh" class="size-4" aria-hidden="true" />
+                {{ t('header.power.restartKlipper') }}
+              </button>
+              <button
+                type="button"
+                class="button button--sm button--start button--block"
+                :class="powerGuards.firmwareRestart.variant.value ?? 'button--quiet'"
+                v-bind="powerGuards.firmwareRestart.bind.value"
+                :disabled="
+                  !moonrakerAvailability.isAvailable || printer.pendingCommands.firmwareRestart
+                "
+                @click="
+                  () => {
+                    requestAction('firmwareRestart')
+                    close()
+                  }
+                "
+              >
+                <AppIcon name="refresh" class="size-4" aria-hidden="true" />
+                {{ t('header.power.firmwareRestart') }}
+              </button>
+
+              <p class="header-menu__divider" role="separator"></p>
+              <p class="header-menu__section-title">{{ t('header.power.serviceControl') }}</p>
+              <button
+                type="button"
+                class="button button--quiet button--sm button--start button--block"
+                v-bind="restartMoonrakerGuard.bind.value"
+                :disabled="
+                  !moonrakerAvailability.isAvailable || printer.pendingCommands.restartMoonraker
+                "
+                @click="
+                  () => {
+                    printer.restartMoonraker()
+                    close()
+                  }
+                "
+              >
+                <AppIcon name="refresh" class="size-4" aria-hidden="true" />
+                {{ t('header.power.restartMoonraker') }}
+              </button>
+
+              <p class="header-menu__divider" role="separator"></p>
+              <p class="header-menu__section-title">{{ t('header.power.hostControl') }}</p>
+              <button
+                type="button"
+                class="button button--danger-quiet button--sm button--start button--block"
+                :disabled="!moonrakerAvailability.isAvailable"
+                @click="
+                  () => {
+                    requestAction('rebootHost')
+                    close()
+                  }
+                "
+              >
+                <AppIcon name="power" class="size-4" aria-hidden="true" />
+                {{ t('header.power.rebootHost') }}
+              </button>
+              <button
+                type="button"
+                class="button button--danger-quiet button--sm button--start button--block"
+                :disabled="!moonrakerAvailability.isAvailable"
+                @click="
+                  () => {
+                    requestAction('shutdownHost')
+                    close()
+                  }
+                "
+              >
+                <AppIcon name="power" class="size-4" aria-hidden="true" />
+                {{ t('header.power.shutdownHost') }}
+              </button>
+
+              <!--
+                Auxiliary switches — a PSU relay, an enclosure light — live here
+                rather than on the dashboard: `machine.device_power.*` keeps
+                answering while Klipper is down, which is exactly when a user
+                reaches for it, and a `klipper`-gated module would be unavailable
+                at that moment. See docs/design/navigation-plan.md.
+              -->
+              <template v-if="devicePower.hasDevices">
+                <p class="header-menu__divider" role="separator"></p>
+                <p class="header-menu__section-title">{{ t('header.power.devicePower') }}</p>
+                <button
+                  v-for="device in devicePower.devices"
+                  :key="device.device"
+                  type="button"
+                  class="button button--sm button--start button--block"
+                  :class="device.status === 'on' ? 'button--danger-quiet' : 'button--quiet'"
+                  :disabled="
+                    !moonrakerAvailability.isAvailable ||
+                    devicePower.pendingDevices.has(device.device) ||
+                    (device.locked_while_printing && printer.hasActivePrint)
+                  "
+                  :title="
+                    device.locked_while_printing && printer.hasActivePrint
+                      ? t('header.power.deviceLockedWhilePrinting')
+                      : undefined
+                  "
+                  @click="toggleDevice(device)"
+                >
+                  <AppIcon name="power" class="size-4" aria-hidden="true" />
+                  {{
+                    device.status === 'on'
+                      ? t('header.power.turnDeviceOff', { name: device.device })
+                      : t('header.power.turnDeviceOn', { name: device.device })
+                  }}
+                </button>
+              </template>
+            </template>
+          </HeaderMenu>
+        </div>
+      </header>
+
+      <main id="main-content" class="app-main w-full">
+        <!--
+          Above the routed page and inside the same column, so a printer that
+          failed to boot explains itself on whichever destination the reader is
+          on. One instance for the whole application — see the component for why
+          this is not a card on the dashboard.
+        -->
+        <PrinterFaultNotice />
+        <div class="route-stage">
+          <RouterView v-slot="{ Component, route }">
+            <Transition name="route-view" appear>
+              <component :is="Component" :key="route.fullPath" />
+            </Transition>
+          </RouterView>
+        </div>
+      </main>
+
+      <nav
+        class="mobile-navigation fixed inset-x-3 bottom-3 z-40 rounded-3xl border border-subtle bg-canvas-glass p-2 shadow-xl backdrop-blur-xl"
+        :aria-label="t('navigation.label')"
+      >
+        <ul class="grid grid-cols-5 gap-1">
+          <li v-for="item in mobileBarDestinations" :key="item.name">
+            <RouterLink
+              :to="{ name: item.name }"
+              class="button button--quiet button--block mobile-nav-link"
+              :class="{ 'nav-link--unsaved button--badged': isUnsavedNavItem(item) }"
+              @pointerenter="pagePrefetch.prefetch(item.name)"
+              @focus="pagePrefetch.prefetch(item.name)"
+            >
+              <AppIcon :name="item.icon" class="size-5" aria-hidden="true" />
+              {{ t(item.labelKey) }}
+              <span v-if="isUnsavedNavItem(item)" class="sr-only">
+                — {{ t('navigation.unsavedChanges') }}
+              </span>
+            </RouterLink>
+          </li>
+          <li v-if="mobileOverflowDestinations.length > 0">
+            <HeaderMenu
+              class="w-full"
+              :label="t('navigation.more')"
+              align="end"
+              placement="above"
+              trigger-class="button button--quiet button--block mobile-nav-link"
+              :badge="hasUnsavedOverflowItem"
+            >
+              <template #trigger>
+                <AppIcon name="more" class="size-5" aria-hidden="true" />
+                {{ t('navigation.more') }}
+              </template>
+              <template #default="{ close }">
+                <RouterLink
+                  v-for="item in mobileOverflowDestinations"
+                  :key="item.name"
+                  :to="{ name: item.name }"
+                  class="button button--quiet button--sm button--start button--block"
+                  :class="{ 'nav-link--unsaved': isUnsavedNavItem(item) }"
+                  @pointerenter="pagePrefetch.prefetch(item.name)"
+                  @focus="pagePrefetch.prefetch(item.name)"
+                  @click="close"
+                >
+                  <AppIcon :name="item.icon" class="size-4 shrink-0" aria-hidden="true" />
+                  {{ t(item.labelKey) }}
+                  <span v-if="isUnsavedNavItem(item)" class="sr-only">
+                    — {{ t('navigation.unsavedChanges') }}
+                  </span>
+                </RouterLink>
+              </template>
+            </HeaderMenu>
+          </li>
+        </ul>
+      </nav>
+    </div>
+
+    <ConfirmDialog
+      :open="confirmingAction !== null"
+      :title="confirmDialogCopy.title"
+      :description="confirmDialogCopy.description"
+      :confirm-label="confirmDialogCopy.confirmLabel"
+      tone="danger"
+      @confirm="confirmPendingAction"
+      @cancel="confirmingAction = null"
+    />
+
+    <SaveConfigDialog
+      :open="isSaveConfigOpen"
+      :sections="pendingConfigSections"
+      :busy="printer.pendingCommands.saveConfig || printer.pendingCommands.firmwareRestart"
+      :is-printing="printer.isPrinting"
+      @save="saveConfig"
+      @discard="discardPendingConfig"
+      @close="closeSaveConfig"
+    />
+
+    <!--
+      Mounted here rather than on any page: a manual probe can be started from
+      the console, a macro button, another browser, or the printer's own screen,
+      and it holds the machine still wherever the user happens to be looking.
+      It opens itself off the subscribed object, so it needs no `open` prop.
+    -->
+    <ManualProbeDialog />
+    <BedScrewsDialog />
+
+    <ToastStack />
+  </div>
+</template>
