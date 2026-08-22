@@ -1,7 +1,8 @@
 # Project status
 
-Alabaster is pre-release. It is used daily against real printers, and it has no
-published release yet.
+Alabaster is early, and it is released. Versioned builds are published from
+tags, and it is used daily against real printers — including from a published
+release, installed the documented way.
 
 This page is the accurate account. It is kept current with the code.
 
@@ -11,14 +12,14 @@ This page is the accurate account. It is kept current with the code.
 | ----------------------------------------- | -------------------------------------------------------------------------------------------------- |
 | [Dashboard](/interface/overview)          | Complete. Fourteen modules, three layout profiles, presets.                                        |
 | [Print files](/interface/print-files)     | Complete. Browsing, previews, metadata, upload, print, queue, accurate estimates.                  |
-| [Calibration](/interface/calibration)     | Complete. Live probe map, endstops, mesh profiles, input-shaper graphs.                            |
+| [Calibration](/interface/calibration)     | Complete. Live probe map, endstops, probe accuracy, filament sensors, mesh profiles, graphs.       |
 | [History](/interface/history)             | Complete. Lifetime totals, statistics window, trend and distribution charts, job list.             |
 | [Timelapse](/interface/timelapse)         | Complete. Appears only with the timelapse component installed.                                     |
 | [Configuration](/interface/configuration) | Complete. Editor, include navigation, search, uploads, drag and drop.                              |
 | [Machine](/interface/machine)             | Complete. Host telemetry, controller modules, peripherals, services, updates, repository recovery. |
 | [G-code viewer](/interface/gcode-viewer)  | Complete. Streaming parse, live follow, simulation, adaptive quality.                              |
 | [Console](/interface/console)             | Complete. Transcript, filters, command browser, completion.                                        |
-| [Settings](/interface/settings)           | Complete except for cross-device sync.                                                             |
+| [Settings](/interface/settings)           | Complete. Nine categories, backup and restore, opt-in sync to a printer's database.                |
 
 ## Dashboard modules
 
@@ -40,7 +41,7 @@ can appear more than once, one card per group.
 
 ## Installation and releases
 
-Built, and not yet proven on real hardware.
+Built, published, and proven on real hardware.
 
 | Piece                                                                  | State                                                                                                      |
 | ---------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
@@ -49,15 +50,18 @@ Built, and not yet proven on real hardware.
 | nginx configuration                                                    | Done. Shipped in the archive and written for you.                                                          |
 | Moonraker `update_manager` example using `type: web`                   | Done. The installer offers to add it.                                                                      |
 | Rollback for an interrupted or invalid update                          | Done for installation. Moonraker owns updates after that.                                                  |
-| Tested on 32-bit and 64-bit Raspberry Pi OS                            | **Not done.**                                                                                              |
+| Run on 64-bit Raspberry Pi OS from a published release                 | Done. Installed with the one-line installer and running on a real printer.                                 |
+| Tested on 32-bit Raspberry Pi OS                                       | **Not done.**                                                                                              |
 
-That last row is the real remaining gap. The scripts are verified against a
-simulated Klipper layout — clean install, re-install, conflict detection, and
-uninstall — but nobody has yet run the whole flow on a real printer from a
-published release.
+That last row is the remaining gap, and it is narrower than it was. The whole
+flow — download, checksum, install, run — has been through a published release
+onto a real 64-bit printer. What is left is the 32-bit case, which nobody has
+exercised on hardware; the scripts are verified there only against a simulated
+Klipper layout, covering clean install, re-install, conflict detection, and
+uninstall.
 
-There is also **no published release yet**, so the one-line install has nothing
-to download until the first tag.
+The one-line install in [Installation](/guide/installation) works today and
+fetches the latest published release.
 
 ## Macro pack
 
@@ -85,8 +89,10 @@ wired up yet.
 
 ## Known gaps
 
-- **Settings do not sync between devices.** Everything is in the browser's local
-  storage. Storing it in Moonraker's database is designed and not built.
+- **The printer list does not sync.** Settings and dashboard layout now do, when
+  you turn sync on for a printer. The list of printers itself stays in the
+  browser by design — it is the answer to which databases can be reached, so it
+  cannot live in one of them.
 - **One camera.** The Camera module shows the first enabled webcam Moonraker
   returns. Multiple camera selection is not there yet.
 - **No CAN bus peripheral listing.** Serial and USB devices are listed; CAN

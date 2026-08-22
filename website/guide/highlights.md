@@ -213,9 +213,9 @@ two metres away and a phone held at arm's length are not the same problem.
 
 Saying so plainly is part of the pitch.
 
-- There is **no published release** yet, so the one-line install has nothing to
-  download until the first tag. The installer itself is written and tested
-  against a simulated printer, not yet on real hardware.
+- It is **early**. Releases are published and the one-line install works — it
+  has been run end to end onto a 64-bit Raspberry Pi — but 32-bit Pi OS has not
+  been exercised on real hardware yet.
 - There is **no HTTPS**, deliberately. [The reason is a real
   constraint](/guide/installation#why-http-and-not-https), not an oversight.
 

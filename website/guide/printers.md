@@ -74,10 +74,18 @@ intervals return.
 Your browser's local storage, on the device you are using.
 
 That has one consequence worth planning for: **another browser or another device
-starts fresh**. A phone and a workshop tablet each keep their own printer list,
-dashboards, and theme.
+starts fresh** — unless you turn on sync.
 
-::: info Syncing is planned, not shipped
-Storing settings in Moonraker's database, so every device sees the same setup, is
-designed and not yet built. See [Project status](/guide/status).
+**Sync settings and layout to this printer**, under
+[Settings → Backup and sync](/interface/settings#sync-to-this-printer), keeps
+your settings and that printer's dashboard in the printer's own Moonraker
+database, so a phone and a workshop tablet see the same setup. It is off by
+default and switched on per printer.
+
+::: info The printer list itself never syncs
+Your list of printers stays in the browser, even with sync on. It has to: the
+list is what decides _which_ printer's database to read, so a printer cannot
+hold the answer to how it is found. It is also the one thing that is genuinely
+per-device — a phone on mobile data and a workshop tablet on the LAN may need
+different addresses for the same machine.
 :::

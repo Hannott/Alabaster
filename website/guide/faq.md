@@ -13,11 +13,15 @@ server serves a folder of files, and the browser does the rest.
 
 ## Where are my settings stored?
 
-In your browser's local storage, on the device you are using. Nothing is written
-to the printer.
+In your browser's local storage, on the device you are using. By default nothing
+is written to the printer, so another browser or another device starts fresh.
 
-That means another browser or another device starts fresh. Syncing through
-Moonraker's database is designed and not yet built.
+Turn on **Sync settings and layout to this printer** under
+[Settings → Backup and sync](/interface/settings#sync-to-this-printer) and your
+settings and that printer's dashboard are kept in the printer's own Moonraker
+database instead, so every device sees the same setup. It is off until you ask
+for it, and switched on per printer. Your list of printers stays in the browser
+either way.
 
 ## Why can it not reach my printer?
 

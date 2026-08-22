@@ -253,12 +253,26 @@ one end.
 
 ## Controls
 
-Fans, output pins, and motion limits.
+Fans and output pins.
 
 - **Part fan** and every other controllable fan.
 - **Fans Klipper controls** — the ones it drives itself, shown read-only, so you
   can see what a heater fan is doing without being able to fight it.
 - **Output pins**, as toggles or levels depending on how they are configured.
+
+### Giving an output an icon
+
+Under **Icons** in the card's settings, each fan and pin can carry one of five
+icons — **Fan**, **Light**, **Probe**, **Temperature**, or **Power** — or none
+at all.
+
+This is worth the minute it takes. An output pin's name is whatever it is called
+in `printer.cfg`, and `output_pin caselight` in a list of four is not something
+you read so much as decode. A row of icons is.
+
+A fan starts out looking like a fan. A pin starts out with no icon, because a
+pin can be anything — guessing that one switches power was wrong more often than
+it helped. Any row can be set to no icon deliberately, fans included.
 
 ## Machine
 

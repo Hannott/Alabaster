@@ -63,7 +63,22 @@ as an install.
 Klipper and Moonraker restart as part of their own updates — so the printer must
 not be printing.
 
-The output appears as it runs, in a console panel on the page.
+**What you are about to install is shown before you install it.** A git source
+lists the commits you are behind by; a system-package source lists the packages
+that will change. So updating is a decision about known changes rather than a
+leap.
+
+### Watching an update run
+
+The transcript opens in a window of its own the moment a run starts, and shows
+the output as it arrives — the same `git` or `apt` output you would have got
+over SSH, with the room to read it.
+
+While a run is in progress that window **will not close**: not on `Escape`, not
+on a click outside it, not on the close control. A half-finished update that has
+been dismissed and forgotten is exactly how a stalled or failed one goes
+unnoticed. Once the run ends, all three close normally, and **the Updates panel
+reopens it** for as long as there is a transcript worth reading.
 
 ::: info Moonraker restarts mid-update
 Moonraker disconnects while updating itself, which looks like a failure and is

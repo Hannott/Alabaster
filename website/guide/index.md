@@ -58,8 +58,8 @@ Moonraker component you do not have installed do not appear at all.
 - [Project status](/guide/status) — an accurate account of what runs today.
 
 ::: info This project is young
-Alabaster is pre-release. It is usable and used daily against real printers, but
-there is no published release yet, so the installer has nothing to download
-until the first tag. [Project status](/guide/status) says exactly where things
-stand.
+Alabaster is early. It is used daily against real printers, and the one-line
+installer fetches a published release, but the version numbers are still low and
+some paths have only been walked on one machine. [Project
+status](/guide/status) says exactly where things stand.
 :::

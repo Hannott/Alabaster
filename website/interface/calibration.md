@@ -1,6 +1,7 @@
 # Calibration
 
-Bed mesh, endstops, and your tuning results, in one place.
+Bed mesh, endstops, probe accuracy, filament sensors, and your tuning results,
+in one place.
 
 ## Watching a mesh being probed
 
@@ -107,6 +108,32 @@ Two things it will not do:
   failed.
 
 Each reading carries the time it was taken.
+
+## Probe accuracy
+
+Repeats one point ten times in place, and reports what the probe did:
+**maximum**, **minimum**, **range**, **average**, **median**, and **standard
+deviation**.
+
+This separates a probe that is noisy from a bed that is uneven — the two look
+identical on a mesh, and only one of them is fixed by probing more points. Run
+it before you trust a mesh you are about to argue with.
+
+It appears only on a printer that has a probe. Where the probe's offset would
+carry it off the bed from where the toolhead is standing, the page says so and
+the control waits rather than failing mid-run.
+
+## Runout sensors
+
+Every filament sensor the printer reports, as **Filament loaded** or **No
+filament**, with a sensor that is switched off marked **Disarmed**.
+
+These are read live, so a sensor tripped while you are probing the bed shows up
+here without a refresh.
+
+It reports state and does not change it: arming and disarming a sensor is not
+offered here, so the **Disarmed** mark is what tells a genuine runout apart from
+a sensor that was never watching in the first place.
 
 ## Tuning results
 

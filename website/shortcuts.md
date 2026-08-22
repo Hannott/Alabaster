@@ -60,6 +60,27 @@ Everything that can be done by dragging a card can also be done with buttons —
 move earlier or later, change column, hide, collapse. Dragging is the fast path,
 not the only one.
 
+## Temperature chart
+
+Focus the chart on the Temperatures card and:
+
+| Key                         | Action                                    |
+| --------------------------- | ----------------------------------------- |
+| <kbd>←</kbd> / <kbd>→</kbd> | Step back and forward one recorded sample |
+| <kbd>Esc</kbd>              | Stop reading the past and return to now   |
+
+The readings in the list above the chart follow the moment you are pointing at.
+Target boxes never do — they always hold the setpoint the printer is on right
+now.
+
 ## Bed plan
 
-Arrow keys move the target on the bed plan. **Go** sends the nozzle there.
+| Key                                                 | Action                                     |
+| --------------------------------------------------- | ------------------------------------------ |
+| <kbd>←</kbd> <kbd>→</kbd> <kbd>↑</kbd> <kbd>↓</kbd> | Move the target by one jog step            |
+| <kbd>Enter</kbd>                                    | Send the nozzle there — the same as **Go** |
+| <kbd>Esc</kbd>                                      | Clear the target without moving anything   |
+
+A double-click on the plan does what <kbd>Enter</kbd> does. A single press only
+aims: this is the one control that can order a move right across the bed, and
+over a printed part that is a crash.

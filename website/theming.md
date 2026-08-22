@@ -36,7 +36,8 @@ Five are available, including OpenDyslexic. See
 ## The constraints behind a pack
 
 Three rules make packs interchangeable rather than merely different, and all
-three are enforced by tests.
+three are enforced by tests — the first two for every pack, the third for the
+bundled one. See [when a pack may break them](#a-pack-that-wants-to-be-something-else).
 
 **Only Okabe-Ito chromatic colours.** Every chromatic value comes from the
 [Okabe-Ito colour-blind-safe palette](https://jfly.uni-koeln.de/color/). Neutral
@@ -51,7 +52,9 @@ is what lets a pack change what danger looks like without a component knowing.
 **WCAG AA contrast, checked by compositing.** Control colours are derived from
 contrast requirements rather than chosen by eye. A test composites every button
 variant over every surface it can sit on — at rest, hovered, and pressed — and
-fails the build below 4.5:1 for normal text or 3:1 for boundaries.
+fails the build below 4.5:1 for normal text or 3:1 for boundaries. This one is
+measured against the bundled `alabaster` pack, which is the conformant baseline
+every other rule in the interface is written against.
 
 Colour is also never the only thing carrying status. Whatever a colour says is
 also said in text or a distinct shape, so a pack cannot make a state
@@ -109,3 +112,30 @@ on its own — no component changes anywhere.
 
 The full authoring guide, with the complete token table, lives in
 [`src/themes/README.md`](https://github.com/Hannott/Alabaster/blob/main/src/themes/README.md).
+
+## A pack that wants to be something else
+
+Everything above describes a pack that remaps colour. A pack reproducing someone
+else's visual identity — a printer firmware's, a person's own — usually needs
+more than colour, and holding it to the bundled pack's rules is how that gets
+quietly refused.
+
+So a non-bundled pack is exempt from the rest of the design system: the contrast
+floors, the button emphasis scale, the corner-radius and spacing scales, the
+motion budget, the dialog shapes. It may write ordinary CSS rules, not only
+custom properties, to change any of them for itself.
+
+The exemption is scoped, not a hole:
+
+- **It applies only inside that pack's own `[data-theme-pack='<id>']` scope.** A
+  pack may never write a rule that reaches outside itself, edits shared CSS, or
+  touches another pack.
+- **Every pack still assigns every token in both modes**, and still uses
+  `palette.css` variables rather than raw colour values. Those two are what keep
+  a pack switchable at all, and the build checks both for every pack.
+- **The bundled `alabaster` pack is not exempt from anything.** It stays the
+  fully conformant baseline, and it is what the contrast test measures.
+
+The trade is deliberate: a pack that accepts the contrast floors gets them
+guaranteed, and a pack that reproduces an identity which does not meet them is
+allowed to say so rather than being made to approximate.
