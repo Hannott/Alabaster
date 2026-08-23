@@ -6,6 +6,12 @@ import BedMeshModule from '@/components/dashboard/modules/BedMeshModule.vue'
 import BedMeshQuickSettings from '@/components/dashboard/modules/BedMeshQuickSettings.vue'
 import BedMeshSettingsPane from '@/components/dashboard/modules/BedMeshSettingsPane.vue'
 import CameraModule from '@/components/dashboard/modules/CameraModule.vue'
+import CameraQuickSettings from '@/components/dashboard/modules/CameraQuickSettings.vue'
+import CameraSettingsPane from '@/components/dashboard/modules/CameraSettingsPane.vue'
+import {
+  cameraCardSettings,
+  selectedCameras,
+} from '@/components/dashboard/modules/cameraCardSettings'
 import ConsoleModule from '@/components/dashboard/modules/ConsoleModule.vue'
 import ConsoleQuickSettings from '@/components/dashboard/modules/ConsoleQuickSettings.vue'
 import ConsoleSettingsPane from '@/components/dashboard/modules/ConsoleSettingsPane.vue'
@@ -39,6 +45,7 @@ import TemperaturesSettingsPane from '@/components/dashboard/modules/Temperature
 import type { DashboardModuleId } from '@/dashboard/layout'
 import {
   bedMeshDefaultQuickKeys,
+  cameraDefaultQuickKeys,
   consoleDefaultQuickKeys,
   controlsDefaultQuickKeys,
   extruderDefaultQuickKeys,
@@ -57,6 +64,7 @@ import { usePrinterStore } from '@/stores/printer'
 import { usePrinterConfigStore } from '@/stores/printerConfig'
 import { useSpoolStore } from '@/stores/spool'
 import { useTelemetryStore } from '@/stores/telemetry'
+import { useWebcamsStore } from '@/stores/webcams'
 
 export interface DashboardModuleDefinition {
   id: DashboardModuleId
@@ -93,6 +101,15 @@ export interface DashboardModuleDefinition {
    * treats it as always having something to disclose.
    */
   quickSettingsDefaultKeys?: readonly string[]
+  /**
+   * Whether one promoted setting has a row to render right now, for a module
+   * whose quick rows are conditional. Only such a module needs it; every other
+   * one leaves it unset and `moduleHasQuickSettings` counts keys as before.
+   *
+   * It lives on the definition for the same reason `summary` does: the question
+   * is asked by the card header, which has no module mounted to ask.
+   */
+  quickSettingRowVisible?: (key: string, config: Record<string, unknown>) => boolean
   /**
    * The module's full configuration, shown in the settings surface with this
    * card docked beside it. Independent of `hasSettings`: a module may have
@@ -164,6 +181,35 @@ export const dashboardModuleRegistry: readonly DashboardModuleDefinition[] = [
     icon: 'camera',
     requires: 'moonraker',
     component: markRaw(CameraModule),
+    // A printer with a chamber camera and a nozzle camera wants them on
+    // separate cards as often as it wants them tiled on one: cards can sit in
+    // different columns, collapse independently, and carry their own title.
+    // Both ways of splitting cameras therefore exist, and this is the half the
+    // module contract owns.
+    supportsMultiple: true,
+    hasSettings: true,
+    quickSettingsComponent: markRaw(CameraQuickSettings),
+    quickSettingsDefaultKeys: cameraDefaultQuickKeys,
+    settingsComponent: markRaw(CameraSettingsPane),
+    // Arrangement and columns only mean something with more than one camera on
+    // the card, and `CameraCardSettingsFields` hides them below that. Without
+    // this the gear opened an empty panel on every single-camera card.
+    quickSettingRowVisible: (key, config) => {
+      if (key !== 'arrangement' && key !== 'stacking' && key !== 'columns') return true
+      const webcams = useWebcamsStore()
+      return selectedCameras(cameraCardSettings(config), webcams.cameras).length > 1
+    },
+    // Only the case where the card has nothing to show. The picture is the
+    // whole point of this module, so a collapsed card has nothing to summarize
+    // — except the one state that makes expanding it pointless, which is worth
+    // saying rather than leaving someone to expand a card and find an empty
+    // stage. Read through the instance's own selection, because with two Camera
+    // cards one may be configured and the other not.
+    summary: (config) => {
+      const webcams = useWebcamsStore()
+      const cameras = selectedCameras(cameraCardSettings(config), webcams.cameras)
+      return cameras.length > 0 ? null : i18n.global.t('dashboard.camera.summaryNone')
+    },
   },
   {
     id: 'temperatures',

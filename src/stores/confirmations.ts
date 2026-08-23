@@ -46,6 +46,7 @@ export const confirmationKeys = [
   'reprintJob',
   'installUpdate',
   'removePrinter',
+  'removeCamera',
   'deleteTimelapseVideo',
   'restartKlipper',
   'firmwareRestart',

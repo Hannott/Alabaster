@@ -8,6 +8,7 @@ import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import DisclosureReveal from '@/components/DisclosureReveal.vue'
 import PageHeading from '@/components/PageHeading.vue'
 import PromptDialog from '@/components/PromptDialog.vue'
+import CamerasCard from '@/components/settings/CamerasCard.vue'
 import { useConsoleFont, type ConsoleFontChoice } from '@/composables/useConsoleFont'
 import { useConsoleWeight, type ConsoleWeightMode } from '@/composables/useConsoleWeight'
 import { useEditorIndent } from '@/composables/useEditorIndent'
@@ -126,6 +127,7 @@ const categories: readonly { id: SettingsCategory; labelKey: string }[] = [
   { id: 'all', labelKey: 'settings.categories.all' },
   { id: 'connection', labelKey: 'connection.eyebrow' },
   { id: 'printers', labelKey: 'printers.eyebrow' },
+  { id: 'cameras', labelKey: 'cameras.eyebrow' },
   { id: 'users', labelKey: 'users.eyebrow' },
   { id: 'language', labelKey: 'language.eyebrow' },
   { id: 'theme', labelKey: 'theme.eyebrow' },
@@ -438,6 +440,7 @@ const confirmationGroups: readonly ConfirmationGroup[] = [
   { titleKey: 'confirmations.groups.history', keys: ['deleteHistoryJob', 'reprintJob'] },
   { titleKey: 'confirmations.groups.machine', keys: ['installUpdate'] },
   { titleKey: 'confirmations.groups.printers', keys: ['removePrinter'] },
+  { titleKey: 'confirmations.groups.cameras', keys: ['removeCamera'] },
   {
     titleKey: 'confirmations.groups.accounts',
     keys: ['deleteUser', 'regenerateApiKey'],
@@ -812,6 +815,8 @@ const lastSyncedDisplay = computed(() => {
               </button>
             </form>
           </section>
+
+          <CamerasCard v-if="showCategory('cameras')" />
 
           <PromptDialog
             :open="pendingRename !== null"

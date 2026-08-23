@@ -355,12 +355,12 @@ async function startCalibration(): Promise<void> {
             @change="toggleSeries(sensor.objectName)"
           />
         </span>
-        <span class="sensor-swatches">
+        <span class="palette-swatches">
           <button
             v-for="token in sensorColorTokens"
             :key="`${sensor.objectName}-${token.key}`"
             type="button"
-            class="sensor-swatch"
+            class="palette-swatch"
             :style="{ '--swatch': token.variable }"
             :aria-pressed="colorKeyFor(sensor.objectName) === token.key"
             :title="t(`dashboard.temperature.color.${token.key}`)"

@@ -475,7 +475,7 @@ describe('TemperaturesSettingsPane', () => {
     await flushPromises()
 
     const chosen = wrapper
-      .findAll('.sensor-swatch')
+      .findAll('.palette-swatch')
       .find((swatch) => swatch.attributes('aria-pressed') === 'true')
     expect(chosen?.findComponent({ name: 'AppIcon' }).props('name')).toBe('check')
   })

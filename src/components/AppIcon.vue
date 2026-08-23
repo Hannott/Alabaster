@@ -9,6 +9,9 @@ export type AppIconName =
   | 'bulb'
   | 'bulbOn'
   | 'camera'
+  | 'cameraNoSignal'
+  | 'cameraDisabled'
+  | 'cameraOff'
   | 'check'
   | 'close'
   | 'collapse'
@@ -82,6 +85,7 @@ export type AppIconName =
   | 'spool'
   | 'sidebarCollapse'
   | 'sidebarExpand'
+  | 'snapshot'
   | 'snowflake'
   | 'speed'
   | 'spinner'
@@ -243,10 +247,102 @@ defineProps<{ name: AppIconName }>()
       v-else-if="name === 'activity'"
       d="M3 5h1m-1 7h1m-1 7h1M8 5h1m-1 7h1m-1 7h1m4-14h8m-8 7h8m-8 7h8"
     />
-    <g v-else-if="name === 'camera'">
-      <rect x="3" y="6" width="18" height="13" rx="3" />
-      <circle cx="12" cy="12.5" r="3.2" />
-      <path d="m8 6 1.2-2h5.6L16 6" />
+    <!--
+      Solar's "webcam" glyph (MIT licensed) — a webcam on its stand, which is
+      the object this names everywhere it appears: the Camera module, the
+      Timelapse destination, and the Cameras category on Settings. It replaced a
+      point-and-shoot camera body, which read as "take a photograph" and so
+      collided with the still-capture action the `snapshot` glyph below now
+      owns.
+    -->
+    <g v-else-if="name === 'camera'" fill="currentColor" stroke="none">
+      <path
+        fill-rule="evenodd"
+        d="M12 6.25c2.071 0 3.75 1.679 3.75 3.75c0 2.071-1.679 3.75-3.75 3.75S8.25 12.071 8.25 10c0-2.071 1.679-3.75 3.75-3.75m0 1.5A2.25 2.25 0 0 0 9.75 10A2.25 2.25 0 0 0 12 12.25A2.25 2.25 0 0 0 14.25 10A2.25 2.25 0 0 0 12 7.75"
+        clip-rule="evenodd"
+      />
+      <path d="M12 3.751a.75.75 0 0 1 0 1.5a.75.75 0 0 1 0-1.5" />
+      <path
+        fill-rule="evenodd"
+        d="M11.941 1.25c4.828.039 8.77 3.981 8.809 8.809c.037 4.604-3.489 8.35-8 8.667v2.524h3.25a.75.75 0 0 1 0 1.5H8a.75.75 0 0 1 0-1.5h3.25v-2.546C6.798 18.261 3.287 14.496 3.25 9.942c-.039-4.837 3.854-8.73 8.691-8.692m-.012 1.5c-3.999-.032-7.212 3.181-7.179 7.18c.032 4.008 3.312 7.288 7.32 7.32c3.999.032 7.212-3.181 7.18-7.18c-.033-4.008-3.312-7.287-7.321-7.32"
+        clip-rule="evenodd"
+      />
+    </g>
+    <!--
+      The same glyph struck through: a camera that is switched off, or a card
+      with none selected. Composed rather than taken whole from Solar's own
+      `webcam-off`, whose slash is drawn as an outlined band around the stroke —
+      several kilobytes of path data to describe a gap this product's icons do
+      not use anywhere else.
+    -->
+    <g v-else-if="name === 'cameraOff'" fill="currentColor" stroke="none">
+      <path
+        fill-rule="evenodd"
+        d="M12 6.25c2.071 0 3.75 1.679 3.75 3.75c0 2.071-1.679 3.75-3.75 3.75S8.25 12.071 8.25 10c0-2.071 1.679-3.75 3.75-3.75m0 1.5A2.25 2.25 0 0 0 9.75 10A2.25 2.25 0 0 0 12 12.25A2.25 2.25 0 0 0 14.25 10A2.25 2.25 0 0 0 12 7.75"
+        clip-rule="evenodd"
+      />
+      <path d="M12 3.751a.75.75 0 0 1 0 1.5a.75.75 0 0 1 0-1.5" />
+      <path
+        fill-rule="evenodd"
+        d="M11.941 1.25c4.828.039 8.77 3.981 8.809 8.809c.037 4.604-3.489 8.35-8 8.667v2.524h3.25a.75.75 0 0 1 0 1.5H8a.75.75 0 0 1 0-1.5h3.25v-2.546C6.798 18.261 3.287 14.496 3.25 9.942c-.039-4.837 3.854-8.73 8.691-8.692m-.012 1.5c-3.999-.032-7.212 3.181-7.179 7.18c.032 4.008 3.312 7.288 7.32 7.32c3.999.032 7.212-3.181 7.18-7.18c-.033-4.008-3.312-7.287-7.321-7.32"
+        clip-rule="evenodd"
+      />
+      <path d="M21.47 1.47a.75.75 0 0 1 1.06 1.06l-20 20a.75.75 0 0 1-1.06-1.06z" />
+    </g>
+    <!--
+      Solar's "webcam-off-line-duotone" glyph (MIT licensed) — the outline again,
+      with the camera body dimmed and the slash solid. It reports the one case
+      that is nobody's fault and needs no fixing: a camera on this card that its
+      owner switched off. `cameraNoSignal` below is for a camera that is meant to
+      be streaming and is not, which is a different thing to say.
+    -->
+    <g v-else-if="name === 'cameraDisabled'" stroke-width="1.5">
+      <path
+        d="M14.8715 9.12853C14.4981 7.89669 13.3538 7 12 7C10.3431 7 9 8.34315 9 10C9 11.3538 9.8967 12.4981 11.1285 12.8715"
+      />
+      <path d="M22 2L2 22" />
+      <path d="M12 4.50098H12.0001" />
+      <path
+        d="M22 2C20.8415 3.15848 19.683 4.31695 18.5246 5.47543C14.8415 9.15847 11.1585 12.8415 7.47544 16.5246C5.65029 18.3497 3.82515 20.1749 2 22"
+      />
+      <path
+        d="M18.5246 5.47544C17.0618 3.3948 14.6512 2.02218 11.9354 2.00027C7.51731 1.96461 3.96461 5.51731 4.00027 9.93545C4.02218 12.6512 5.3948 15.0618 7.47545 16.5246"
+        opacity=".5"
+      />
+      <path
+        d="M16 22H8M9.65405 17.6507C10.3959 17.8779 11.1836 18.0002 11.9999 18.0002M11.9999 18.0002C16.4182 18.0002 19.9999 14.4184 19.9999 10.0002C19.9999 9.18388 19.8777 8.39616 19.6505 7.6543M11.9999 18.0002L12 22"
+        opacity=".5"
+      />
+    </g>
+    <!--
+      Solar's "webcam-off-broken" glyph (MIT licensed). Deliberately the drawn
+      outline where `cameraOff` above is solid: this one reports a camera that
+      is *meant* to be streaming and is not — a frozen or failed stream — and
+      the two states have to be distinguishable at 16px, which two weights of
+      the same silhouette manage and two solid glyphs do not.
+    -->
+    <g v-else-if="name === 'cameraNoSignal'">
+      <path d="M12 4.501h.0001" />
+      <path d="M16 22H8" />
+      <path d="M12 18.003V22" />
+      <path d="M14.872 9.129A3 3 0 0 0 12 7a3 3 0 0 0-3 3a3 3 0 0 0 2.129 2.872" />
+      <path d="M7.432 16.568A7.98 7.98 0 0 1 4 10c0-1.061.207-2.074.582-3" />
+      <path d="M9.654 17.651A8 8 0 0 0 12 18a8 8 0 0 0 8-8c0-.816-.122-1.604-.35-2.346" />
+      <path d="M9 2.582A7.98 7.98 0 0 1 12 2a7.98 7.98 0 0 1 6.568 3.432" />
+      <path d="M22 2L2 22" />
+    </g>
+    <!--
+      Remix Icon's "camera-ai-line" glyph (Apache-2.0 licensed) — a lens with a
+      spark beside it, for capturing the frame that is on screen right now. Used
+      by the camera tile's still capture and by the G-code viewer's screenshot,
+      which is the same action on a different picture; that button previously
+      carried the plain `camera` glyph, which now means the device rather than
+      the act of capturing from it.
+    -->
+    <g v-else-if="name === 'snapshot'" fill="currentColor" stroke="none">
+      <path
+        d="m20.713 8.128l-.246.566a.506.506 0 0 1-.934 0l-.246-.566a4.36 4.36 0 0 0-2.22-2.25l-.759-.339a.53.53 0 0 1 0-.963l.717-.319a4.37 4.37 0 0 0 2.251-2.326l.253-.611a.506.506 0 0 1 .942 0l.253.61a4.37 4.37 0 0 0 2.25 2.327l.718.32a.53.53 0 0 1 0 .962l-.76.338a4.36 4.36 0 0 0-2.219 2.251M9 3h5v2H9.828l-2 2H4v12h16v-8h2v9a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h4zm3 15a5.5 5.5 0 1 1 0-11a5.5 5.5 0 0 1 0 11m0-2a3.5 3.5 0 1 0 0-7a3.5 3.5 0 0 0 0 7"
+      />
     </g>
     <g v-else-if="name === 'controls'">
       <path d="M4 6h10M18 6h2M4 12h3M11 12h9M4 18h8M16 18h4" />

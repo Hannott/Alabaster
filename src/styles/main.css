@@ -2998,7 +2998,18 @@ input[type='number']::-webkit-inner-spin-button {
   justify-content: center;
 }
 
-.sensor-swatches {
+/*
+ * The one-of-seven palette picker: a row of the `dashboardColorTokens` hues,
+ * one pressed. Shared rather than duplicated because both instances must always
+ * behave alike — a fix to how the chosen one is marked has to reach both, and
+ * the selected-state affordance below is exactly the kind of thing that drifts
+ * when copied.
+ *
+ * Two instances: a chart series' colour in Temperatures' settings pane, and a
+ * camera's crosshair colour in the Settings route's camera editor. Add to this
+ * list when a third appears. It was `sensor-swatch` while there was only one.
+ */
+.palette-swatches {
   display: inline-flex;
   gap: 0.2rem;
 }
@@ -3011,7 +3022,7 @@ input[type='number']::-webkit-inner-spin-button {
  * as well as a ring, because a set of swatches distinguished only by colour is
  * unusable to whoever most needs to choose between them.
  */
-.sensor-swatch {
+.palette-swatch {
   display: inline-flex;
   width: 1.15rem;
   height: 1.15rem;
@@ -3024,13 +3035,13 @@ input[type='number']::-webkit-inner-spin-button {
   color: var(--ito-black);
 }
 
-.sensor-swatch[aria-pressed='true'] {
+.palette-swatch[aria-pressed='true'] {
   box-shadow:
     0 0 0 2px var(--surface-raised),
     0 0 0 3px var(--action-primary);
 }
 
-.sensor-swatch:focus-visible {
+.palette-swatch:focus-visible {
   border-color: var(--focus-ring);
 }
 
@@ -5988,7 +5999,7 @@ input.z-axis__slider {
 }
 
 /*
- * Not `.sensor-swatch`, on purpose: that one is a member of a row of seven
+ * Not `.palette-swatch`, on purpose: that one is a member of a row of seven
  * shown at once, pressed to pick one and marked with a tick. This is a single
  * button that cycles through the same seven hues plus "none" on each click —
  * a genuinely different interaction wearing similar chrome, which is the
@@ -6580,17 +6591,24 @@ input.z-axis__slider {
   background: color-mix(in srgb, var(--status-caution-text) 10%, transparent);
 }
 
+/*
+ * A plain block, not a centring grid. It was `display: grid; place-items:
+ * center`, and the consequence was a stream shrunk to a small box in the middle
+ * of a wide card: `justify-items: center` gives a grid item its *content* width,
+ * and a tile whose only child is absolutely positioned has no content width — so
+ * the tile fell back to its `min-height` and derived a width from its aspect
+ * ratio. Centring belongs to the empty state, which is the only child that
+ * wants it.
+ */
 .camera-stage {
   position: relative;
-  display: grid;
-  min-height: 12rem;
-  place-items: center;
   overflow: hidden;
   background: var(--surface-strong);
 }
 
 .camera-stage__empty {
   display: grid;
+  min-height: 12rem;
   place-items: center;
   padding: 2rem;
   color: var(--text-on-strong);
@@ -6620,6 +6638,416 @@ input.z-axis__slider {
   height: 0.45rem;
   border-radius: 50%;
   background: var(--status-available);
+}
+
+/*
+ * The dot reports the stream's own state, and never alone: `stalled` also writes
+ * the word beside it and a failure replaces the picture with a notice, so the
+ * colour is reinforcement rather than the message. `connecting` is the
+ * recovering tone rather than a spinner — ADR 0004 rules out a spinner that
+ * flashes for a few hundred milliseconds on every card that scrolls into view.
+ *
+ * Qualified by the element, not written as a bare class: `.camera-stage__label
+ * i` above already sets the available colour and is the more specific of the
+ * two, so a bare `.camera-stage__label-dot--error` lost to it and every dot
+ * stayed green whatever the stream was doing.
+ */
+.camera-stage__label i.camera-stage__label-dot--connecting,
+.camera-stage__label i.camera-stage__label-dot--stalled {
+  background: var(--status-recovering);
+}
+
+.camera-stage__label i.camera-stage__label-dot--error {
+  background: var(--status-danger);
+}
+
+/*
+ * --- Camera tiles ---
+ *
+ * One tile per camera, whether a card shows one or six. `aspect-ratio` comes
+ * from the stream's own measured shape, so a card holding two cameras of
+ * different shapes gives each the height it needs instead of forcing both into
+ * one ratio and cropping the odd one out.
+ */
+.camera-tile {
+  position: relative;
+  overflow: hidden;
+  min-height: 8rem;
+  background: var(--surface-strong);
+}
+
+/*
+ * Positioned from the centre because the frame is rotated about its own middle;
+ * see `cameraFrameLayout`, which supplies the matching `translate(-50%, -50%)`
+ * and — for a quarter turn — the transposed width and height.
+ */
+.camera-tile__frame {
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline-start: 50%;
+  width: 100%;
+  height: 100%;
+}
+
+.camera-frame {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.camera-tile--contain .camera-frame {
+  object-fit: contain;
+}
+
+.camera-frame--iframe {
+  border: 0;
+}
+
+/*
+ * Hidden, not unmounted, while the tile has no picture. A failed `<img>` paints
+ * the browser's own broken-image glyph and its `alt` text, which is what showed
+ * above the failure notice — two contradictory reports of the same camera.
+ * Unmounting instead would tear down a stream that is mid-reconnect and start
+ * the handshake again from nothing.
+ */
+.camera-tile--failed .camera-tile__frame {
+  visibility: hidden;
+}
+
+.camera-tile__notice {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 1rem;
+  color: var(--text-on-strong);
+  font-size: var(--text-panel-message-size);
+  text-align: center;
+}
+
+.camera-tile__rate {
+  position: absolute;
+  inset-inline-end: 0;
+  inset-block-end: 0;
+  padding: 0.25rem 0.55rem;
+  border-start-start-radius: 0.55rem;
+  background: color-mix(in srgb, var(--ito-black) 76%, transparent);
+  color: var(--neutral-white);
+  font-family: var(--font-mono);
+  font-size: var(--text-overlay-label-size);
+  font-variant-numeric: tabular-nums;
+}
+
+.camera-tile__stalled {
+  font-style: normal;
+  color: var(--neutral-white);
+  opacity: 0.75;
+}
+
+/*
+ * Revealed on hover and on keyboard focus, and unconditionally where there is
+ * no hover to reveal them — the same rule the dashboard card's own chrome
+ * follows, for the same reason: a touch device has no way to ask.
+ */
+.camera-tile__actions {
+  position: absolute;
+  inset-block-start: 0.5rem;
+  inset-inline-end: 0.5rem;
+  display: flex;
+  gap: 0.25rem;
+  opacity: 0;
+  transition: opacity var(--motion-duration-fast) var(--motion-ease-standard);
+}
+
+.camera-tile:hover .camera-tile__actions,
+.camera-tile:focus-within .camera-tile__actions {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .camera-tile__actions {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .camera-tile__actions {
+    transition: none;
+  }
+}
+
+/* The crosshair rides inside the rotated frame, so it marks the same physical
+ * point on a flipped or rotated camera. */
+.camera-crosshair {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/*
+ * The palette's vermillion is the default, overridden inline once the user
+ * picks a hue. A token rather than a literal so an unrecoloured crosshair still
+ * belongs to the active theme pack, and so this obeys the same
+ * one-palette-for-user-chosen-colour rule as macro colours and sensor traces.
+ */
+.camera-crosshair__arm {
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline-start: 50%;
+  translate: -50% -50%;
+  background: var(--color-data-red);
+}
+
+.camera-crosshair__arm--horizontal {
+  height: 1px;
+}
+
+.camera-crosshair__arm--vertical {
+  width: 1px;
+}
+
+/*
+ * --- Multi-camera arrangements ---
+ *
+ * A grid runs every selected stream at once; a tab strip runs one. That is a
+ * bandwidth and CPU decision as much as a layout one, which is why it is a
+ * per-card setting rather than a responsive breakpoint: six cameras tiled on a
+ * dashboard is six encoders running on the printer's Pi.
+ *
+ * The column count is a maximum, not a fixed track count — `auto-fit` with a
+ * floor collapses to fewer columns in a narrow card without a second rule.
+ */
+.camera-grid {
+  display: grid;
+  gap: 2px;
+}
+
+.camera-grid--horizontal {
+  grid-template-columns: repeat(var(--camera-columns, 2), minmax(0, 1fr));
+}
+
+/*
+ * Below this the chosen column count stops being a preference and becomes
+ * unreadable — three streams across a phone-width card are slivers. A container
+ * query rather than a viewport one, because the card's width is set by its
+ * dashboard column, not by the window.
+ */
+@container (max-width: 22rem) {
+  .camera-grid--horizontal {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.camera-grid--vertical {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.camera-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--surface-strong);
+}
+
+/*
+ * Every tile in a tab arrangement stays mounted and only the selected one is
+ * shown, so switching tabs does not re-signal a WebRTC connection. The hidden
+ * ones are taken out of flow rather than given `display: none`: the panel's
+ * height then follows the visible tile's own aspect ratio, and a tile that is
+ * `display: none` reports no size to its `IntersectionObserver` at all, which
+ * would leave the tile inactive for a frame after being selected.
+ */
+.camera-tab-panels {
+  position: relative;
+}
+
+/*
+ * --- The Camera pane's picker ---
+ *
+ * Deliberately not `.macro-row` and friends. The two lists merely look alike:
+ * a macro row carries a colour swatch, three print-state toggles and a drag
+ * handle, and is draggable; a camera row carries a name and a reorder pair.
+ * Sharing the class would mean every change made for one silently reshaping
+ * the other, which is the line this codebase already draws between a set that
+ * must behave alike and two things that resemble each other.
+ */
+.camera-cards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.camera-row {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: 0.7rem;
+  background: var(--surface-raised);
+}
+
+/*
+ * A camera the printer no longer has, kept in the list rather than dropped so
+ * the stale selection is visible where it can be removed. Dashed, which in this
+ * interface already means "a configured thing whose target is missing" — the
+ * same meaning a macro whose G-code is gone carries.
+ */
+.camera-row--missing {
+  border-style: dashed;
+  color: var(--text-muted);
+}
+
+.camera-row__name {
+  margin-inline-end: auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.camera-row__badge {
+  flex-shrink: 0;
+  font-size: var(--text-badge-size);
+  font-weight: bold;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+/*
+ * Quiet at rest for the same reason the macro list's pair is: reordering is
+ * infrequent next to adding and removing, and two more always-visible buttons
+ * per row turn a list of camera names into a wall of chrome. Revealed on hover,
+ * on keyboard focus within the row, and unconditionally where there is no hover.
+ */
+.camera-row__reorder {
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+  opacity: 0;
+  transition: opacity var(--motion-duration-fast) var(--motion-ease-standard);
+}
+
+.camera-row:hover .camera-row__reorder,
+.camera-row:has(.camera-row__reorder :focus-visible) .camera-row__reorder {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .camera-row__reorder {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .camera-row__reorder {
+    transition: none;
+  }
+}
+
+.camera-picker__list {
+  max-height: 12rem;
+  overflow-y: auto;
+  padding-inline-end: 0.3rem;
+}
+
+/*
+ * The rule between the two lists. Both sit inside one `bare` section, so
+ * neither carries a heading of its own to inherit a divider from.
+ */
+.camera-picker__rule {
+  margin-block: 1rem;
+  border-block-start: 1px solid var(--border-subtle);
+}
+
+/*
+ * --- The Settings route's camera editor ---
+ *
+ * Form on one side, that camera live on the other. The preview is the whole
+ * reason this is a form on the page rather than a dialog: almost every field
+ * here — the URL, the service, which way up it is — is a guess until you look
+ * at the result, and a form that covers the picture makes you close it to find
+ * out whether you guessed right.
+ *
+ * The preview stands beside the fields only where there is room for both to be
+ * usable. Below that the fields come first and the picture follows them, rather
+ * than a picture narrow enough to tell nothing above a form squeezed to match.
+ */
+/*
+ * `minmax(0, 1fr)` even in the single-column case, not a bare `auto`. An `auto`
+ * track is floored at its widest item's min-content width, and `min-width: 0` on
+ * the items does not change that — so at 390px the form sized itself to about
+ * 530px inside a 366px card and was clipped by the page's own scroll region.
+ * The items are what shrink; the track has to let them.
+ */
+.camera-editor {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.5rem;
+  align-items: start;
+}
+
+@media (min-width: 56rem) {
+  .camera-editor {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+}
+
+.camera-editor__fields {
+  min-width: 0;
+}
+
+/*
+ * Sticky so the picture follows the fields down a long form — the rotation and
+ * flip controls sit near the bottom, and they are exactly the ones that need
+ * the preview in view while they are being tried.
+ */
+.camera-editor__preview {
+  min-width: 0;
+  position: sticky;
+  inset-block-start: 1rem;
+}
+
+.camera-editor__error {
+  margin-block-start: 0.4rem;
+  color: var(--status-danger-text);
+  font-size: var(--text-hint-size);
+}
+
+.camera-editor__test {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--text-muted);
+  font-size: var(--text-hint-size);
+}
+
+/*
+ * A camera declared in `moonraker.conf`: readable, and refused by the API for
+ * every write. Says so once at the top rather than marking each disabled field,
+ * which would repeat the same fact fifteen times.
+ */
+.camera-editor__readonly {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-block-end: 1rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: 0.7rem;
+  color: var(--text-muted);
+  font-size: var(--text-hint-size);
+}
+
+.camera-tile--hidden {
+  position: absolute;
+  inset: 0;
+  visibility: hidden;
 }
 
 @media (max-width: 47.999rem) {

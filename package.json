@@ -30,6 +30,8 @@
     "@fontsource/public-sans": "^5.3.0",
     "@fontsource/roboto-mono": "^5.3.0",
     "@fontsource/source-code-pro": "^5.3.0",
+    "hls.js": "^1.7.1",
+    "jmuxer": "^2.1.1",
     "pinia": "^4.0.2",
     "vue": "^3.5.40",
     "vue-i18n": "^11.4.8",

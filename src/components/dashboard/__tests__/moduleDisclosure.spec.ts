@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+
 import { createPinia, setActivePinia } from 'pinia'
 import { enableAutoUnmount, flushPromises, mount } from '@vue/test-utils'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
@@ -8,8 +11,11 @@ import { i18n } from '@/i18n'
 import { useAvailabilityStore } from '@/stores/availability'
 import { useDashboardLayoutStore } from '@/stores/dashboardLayout'
 import { useMoonrakerStore } from '@/stores/moonraker'
+import { useWebcamsStore } from '@/stores/webcams'
 
 enableAutoUnmount(afterEach)
+
+const sourceRoot = join(process.cwd(), 'src')
 
 beforeAll(() => {
   // Forcing every module visible reaches Bed mesh, whose renderer already
@@ -49,6 +55,21 @@ async function mountDashboard() {
   for (const module of dashboardModuleRegistry) {
     layout.setVisible('desktop', module.id, true)
   }
+
+  // Camera's promoted quick setting is its arrangement, which only means
+  // something with more than one camera on the card — so a Camera card without
+  // two of them correctly has no layer to disclose and its gear opens the
+  // settings surface instead. These assertions are about the layer's shared
+  // shape, so the card is given the two cameras that give it one.
+  useWebcamsStore(pinia).webcams = ['Chamber', 'Nozzle'].map((name) => ({
+    uid: name.toLowerCase(),
+    name,
+    service: 'mjpegstreamer',
+    enabled: true,
+    stream_url: `/webcam/${name}?action=stream`,
+    snapshot_url: `/webcam/${name}?action=snapshot`,
+  }))
+  layout.updateConfig('camera', { cameras: ['chamber', 'nozzle'] })
   await flushPromises()
 
   return wrapper
@@ -74,6 +95,30 @@ describe('module disclosure', () => {
     for (const module of withLayer) {
       expect(module.quickSettingsComponent, `${module.id} quick settings`).toBeDefined()
       expect(module.settingsComponent, `${module.id} settings pane`).toBeDefined()
+    }
+  })
+
+  /*
+   * The registry names a module's quick-settings component, but the *card* gets
+   * its rows from the module filling `AppDashboardModule`'s `quick-settings`
+   * slot — the registry entry is what the settings surface repeats above the
+   * pane. A module that names the component and never renders it therefore
+   * passes every other check here and opens a layer containing nothing but its
+   * heading and the link out. Camera shipped exactly that.
+   */
+  it('renders its quick settings on the card, not only in the surface', () => {
+    const modules = dashboardModuleRegistry.filter((module) => module.quickSettingsComponent)
+    expect(modules.length).toBeGreaterThan(0)
+
+    for (const module of modules) {
+      const name = `${module.id.charAt(0).toUpperCase()}${module.id.slice(1)}Module.vue`
+      const source = readFileSync(
+        join(sourceRoot, 'components', 'dashboard', 'modules', name),
+        'utf8',
+      )
+      expect(source, `${module.id} never fills the quick-settings slot`).toContain(
+        '#quick-settings',
+      )
     }
   })
 

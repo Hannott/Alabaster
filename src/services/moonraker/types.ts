@@ -199,18 +199,86 @@ export interface MoonrakerDirectoryResult {
   }
 }
 
+/**
+ * Whatever a frontend chose to keep beside a camera that Moonraker itself has
+ * no field for. Moonraker stores `extra_data` verbatim and never reads it, so
+ * this is a shared scratch space between every client on one printer — the
+ * keys below are Mainsail's, and Alabaster reads them rather than inventing
+ * parallel ones so a camera configured in either interface behaves the same in
+ * both. Anything Alabaster adds of its own goes under an `alabaster` key, for
+ * the same reason in reverse.
+ */
+export interface MoonrakerWebcamExtraData {
+  /** `webrtc-go2rtc` only: request the audio track as well as the video one. */
+  enableAudio?: boolean
+  /** MJPEG services only: suppress the measured frame-rate readout. */
+  hideFps?: boolean
+  nozzleCrosshair?: boolean
+  nozzleCrosshairColor?: string
+  /** Fraction of the frame's smaller side, 0.01–1. */
+  nozzleCrosshairSize?: number
+  /**
+   * Alabaster's own crosshair colour: one of `dashboardColorTokens`' keys
+   * rather than a hex, so it follows the active theme pack. Namespaced because
+   * it is not a field Mainsail knows — `nozzleCrosshairColor` above stays
+   * written beside it for exactly that reason. See `features/camera/crosshair.ts`.
+   */
+  alabasterCrosshairColor?: string
+  [key: string]: unknown
+}
+
+/**
+ * One camera from Moonraker's own webcam database, which every Klipper
+ * interface on the printer shares — adding a camera here makes it appear in
+ * Mainsail and Fluidd too, and vice versa.
+ *
+ * Only `name`, `service`, `enabled`, `stream_url` and `snapshot_url` are
+ * guaranteed by every Moonraker old enough to answer `server.webcams.list` at
+ * all; the rest arrived with the database-backed rewrite, so they stay
+ * optional and every reader supplies the API's own documented default rather
+ * than assuming presence. `webcamDefaults` in `stores/webcams.ts` is the one
+ * place those defaults are written down.
+ */
 export interface MoonrakerWebcam {
+  /** Unique and stable across renames — prefer it over `name` as a key. */
+  uid?: string
   name: string
   location?: string
+  icon?: string
   service: string
   enabled: boolean
   stream_url: string
   snapshot_url: string
   target_fps?: number
+  target_fps_idle?: number
   flip_horizontal?: boolean
   flip_vertical?: boolean
   rotation?: number
   aspect_ratio?: string
+  extra_data?: MoonrakerWebcamExtraData
+  /**
+   * `'config'` for a camera declared in `moonraker.conf`, which the API
+   * refuses to modify or delete — the editor renders it read-only rather than
+   * offering controls whose save Moonraker would reject. `'database'` for one
+   * any client created.
+   */
+  source?: 'config' | 'database'
+}
+
+/**
+ * A `post_item` body. `uid` names an existing camera to update — omitted, the
+ * request creates one — and on an update every other field defaults to the
+ * camera's current value, so a partial patch is legal. `name` and
+ * `stream_url` are required on create only, which is why they are optional
+ * here rather than mirroring `MoonrakerWebcam`.
+ */
+export type MoonrakerWebcamPatch = Partial<Omit<MoonrakerWebcam, 'source'>>
+
+export interface MoonrakerWebcamTestResult {
+  name: string
+  snapshot_reachable: boolean
+  snapshot_url: string
+  stream_url: string
 }
 
 /**
@@ -792,6 +860,31 @@ export interface MoonrakerRpcMethods {
   'server.webcams.list': {
     params: undefined
     result: { webcams: MoonrakerWebcam[] }
+  }
+  /**
+   * Creates a camera when `uid` is absent and updates the named one when it is
+   * present. Moonraker refuses outright for a camera whose `source` is
+   * `'config'`, so the editor never offers a save for one.
+   */
+  'server.webcams.post_item': {
+    params: MoonrakerWebcamPatch
+    result: { webcam: MoonrakerWebcam }
+  }
+  'server.webcams.delete_item': {
+    params: { uid: string } | { name: string }
+    result: { webcam: MoonrakerWebcam }
+  }
+  /**
+   * Asks Moonraker — not the browser — to fetch the camera's snapshot. That
+   * distinction is the whole value: a stream that fails in the browser but
+   * succeeds here is a URL the browser cannot reach (an internal hostname, a
+   * mixed-content block), which is a different problem from a camera that is
+   * off. `snapshot_reachable` is false whenever the snapshot URL is empty or
+   * did not answer within a second.
+   */
+  'server.webcams.test': {
+    params: { uid: string } | { name: string }
+    result: MoonrakerWebcamTestResult
   }
   'server.announcements.list': {
     params: { include_dismissed?: boolean }

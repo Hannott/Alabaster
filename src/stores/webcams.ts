@@ -1,19 +1,25 @@
 import { defineStore } from 'pinia'
 import { computed, ref, watch, type WatchStopHandle } from 'vue'
 
-import type { MoonrakerWebcam } from '@/services/moonraker'
+import { normalizeCamera, resolveCameraUrl, type Camera } from '@/features/camera/camera'
+import type {
+  MoonrakerWebcam,
+  MoonrakerWebcamPatch,
+  MoonrakerWebcamTestResult,
+} from '@/services/moonraker'
 import { useAvailabilityStore } from '@/stores/availability'
+import { createCommandRunner } from '@/stores/commandRunner'
 import { createGuardedLoad } from '@/stores/guardedLoad'
 import { useMoonrakerStore } from '@/stores/moonraker'
 
-export function resolveWebcamUrl(streamUrl: string, websocketEndpoint: string): string {
-  const endpoint = new URL(websocketEndpoint)
-  endpoint.protocol = endpoint.protocol === 'wss:' ? 'https:' : 'http:'
-  endpoint.pathname = '/'
-  endpoint.search = ''
-  endpoint.hash = ''
-  return new URL(streamUrl, endpoint).toString()
-}
+/**
+ * Kept as a re-export because the URL rule it implements — resolve against the
+ * printer's websocket host, never the page's own origin — is the same one
+ * `spool.ts` cites, and the tests that pin it were written against this name.
+ */
+export { resolveCameraUrl as resolveWebcamUrl }
+
+export type WebcamCommandKey = 'save' | 'delete' | 'test'
 
 export const useWebcamsStore = defineStore('webcams', () => {
   const availability = useAvailabilityStore()
@@ -26,19 +32,48 @@ export const useWebcamsStore = defineStore('webcams', () => {
   let stopPrinterChangeReset: (() => void) | null = null
   let started = false
   const load = createGuardedLoad({ isLoading, failed })
+  const commands = createCommandRunner<WebcamCommandKey>(['save', 'delete', 'test'])
 
-  const primaryWebcam = computed(() => webcams.value.find((webcam) => webcam.enabled) ?? null)
-  const primaryStreamUrl = computed(() =>
-    primaryWebcam.value
-      ? resolveWebcamUrl(primaryWebcam.value.stream_url, moonraker.endpoint)
-      : null,
+  /**
+   * Every camera the printer knows about, disabled ones included — the
+   * settings section has to list a camera in order to re-enable it, so
+   * filtering here would make it unreachable. Consumers that render streams
+   * take `enabledCameras` instead.
+   */
+  const cameras = computed<Camera[]>(() =>
+    webcams.value.map((webcam) => normalizeCamera(webcam, moonraker.endpoint)),
   )
+
+  const enabledCameras = computed<Camera[]>(() => cameras.value.filter((camera) => camera.enabled))
+
+  /**
+   * Looks a camera up by the identifier a dashboard card stored. Falls back to
+   * the name because a card configured against a Moonraker too old to send
+   * UIDs holds a name in that slot, and because a camera that was renamed
+   * elsewhere is better found by its old name than dropped from the card.
+   */
+  function cameraByUid(uid: string): Camera | null {
+    return (
+      cameras.value.find((camera) => camera.uid === uid) ??
+      cameras.value.find((camera) => camera.name === uid) ??
+      null
+    )
+  }
+
+  /**
+   * The camera a card falls back to when it has never been configured, and the
+   * one the collapsed-card summary reads. First enabled rather than first
+   * listed: a camera someone switched off is one they deliberately stopped
+   * watching.
+   */
+  const primaryCamera = computed<Camera | null>(() => enabledCameras.value[0] ?? null)
 
   /** The camera list is the other machine's hardware; it goes with the switch. */
   function printerChanged(): void {
     load.invalidate()
     webcams.value = []
     failed.value = false
+    commands.reset()
   }
 
   async function refresh(): Promise<void> {
@@ -48,6 +83,35 @@ export const useWebcamsStore = defineStore('webcams', () => {
         webcams.value = result.webcams
       },
     )
+  }
+
+  /**
+   * Creates a camera when `patch` carries no `uid` and updates the named one
+   * when it does. The list is not patched locally on success: Moonraker fires
+   * `notify_webcams_changed` for its own write, so the reload below is the
+   * same path a camera added from Mainsail takes — one code path instead of an
+   * optimistic update that could disagree with what the server actually stored.
+   */
+  function save(patch: MoonrakerWebcamPatch): Promise<boolean> {
+    return commands.run('save', () => moonraker.rpcCall('server.webcams.post_item', patch))
+  }
+
+  function remove(uid: string): Promise<boolean> {
+    return commands.run('delete', () => moonraker.rpcCall('server.webcams.delete_item', { uid }))
+  }
+
+  /**
+   * Asks Moonraker to reach the camera's snapshot from the printer's own
+   * network. Null when the call itself failed, which is a different answer
+   * from `snapshot_reachable: false` — the first says Alabaster could not ask,
+   * the second says the printer asked and got nothing.
+   */
+  async function test(uid: string): Promise<MoonrakerWebcamTestResult | null> {
+    const holder: { result: MoonrakerWebcamTestResult | null } = { result: null }
+    const succeeded = await commands.run('test', async () => {
+      holder.result = await moonraker.rpcCall('server.webcams.test', { uid })
+    })
+    return succeeded ? holder.result : null
   }
 
   function start(): void {
@@ -85,5 +149,23 @@ export const useWebcamsStore = defineStore('webcams', () => {
     stopPrinterChangeReset = null
   }
 
-  return { webcams, primaryWebcam, primaryStreamUrl, isLoading, failed, start, stop, refresh }
+  return {
+    webcams,
+    cameras,
+    enabledCameras,
+    cameraByUid,
+    primaryCamera,
+    isLoading,
+    failed,
+    pendingCommands: commands.pendingCommands,
+    lastCommandError: commands.lastCommandError,
+    lastCommandErrorMessage: commands.lastCommandErrorMessage,
+    clearCommandError: commands.clearCommandError,
+    save,
+    remove,
+    test,
+    start,
+    stop,
+    refresh,
+  }
 })

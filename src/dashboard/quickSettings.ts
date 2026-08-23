@@ -66,11 +66,21 @@ export function useQuickSettings(
  * fixed quick-settings component, which always has something to show.
  */
 export function moduleHasQuickSettings(
-  definition: { quickSettingsDefaultKeys?: readonly string[] },
+  definition: {
+    quickSettingsDefaultKeys?: readonly string[]
+    quickSettingRowVisible?: (key: string, config: Record<string, unknown>) => boolean
+  },
   config: Record<string, unknown>,
 ): boolean {
   const defaultKeys = definition.quickSettingsDefaultKeys
   if (!defaultKeys) return true
   const stored = configOptionalStringList(config, 'quickSettings')
-  return (stored ?? defaultKeys).length > 0
+  const promoted = stored ?? defaultKeys
+  // A promoted row can still be conditional — Camera's arrangement switch means
+  // nothing on a card showing one camera and renders nothing there. Counting
+  // keys alone therefore said "has settings" for a layer that opened empty, so a
+  // module with conditional rows says which of its keys are live right now.
+  const isVisible = definition.quickSettingRowVisible
+  if (!isVisible) return promoted.length > 0
+  return promoted.some((key) => isVisible(key, config))
 }

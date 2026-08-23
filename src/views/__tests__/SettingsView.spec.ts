@@ -816,7 +816,7 @@ describe('SettingsView — category rail', () => {
     // Users is present in the rail even though its own card stays hidden
     // until a printer reports the `authorization` component — the rail entry
     // itself is unconditional, only the card is gated.
-    expect(rail(wrapper).findAll('button')).toHaveLength(10)
+    expect(rail(wrapper).findAll('button')).toHaveLength(11)
   })
 
   // The narrow-width `<select>` replaces the button list visually (CSS hides
@@ -831,6 +831,7 @@ describe('SettingsView — category rail', () => {
       'Show all settings',
       'Printer service',
       'Printers',
+      'Cameras',
       'Accounts',
       'Language',
       'Appearance',

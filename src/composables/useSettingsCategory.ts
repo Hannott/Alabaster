@@ -4,6 +4,7 @@ export type SettingsCategory =
   | 'all'
   | 'connection'
   | 'printers'
+  | 'cameras'
   | 'users'
   | 'language'
   | 'theme'
@@ -16,6 +17,7 @@ const validCategories: readonly SettingsCategory[] = [
   'all',
   'connection',
   'printers',
+  'cameras',
   'users',
   'language',
   'theme',

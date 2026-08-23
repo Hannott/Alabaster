@@ -75,3 +75,16 @@ export const consoleDefaultQuickKeys = [
  * migration constraint.
  */
 export const spoolDefaultQuickKeys = ['autoPauseOnEmpty'] as const
+
+/**
+ * Camera: the arrangement, and only that. It is the one setting on this card
+ * that is a live judgement rather than a preference — whether several streams
+ * are worth running at once depends on what the printer is doing right now, and
+ * on a Pi already busy slicing the answer changes within a session. Fit,
+ * columns and the two overlays are settled once and left alone, so they stay in
+ * the pane where they can be promoted by anyone who disagrees.
+ *
+ * The card had no settings at all before they existed, so there is no "what the
+ * card showed before" constraint here — this is a judgement, not a migration.
+ */
+export const cameraDefaultQuickKeys = ['arrangement'] as const
