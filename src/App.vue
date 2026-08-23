@@ -227,10 +227,14 @@ function isUnsavedNavItem(item: NavigationDestination): boolean {
   return item.name === 'configuration' && machineFiles.hasUnsavedFiles
 }
 
-function navLinkTitle(item: NavigationDestination): string | undefined {
-  if (!isSidebarCollapsed.value) return undefined
+/** The link's full accessible name: its label, plus the unsaved flag when one is set. */
+function navLinkName(item: NavigationDestination): string {
   const label = t(item.labelKey)
   return isUnsavedNavItem(item) ? `${label} — ${t('navigation.unsavedChanges')}` : label
+}
+
+function navLinkTitle(item: NavigationDestination): string | undefined {
+  return isSidebarCollapsed.value ? navLinkName(item) : undefined
 }
 
 /** True when a destination the mobile bar does not show has unsaved work behind it. */
@@ -934,20 +938,27 @@ async function discardPendingConfig(): Promise<void> {
         class="mobile-navigation fixed inset-x-3 bottom-3 z-40 rounded-3xl border border-subtle bg-canvas-glass p-2 shadow-xl backdrop-blur-xl"
         :aria-label="t('navigation.label')"
       >
+        <!--
+          Icon-only cells: the name travels as `title` plus an sr-only span
+          rather than visible text, because a visible label costs the one axis
+          a phone is short on — "Print files" wrapped to two lines and, in a
+          grid whose cells stretch to the tallest, grew the whole bar to match.
+          The icons are not carrying meaning alone: every cell keeps its full
+          localized name for assistive technology and for hover at the narrow
+          desktop widths that also show this bar.
+        -->
         <ul class="grid grid-cols-5 gap-1">
           <li v-for="item in mobileBarDestinations" :key="item.name">
             <RouterLink
               :to="{ name: item.name }"
               class="button button--quiet button--block mobile-nav-link"
               :class="{ 'nav-link--unsaved button--badged': isUnsavedNavItem(item) }"
+              :title="navLinkName(item)"
               @pointerenter="pagePrefetch.prefetch(item.name)"
               @focus="pagePrefetch.prefetch(item.name)"
             >
               <AppIcon :name="item.icon" class="size-5" aria-hidden="true" />
-              {{ t(item.labelKey) }}
-              <span v-if="isUnsavedNavItem(item)" class="sr-only">
-                — {{ t('navigation.unsavedChanges') }}
-              </span>
+              <span class="sr-only">{{ navLinkName(item) }}</span>
             </RouterLink>
           </li>
           <li v-if="mobileOverflowDestinations.length > 0">
@@ -961,7 +972,6 @@ async function discardPendingConfig(): Promise<void> {
             >
               <template #trigger>
                 <AppIcon name="more" class="size-5" aria-hidden="true" />
-                {{ t('navigation.more') }}
               </template>
               <template #default="{ close }">
                 <RouterLink

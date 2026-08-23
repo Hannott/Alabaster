@@ -72,7 +72,7 @@ const destinations: readonly NavigationDestination[] = [
     labelKey: 'navigation.console',
     icon: 'console',
     position: 20,
-    mobile: 'overflow',
+    mobile: 'bar',
   },
   {
     name: 'calibration',
@@ -98,7 +98,7 @@ const destinations: readonly NavigationDestination[] = [
     // permanently empty list on an instance that has it switched off.
     capability: { component: 'history' },
     position: 50,
-    mobile: 'overflow',
+    mobile: 'bar',
   },
   {
     name: 'gcodeViewer',
@@ -124,14 +124,14 @@ const destinations: readonly NavigationDestination[] = [
     // the workspace can do nothing without it.
     capability: { root: 'config' },
     position: 80,
-    mobile: 'bar',
+    mobile: 'overflow',
   },
   {
     name: 'machine',
     labelKey: 'navigation.machine',
     icon: 'machine',
     position: 90,
-    mobile: 'bar',
+    mobile: 'overflow',
   },
   {
     name: 'settings',

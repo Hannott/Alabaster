@@ -1676,14 +1676,16 @@ input[type='number']::-webkit-inner-spin-button {
   background: var(--status-caution-text);
 }
 
+/*
+ * Icon-only: the cell's visible content is its glyph, with the localized name
+ * in an sr-only span and the link's `title` (see the bar's comment in
+ * App.vue). `min-height: 3rem` is the touch target, not a content size — it
+ * must not shrink with the label gone.
+ */
 .mobile-nav-link {
   min-height: 3rem;
-  flex-direction: column;
-  gap: 0.15rem;
   padding-inline: 0.25rem;
   border-radius: 1rem;
-  font-size: var(--nav-text-sm-size);
-  font-weight: var(--font-weight);
 }
 
 .sidebar-nav-link > svg {
