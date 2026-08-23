@@ -333,12 +333,33 @@ export interface MeshSceneInput {
    * every scroll tick rather than staying put while the view magnifies.
    */
   zoom?: number
+  /**
+   * How far the fitted box is carried away from the centre it was fitted to, in
+   * CSS pixels on the card.
+   *
+   * Applied after the fit for the same reason `zoom` is: a pan that fed back
+   * into the fit would resize the box as it was dragged, so the map would
+   * shrink on the way to the corner it was being dragged towards. It is also
+   * the reason panning is expressed in pixels rather than in millimetres of
+   * bed — the gesture is a finger moving across the card, and it has to travel
+   * exactly as far as the finger does at every magnification.
+   */
+  pan?: { x: number; y: number }
 }
 
 const degreesToRadians = Math.PI / 180
 
 function clamp(value: number, low: number, high: number): number {
   return Math.min(high, Math.max(low, value))
+}
+
+/**
+ * A camera offset is added to every projected point, so one NaN reaching it
+ * takes the whole frame with it — including the axes, which is a blank card
+ * rather than a misplaced mesh.
+ */
+function finite(value: number | undefined): number {
+  return Number.isFinite(value) ? (value as number) : 0
 }
 
 /**
@@ -598,8 +619,8 @@ export function meshCameraFor(input: MeshSceneInput): MeshCamera | null {
     // on the scene origin at every orientation. Anchoring there rather than on
     // the measured bounding box is the other half of turning in place: a
     // bounding box that changes shape as the box turns also moves its middle.
-    offsetX: padding.left + usableWidth / 2,
-    offsetY: padding.top + usableHeight / 2,
+    offsetX: padding.left + usableWidth / 2 + finite(input.pan?.x),
+    offsetY: padding.top + usableHeight / 2 + finite(input.pan?.y),
   }
 }
 

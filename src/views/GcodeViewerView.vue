@@ -9,6 +9,7 @@ import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import GcodeViewerSettingsDialog from '@/components/GcodeViewerSettingsDialog.vue'
 import PageHeading from '@/components/PageHeading.vue'
 import { useGcodeViewerSettings } from '@/composables/useGcodeViewerSettings'
+import { useTouchGesture, type TouchGestureStep } from '@/composables/useTouchGesture'
 import { installGcodeViewerBenchmark } from '@/features/gcode/benchmark'
 import {
   cameraBasis,
@@ -286,6 +287,12 @@ const pointerDrag = ref<{
   mode: 'orbit' | 'pan'
   pivot: GcodePoint | null
 } | null>(null)
+/**
+ * Two fingers pan and pinch. The one-finger drag above keeps orbiting, which is
+ * the reading a touch user expects from the same gesture a mouse makes, so the
+ * second finger is what switches modes rather than a toolbar toggle.
+ */
+const touch = useTouchGesture()
 const settingsOpen = ref(false)
 // Held down keys and wheel bursts would otherwise re-pick the pivot far more
 // often than the view can change meaningfully.
@@ -1018,6 +1025,15 @@ function handlePointerDown(event: PointerEvent): void {
   if (loading.value) userAdjustedViewDuringLoad = true
   stage.value?.focus({ preventScroll: true })
   stage.value?.setPointerCapture(event.pointerId)
+  // The second finger takes the gesture over. The orbit it started as is
+  // dropped rather than left running underneath: a pinch that also rotated
+  // would spin the model as the fingers moved apart.
+  if (touch.begin(event)) {
+    pointerDrag.value = null
+    finishPivotSnap()
+    reanchorPivotAtCenter()
+    return
+  }
   const mode = event.button === 0 ? 'orbit' : 'pan'
   // Rotating around the pointer keeps that exact point pinned under the cursor,
   // so the pivot has to be the picked point itself rather than its depth on the
@@ -1039,7 +1055,37 @@ function handlePointerDown(event: PointerEvent): void {
   if (pivot && snapToCenter.value) snapPivotToCenter(pivot)
 }
 
+/**
+ * A two-finger step. The pan is applied before the pinch so the zoom is
+ * anchored on where the fingers are now, which is the same rule the wheel
+ * follows: the gesture keeps closing in on what it is aimed at.
+ */
+function applyTouchGesture(step: TouchGestureStep): void {
+  const bounds = stage.value?.getBoundingClientRect()
+  if (!bounds) return
+  if (loading.value) userAdjustedViewDuringLoad = true
+  finishPivotSnap()
+  panCamera(camera, step.panX, step.panY, overlayHeight)
+  if (step.scale !== 1) {
+    dollyCameraAt(
+      camera,
+      step.scale,
+      step.centreX - bounds.left,
+      step.centreY - bounds.top,
+      bounds.width,
+      bounds.height,
+    )
+  }
+  scheduleSceneRender()
+}
+
 function handlePointerMove(event: PointerEvent): void {
+  const step = touch.move(event)
+  if (step) {
+    event.preventDefault()
+    applyTouchGesture(step)
+    return
+  }
   const drag = pointerDrag.value
   if (!drag || drag.pointerId !== event.pointerId) return
   event.preventDefault()
@@ -1056,11 +1102,15 @@ function handlePointerMove(event: PointerEvent): void {
 }
 
 function handlePointerEnd(event: PointerEvent): void {
-  if (pointerDrag.value?.pointerId !== event.pointerId) return
-  event.preventDefault()
+  touch.end(event)
+  // Released for whichever pointer lifted, not only for the one that was
+  // dragging: a finger the two-finger gesture took over is still captured
+  // here, and a capture never released holds every later event for that id.
   if (stage.value?.hasPointerCapture(event.pointerId)) {
     stage.value.releasePointerCapture(event.pointerId)
   }
+  if (pointerDrag.value?.pointerId !== event.pointerId) return
+  event.preventDefault()
   pointerDrag.value = null
 }
 
@@ -2121,7 +2171,7 @@ onBeforeUnmount(() => {
                 :title="t('gcodeViewer.view.screenshot')"
                 @click.stop="captureScreenshot"
               >
-                <AppIcon name="camera" class="size-5" aria-hidden="true" />
+                <AppIcon name="snapshot" class="size-5" aria-hidden="true" />
               </button>
               <button
                 type="button"

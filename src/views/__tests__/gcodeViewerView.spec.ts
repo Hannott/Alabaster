@@ -20,6 +20,20 @@ enableAutoUnmount(afterEach)
  * boundaries; the parser between them is real, so batches carry true geometry.
  */
 
+/**
+ * The four things that separate the camera moves from each other: an orbit
+ * turns, a dolly closes in, a pan looks somewhere else, and re-anchoring the
+ * pivot moves the target and the distance together while the eye stands still.
+ */
+interface GcodeCameraSnapshot {
+  distance: number
+  yaw: number
+  pitch: number
+  targetX: number
+  targetY: number
+  targetZ: number
+}
+
 const rendererInstances = vi.hoisted(
   () =>
     [] as Array<{
@@ -29,6 +43,12 @@ const rendererInstances = vi.hoisted(
       begunStreams: number
       cleared: number
       disposed: boolean
+      /**
+       * A snapshot of the camera per frame, not the live object: the view keeps
+       * one reactive camera and mutates it, so holding the reference would only
+       * ever report where it ended up.
+       */
+      cameras: Array<GcodeCameraSnapshot>
     }>,
 )
 
@@ -42,11 +62,14 @@ vi.mock('@/features/gcode/renderer', () => ({
     constructor(public canvas: HTMLCanvasElement) {
       rendererInstances.push(this)
     }
+    cameras: GcodeCameraSnapshot[] = []
     resize(): void {}
     desiredSampleScale(): number {
       return 1
     }
-    render(): null {
+    render(camera: GcodeCameraSnapshot): null {
+      const { distance, yaw, pitch, targetX, targetY, targetZ } = camera
+      this.cameras.push({ distance, yaw, pitch, targetX, targetY, targetZ })
       return null
     }
     load(): void {}
@@ -397,5 +420,158 @@ describe('G-code viewer view', () => {
 
     view.unmount()
     expect(host.__alabasterGcodeViewerBenchmark).toBeUndefined()
+  })
+
+  describe('two fingers on the stage', () => {
+    /**
+     * The stage renders on an animation frame, so a test that only dispatched
+     * events would assert against the camera as it stood before them. Running
+     * the callback at once is enough: nothing here depends on real time.
+     */
+    function renderSynchronously(): void {
+      // Returning 0 rather than a handle, because the view uses 0 as "no frame
+      // pending" and assigns this return value *after* the callback has already
+      // cleared it — a truthy handle latches the guard shut and nothing renders
+      // again for the rest of the test.
+      vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
+        callback(0)
+        return 0
+      })
+      vi.stubGlobal('cancelAnimationFrame', () => undefined)
+    }
+
+    /**
+     * The stage has no layout in jsdom, so both the pointer arithmetic and the
+     * canvas sizing need a box — and the sizing happens at mount, which is why
+     * this goes on the prototype before the view is mounted rather than on the
+     * element afterwards.
+     */
+    function giveEveryElementABox(): void {
+      vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
+        left: 0,
+        top: 0,
+        width: 800,
+        height: 600,
+        right: 800,
+        bottom: 600,
+      } as DOMRect)
+    }
+
+    function finger(
+      type: 'pointerdown' | 'pointermove' | 'pointerup',
+      pointerId: number,
+      clientX: number,
+      clientY: number,
+    ): PointerEvent {
+      return new PointerEvent(type, {
+        button: 0,
+        pointerType: 'touch',
+        pointerId,
+        clientX,
+        clientY,
+        bubbles: true,
+        cancelable: true,
+      })
+    }
+
+    async function loadedStage() {
+      renderSynchronously()
+      giveEveryElementABox()
+      const view = await mountView()
+      streamThroughParser(smallPrint)
+      await chooseLocalFile(view, smallPrint)
+      const stage = view.get('.gcode-viewer-stage').element as HTMLElement
+      stage.setPointerCapture = () => undefined
+      stage.releasePointerCapture = () => undefined
+      stage.hasPointerCapture = () => false
+      const renderer = rendererInstances[0]
+      renderer?.cameras.splice(0)
+      return { view, stage, renderer }
+    }
+
+    /**
+     * A finger reporting the position it is already at. Landing a finger
+     * re-anchors the pivot, which moves the target without redrawing anything,
+     * so this is what puts a frame on the record to measure the gesture from.
+     */
+    function settle(stage: HTMLElement, pointerId: number, clientX: number, clientY: number) {
+      stage.dispatchEvent(finger('pointermove', pointerId, clientX, clientY))
+    }
+
+    function travelled(before?: GcodeCameraSnapshot, after?: GcodeCameraSnapshot): number {
+      return Math.hypot(
+        (after?.targetX ?? 0) - (before?.targetX ?? 0),
+        (after?.targetY ?? 0) - (before?.targetY ?? 0),
+        (after?.targetZ ?? 0) - (before?.targetZ ?? 0),
+      )
+    }
+
+    it('pinches to zoom rather than orbiting', async () => {
+      const { stage, renderer } = await loadedStage()
+      stage.dispatchEvent(finger('pointerdown', 1, 300, 300))
+      stage.dispatchEvent(finger('pointerdown', 2, 500, 300))
+      settle(stage, 1, 300, 300)
+      const before = renderer?.cameras.at(-1)
+
+      // Fingers spread from 200 px apart to 400 px, about the same midpoint.
+      stage.dispatchEvent(finger('pointermove', 1, 200, 300))
+      stage.dispatchEvent(finger('pointermove', 2, 600, 300))
+
+      const after = renderer?.cameras.at(-1)
+      // Spreading the fingers closes in, and turns nothing.
+      expect(after?.distance).toBeCloseTo((before?.distance ?? 0) / 2, 4)
+      expect(after?.yaw).toBeCloseTo(before?.yaw ?? 0, 6)
+      expect(after?.pitch).toBeCloseTo(before?.pitch ?? 0, 6)
+    })
+
+    it('drags two fingers to pan, without turning the model', async () => {
+      const { stage, renderer } = await loadedStage()
+      stage.dispatchEvent(finger('pointerdown', 1, 300, 300))
+      stage.dispatchEvent(finger('pointerdown', 2, 500, 300))
+      settle(stage, 1, 300, 300)
+      const before = renderer?.cameras.at(-1)
+
+      // Both fingers 120 px to the right: the shape between them never changes,
+      // so the camera looks somewhere else from the same distance and angle.
+      stage.dispatchEvent(finger('pointermove', 1, 420, 300))
+      stage.dispatchEvent(finger('pointermove', 2, 620, 300))
+
+      const after = renderer?.cameras.at(-1)
+      expect(travelled(before, after)).toBeGreaterThan(0)
+      expect(after?.distance).toBeCloseTo(before?.distance ?? 0, 4)
+      expect(after?.yaw).toBeCloseTo(before?.yaw ?? 0, 6)
+      expect(after?.pitch).toBeCloseTo(before?.pitch ?? 0, 6)
+    })
+
+    it('keeps panning on the finger left down as the pinch is released', async () => {
+      // Fingers never leave the glass together, so the last one has to keep
+      // panning: handed back to the one-finger drag it orbited the model a few
+      // degrees at the end of every pinch.
+      const { stage, renderer } = await loadedStage()
+      stage.dispatchEvent(finger('pointerdown', 1, 300, 300))
+      stage.dispatchEvent(finger('pointerdown', 2, 500, 300))
+      stage.dispatchEvent(finger('pointerup', 2, 500, 300))
+      settle(stage, 1, 300, 300)
+      const before = renderer?.cameras.at(-1)
+
+      stage.dispatchEvent(finger('pointermove', 1, 360, 300))
+
+      const after = renderer?.cameras.at(-1)
+      expect(travelled(before, after)).toBeGreaterThan(0)
+      expect(after?.yaw).toBeCloseTo(before?.yaw ?? 0, 6)
+      expect(after?.pitch).toBeCloseTo(before?.pitch ?? 0, 6)
+    })
+
+    it('orbits from one finger, which is the gesture a mouse makes too', async () => {
+      const { stage, renderer } = await loadedStage()
+      stage.dispatchEvent(finger('pointerdown', 1, 300, 300))
+      stage.dispatchEvent(finger('pointermove', 1, 340, 300))
+      const before = renderer?.cameras.at(-1)
+
+      stage.dispatchEvent(finger('pointermove', 1, 420, 300))
+
+      const after = renderer?.cameras.at(-1)
+      expect(after?.yaw).not.toBeCloseTo(before?.yaw ?? 0, 6)
+    })
   })
 })

@@ -337,22 +337,250 @@ describe('BedMeshModule', () => {
     expect(event.defaultPrevented).toBe(true)
   })
 
-  it('never orbits from a button other than the primary one', async () => {
-    const { wrapper } = mountLoaded({ showSurface: true })
+  it('pans on the secondary button and leaves the angle alone', async () => {
+    // The two drags answer different questions, and a pan that also turned the
+    // surface would make the angle impossible to hold while moving the map.
+    stubCanvas()
+    const { config, wrapper } = mountLoaded({ showSurface: true })
     await wrapper.vm.$nextTick()
     // `trigger` cannot set `button`, which is read-only on a real MouseEvent,
     // so the event is constructed and dispatched directly.
     const canvas = wrapper.find('.mesh-canvas--overlay').element
     canvas.setPointerCapture = () => undefined
+    canvas.releasePointerCapture = () => undefined
     canvas.dispatchEvent(
-      new PointerEvent('pointerdown', { button: 2, pointerId: 1, bubbles: true }),
+      new PointerEvent('pointerdown', {
+        button: 2,
+        pointerId: 1,
+        clientX: 0,
+        clientY: 0,
+        bubbles: true,
+      }),
+    )
+    canvas.dispatchEvent(
+      new PointerEvent('pointermove', { pointerId: 1, clientX: 80, clientY: 20, bubbles: true }),
+    )
+    canvas.dispatchEvent(new PointerEvent('pointerup', { pointerId: 1, bubbles: true }))
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.find('.mesh-stage__reset').exists()).toBe(true)
+
+    await wrapper.find('.mesh-stage__lock').trigger('click')
+    const resting = meshOrientationPresets.rightFront
+    expect(config.value.lockedPanX).toBeCloseTo(80, 6)
+    expect(config.value.lockedPanY).toBeCloseTo(20, 6)
+    expect(config.value.lockedAlpha).toBeCloseTo(resting.alpha, 6)
+    expect(config.value.lockedBeta).toBeCloseTo(resting.beta, 6)
+  })
+
+  /*
+   * The browser's middle-click autoscroll starts on the press, so the page slid
+   * under a pan already under way. `auxclick` cannot stop it — that fires on
+   * release — so the pointer event's own default has to go.
+   */
+  it('stops the browser scrolling the page under a middle-button pan', async () => {
+    stubCanvas()
+    const { wrapper } = mountLoaded({ showSurface: true })
+    await wrapper.vm.$nextTick()
+    const canvas = wrapper.find('.mesh-canvas--overlay').element
+    canvas.setPointerCapture = () => undefined
+    canvas.releasePointerCapture = () => undefined
+
+    const middle = new PointerEvent('pointerdown', {
+      button: 1,
+      pointerId: 1,
+      clientX: 0,
+      clientY: 0,
+      bubbles: true,
+      cancelable: true,
+    })
+    canvas.dispatchEvent(middle)
+    expect(middle.defaultPrevented).toBe(true)
+
+    // It still pans, which is the whole reason the button is claimed.
+    canvas.dispatchEvent(
+      new PointerEvent('pointermove', { pointerId: 1, clientX: 60, clientY: 15, bubbles: true }),
+    )
+    canvas.dispatchEvent(new PointerEvent('pointerup', { pointerId: 1, bubbles: true }))
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('.mesh-stage__reset').exists()).toBe(true)
+  })
+
+  /*
+   * The secondary button raises no autoscroll, and a locked map hands every
+   * gesture back to the page on purpose — so neither may have its default taken.
+   */
+  it('leaves the page its own gestures where nothing needs suppressing', async () => {
+    stubCanvas()
+    const { wrapper } = mountLoaded({ showSurface: true })
+    await wrapper.vm.$nextTick()
+    const canvas = wrapper.find('.mesh-canvas--overlay').element
+    canvas.setPointerCapture = () => undefined
+    canvas.releasePointerCapture = () => undefined
+
+    const secondary = new PointerEvent('pointerdown', {
+      button: 2,
+      pointerId: 1,
+      clientX: 0,
+      clientY: 0,
+      bubbles: true,
+      cancelable: true,
+    })
+    canvas.dispatchEvent(secondary)
+    expect(secondary.defaultPrevented).toBe(false)
+    canvas.dispatchEvent(new PointerEvent('pointerup', { pointerId: 1, bubbles: true }))
+
+    const locked = mountLoaded({ showSurface: true, locked: true })
+    await locked.wrapper.vm.$nextTick()
+    const lockedCanvas = locked.wrapper.find('.mesh-canvas--overlay').element
+    lockedCanvas.setPointerCapture = () => undefined
+    const onLocked = new PointerEvent('pointerdown', {
+      button: 1,
+      pointerId: 1,
+      clientX: 0,
+      clientY: 0,
+      bubbles: true,
+      cancelable: true,
+    })
+    lockedCanvas.dispatchEvent(onLocked)
+    expect(onLocked.defaultPrevented).toBe(false)
+  })
+
+  it('does nothing at all from a button that is neither a drag nor a pan', async () => {
+    stubCanvas()
+    const { wrapper } = mountLoaded({ showSurface: true })
+    await wrapper.vm.$nextTick()
+    const canvas = wrapper.find('.mesh-canvas--overlay').element
+    canvas.setPointerCapture = () => undefined
+    canvas.dispatchEvent(
+      new PointerEvent('pointerdown', {
+        button: 4,
+        pointerId: 1,
+        clientX: 0,
+        clientY: 0,
+        bubbles: true,
+      }),
     )
     canvas.dispatchEvent(
       new PointerEvent('pointermove', { pointerId: 1, clientX: 80, clientY: 20, bubbles: true }),
     )
     await wrapper.vm.$nextTick()
-    // A right-drag must leave the saved angle alone, so no reset chip appears.
+
     expect(wrapper.find('.mesh-stage__reset').exists()).toBe(false)
+  })
+
+  /**
+   * A two-finger gesture, dispatched the way a browser reports one: a
+   * `pointermove` per finger, never both at once.
+   */
+  function pinch(
+    wrapper: ReturnType<typeof mountModule>['wrapper'],
+    moves: ReadonlyArray<[pointerId: number, clientX: number, clientY: number]>,
+    start: ReadonlyArray<[pointerId: number, clientX: number, clientY: number]> = [
+      [1, 100, 100],
+      [2, 200, 100],
+    ],
+  ): void {
+    const canvas = wrapper.find('.mesh-canvas--overlay').element
+    canvas.setPointerCapture = () => undefined
+    canvas.releasePointerCapture = () => undefined
+    for (const [pointerId, clientX, clientY] of start) {
+      canvas.dispatchEvent(
+        new PointerEvent('pointerdown', {
+          button: 0,
+          pointerType: 'touch',
+          pointerId,
+          clientX,
+          clientY,
+          bubbles: true,
+        }),
+      )
+    }
+    for (const [pointerId, clientX, clientY] of moves) {
+      canvas.dispatchEvent(
+        new PointerEvent('pointermove', {
+          pointerType: 'touch',
+          pointerId,
+          clientX,
+          clientY,
+          bubbles: true,
+        }),
+      )
+    }
+    for (const [pointerId] of start) {
+      canvas.dispatchEvent(
+        new PointerEvent('pointerup', { pointerType: 'touch', pointerId, bubbles: true }),
+      )
+    }
+  }
+
+  it('pans and magnifies from two fingers without turning the surface', async () => {
+    // The whole gesture on a phone: a mouse has a second button to pan with and
+    // a wheel to zoom with, and a finger has neither.
+    stubCanvas()
+    const { config, wrapper } = mountLoaded({ showSurface: true })
+    await wrapper.vm.$nextTick()
+
+    // Both fingers 30 right, and spread from 100 px apart to 160 px.
+    pinch(wrapper, [
+      [1, 100, 100],
+      [2, 260, 100],
+    ])
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.find('.mesh-stage__reset').exists()).toBe(true)
+    await wrapper.find('.mesh-stage__lock').trigger('click')
+    const resting = meshOrientationPresets.rightFront
+    expect(config.value.lockedPanX).toBeCloseTo(30, 6)
+    expect(config.value.lockedZoom).toBeCloseTo(1.6, 6)
+    // A pinch is not an orbit, however far the fingers travel.
+    expect(config.value.lockedAlpha).toBeCloseTo(resting.alpha, 6)
+    expect(config.value.lockedBeta).toBeCloseTo(resting.beta, 6)
+  })
+
+  it('drops the orbit the first finger started when a second one lands', async () => {
+    // Left running underneath, the orbit would spin the surface as the fingers
+    // moved apart — a pinch that also rotates.
+    stubCanvas()
+    const { config, wrapper } = mountLoaded({ showSurface: true })
+    await wrapper.vm.$nextTick()
+
+    pinch(wrapper, [
+      [1, 40, 220],
+      [2, 260, 100],
+    ])
+    await wrapper.vm.$nextTick()
+
+    await wrapper.find('.mesh-stage__lock').trigger('click')
+    const resting = meshOrientationPresets.rightFront
+    expect(config.value.lockedAlpha).toBeCloseTo(resting.alpha, 6)
+    expect(config.value.lockedBeta).toBeCloseTo(resting.beta, 6)
+  })
+
+  it('keeps the pan inside the stage, so the map cannot be dragged off the card', async () => {
+    // Off the edge there is nothing on screen saying why, and the chip that
+    // undoes it is only there because a pan happened.
+    stubCanvas()
+    const { config, wrapper } = mountLoaded({ showSurface: true })
+    await wrapper.vm.$nextTick()
+
+    pinch(
+      wrapper,
+      [
+        [1, 5_000, 5_000],
+        [2, 5_100, 5_000],
+      ],
+      [
+        [1, 0, 0],
+        [2, 100, 0],
+      ],
+    )
+    await wrapper.vm.$nextTick()
+
+    await wrapper.find('.mesh-stage__lock').trigger('click')
+    // The stubbed stage is 360 x 240, and the limit is three quarters of it.
+    expect(config.value.lockedPanX).toBeCloseTo(270, 6)
+    expect(config.value.lockedPanY).toBeCloseTo(180, 6)
   })
 
   function orbitBy(
@@ -456,6 +684,8 @@ describe('BedMeshModule', () => {
       lockedAlpha: 33,
       lockedBeta: 12,
       lockedZoom: 1.6,
+      lockedPanX: -48,
+      lockedPanY: 12,
     })
     await wrapper.vm.$nextTick()
     // Nothing to reset while locked: there is no ephemeral view to discard.
@@ -464,9 +694,32 @@ describe('BedMeshModule', () => {
     await wrapper.find('.mesh-stage__lock').trigger('click')
     expect(config.value.locked).toBe(false)
     expect(wrapper.find('.mesh-stage__lock').attributes('aria-pressed')).toBe('false')
-    // The angle carried over, so the chip is the way back to the preset.
+    // The whole framing carried over — angle, magnification and pan alike — so
+    // the chip is the way back to the preset.
     expect(wrapper.find('.mesh-stage__reset').exists()).toBe(true)
 
+    await wrapper.find('.mesh-stage__reset').trigger('click')
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('.mesh-stage__reset').exists()).toBe(false)
+  })
+
+  it('takes the pan alone as reason enough for the reset chip', async () => {
+    // The chip appeared for an orbit and a zoom but not for a pan, so a map
+    // dragged off centre at the resting angle had no way back at all.
+    stubCanvas()
+    const { wrapper } = mountLoaded({ showSurface: false, lockedPanX: 0 })
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('.mesh-stage__reset').exists()).toBe(false)
+
+    // The flat map cannot be orbited, which is what makes it the case that
+    // isolates the pan.
+    pinch(wrapper, [
+      [1, 140, 100],
+      [2, 240, 100],
+    ])
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.find('.mesh-stage__reset').exists()).toBe(true)
     await wrapper.find('.mesh-stage__reset').trigger('click')
     await wrapper.vm.$nextTick()
     expect(wrapper.find('.mesh-stage__reset').exists()).toBe(false)

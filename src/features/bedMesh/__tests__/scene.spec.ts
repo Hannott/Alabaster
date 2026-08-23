@@ -526,6 +526,45 @@ describe('buildMeshScene', () => {
     // fit was not itself recomputed for the larger zoom.
     expect(width(zoomed)).toBeCloseTo(width(unzoomed) * 2, 5)
   })
+
+  it('carries the whole scene by the pan, in the pixels the gesture was made in', () => {
+    // A pan has to move the picture exactly as far as the finger did, at every
+    // magnification — which is why it is applied in CSS pixels after the fit
+    // rather than as a translation of the bed.
+    const centre = { x: (bed.minX + bed.maxX) / 2, y: (bed.minY + bed.maxY) / 2 }
+    const at = (pan: { x: number; y: number }, zoom = 1) =>
+      scene({ pan, zoom })?.place(centre.x, centre.y, 0) ?? [0, 0]
+
+    const rest = at({ x: 0, y: 0 })
+    const panned = at({ x: 40, y: -25 })
+
+    expect(panned[0] - rest[0]).toBeCloseTo(40, 5)
+    expect(panned[1] - rest[1]).toBeCloseTo(-25, 5)
+
+    // Zoomed in, the same gesture still travels the same distance on the card.
+    const zoomedRest = at({ x: 0, y: 0 }, 3)
+    const zoomedPan = at({ x: 40, y: -25 }, 3)
+    expect(zoomedPan[0] - zoomedRest[0]).toBeCloseTo(40, 5)
+    expect(zoomedPan[1] - zoomedRest[1]).toBeCloseTo(-25, 5)
+  })
+
+  it('keeps pan out of the fit, so the box does not resize as it is dragged', () => {
+    const width = (built: ReturnType<typeof scene>) => {
+      const left = built?.place(bed.minX, bed.minY, 0) ?? [0, 0]
+      const right = built?.place(bed.maxX, bed.minY, 0) ?? [0, 0]
+      return Math.hypot(left[0] - right[0], left[1] - right[1])
+    }
+
+    expect(width(scene({ pan: { x: 120, y: 90 } }))).toBeCloseTo(width(scene()), 5)
+  })
+
+  it('ignores a pan that is not a number, rather than losing the frame to NaN', () => {
+    // The offset is added to every projected point, so one NaN reaching it
+    // blanks the card — axes included — instead of misplacing the mesh.
+    const built = scene({ pan: { x: Number.NaN, y: 0 } })
+
+    expect(built?.camera.offsetX).toBeCloseTo(scene()?.camera.offsetX ?? 0, 5)
+  })
 })
 
 describe('the full orbit', () => {

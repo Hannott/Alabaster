@@ -7,6 +7,7 @@ import AppSelect from '@/components/AppSelect.vue'
 import AppDashboardModule from '@/components/dashboard/AppDashboardModule.vue'
 import BedMeshQuickSettings from '@/components/dashboard/modules/BedMeshQuickSettings.vue'
 import { readBedMeshViewSetting } from '@/components/dashboard/modules/bedMeshViewSettings'
+import { useTouchGesture, type TouchGestureStep } from '@/composables/useTouchGesture'
 import { configBoolean, configNumber, configString, useDashboardModule } from '@/dashboard/context'
 import {
   buildMeshScene,
@@ -45,6 +46,16 @@ const probeReach = 14
 /** How far the wheel may zoom the map out and in. */
 const zoomMin = 0.5
 const zoomMax = 4
+/**
+ * How far the map may be dragged off centre, as a fraction of the stage.
+ *
+ * A pan with no limit can carry the mesh entirely off the card, at which point
+ * the only thing on screen that says why is the reset chip — and the chip is
+ * only there because a pan happened, so a user who did not realise they had
+ * panned reads a blank stage as a card that broke. Less than a full stage of
+ * travel keeps part of the box in view at every magnification.
+ */
+const panLimit = 0.75
 
 /**
  * `liveProbing` opts this card into following a calibration as it runs, and
@@ -115,6 +126,18 @@ const dragged = ref<MeshOrientation | null>(null)
 /** Magnification about the mesh's own centre. Ephemeral, like the orbit. */
 const zoom = ref(1)
 /**
+ * How far the map is carried off the centre it is fitted to, in CSS pixels.
+ * Ephemeral in exactly the same way, and reset by the same chip: framing is a
+ * look around, not a decision, and only the lock makes one durable.
+ */
+const panOffset = ref({ x: 0, y: 0 })
+/**
+ * Two fingers pan and pinch; one finger still orbits. A mouse pans on the
+ * secondary or middle button, which is the split the G-code viewer already
+ * draws — the alternative was a pan reachable only on a touchscreen.
+ */
+const touch = useTouchGesture()
+/**
  * The easter egg, while it runs. Held here and nowhere else: it writes nothing
  * to the module's saved configuration, so there is no "before" to restore and
  * no way for it to survive a reload. Dropping this ref ends it completely.
@@ -132,6 +155,7 @@ let animationStart = 0
 let animationFrom = 0
 let animationTo = 0
 let dragPointer: number | null = null
+let dragMode: 'orbit' | 'pan' = 'orbit'
 let dragFrom: { x: number; y: number; alpha: number; beta: number } | null = null
 
 const showSurface = computed(() => configBoolean(config.value, 'showSurface', true))
@@ -484,6 +508,10 @@ const lockedOrientation = computed<MeshOrientation>(() => ({
   beta: configNumber(config.value, 'lockedBeta', restingOrientation.value.beta),
 }))
 const lockedZoom = computed(() => configNumber(config.value, 'lockedZoom', 1))
+const lockedPan = computed(() => ({
+  x: configNumber(config.value, 'lockedPanX', 0),
+  y: configNumber(config.value, 'lockedPanY', 0),
+}))
 
 const orientation = computed<MeshOrientation>(() => {
   // The voyage takes the camera as well as the geometry: it is composed for one
@@ -494,6 +522,7 @@ const orientation = computed<MeshOrientation>(() => {
     : meshOrientationFor(projection.value, dragged.value ?? preset.value)
 })
 const magnification = computed(() => (locked.value ? lockedZoom.value : zoom.value))
+const framing = computed(() => (locked.value ? lockedPan.value : panOffset.value))
 
 const profileOptions = computed(() =>
   bedMesh.profiles.map((name) => ({ value: name, label: name })),
@@ -632,6 +661,7 @@ function paintOptions() {
     // itself once the 3D view settles, with nothing but a cut in between.
     projectionAmount: viewpoint.value,
     zoom: magnification.value,
+    pan: framing.value,
     viewport: viewportSize.value,
     t: viewpoint.value,
     scale: scale.value,
@@ -896,23 +926,101 @@ function readAt(event: PointerEvent): void {
 }
 
 /**
+ * Carries the map across the stage, clamped so it cannot be lost off the edge.
+ * In pixels rather than in millimetres of bed: the gesture is a finger crossing
+ * the card, and it has to travel exactly as far as the finger does whatever the
+ * magnification — see `MeshSceneInput.pan`.
+ */
+function panBy(deltaX: number, deltaY: number): void {
+  const limitX = viewportSize.value.width * panLimit
+  const limitY = viewportSize.value.height * panLimit
+  const { x, y } = panOffset.value
+  panOffset.value = {
+    x: Math.min(limitX, Math.max(-limitX, x + deltaX)),
+    y: Math.min(limitY, Math.max(-limitY, y + deltaY)),
+  }
+}
+
+/** Magnifies about the mesh's own centre, the one anchor the wheel also uses. */
+function zoomBy(factor: number): void {
+  zoom.value = Math.min(zoomMax, Math.max(zoomMin, zoom.value * factor))
+}
+
+/**
  * Orbiting is only offered in the 3D view: dragging a map seen from directly
  * above would spin it under the pointer with nothing to indicate why, and the
- * flat view's whole purpose is to be the one fixed orientation.
+ * flat view's whole purpose is to be the one fixed orientation. Panning is
+ * offered in both, for the same reason zooming is — moving a magnified flat map
+ * to bring a corner of the bed into view is still a meaningful thing to want.
  */
-function startOrbit(event: PointerEvent): void {
-  if (locked.value || angleIsFixed.value || !showSurface.value || event.button !== 0) return
+function startDrag(event: PointerEvent): void {
+  if (locked.value) return
+  // The second finger takes the gesture over, and the orbit the first one
+  // started is dropped rather than left running underneath it: a pinch that
+  // also rotated would spin the surface as the fingers moved apart.
+  if (touch.begin(event)) {
+    dragPointer = null
+    dragFrom = null
+    reading.value = null
+    return
+  }
+  // Middle and secondary drag pan, as they do in the G-code viewer. Any other
+  // button is left alone rather than claimed as a primary drag.
+  const mode =
+    event.button === 0 ? 'orbit' : event.button === 1 || event.button === 2 ? 'pan' : null
+  // A middle press starts the browser's own autoscroll, so the page slid under
+  // a pan that was already under way and the map appeared to fight the drag.
+  // The default has to go on the *pointer* event, which suppresses the
+  // compatibility `mousedown` the autoscroll is initiated from — `auxclick`
+  // cannot do it, because that fires on release, long after the scroll began.
+  //
+  // Only the middle button, and only past the `locked` return above: the
+  // secondary button raises no autoscroll, and a locked map deliberately hands
+  // every gesture back to the page (`.mesh-canvas--locked`'s `touch-action`).
+  // The G-code viewer prevents unconditionally instead, which it can afford
+  // because its stage never hands scrolling back.
+  if (event.button === 1) event.preventDefault()
+  if (!mode) return
+  if (mode === 'orbit' && (angleIsFixed.value || !showSurface.value)) return
   dragPointer = event.pointerId
+  dragMode = mode
   dragFrom = { x: event.clientX, y: event.clientY, ...orientation.value }
   overlay.value?.setPointerCapture(event.pointerId)
 }
 
-function orbit(event: PointerEvent): void {
+/**
+ * A two-finger step: the midpoint's travel pans, the fingers' spread magnifies.
+ * The zoom is anchored on the mesh's centre rather than between the fingers,
+ * which is the anchor the wheel uses and the reason an orbit turns in place —
+ * and with pan in the same gesture the hand corrects for it in one movement.
+ */
+function applyTouchGesture(step: TouchGestureStep): void {
+  panBy(step.panX, step.panY)
+  if (step.scale !== 1) zoomBy(step.scale)
+  draw()
+}
+
+function moveDrag(event: PointerEvent): void {
+  const step = touch.move(event)
+  if (step) {
+    event.preventDefault()
+    applyTouchGesture(step)
+    return
+  }
   if (!dragFrom || event.pointerId !== dragPointer) {
     readAt(event)
     return
   }
   event.preventDefault()
+  if (dragMode === 'pan') {
+    panBy(event.clientX - dragFrom.x, event.clientY - dragFrom.y)
+    // The anchor moves with the pointer, unlike the orbit's: a pan is a
+    // running total of what the hand did, not a function of where it started.
+    dragFrom.x = event.clientX
+    dragFrom.y = event.clientY
+    draw()
+    return
+  }
   dragged.value = {
     // The full orbit: on past level and down to looking up from underneath
     // the bed, not only the hemisphere above it — see `trigFor`.
@@ -922,7 +1030,8 @@ function orbit(event: PointerEvent): void {
   draw()
 }
 
-function endOrbit(event: PointerEvent): void {
+function endDrag(event: PointerEvent): void {
+  touch.end(event)
   if (event.pointerId !== dragPointer) return
   dragPointer = null
   dragFrom = null
@@ -938,6 +1047,7 @@ function endOrbit(event: PointerEvent): void {
 function resetView(): void {
   dragged.value = null
   zoom.value = 1
+  panOffset.value = { x: 0, y: 0 }
   draw()
 }
 
@@ -951,14 +1061,21 @@ function toggleLock(): void {
   if (locked.value) {
     dragged.value = { ...lockedOrientation.value }
     zoom.value = lockedZoom.value
+    panOffset.value = { ...lockedPan.value }
     updateConfig({ locked: false })
     return
   }
+  // Any gesture still in flight is dropped along with the wheel and
+  // `touch-action`: locking mid-pinch otherwise left fingers registered that
+  // the canvas had already stopped listening for.
+  touch.cancel()
   updateConfig({
     locked: true,
     lockedAlpha: orientation.value.alpha,
     lockedBeta: orientation.value.beta,
     lockedZoom: zoom.value,
+    lockedPanX: panOffset.value.x,
+    lockedPanY: panOffset.value.y,
   })
 }
 
@@ -975,8 +1092,7 @@ function onWheel(event: WheelEvent): void {
   // middle of a scrolling dashboard.
   if (locked.value) return
   event.preventDefault()
-  const factor = Math.exp(-event.deltaY * 0.0015)
-  zoom.value = Math.min(zoomMax, Math.max(zoomMin, zoom.value * factor))
+  zoomBy(Math.exp(-event.deltaY * 0.0015))
   draw()
 }
 
@@ -1043,6 +1159,7 @@ watch(
     orientation,
     projection,
     magnification,
+    framing,
   ],
   draw,
 )
@@ -1194,8 +1311,11 @@ onBeforeUnmount(() => {
           The context menu is suppressed because this is a viewport, not a
           document: a right-click here is an aimed gesture that lands on the
           model, and a browser menu over it interrupts the drag rather than
-          offering anything about what was clicked. Orbit already ignores any
-          button but the primary one, so nothing moves either.
+          offering anything about what was clicked. It is the pan gesture, so
+          the menu would interrupt a drag that is genuinely under way, and
+          `auxclick` is suppressed alongside it for the middle button, and
+          `startDrag` prevents that button's own default so the browser's
+          autoscroll never starts under the pan.
         -->
         <canvas ref="surface" class="mesh-canvas" aria-hidden="true"></canvas>
         <canvas
@@ -1207,12 +1327,13 @@ onBeforeUnmount(() => {
             'mesh-canvas--orbitable': showSurface && !locked && !angleIsFixed,
             'mesh-canvas--locked': locked,
           }"
-          @pointerdown="startOrbit"
-          @pointermove="orbit"
-          @pointerup="endOrbit"
-          @pointercancel="endOrbit"
+          @pointerdown="startDrag"
+          @pointermove="moveDrag"
+          @pointerup="endDrag"
+          @pointercancel="endDrag"
           @pointerleave="reading = null"
           @wheel="onWheel"
+          @auxclick.prevent
           @contextmenu.prevent
         ></canvas>
         <!--
@@ -1232,7 +1353,7 @@ onBeforeUnmount(() => {
           <AppIcon :name="locked ? 'lock' : 'unlock'" class="size-4" aria-hidden="true" />
         </button>
         <button
-          v-if="!locked && (dragged || zoom !== 1)"
+          v-if="!locked && (dragged || zoom !== 1 || panOffset.x !== 0 || panOffset.y !== 0)"
           type="button"
           class="button button--sm mesh-stage__reset"
           @click="resetView()"
