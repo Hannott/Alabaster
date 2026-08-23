@@ -1888,7 +1888,7 @@
     },
     "add": {
       "title": "Add a user",
-      "description": "Creating a user logs this device in as them immediately — the same way signing up anywhere else does. Log back in as yourself afterward if you meant to keep managing this printer.",
+      "description": "Creating a user logs this device in as them immediately. Log back in as yourself afterward if you meant to keep managing this printer.",
       "usernameLabel": "Username",
       "passwordLabel": "Password",
       "submit": "Add user",

@@ -1888,7 +1888,7 @@
     },
     "add": {
       "title": "Legg til en bruker",
-      "description": "Å opprette en bruker logger denne enheten inn som dem med det samme — på samme måte som å registrere seg andre steder. Logg inn som deg selv igjen etterpå hvis du skulle fortsette å administrere denne skriveren.",
+      "description": "Å opprette en bruker logger denne enheten inn som dem med det samme. Logg inn som deg selv igjen etterpå hvis du skulle fortsette å administrere denne skriveren.",
       "usernameLabel": "Brukernavn",
       "passwordLabel": "Passord",
       "submit": "Legg til bruker",
