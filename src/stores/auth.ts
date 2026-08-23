@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 
 import type {
   JsonRpcNotification,
@@ -35,10 +35,18 @@ export type AuthCommandKey = (typeof authCommandKeys)[number]
  *
  * The overwhelming majority of printers never see any of this: `access.info`
  * only reports `login_required: true` once an operator has deliberately
- * configured it, so every read here is gated behind the caller checking
+ * configured it, so every *display* of it is gated behind the caller checking
  * `serverCapabilities.hasComponent('authorization')` first, the same
  * optimistic-until-proven-otherwise precedent `spool.ts` already uses for
  * `spoolman`.
+ *
+ * `info` and `currentUser` are the exception to "read on demand" below: the
+ * header's account shortcut (`App.vue`) has to know whether login is required
+ * or someone is already signed in before the reader ever opens Settings, so
+ * `start()` loads them itself the moment a connection exists rather than
+ * waiting for a page to ask. `users` and the API key stay lazy, gated behind
+ * Settings' Users category actually being open, since nothing outside that
+ * card ever needs either.
  */
 export const useAuthStore = defineStore('auth', () => {
   const moonraker = useMoonrakerStore()
@@ -59,13 +67,14 @@ export const useAuthStore = defineStore('auth', () => {
 
   const disposers: Array<() => void> = []
   let stopPrinterChangeReset: (() => void) | null = null
+  let stopConnectionWatch: (() => void) | null = null
   let started = false
 
   /**
-   * `access.info` + `access.get_user`, read on demand — the same lazy,
-   * once-per-visit tier `machine.peripherals.*` already uses rather than
-   * something every connection pays for automatically. Called from Settings
-   * when the Connection or Users category is shown.
+   * `access.info` + `access.get_user`. Unlike `loadUsers`/`loadApiKey` below,
+   * this runs once automatically per connection (`start()`'s own watch) —
+   * the header's account shortcut needs both before any page has asked for
+   * them, so there is no "on demand" moment to defer this to.
    */
   async function load(): Promise<void> {
     if (!moonraker.isConnected) return
@@ -228,11 +237,25 @@ export const useAuthStore = defineStore('auth', () => {
       moonraker.onNotification('notify_user_logged_out', handleUserLoggedOut),
     )
     stopPrinterChangeReset = moonraker.onPrinterChange(printerChanged)
+    // Every printer this connects to gets one `load()`, connected or
+    // reconnected, so the header's account shortcut never has to wait for a
+    // page to visit Settings first — most printers answer with
+    // `login_required: false` and no current user, which is the common case
+    // this costs one cheap round trip on.
+    stopConnectionWatch = watch(
+      () => moonraker.isConnected,
+      (connected) => {
+        if (connected) void load()
+      },
+      { immediate: true },
+    )
   }
 
   function stop(): void {
     if (!started) return
     started = false
+    stopConnectionWatch?.()
+    stopConnectionWatch = null
     stopPrinterChangeReset?.()
     stopPrinterChangeReset = null
     while (disposers.length > 0) disposers.pop()?.()

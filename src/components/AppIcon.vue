@@ -93,6 +93,7 @@ export type AppIconName =
   | 'unlock'
   | 'up'
   | 'usb'
+  | 'user'
   | 'viewer'
   | 'warning'
   | 'workUpdate'
@@ -864,6 +865,17 @@ defineProps<{ name: AppIconName }>()
       fill="currentColor"
       stroke="none"
       d="M10.588 21.413Q10 20.825 10 20q0-.525.275-.975T11 18.3V16H8q-.825 0-1.412-.587T6 14v-2.3q-.45-.225-.725-.675T5 10q0-.825.588-1.413T7 8t1.413.588T9 10q0 .575-.275 1T8 11.7V14h3V6H9l3-4l3 4h-2v8h3v-2h-1V8h4v4h-1v2q0 .825-.587 1.413T16 16h-3v2.3q.475.25.738.7T14 20q0 .825-.587 1.413T12 22t-1.412-.587"
+    />
+    <!--
+      Boxicons' "user" glyph (MIT licensed) — the header's account shortcut,
+      a head-and-shoulders silhouette rather than the outline set's stroked
+      figures, matching this file's other Boxicons imports (`edit`, `globe`).
+    -->
+    <path
+      v-else-if="name === 'user'"
+      fill="currentColor"
+      stroke="none"
+      d="M12 12c2.76 0 5-2.24 5-5s-2.24-5-5-5s-5 2.24-5 5s2.24 5 5 5m0-8c1.65 0 3 1.35 3 3s-1.35 3-3 3s-3-1.35-3-3s1.35-3 3-3M4 22h16c.55 0 1-.45 1-1v-1c0-3.86-3.14-7-7-7h-4c-3.86 0-7 3.14-7 7v1c0 .55.45 1 1 1m6-7h4c2.76 0 5 2.24 5 5H5c0-2.76 2.24-5 5-5"
     />
     <g v-else-if="name === 'skipForward'">
       <path d="m6 5 9 7-9 7Z" />

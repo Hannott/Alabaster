@@ -30,8 +30,10 @@ import {
 import { readPendingConfig } from '@/features/config/pendingConfig'
 import { pagePrefetch } from '@/router/prefetch'
 import { useAnnouncementsStore } from '@/stores/announcements'
+import { useAuthStore } from '@/stores/auth'
 import { useBedScrewsStore } from '@/stores/bedScrews'
 import { useActionGuard } from '@/composables/useActionGuard'
+import { useSettingsCategory } from '@/composables/useSettingsCategory'
 import { useDevicePowerStore } from '@/stores/devicePower'
 import { useMachineFilesStore } from '@/stores/machineFiles'
 import { useManualProbeStore } from '@/stores/manualProbe'
@@ -86,6 +88,7 @@ onBeforeUnmount(() => {
   if (statusFlashTimer !== null) window.clearTimeout(statusFlashTimer)
 })
 const printer = usePrinterStore()
+const auth = useAuthStore()
 const devicePower = useDevicePowerStore()
 const announcements = useAnnouncementsStore()
 const machineFiles = useMachineFilesStore()
@@ -171,6 +174,26 @@ const hasNotice = computed(
     printer.lastCommandError !== null ||
     announcements.hasEntries,
 )
+
+/**
+ * The account shortcut, unlike the emergency stop, notifications, and power
+ * beside it, has nothing to say on the overwhelming majority of printers —
+ * `auth.info` only reports `login_required: true` once an operator has
+ * deliberately configured `[authorization]`, and `auth.currentUser` is null
+ * everywhere else. `auth.ts`'s own `start()` keeps both current from the
+ * moment a connection exists, so this is accurate before the reader has ever
+ * opened Settings.
+ */
+const showAccountLink = computed(
+  () => auth.info?.login_required === true || auth.currentUser !== null,
+)
+
+const { setActiveCategory } = useSettingsCategory()
+
+/** Jumps straight to the Users category rather than leaving Settings on whatever it last showed. */
+function openAccountSettings(): void {
+  setActiveCategory('users')
+}
 
 /**
  * The rail renders every destination this machine can serve. The mobile bar
@@ -732,6 +755,24 @@ async function discardPendingConfig(): Promise<void> {
               <ActivityList variant="menu" />
             </template>
           </HeaderMenu>
+
+          <!--
+            A direct link, not a menu: unlike notifications and power, there is
+            nothing to choose between, only Settings' Users category to jump
+            to. Hidden on the overwhelming majority of printers that never
+            configure `[authorization]` — see `showAccountLink` for the two
+            conditions that bring it back.
+          -->
+          <RouterLink
+            v-if="showAccountLink"
+            :to="{ name: 'settings' }"
+            class="button button--quiet button--icon header-shortcut"
+            :aria-label="t('header.account.label')"
+            :title="t('header.account.label')"
+            @click="openAccountSettings"
+          >
+            <AppIcon name="user" class="size-5" aria-hidden="true" />
+          </RouterLink>
 
           <HeaderMenu
             :label="t('header.power.label')"

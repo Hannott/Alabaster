@@ -1798,11 +1798,13 @@ input[type='number']::-webkit-inner-spin-button {
  * widths" in docs/design/interface-standards.md. Matched through the action
  * row rather than on the class alone so the rule outweighs whatever `display`
  * the control itself carries; a bare `.header-shortcut` loses to
- * `.header-menu` on source order. Currently unused: the language menu and the
- * light/dark toggle, its two instances, left the header entirely rather than
- * merely standing down here; both `.header-shortcut` and the `.header-divider`
- * it used to separate from the machine's own controls stay defined for a
- * future control with a genuine Settings duplicate.
+ * `.header-menu` on source order. The language menu and the light/dark
+ * toggle, its first two instances, left the header entirely rather than
+ * merely standing down here; the account link is the first control to
+ * actually use the mark, but it sits interleaved between notifications and
+ * power rather than in a group of its own, so it carries no
+ * `.header-divider` — that mark is for setting a contiguous run of shortcuts
+ * apart from the machine's own controls, which one interleaved icon is not.
  */
 .header-divider {
   inline-size: 1px;

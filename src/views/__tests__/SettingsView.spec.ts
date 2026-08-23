@@ -5,6 +5,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 import { useSettingsCategory } from '@/composables/useSettingsCategory'
 import { i18n } from '@/i18n'
 import { useDateTimeFormatMode } from '@/i18n/formats'
+import { useAuthStore } from '@/stores/auth'
 import { confirmationKeys, useConfirmationsStore } from '@/stores/confirmations'
 import { useDashboardLayoutStore } from '@/stores/dashboardLayout'
 import { useMoonrakerStore } from '@/stores/moonraker'
@@ -69,6 +70,18 @@ afterEach(() => {
  */
 async function mountView() {
   const { default: SettingsView } = await import('@/views/SettingsView.vue')
+  // Production always has `main.ts` start every domain store before any view
+  // mounts; `auth.ts` in particular now loads `info`/`currentUser` from its
+  // own `start()`-driven watch rather than from this view, so the tests below
+  // need the same bootstrap to see either. `onNotification` is stubbed first
+  // because `start()` also subscribes to the user-created/deleted/logged-out
+  // notifications, and this suite's `moonraker.connectionPhase = 'connected'`
+  // shortcut never creates the real client those subscriptions need.
+  const moonraker = useMoonrakerStore(pinia)
+  if (!vi.isMockFunction(moonraker.onNotification)) {
+    vi.spyOn(moonraker, 'onNotification').mockImplementation(() => () => undefined)
+  }
+  useAuthStore(pinia).start()
   return mount(SettingsView, { global: { plugins: [i18n, pinia] } })
 }
 

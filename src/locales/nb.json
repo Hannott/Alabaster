@@ -285,6 +285,9 @@
       "dismiss": "Lukk «{title}»",
       "highPriority": "Høy prioritet"
     },
+    "account": {
+      "label": "Kontoinnstillinger"
+    },
     "power": {
       "label": "Strøm- og tjenestekontroller",
       "klipperControl": "Klipper-kontroll",

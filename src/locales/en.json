@@ -285,6 +285,9 @@
       "dismiss": "Dismiss \"{title}\"",
       "highPriority": "High priority"
     },
+    "account": {
+      "label": "Account settings"
+    },
     "power": {
       "label": "Power and service controls",
       "klipperControl": "Klipper control",

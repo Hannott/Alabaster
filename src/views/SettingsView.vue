@@ -184,21 +184,13 @@ function saveConnection(): void {
 /*
  * --- Authorization ---
  *
- * Most printers never enforce login at all, so `auth.load()` (`access.info` +
- * `access.get_user`) is read on demand rather than on every connection — the
- * same lazy, once-per-visit tier `machine.peripherals.*` already uses. Users
- * and the API key are gated further still, behind the Users category itself
- * actually being open, since neither is needed to explain an "unauthorized"
- * connection error.
+ * `auth.info` and `auth.currentUser` are already current by the time this
+ * view mounts: `auth.ts`'s own `start()` loads them the moment a connection
+ * exists, since the header's account shortcut needs both before anyone has
+ * opened Settings at all. Only the user list and the API key stay gated
+ * behind the Users category itself actually being open — both are heavier,
+ * per-account data nothing outside that card ever needs.
  */
-watch(
-  () => moonraker.isConnected && (showCategory('connection') || showCategory('users')),
-  (shouldLoad) => {
-    if (shouldLoad) void auth.load()
-  },
-  { immediate: true },
-)
-
 watch(
   () =>
     moonraker.isConnected &&
