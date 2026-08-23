@@ -314,19 +314,36 @@ export function downsample(points: readonly TimedValue[], maximum: number): Time
   return thinned
 }
 
-/** An SVG path through the points, or `''` when there is nothing to draw. */
+/**
+ * An SVG path through the points, or `''` when there is nothing to draw.
+ *
+ * `isDrawable` lifts the pen at a point that fails it rather than connecting
+ * straight through: a straight segment to the next good point would draw a
+ * reading that was never taken, the same reason `stepPath` lifts its own pen
+ * for a heater that is off.
+ */
 export function linePath(
   points: readonly TimedValue[],
   projectX: (eventtime: number) => number,
   projectY: (value: number) => number,
+  isDrawable: (value: number) => boolean = () => true,
 ): string {
-  if (points.length < 2) return ''
-  return points
-    .map(
-      (point, index) =>
-        `${index === 0 ? 'M' : 'L'}${projectX(point.eventtime).toFixed(1)} ${projectY(point.value).toFixed(1)}`,
-    )
-    .join(' ')
+  const commands: string[] = []
+  let drawing = false
+
+  for (const point of points) {
+    if (!isDrawable(point.value)) {
+      drawing = false
+      continue
+    }
+    const x = projectX(point.eventtime).toFixed(1)
+    const y = projectY(point.value).toFixed(1)
+    commands.push(`${drawing ? 'L' : 'M'}${x} ${y}`)
+    drawing = true
+  }
+
+  // A lone `M` draws nothing and only makes the path attribute longer.
+  return commands.some((command) => command.startsWith('L')) ? commands.join(' ') : ''
 }
 
 /**

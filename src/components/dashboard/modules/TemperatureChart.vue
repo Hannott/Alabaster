@@ -303,6 +303,19 @@ function isSetpoint(value: number): boolean {
 }
 
 /**
+ * A disconnected sensor reads as exactly zero and a shorted one reads in the
+ * thousands — Klipper's own fault values, not real temperatures. Both are
+ * excluded from the axis in `values` below, so one faulty sample does not
+ * blow the scale out until every real reading is squashed against the
+ * bottom, and both lift the pen in `paths` below, so the trace shows a gap
+ * rather than a line that claims the sensor passed through 0° or 1000° on
+ * its way.
+ */
+function isValidReading(value: number): boolean {
+  return value !== 0 && value <= 1000
+}
+
+/**
  * The axis the last frame settled on, so it can hold where it is rather than
  * being refitted from scratch on every push. Deliberately not reactive: it is
  * an output of the computation below, and making it an input as well would
@@ -336,7 +349,7 @@ const values = computed(() => {
   const previous = settled?.key === key ? settled.bounds : null
   const scale = valueScale(
     drawnSeries.value.flatMap((series) => [
-      series.points,
+      series.points.filter((point) => isValidReading(point.value)),
       // An idle heater records a target of zero on every sample, and letting
       // those into the range drags the floor of the plot to 0 — the same
       // failure `valueScale` refuses for the live target, arriving by a
@@ -427,7 +440,7 @@ const paths = computed(() =>
         color: series.color,
         kind: 'power',
       })
-    const value = linePath(series.points, projectX, projectY)
+    const value = linePath(series.points, projectX, projectY, isValidReading)
     if (value)
       entries.push({ key: series.objectName, d: value, color: series.color, kind: 'value' })
     return entries

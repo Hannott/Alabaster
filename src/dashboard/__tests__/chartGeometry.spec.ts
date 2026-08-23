@@ -335,6 +335,28 @@ describe('chart paths', () => {
   })
 
   /*
+   * A sensor fault — a disconnected thermocouple reading 0°, a shorted one
+   * reading in the thousands — is not a reading the sensor actually took.
+   * Connecting straight through it would draw one anyway.
+   */
+  it('lifts the pen at a point the caller marks undrawable, rather than bridging it', () => {
+    const path = linePath(
+      [
+        { eventtime: 0, value: 25 },
+        { eventtime: 10, value: 26 },
+        { eventtime: 20, value: 0 },
+        { eventtime: 30, value: 27 },
+        { eventtime: 40, value: 28 },
+      ],
+      x,
+      y,
+      (value) => value !== 0,
+    )
+    // Two subpaths: one up to the fault, one starting again after it.
+    expect(path.match(/M/g)).toHaveLength(2)
+  })
+
+  /*
    * A setpoint is held and then changed at an instant. Drawing it as a slope
    * shows a ramp from 0 to 215 that the printer was never asked to perform.
    */

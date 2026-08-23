@@ -211,6 +211,43 @@ describe('TemperatureChart', () => {
   })
 
   /*
+   * A disconnected thermocouple reads as exactly 0°, and a shorted one reads
+   * in the thousands — Klipper's own fault values, not real temperatures.
+   * Neither belongs on the axis, which would otherwise stretch to fit a fault
+   * and squash every real reading into a sliver of the plot, and neither
+   * should be bridged over as if the sensor actually passed through it.
+   */
+  it('breaks the value line at a sensor fault and keeps it off the axis', async () => {
+    const faulty = series({
+      points: [
+        { eventtime: 0, value: 25 },
+        { eventtime: 10, value: 26 },
+        { eventtime: 20, value: 0 },
+        { eventtime: 30, value: 26 },
+        { eventtime: 40, value: 1500 },
+        { eventtime: 50, value: 27 },
+        { eventtime: 60, value: 28 },
+      ],
+      targetPoints: [],
+      activeTarget: null,
+    })
+    const wrapper = await mountChart({ series: [faulty], latestEventtime: 69 })
+
+    const path = wrapper.get('.temperature-chart__series--value').attributes('d') ?? ''
+    // Three subpaths: the two faults each split the trace.
+    expect(path.match(/M/g)).toHaveLength(3)
+
+    const values = wrapper
+      .findAll('.temperature-chart__label')
+      .map((label) => label.text())
+      .filter((label) => /^\d+$/.test(label))
+      .map(Number)
+    // Framed around the real 25–28° readings, not stretched down to 0 or up
+    // to 1500 to make room for the faults.
+    expect(Math.max(...values)).toBeLessThan(100)
+  })
+
+  /*
    * The card is resized by things the chart cannot watch for — a column-width
    * preset, the settings surface docking it, the window. Only a ResizeObserver
    * catches those, and its delivery is tied to the frame lifecycle, so it
