@@ -164,6 +164,21 @@ describe('Calibration view', () => {
   })
 
   /**
+   * The dashboard card is exactly the narrow context the map's density
+   * fallback to dots exists for; this page's stage is generously sized
+   * enough that a mesh fitting its labels there almost always would, and the
+   * page exists specifically to read those numbers.
+   */
+  it('forces the map to keep showing numbers rather than falling back to dots', async () => {
+    const printerConfig = await import('@/stores/printerConfig')
+    vi.spyOn(printerConfig.usePrinterConfigStore(pinia), 'hasBedMesh', 'get').mockReturnValue(true)
+
+    const view = await mountView()
+
+    expect(view.findComponent(BedMeshModule).props('forceProbeLabels')).toBe(true)
+  })
+
+  /**
    * The picker never offers the loaded profile itself — comparing a mesh to
    * its own copy draws nothing useful — and stays off (`compareProfile: null`)
    * until the user actually picks one, `AppSelect` having no concept of an

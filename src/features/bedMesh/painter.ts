@@ -60,6 +60,15 @@ export interface MeshPaintOptions extends MeshSceneInput {
   fontFamily: string
   probes: readonly MeshProbeMarker[]
   showProbes: boolean
+  /**
+   * Skips the density fallback that drops a probed point's number for a dot
+   * once the mesh is too dense for its labels to fit without overlapping —
+   * see `spacingFitsLabels`. The dashboard card is narrow enough that the
+   * fallback is the point of it; the Calibration page's much larger stage
+   * opts in here instead, since a mesh that fits its labels there almost
+   * always would, and the page exists specifically to read those numbers.
+   */
+  forceProbeLabels: boolean
   wireframe: boolean
   /** Axis names and the unit, localized by the card. */
   axisLabels: { x: string; y: string; z: string }
@@ -184,14 +193,20 @@ function paintProbes(
 
   // Probed points travel with the surface. Their numbers are legible looking
   // straight down and illegible the moment anything is tilted, so the marker
-  // stays and the number goes — and on a card too narrow to hold them apart
-  // they never appear at all. A dense mesh in a dashboard column would
-  // otherwise overprint a hundred and eighty numbers into a smear, which is
-  // the reading problem this map was rebuilt to solve rather than to reprint
-  // at a smaller size.
-  const labelAlpha = spacingFitsLabels(context, scene, options)
-    ? Math.max(0, 1 - t / labelFadeEnd)
-    : 0
+  // stays and the number goes — that tilt fade applies regardless of
+  // `forceProbeLabels`, which only ever overrides the *density* fallback
+  // below it, never this one.
+  //
+  // On a card too narrow to hold the labels apart they never appear at all —
+  // a dense mesh in a dashboard column would otherwise overprint a hundred
+  // and eighty numbers into a smear, which is the reading problem this map
+  // was rebuilt to solve rather than to reprint at a smaller size.
+  // `forceProbeLabels` skips this fallback for a caller whose stage is
+  // generously sized enough that it would essentially never trigger anyway.
+  const labelAlpha =
+    options.forceProbeLabels || spacingFitsLabels(context, scene, options)
+      ? Math.max(0, 1 - t / labelFadeEnd)
+      : 0
 
   for (const probe of options.probes) {
     const [x, y] = scene.place(probe.x, probe.y, probe.deviation)

@@ -367,7 +367,7 @@ const viewingResult = ref<ShakeTuneResult | null>(null)
             `<script setup>` rather than the ephemeral fallback
             `useDashboardModule` falls back to outside any provider.
           -->
-          <BedMeshModule live-probing :compare-profile="compareProfile" />
+          <BedMeshModule live-probing force-probe-labels :compare-profile="compareProfile" />
         </section>
 
         <div class="calibration-grid__side">

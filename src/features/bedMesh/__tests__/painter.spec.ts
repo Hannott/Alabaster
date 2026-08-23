@@ -80,6 +80,7 @@ function options(overrides: Partial<MeshPaintOptions> = {}): MeshPaintOptions {
     fontFamily: 'ui-monospace, monospace',
     probes,
     showProbes: true,
+    forceProbeLabels: false,
     wireframe: false,
     axisLabels: { x: 'X', y: 'Y', z: 'Z' },
     formatTick: (value) => value.toString(),
@@ -107,6 +108,38 @@ describe('paintMeshOverlay', () => {
       options({ viewport: { width: 80, height: 52 } }),
     )
     expect(context.texts).toHaveLength(0)
+    expect(context.arcs).toHaveLength(25)
+  })
+
+  /**
+   * `forceProbeLabels` is the Calibration page's opt-in: its stage is
+   * generously sized enough that the density fallback above would essentially
+   * never trigger anyway, and the page exists specifically to read these
+   * numbers. It skips only that fallback — the tilt fade below is untouched,
+   * since a number lying flat against a surface seen edge-on is unreadable
+   * regardless of how much room it has.
+   */
+  it('keeps the numbers in a narrow card when the density fallback is forced off', () => {
+    const context = fakeContext()
+    paintMeshOverlay(
+      context as unknown as CanvasRenderingContext2D,
+      options({ viewport: { width: 80, height: 52 }, forceProbeLabels: true }),
+    )
+    expect(context.texts).toHaveLength(25)
+    expect(context.arcs).toHaveLength(0)
+  })
+
+  it('still drops the numbers once tilted, even with the density fallback forced off', () => {
+    const context = fakeContext()
+    paintMeshOverlay(
+      context as unknown as CanvasRenderingContext2D,
+      options({
+        t: 1,
+        orientation: meshOrientationPresets.rightFront,
+        forceProbeLabels: true,
+      }),
+    )
+    expect(context.texts).not.toContain('0.000')
     expect(context.arcs).toHaveLength(25)
   })
 

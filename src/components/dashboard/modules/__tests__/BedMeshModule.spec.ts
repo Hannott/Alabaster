@@ -934,6 +934,25 @@ describe('BedMeshModule', () => {
       expect(renderer?.lastDraws.get('flatMosaic')?.opacity ?? 0).toBe(0)
     })
 
+    /**
+     * The bug this guards: `flatMosaic` used to be skipped whenever the 3D
+     * render style was already `'mosaic'`, on the reasoning that a
+     * mosaic-styled `mesh` layer looks the same — but skipping it also
+     * removed the only thing that makes `mesh`/`probed` crossfade to zero in
+     * 2D, so both stayed at full opacity there instead of yielding to the
+     * probed-preferred flat reading the 2D view is supposed to force.
+     */
+    it('still crossfades to the flat mosaic in 2D when the render style is already mosaic', async () => {
+      setReducedMotion(true)
+      stubCanvas()
+      const { wrapper } = mountLoaded({ showSurface: false, renderStyle: 'mosaic' })
+      await wrapper.vm.$nextTick()
+
+      const renderer = rendererInstances[0]
+      expect(renderer?.lastDraws.get('mesh')?.opacity ?? 0).toBe(0)
+      expect(renderer?.lastDraws.get('flatMosaic')?.opacity).toBeGreaterThan(0)
+    })
+
     it('hides the level plane at once leaving 2D, and only reveals it once 3D has settled', async () => {
       // Reduced motion collapses the animation to its instant branch, so
       // "settled" and "started" are the same tick here — the state machine

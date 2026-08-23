@@ -49,13 +49,20 @@ const zoomMin = 0.5
 const zoomMax = 4
 
 /**
- * `liveProbing` opts this card into following a calibration as it runs, and
+ * `liveProbing` opts this card into following a calibration as it runs,
  * `compareProfile` opts it into overlaying a second, saved-but-not-loaded
- * profile against the live one. Both off by default and passed only by the
- * Calibration page: a dashboard card is a glance surface, and following a run
- * or judging one mesh against another are both things you sit and watch.
+ * profile against the live one, and `forceProbeLabels` skips the 2D map's
+ * narrow-card fallback to dots — see `MeshPaintOptions.forceProbeLabels`'s own
+ * comment. All three are off by default and passed only by the Calibration
+ * page: a dashboard card is a glance surface, following a run or judging one
+ * mesh against another are both things you sit and watch, and the dashboard
+ * card is exactly the narrow context the dot fallback exists for.
  */
-const props = defineProps<{ liveProbing?: boolean; compareProfile?: string | null }>()
+const props = defineProps<{
+  liveProbing?: boolean
+  compareProfile?: string | null
+  forceProbeLabels?: boolean
+}>()
 
 const { locale, t } = useI18n({ useScope: 'global' })
 const bedMesh = useBedMeshStore()
@@ -418,6 +425,11 @@ const layers = computed<MeshGlLayer[]>(() => {
   // resting 3D view draws rather than swapped in when the toggle is pressed.
   // `draw` crossfades between this and `mesh`/`probed` by opacity alone, so
   // the switch rides the same camera transition rather than cutting to it.
+  // Built regardless of `renderStyle` — including when it is already
+  // `'mosaic'` and a `mesh`/`probed` layer would look identical — because this
+  // is what `frameLayerDraws` crossfades *to* in 2D: without it, `hasFlatMosaic`
+  // is false, `mesh`/`probed` never fade out at `t = 0`, and the flat view
+  // shows both layers at once instead of forcing the one below.
   //
   // Probed, not mesh: the flat map is read like a spreadsheet, one number per
   // cell, and the number an overlay label prints has always been the probed
@@ -426,7 +438,7 @@ const layers = computed<MeshGlLayer[]>(() => {
   // so colouring the flat map from it would show a tile disagreeing with the
   // very number sitting on top of it. Mesh stands in only when a profile
   // carries no probed points to fall back on.
-  if (renderStyle.value !== 'mosaic' && (showMeshLayer.value || showProbedLayer.value)) {
+  if (showMeshLayer.value || showProbedLayer.value) {
     const flatMatrix =
       bedMesh.probedMatrix.length > 0 ? bedMesh.probedMatrix : bedMesh.surfaceMatrix
     if (flatMatrix.length > 0) {
@@ -674,6 +686,7 @@ function paintOptions() {
     // Live points are the only thing on the map during a run, so they show
     // whether or not the card's own probe markers are switched on.
     showProbes: isFollowingRun.value || (showProbesEffective.value && !voyage.value),
+    forceProbeLabels: props.forceProbeLabels === true,
     wireframe: wireframe.value && viewpoint.value > 0.01,
     axisLabels: {
       x: t('dashboard.bedMesh.axisX'),
