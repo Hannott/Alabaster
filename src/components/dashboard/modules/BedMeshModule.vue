@@ -19,7 +19,6 @@ import {
 import { MeshGlRenderer, type MeshGlDraw, type MeshGlLayer } from '@/features/bedMesh/glRenderer'
 import type { MeshRenderStyle } from '@/features/bedMesh/geometry'
 import { liveMeshGrid } from '@/features/bedMesh/probeRun'
-import { readSavedMeshProfile } from '@/features/bedMesh/savedProfile'
 import { buildVoyageFrame } from '@/features/bedMesh/voyage'
 import { meshColourRange, meshHeightLimits, type MeshScale } from '@/features/bedMesh/scale'
 import {
@@ -36,7 +35,6 @@ import {
 } from '@/features/bedMesh/scene'
 import { useBedMeshStore } from '@/stores/bedMesh'
 import { useMeshProbeRunStore } from '@/stores/meshProbeRun'
-import { usePrinterConfigStore } from '@/stores/printerConfig'
 import { usePrinterStore } from '@/stores/printer'
 import { useTelemetryStore } from '@/stores/telemetry'
 
@@ -49,18 +47,15 @@ const zoomMin = 0.5
 const zoomMax = 4
 
 /**
- * `liveProbing` opts this card into following a calibration as it runs,
- * `compareProfile` opts it into overlaying a second, saved-but-not-loaded
- * profile against the live one, and `forceProbeLabels` skips the 2D map's
- * narrow-card fallback to dots — see `MeshPaintOptions.forceProbeLabels`'s own
- * comment. All three are off by default and passed only by the Calibration
- * page: a dashboard card is a glance surface, following a run or judging one
- * mesh against another are both things you sit and watch, and the dashboard
- * card is exactly the narrow context the dot fallback exists for.
+ * `liveProbing` opts this card into following a calibration as it runs, and
+ * `forceProbeLabels` skips the 2D map's narrow-card fallback to dots — see
+ * `MeshPaintOptions.forceProbeLabels`'s own comment. Both off by default and
+ * passed only by the Calibration page: a dashboard card is a glance surface,
+ * following a run is something you sit and watch, and the dashboard card is
+ * exactly the narrow context the dot fallback exists for.
  */
 const props = defineProps<{
   liveProbing?: boolean
-  compareProfile?: string | null
   forceProbeLabels?: boolean
 }>()
 
@@ -68,7 +63,6 @@ const { locale, t } = useI18n({ useScope: 'global' })
 const bedMesh = useBedMeshStore()
 const probeRun = useMeshProbeRunStore()
 const printer = usePrinterStore()
-const printerConfig = usePrinterConfigStore()
 
 /*
  * `hasActivePrint`, not `isPrinting`. This card gated its three print-sensitive
@@ -329,20 +323,6 @@ const probedArea = computed<MeshArea>(() => {
 const bandStep = computed(() => meshTickStep(zMax.value * 2, 8))
 
 /**
- * The comparison profile's own probed points and area, read straight out of
- * `configfile.settings` — never loaded onto the printer, so judging one mesh
- * against another costs no command and changes nothing about which profile is
- * actually active. `readSavedMeshProfile` documents the config shape this
- * relies on; `null` covers a name that does not exist and a section that
- * fails to parse identically; either way there is simply nothing to overlay.
- */
-const compareMesh = computed(() => {
-  const name = props.compareProfile
-  if (!name) return null
-  return readSavedMeshProfile(printerConfig.section(`bed_mesh ${name}`))
-})
-
-/**
  * Divisions on a side for the level plane's own grid — fine enough that the
  * perspective lens's warp is negligible across any one quad, cheap enough
  * that the extra geometry costs nothing measurable. See the `flat` layer's
@@ -451,25 +431,6 @@ const layers = computed<MeshGlLayer[]>(() => {
         bandStep: bandStep.value,
       })
     }
-  }
-  if (compareMesh.value) {
-    built.push({
-      key: 'compare',
-      matrix: compareMesh.value.matrix,
-      area: compareMesh.value.area,
-      // Neutral and translucent, the same technique the `flat` reference plane
-      // above already uses — not the deviation ramp, and deliberately never
-      // wireframed (`frameLayerDraws` already suppresses wireframe on every
-      // `neutral` layer): a second solid, fully-opaque surface competing for
-      // the same colours as the live mesh would make it hard to tell which
-      // reading belongs to which profile. A ghost the live surface still
-      // shows through is read as "the other one", not as a second answer to
-      // the same question.
-      opacity: 0.4,
-      neutral: true,
-      style: 'surface',
-      bandStep: bandStep.value,
-    })
   }
   if (isFollowingRun.value && liveGrid.value) {
     built.push({

@@ -12,7 +12,6 @@ import { meshOrientationPresets } from '@/features/bedMesh/scene'
 import { i18n } from '@/i18n'
 import { useBedMeshStore } from '@/stores/bedMesh'
 import { useConsoleStore } from '@/stores/console'
-import { usePrinterConfigStore } from '@/stores/printerConfig'
 import { usePrinterStore } from '@/stores/printer'
 import { useTelemetryStore } from '@/stores/telemetry'
 
@@ -1029,71 +1028,6 @@ describe('BedMeshModule', () => {
 
       expect(switchOff.texts.length).toBeGreaterThan(0)
       expect(switchOff.texts.length).toBe(switchOn.texts.length)
-    })
-  })
-
-  describe('mesh comparison', () => {
-    const referenceSection = {
-      points: '0.010000, 0.020000\n0.030000, 0.040000',
-      min_x: 0,
-      max_x: 200,
-      min_y: 0,
-      max_y: 200,
-    }
-
-    it("overlays the comparison profile's own saved points, without loading it onto the printer", async () => {
-      const { pinia, bedMesh, wrapper } = mountModule(
-        { showSurface: true },
-        { compareProfile: 'reference' },
-      )
-      usePrinterConfigStore(pinia).settings = { 'bed_mesh reference': referenceSection }
-      const loadProfile = vi.spyOn(usePrinterStore(pinia), 'loadBedMeshProfile')
-      loadMesh(bedMesh)
-      await wrapper.vm.$nextTick()
-
-      const compare = rendererInstances[0]?.layers.get('compare')
-      expect(compare?.matrix).toEqual([
-        [0.01, 0.02],
-        [0.03, 0.04],
-      ])
-      expect(compare?.area).toEqual({ minX: 0, minY: 0, maxX: 200, maxY: 200 })
-      expect(loadProfile).not.toHaveBeenCalled()
-    })
-
-    it('adds no compare layer when no comparison profile is selected', async () => {
-      const { pinia, bedMesh, wrapper } = mountModule({ showSurface: true })
-      usePrinterConfigStore(pinia).settings = { 'bed_mesh reference': referenceSection }
-      loadMesh(bedMesh)
-      await wrapper.vm.$nextTick()
-
-      expect(rendererInstances[0]?.layers.has('compare')).toBe(false)
-    })
-
-    it('adds no compare layer for a profile whose section cannot be parsed', async () => {
-      const { pinia, bedMesh, wrapper } = mountModule(
-        { showSurface: true },
-        { compareProfile: 'never-saved' },
-      )
-      usePrinterConfigStore(pinia).settings = {}
-      loadMesh(bedMesh)
-      await wrapper.vm.$nextTick()
-
-      expect(rendererInstances[0]?.layers.has('compare')).toBe(false)
-    })
-
-    it('removes the compare layer once the page clears the selection', async () => {
-      const { pinia, bedMesh, wrapper } = mountModule(
-        { showSurface: true },
-        { compareProfile: 'reference' },
-      )
-      usePrinterConfigStore(pinia).settings = { 'bed_mesh reference': referenceSection }
-      loadMesh(bedMesh)
-      await wrapper.vm.$nextTick()
-      expect(rendererInstances[0]?.layers.has('compare')).toBe(true)
-
-      await wrapper.setProps({ compareProfile: null })
-
-      expect(rendererInstances[0]?.layers.has('compare')).toBe(false)
     })
   })
 })

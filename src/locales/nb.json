@@ -81,9 +81,7 @@
       "title": "Høydekart",
       "probing": "Prober — {count} punkter så langt",
       "provisional": "Formen er foreløpig mens den prober: hvert punkt plottes mot gjennomsnittet av kjøringen så langt, så den setter seg etter hvert som flere kommer inn.",
-      "scanningProbe": "Denne skriveren har en skannende probe, som sveiper over bedet i stedet for å berøre hvert punkt. Det finnes ingen rapport per punkt å følge, så kartet fylles ut når meshet er ferdig.",
-      "compareLabel": "Sammenlign med",
-      "compareOff": "Ingen"
+      "scanningProbe": "Denne skriveren har en skannende probe, som sveiper over bedet i stedet for å berøre hvert punkt. Det finnes ingen rapport per punkt å følge, så kartet fylles ut når meshet er ferdig."
     },
     "endstops": {
       "title": "Endestopp",

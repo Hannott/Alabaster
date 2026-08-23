@@ -3,7 +3,6 @@ import { computed, onBeforeUnmount, onMounted, provide, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import AppIcon from '@/components/AppIcon.vue'
-import AppSelect from '@/components/AppSelect.vue'
 import BedMeshModule from '@/components/dashboard/modules/BedMeshModule.vue'
 import AvailabilityRegion from '@/components/AvailabilityRegion.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
@@ -100,22 +99,6 @@ provide(dashboardModuleContextKey, {
 function toggleMeshSettings(): void {
   meshSettingsOpen.value = !meshSettingsOpen.value
 }
-
-/**
- * Which saved profile the map overlays against the loaded one — never the
- * loaded one itself, since comparing a mesh to its own copy draws nothing
- * useful. An empty string is "off", not a profile named nothing: `AppSelect`
- * has no concept of an unselected option, so this is the one place that
- * distinction is made, before `compareProfile` below hands `BedMeshModule` a
- * real `null`.
- */
-const compareProfileSelection = ref('')
-const compareProfile = computed(() => compareProfileSelection.value || null)
-const compareProfileOptions = computed(() =>
-  bedMesh.profiles
-    .filter((name) => name !== bedMesh.profileName)
-    .map((name) => ({ value: name, label: name })),
-)
 
 onMounted(() => {
   endstops.start()
@@ -307,28 +290,11 @@ const viewingResult = ref<ShakeTuneResult | null>(null)
           :aria-label="t('calibration.map.title')"
         >
           <header class="calibration-panel__header">
-            <h2 class="calibration-panel__title">{{ t('calibration.map.title') }}</h2>
-            <div class="calibration-panel__actions">
+            <div class="calibration-panel__actions ms-auto">
               <p v-if="probeRun.isRunning" class="calibration-map__running" role="status">
                 <AppIcon name="mesh" class="size-4 shrink-0" aria-hidden="true" />
                 {{ t('calibration.map.probing', { count: probeRun.points.length }) }}
               </p>
-              <!--
-                Reads a saved profile's own points straight out of
-                `configfile.settings` — see `features/bedMesh/savedProfile.ts`
-                — so judging one mesh against another costs no command and
-                never loads anything onto the printer. Only offered once a
-                second profile actually exists to compare against.
-              -->
-              <AppSelect
-                v-if="compareProfileOptions.length > 0"
-                v-model="compareProfileSelection"
-                :options="[
-                  { value: '', label: t('calibration.map.compareOff') },
-                  ...compareProfileOptions,
-                ]"
-                :label="t('calibration.map.compareLabel')"
-              />
               <button
                 type="button"
                 class="button button--quiet button--xs button--icon"
@@ -367,7 +333,7 @@ const viewingResult = ref<ShakeTuneResult | null>(null)
             `<script setup>` rather than the ephemeral fallback
             `useDashboardModule` falls back to outside any provider.
           -->
-          <BedMeshModule live-probing force-probe-labels :compare-profile="compareProfile" />
+          <BedMeshModule live-probing force-probe-labels />
         </section>
 
         <div class="calibration-grid__side">

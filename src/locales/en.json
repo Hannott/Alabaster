@@ -81,9 +81,7 @@
       "title": "Height map",
       "probing": "Probing — {count} points so far",
       "provisional": "The shape is provisional while probing: each point is plotted against the average of the run so far, so it settles as more arrive.",
-      "scanningProbe": "This printer has a scanning probe, which sweeps the bed instead of touching each point. There is no per-point report to follow, so the map fills in when the mesh finishes.",
-      "compareLabel": "Compare against",
-      "compareOff": "None"
+      "scanningProbe": "This printer has a scanning probe, which sweeps the bed instead of touching each point. There is no per-point report to follow, so the map fills in when the mesh finishes."
     },
     "endstops": {
       "title": "Endstops",

@@ -178,54 +178,6 @@ describe('Calibration view', () => {
     expect(view.findComponent(BedMeshModule).props('forceProbeLabels')).toBe(true)
   })
 
-  /**
-   * The picker never offers the loaded profile itself — comparing a mesh to
-   * its own copy draws nothing useful — and stays off (`compareProfile: null`)
-   * until the user actually picks one, `AppSelect` having no concept of an
-   * unselected option of its own.
-   */
-  it('lets the page choose a saved profile for the map to overlay, excluding the loaded one', async () => {
-    const printerConfig = await import('@/stores/printerConfig')
-    vi.spyOn(printerConfig.usePrinterConfigStore(pinia), 'hasBedMesh', 'get').mockReturnValue(true)
-    const bedMesh = useBedMeshStore(pinia)
-    bedMesh.$patch({ profileName: 'default', profiles: ['default', 'textured'] } as never)
-
-    const view = await mountView()
-
-    expect(view.findComponent(BedMeshModule).props('compareProfile')).toBeNull()
-
-    // Two `AppSelect` triggers exist on this page once a mesh has profiles —
-    // this one's own load-profile picker, and the comparison picker beside
-    // it — so the comparison trigger is found by its "None" label rather than
-    // by a selector generic enough to match either.
-    const trigger = view
-      .findAll('.app-select__trigger')
-      .find((candidate) => candidate.text().includes('None'))
-    expect(trigger).toBeDefined()
-    expect(trigger?.text()).not.toContain('default')
-    await trigger?.trigger('click')
-
-    const options = document.body.querySelectorAll('.app-select__option')
-    expect([...options].map((option) => option.textContent?.trim())).toEqual(['None', 'textured'])
-
-    options[1]?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
-    await flushPromises()
-
-    expect(view.findComponent(BedMeshModule).props('compareProfile')).toBe('textured')
-  })
-
-  it('offers no comparison picker with only one profile saved', async () => {
-    const printerConfig = await import('@/stores/printerConfig')
-    vi.spyOn(printerConfig.usePrinterConfigStore(pinia), 'hasBedMesh', 'get').mockReturnValue(true)
-    useBedMeshStore(pinia).$patch({ profileName: 'default', profiles: ['default'] } as never)
-
-    const view = await mountView()
-
-    expect(
-      view.findAll('.app-select__trigger').some((candidate) => candidate.text().includes('None')),
-    ).toBe(false)
-  })
-
   it('counts the points as they arrive and calls the shape provisional', async () => {
     const printerConfig = await import('@/stores/printerConfig')
     vi.spyOn(printerConfig.usePrinterConfigStore(pinia), 'hasBedMesh', 'get').mockReturnValue(true)
