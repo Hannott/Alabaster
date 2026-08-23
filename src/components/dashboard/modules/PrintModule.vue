@@ -5,11 +5,13 @@ import { RouterLink } from 'vue-router'
 
 import AppIcon from '@/components/AppIcon.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
+import DisclosureReveal from '@/components/DisclosureReveal.vue'
 import ExcludeObjectDialog from '@/components/ExcludeObjectDialog.vue'
 import FileDropOverlay from '@/components/FileDropOverlay.vue'
 import MaintenanceReminderDialog from '@/components/MaintenanceReminderDialog.vue'
 import PromptDialog from '@/components/PromptDialog.vue'
 import AppDashboardModule from '@/components/dashboard/AppDashboardModule.vue'
+import FilePreview from '@/components/dashboard/modules/FilePreview.vue'
 import PrintQuickSettings from '@/components/dashboard/modules/PrintQuickSettings.vue'
 import {
   printProgressFraction,
@@ -98,6 +100,14 @@ useDashboardModuleHeaderAction(
 const showRecentFiles = ref(false)
 const recentFilesFailed = ref(false)
 const pendingStart = ref<string | null>(null)
+/**
+ * A recent file's own estimated-time/filament/thumbnail, fetched lazily on
+ * first expand rather than for all eight rows up front — most never get
+ * opened, and `loadMetadata` is a real Moonraker round trip per file. Keyed
+ * by path, the same identity `recentFiles` and the queue already key on.
+ */
+const expandedRecentFile = ref<string | null>(null)
+const recentFileMetadata = ref<Record<string, MoonrakerGcodeMetadata | null>>({})
 /** The path waiting on an answer to the overdue-maintenance question, if any. */
 const maintenanceReminderFor = ref<string | null>(null)
 const confirmingCancel = ref(false)
@@ -275,6 +285,28 @@ watch(
   },
   { immediate: true },
 )
+
+const upNextThumbnailUrl = computed(() =>
+  printer.thumbnailUrlFor(upNextJob.value?.filename ?? null, upNextMetadata.value),
+)
+
+/**
+ * Shared with each expanded Recent files row's `FilePreview`, so "Up next"
+ * and a browsed file never format the same fields two different ways.
+ */
+function estimatedTimeLabelFor(metadata: MoonrakerGcodeMetadata | null | undefined): string | null {
+  return metadata?.estimated_time ? formatDuration(metadata.estimated_time) : null
+}
+
+function filamentLabelFor(metadata: MoonrakerGcodeMetadata | null | undefined): string | null {
+  if (!metadata?.filament_weight_total) return null
+  return t('printFiles.metadata.gramsValue', {
+    value: weightFormatter.value.format(metadata.filament_weight_total),
+  })
+}
+
+const upNextEstimatedTimeLabel = computed(() => estimatedTimeLabelFor(upNextMetadata.value))
+const upNextFilamentLabel = computed(() => filamentLabelFor(upNextMetadata.value))
 
 const upNextFitStatus = computed(() =>
   filamentFitStatus(
@@ -457,8 +489,25 @@ async function openRecentFiles(): Promise<void> {
 }
 
 function toggleRecentFiles(): void {
-  if (showRecentFiles.value) showRecentFiles.value = false
-  else void openRecentFiles()
+  if (showRecentFiles.value) {
+    showRecentFiles.value = false
+    expandedRecentFile.value = null
+  } else {
+    void openRecentFiles()
+  }
+}
+
+function toggleRecentFileDetails(path: string): void {
+  if (expandedRecentFile.value === path) {
+    expandedRecentFile.value = null
+    return
+  }
+  expandedRecentFile.value = path
+  if (!(path in recentFileMetadata.value)) {
+    void printer.loadMetadata(path).then((metadata) => {
+      recentFileMetadata.value[path] = metadata
+    })
+  }
 }
 
 async function startPrintAt(path: string): Promise<void> {
@@ -966,22 +1015,41 @@ function requestCancel(): void {
         </button>
       </div>
       <ul class="mt-3 grid gap-1">
-        <li v-for="file in recentFiles" :key="file.path" class="recent-file-row">
-          <span class="min-w-0 truncate text-row-name" :title="file.path">
-            {{ filename(file.path) }}
-          </span>
-          <button
-            type="button"
-            class="button button--sm"
-            :class="startGuard.variant.value"
-            v-bind="startGuard.bind.value"
-            :disabled="printer.pendingCommands.startPrint"
-            :aria-label="t('dashboard.print.startFile', { filename: filename(file.path) })"
-            @click="requestStart(file.path)"
-          >
-            <AppIcon name="play" class="size-4" aria-hidden="true" />
-            {{ t('dashboard.print.start') }}
-          </button>
+        <li v-for="(file, index) in recentFiles" :key="file.path" class="min-w-0">
+          <div class="recent-file-row">
+            <button
+              type="button"
+              class="file-select min-w-0 flex-1"
+              :aria-expanded="expandedRecentFile === file.path"
+              :aria-controls="`print-recent-file-details-${index}`"
+              :title="file.path"
+              @click="toggleRecentFileDetails(file.path)"
+            >
+              <span class="min-w-0 truncate text-row-name">{{ filename(file.path) }}</span>
+            </button>
+            <button
+              type="button"
+              class="button button--sm"
+              :class="startGuard.variant.value"
+              v-bind="startGuard.bind.value"
+              :disabled="printer.pendingCommands.startPrint"
+              :aria-label="t('dashboard.print.startFile', { filename: filename(file.path) })"
+              @click="requestStart(file.path)"
+            >
+              <AppIcon name="play" class="size-4" aria-hidden="true" />
+              {{ t('dashboard.print.start') }}
+            </button>
+          </div>
+          <DisclosureReveal :open="expandedRecentFile === file.path">
+            <div :id="`print-recent-file-details-${index}`" class="pt-2">
+              <FilePreview
+                v-if="recentFileMetadata[file.path]"
+                :estimated-time-label="estimatedTimeLabelFor(recentFileMetadata[file.path])"
+                :filament-label="filamentLabelFor(recentFileMetadata[file.path])"
+                :thumbnail-url="printer.thumbnailUrlFor(file.path, recentFileMetadata[file.path])"
+              />
+            </div>
+          </DisclosureReveal>
         </li>
       </ul>
       <p v-if="recentFilesFailed" class="mt-2 text-xs text-caution-text">
@@ -997,32 +1065,19 @@ function requestCancel(): void {
     is coming up next is worth knowing at a glance, not behind a click.
   -->
     <div v-if="upNextJob" class="border-t border-subtle bg-soft p-4">
-      <div class="flex items-center justify-between gap-3">
-        <p class="text-eyebrow text-data-sky">{{ t('dashboard.print.upNext') }}</p>
-        <span v-if="jobQueue.jobs.length > 1" class="text-xs text-muted">
-          {{ t('dashboard.print.upNextMore', { count: jobQueue.jobs.length - 1 }) }}
-        </span>
-      </div>
-      <p class="mt-1 truncate text-sm font-black">{{ filename(upNextJob.filename) }}</p>
-
-      <dl v-if="upNextMetadata" class="mt-2 grid grid-cols-2 gap-3 text-xs">
-        <div v-if="upNextMetadata.estimated_time">
-          <dt class="text-muted">{{ t('printFiles.metadata.estimatedTime') }}</dt>
-          <dd class="mt-1 font-mono font-black tabular-nums">
-            {{ formatDuration(upNextMetadata.estimated_time) }}
-          </dd>
+      <FilePreview
+        :estimated-time-label="upNextEstimatedTimeLabel"
+        :filament-label="upNextFilamentLabel"
+        :thumbnail-url="upNextThumbnailUrl"
+      >
+        <div class="flex items-center justify-between gap-3">
+          <p class="text-eyebrow text-data-sky">{{ t('dashboard.print.upNext') }}</p>
+          <span v-if="jobQueue.jobs.length > 1" class="text-xs text-muted">
+            {{ t('dashboard.print.upNextMore', { count: jobQueue.jobs.length - 1 }) }}
+          </span>
         </div>
-        <div v-if="upNextMetadata.filament_weight_total">
-          <dt class="text-muted">{{ t('dashboard.print.filament') }}</dt>
-          <dd class="mt-1 font-mono font-black tabular-nums">
-            {{
-              t('printFiles.metadata.gramsValue', {
-                value: weightFormatter.format(upNextMetadata.filament_weight_total),
-              })
-            }}
-          </dd>
-        </div>
-      </dl>
+        <p class="mt-1 truncate text-sm font-black">{{ filename(upNextJob.filename) }}</p>
+      </FilePreview>
 
       <!--
       Quiet unless something is actually wrong, matching Spool and Print

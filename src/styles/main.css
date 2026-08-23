@@ -4526,6 +4526,48 @@ input.z-axis__slider {
   }
 }
 
+/*
+ * Neither "Up next" nor a Recent files row's preview is the print in
+ * progress, so a closer look at it isn't the reason this card is open — this
+ * stays a plain `img` rather than the active job's `brand-trigger` button,
+ * while still sharing that thumbnail's border and background so the two
+ * previews read as the same kind of object.
+ *
+ * The frame has no explicit height of its own on purpose: in the row's
+ * default `align-items: stretch`, an empty box with no content-based height
+ * takes exactly the row's cross size, which is set by the stats column
+ * beside it. Giving the frame a height (or letting the image's own intrinsic
+ * size feed into that calculation) would make a large slicer thumbnail grow
+ * the row, and the card, past what the stats needed — precisely the
+ * regression a fixed `4.5rem` size overcorrected into being too small to
+ * read. `position: absolute; inset: 0` on the image is what breaks that
+ * feedback loop: an absolutely positioned child contributes nothing to its
+ * parent's auto height, so the frame's height comes only from the stretch,
+ * and the image then fills whatever height that turns out to be.
+ *
+ * `flex: 1 1 auto` with no basis of its own is deliberate too: the stats
+ * column keeps `flex-initial` (grow: 0) so it never claims more width than
+ * its content needs, and the frame absorbs everything left over instead of
+ * splitting the row down the middle with it.
+ */
+.file-preview-thumbnail-frame {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 3rem;
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+  border-radius: 0.7rem;
+  background: var(--surface-soft);
+}
+
+.file-preview-thumbnail {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
 .pin-row,
 .queue-row,
 .recent-file-row,

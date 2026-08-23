@@ -754,6 +754,42 @@ describe('PrintModule', () => {
 
       expect(wrapper.text()).toContain('No G-code files were returned')
     })
+
+    it('expands a row on click to load and show its own estimated time, filament and thumbnail', async () => {
+      const { printer, wrapper } = mountModule()
+      printer.files = [{ path: 'vase.gcode', modified: 0, size: 0 }]
+      vi.spyOn(printer, 'refreshFiles').mockResolvedValue(true)
+      const loadMetadata = vi.spyOn(printer, 'loadMetadata').mockResolvedValue({
+        filename: 'vase.gcode',
+        estimated_time: 3600,
+        filament_weight_total: 42,
+        thumbnails: [{ width: 300, height: 300, size: 900, relative_path: '.thumbs/vase.png' }],
+      })
+
+      const recent = wrapper
+        .findAll('.print-actions__idle button')
+        .find((button) => button.text() === 'Recent files')
+      await recent?.trigger('click')
+      await flushPromises()
+
+      const fileRow = wrapper.find('.file-select')
+      expect(fileRow.attributes('aria-expanded')).toBe('false')
+      expect(loadMetadata).not.toHaveBeenCalled()
+
+      await fileRow.trigger('click')
+      await flushPromises()
+
+      expect(loadMetadata).toHaveBeenCalledWith('vase.gcode')
+      expect(fileRow.attributes('aria-expanded')).toBe('true')
+      expect(wrapper.text()).toContain('1h 0m')
+      const thumbnail = wrapper.find('.file-preview-thumbnail')
+      expect(thumbnail.exists()).toBe(true)
+      expect(thumbnail.attributes('src')).toContain('/server/files/gcodes/.thumbs/vase.png')
+
+      await fileRow.trigger('click')
+      await flushPromises()
+      expect(fileRow.attributes('aria-expanded')).toBe('false')
+    })
   })
 
   describe('up next', () => {
@@ -784,6 +820,22 @@ describe('PrintModule', () => {
 
       expect(wrapper.text()).toContain('Up next')
       expect(wrapper.text()).toContain('vase.gcode')
+    })
+
+    it('shows the queued file’s thumbnail beside its stats, sized independently of them', async () => {
+      const { printer, wrapper, pinia } = mountModule()
+      vi.spyOn(printer, 'loadMetadata').mockResolvedValue({
+        filename: 'vase.gcode',
+        estimated_time: 3600,
+        thumbnails: [{ width: 300, height: 300, size: 900, relative_path: '.thumbs/vase.png' }],
+      })
+      const jobQueue = useJobQueueStore(pinia)
+      jobQueue.jobs = [{ filename: 'vase.gcode', job_id: '1', time_added: 0, time_in_queue: 0 }]
+      await flushPromises()
+
+      const thumbnail = wrapper.find('.file-preview-thumbnail')
+      expect(thumbnail.exists()).toBe(true)
+      expect(thumbnail.attributes('src')).toContain('/server/files/gcodes/.thumbs/vase.png')
     })
 
     it('says nothing while a print is active, since the queue is not next then', async () => {

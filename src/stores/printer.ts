@@ -643,18 +643,29 @@ export const usePrinterStore = defineStore('printer', () => {
 
   const estimateDrift = computed(() => driftFor(progress.value))
 
-  const thumbnailUrl = computed(() => {
-    const thumbnails = currentMetadata.value?.thumbnails
-    if (!thumbnails?.length || !printStats.filename || !moonraker.endpoint) return null
+  /**
+   * Shared by the active print's thumbnail and any other card that needs a
+   * preview for a filename/metadata pair it already has in hand — the queue's
+   * "Up next" job, for one — so the `relative_path` resolution and largest-size
+   * pick live in one place rather than being copied per caller.
+   */
+  function thumbnailUrlFor(
+    filename: string | null | undefined,
+    metadata: MoonrakerGcodeMetadata | null | undefined,
+  ): string | null {
+    const thumbnails = metadata?.thumbnails
+    if (!thumbnails?.length || !filename || !moonraker.endpoint) return null
     const largest = thumbnails.reduce((best, candidate) =>
       candidate.width > best.width ? candidate : best,
     )
     try {
-      return moonrakerThumbnailUrl(printStats.filename, largest.relative_path, moonraker.endpoint)
+      return moonrakerThumbnailUrl(filename, largest.relative_path, moonraker.endpoint)
     } catch {
       return null
     }
-  })
+  }
+
+  const thumbnailUrl = computed(() => thumbnailUrlFor(printStats.filename, currentMetadata.value))
 
   /**
    * Speed and flow factors are Klipper session state, not job state: nothing
@@ -1668,6 +1679,7 @@ export const usePrinterStore = defineStore('printer', () => {
     layer,
     heightProgress,
     thumbnailUrl,
+    thumbnailUrlFor,
     currentMetadata,
     loadMetadata,
     invalidateMetadata,
