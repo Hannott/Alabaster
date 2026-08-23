@@ -283,7 +283,16 @@ function requestReprint(job: HistoryJob): void {
   <section ref="pageRoot" class="standard-page history-view">
     <PageHeading :title="t('history.title')" />
 
-    <AvailabilityRegion requires="moonraker" class="min-h-0 flex-1">
+    <!--
+      `flex-1` without `min-h-0`, deliberately: the grow keeps the unavailable
+      placeholder filling the page, while the default `min-height: auto` keeps
+      the region at least as tall as the job list. With `min-h-0` the region
+      stayed capped at the viewport leftover and the list overflowed its box —
+      and overflowing content slides past `.standard-page`'s `padding-bottom`,
+      which pads only in-flow boxes, so a fully-scrolled page ended flush
+      against its bottom edge with no air.
+    -->
+    <AvailabilityRegion requires="moonraker" class="flex-1">
       <div class="page-column">
         <section class="page-card history-totals" :aria-label="t('history.totals.title')">
           <h2 class="calibration-panel__title">{{ t('history.totals.title') }}</h2>

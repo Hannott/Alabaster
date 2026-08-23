@@ -79,7 +79,13 @@ function requestDelete(video: TimelapseVideo): void {
   <section class="standard-page timelapse-view">
     <PageHeading :title="t('timelapse.title')" :action="refreshAction" />
 
-    <AvailabilityRegion requires="moonraker" class="min-h-0 flex-1">
+    <!--
+      `flex-1` without `min-h-0` for the same reason as HistoryView: the region
+      must grow with a long video list so it stays in-flow and the page shell's
+      bottom padding lands after it, while still stretching to fill the page
+      when the unavailable placeholder is all there is.
+    -->
+    <AvailabilityRegion requires="moonraker" class="flex-1">
       <div class="page-column">
         <section
           v-if="timelapse.selected && selectedUrl"
