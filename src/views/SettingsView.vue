@@ -115,9 +115,9 @@ function changeLocale(event: Event): void {
  * A page long enough to need scrolling to find one setting is exactly what
  * this replaces: picking a category shows only its card, and "Show all
  * settings" is the one entry that restores the rest. The rail itself never
- * scrolls away — it sits beside the only column that scrolls rather than
- * inside it, which is why it needs no sticky position of its own; see
- * interface-standards.md's Settings contract — so it stays reachable
+ * scrolls away — it is sticky against the page's own scrolling, pinned flush
+ * with the scrollport's visible top; see interface-standards.md's Settings
+ * contract and `.settings-rail` in main.css — so it stays reachable
  * regardless of how far the chosen card's content runs. The
  * pick itself is persisted (`useSettingsCategory`) so leaving the page and
  * coming back does not reset it to "Show all".
@@ -136,6 +136,17 @@ const categories: readonly { id: SettingsCategory; labelKey: string }[] = [
 ]
 
 const { activeCategory, setActiveCategory } = useSettingsCategory()
+
+/*
+ * A narrow viewport swaps the rail's buttons for this select — see the
+ * "Settings contract" section of interface-standards.md for why a dropdown
+ * replaced the earlier wrapped-button-strip attempt.
+ */
+function changeCategory(event: Event): void {
+  const target = event.target
+  if (!(target instanceof HTMLSelectElement)) return
+  setActiveCategory(target.value as SettingsCategory)
+}
 
 function showCategory(id: Exclude<SettingsCategory, 'all'>): boolean {
   return activeCategory.value === 'all' || activeCategory.value === id
@@ -570,12 +581,23 @@ const lastSyncedDisplay = computed(() => {
             v-for="category in categories"
             :key="category.id"
             type="button"
-            class="button button--quiet button--sm button--start button--block"
+            class="button button--quiet button--sm button--start button--block settings-rail-button"
             :aria-current="activeCategory === category.id ? 'true' : undefined"
             @click="setActiveCategory(category.id)"
           >
             {{ t(category.labelKey) }}
           </button>
+
+          <select
+            :value="activeCategory"
+            class="field field--block settings-rail-select"
+            :aria-label="t('settings.categoriesLabel')"
+            @change="changeCategory"
+          >
+            <option v-for="category in categories" :key="category.id" :value="category.id">
+              {{ t(category.labelKey) }}
+            </option>
+          </select>
         </nav>
 
         <div class="settings-content">

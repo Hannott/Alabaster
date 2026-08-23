@@ -1545,19 +1545,33 @@ input[type='number']::-webkit-inner-spin-button {
   flex-direction: column;
   overflow: hidden;
   max-width: none;
-  padding-block: clamp(1rem, 2vw, 2rem);
-  padding-inline: 0;
 }
 
 /*
- * The outer horizontal padding belongs to the page shells, not to app-main: the
- * shell owns scrolling, so its scrollbar then sits at the outer edge with the
- * padding as real air between content and scrollbar. Both shells use the same
- * value, so route geometry stays identical through a crossfade.
+ * All outer padding belongs to the page shells, not to app-main: `.standard-page`
+ * owns scrolling, so its scrollbar sits at the outer edge with the padding as
+ * real air between content and scrollbar. Padding declared on `app-main`
+ * instead insets the shell's own box away from app-main's true top and bottom
+ * edges — the vertical padding used to live there, which read as a band across
+ * the content and left the scrollbar stopping short of both edges instead of
+ * running flush to the header and the viewport bottom. Both shells use the
+ * same value, so route geometry stays identical through a crossfade.
+ */
+/*
+ * The top padding is also a variable because a sticky child needs to know it:
+ * a `top: 0` sticky element inside the shell pins level with the shell's
+ * *content* edge, one padding-width below the visible top, and scrolled
+ * content stays visible in that transparent strip above it. Settings' rail
+ * pins at `calc(-1 * var(--page-shell-pad-top))` to sit flush with the
+ * visible top instead — see `.settings-rail`. Any future sticky-in-shell
+ * element wants the same offset, which is why the value lives here rather
+ * than being restated (and eventually contradicted) at each sticky site.
  */
 .standard-page,
 .workspace-page {
-  padding-inline: clamp(1rem, 2vw, 2rem);
+  --page-shell-pad-top: clamp(1rem, 2vw, 2rem);
+  padding: clamp(1rem, 2vw, 2rem);
+  padding-top: var(--page-shell-pad-top);
 }
 
 .desktop-sidebar,
@@ -7577,6 +7591,25 @@ select {
   background-size: 1rem 1rem;
 }
 
+/*
+ * `position: relative` is load-bearing, not decoration: a page shell is a
+ * scroll container, and any `position: absolute` descendant without a closer
+ * positioned ancestor otherwise resolves against the *document* instead — it
+ * lands at its static position in document coordinates, outside every scroll
+ * container, and stretches the document itself. Settings shipped exactly that:
+ * the Backup card's visually-hidden import `<input>` (`.sr-only` is
+ * `position: absolute`) sat ~6900px down when every card was shown, handing
+ * the whole site a second, outer scrollbar that scrolled six thousand pixels
+ * of nothing to reach one invisible 1px box — sidebar and header dragged along
+ * with it. Positioning the shell keeps every such descendant inside the
+ * shell's own scrollable overflow, where the page's one real scrollbar
+ * already accounts for it.
+ */
+.standard-page,
+.workspace-page {
+  position: relative;
+}
+
 .standard-page {
   display: flex;
   height: 100%;
@@ -7645,67 +7678,105 @@ select {
  * below a `PageHeading` that must stay full-width like every other route's,
  * so only the body below it — not the heading above it — narrows.
  *
- * The rail has to stay in view without scrolling regardless of how long the
- * chosen card runs, and a page long enough to need that is also a page where
- * scrolling the whole document just to read the next card is the wrong
- * default. Both come from the same structural move: `.settings-page` claims
- * `standard-page`'s remaining height after the heading (`flex: 1 1 auto` on a
- * `min-height: 0` box, the standard "shrink to fit, don't grow past it"
- * pairing), `.settings-body` does the same one level down, and only
- * `.settings-content` — the one column with unbounded content — scrolls
- * inside that fixed box. The rail sits beside it as an ordinary, un-stretched
- * grid item, so it is simply never inside anything that scrolls; no
- * `position: sticky` trick is needed to keep it in place.
+ * Settings used to give `.settings-content` its own nested `overflow-y: auto`
+ * scroll region, with `.settings-page`/`.settings-body` bounded above it
+ * (`flex: 1 1 auto` on a `min-height: 0` box) so `.standard-page`'s own
+ * `overflow: auto` — every other route's one scroll region — never had
+ * anything to scroll. It still reserved its own `scrollbar-gutter: stable`
+ * unconditionally, though, which sat beside `.settings-content`'s real one as
+ * a second, permanently empty scrollbar-shaped column — the "two scroll
+ * areas, the outer one just doesn't have anything" a reader actually hit.
+ * Bounding the content instead of the page was the fix attempted first, but
+ * the second scrollbar is a symptom of the nested region existing at all, not
+ * of how it was measured — removing the nesting removes the symptom outright.
+ * `.settings-content` is a plain grid now, `.settings-page`/`.settings-body`
+ * carry no bounding of their own, and `.standard-page`'s ordinary scrolling
+ * is the only scroll region on this route too, same as everywhere else.
+ *
+ * The rail still has to stay reachable without scrolling past however long
+ * the chosen card runs — that part of the reasoning did not change — so it
+ * takes `position: sticky` against `.standard-page`'s own scrolling instead of
+ * against a scroll region built specifically to spare it the need. This is a
+ * deliberate return to a sticky rail after an earlier version of this same
+ * page was moved off one for a different reason (a touch-trackpad scrolling
+ * whatever list sat under the pointer, not the page) — that failure mode
+ * belonged to the trackpad's target-under-pointer routing, not to
+ * `position: sticky` itself, and does not reappear here: with only one scroll
+ * region on the page, a pointer anywhere on it scrolls the same thing.
  */
 .settings-page {
   display: flex;
   width: 100%;
   max-width: 76rem;
   margin-inline: auto;
-  flex: 1 1 auto;
   flex-direction: column;
-  min-height: 0;
 }
 
 .settings-body {
   display: grid;
-  flex: 1 1 auto;
   grid-template-columns: 12rem minmax(0, 1fr);
   gap: 1.5rem;
-  min-height: 0;
 }
 
+/*
+ * The negative `top` is the shell's own top padding, so the rail pins flush
+ * with the scrollport's visible top edge. At `top: 0` it pinned one
+ * padding-width lower — level with the shell's content edge — and scrolled
+ * card text stayed readable in the transparent padding strip above it. The
+ * variable comes from `.standard-page`, which owns the padding this offset
+ * has to mirror.
+ */
 .settings-rail {
   display: flex;
   flex-direction: column;
   align-self: start;
   gap: 0.15rem;
+  position: sticky;
+  top: calc(-1 * var(--page-shell-pad-top, 0rem));
+  z-index: 1;
+  padding-block: 0.5rem;
+  background: var(--surface-canvas);
+}
+
+/*
+ * Hidden above the mobile breakpoint — see the `@media` block below for why a
+ * `<select>` replaces the button list there instead of sharing space with it.
+ */
+.settings-rail-select {
+  display: none;
 }
 
 .settings-content {
   display: grid;
   gap: 1rem;
-  min-width: 0;
-  min-height: 0;
-  padding: 0.15rem;
-  margin: -0.15rem;
-  overflow-x: hidden;
-  overflow-y: auto;
-  scrollbar-gutter: stable;
 }
 
+/*
+ * A `<select>` replaces the button list here rather than sharing its
+ * "wrapped horizontal strip" attempt: `.settings-rail-button` is
+ * `button--block`, full-width by the button-system contract every other rail
+ * button in the app follows, so wrapping ten of them into a flex row never
+ * produced the compact strip it was meant to — each one still claimed a full
+ * row, reproducing the tall vertical list this was supposed to remove, just
+ * through `flex-wrap` instead of `flex-direction: column`. Shrinking the
+ * buttons to fit several per row would have fixed the wrap, but ten Settings
+ * categories in fitted pill labels ("Printer service", "Confirmations", …)
+ * still ran two or three rows deep before the first card ever appeared. A
+ * single-line `<select>` costs one row of height regardless of how many
+ * categories Settings grows to carry, so it — not a narrower button — is the
+ * one change here.
+ */
 @media (max-width: 47.999rem) {
   .settings-body {
     grid-template-columns: 1fr;
-    grid-template-rows: auto minmax(0, 1fr);
   }
 
-  .settings-rail {
-    flex-direction: row;
-    flex-wrap: wrap;
-    align-self: auto;
-    padding-block: 0.5rem;
-    background: var(--surface-canvas);
+  .settings-rail-button {
+    display: none;
+  }
+
+  .settings-rail-select {
+    display: block;
   }
 }
 
@@ -9772,6 +9843,10 @@ body.machine-editor-fullscreen-open {
     height: auto;
     min-height: 0;
     flex: 1 1 auto;
+  }
+
+  .standard-page,
+  .workspace-page {
     padding-block-end: 5rem;
   }
 
@@ -9805,14 +9880,12 @@ body.machine-editor-fullscreen-open {
    * only tightens the padding. Re-declaring the height here would put the
    * constant back that the header's second row made wrong.
    */
-  .app-main {
-    padding-block: 0.75rem;
-    padding-block-end: 5rem;
-  }
-
   .standard-page,
   .workspace-page {
+    --page-shell-pad-top: 0.75rem;
     padding-inline: 0.75rem;
+    padding-block-start: var(--page-shell-pad-top);
+    padding-block-end: 5rem;
   }
 
   .standard-page {

@@ -818,6 +818,34 @@ describe('SettingsView — category rail', () => {
     // itself is unconditional, only the card is gated.
     expect(rail(wrapper).findAll('button')).toHaveLength(10)
   })
+
+  // The narrow-width `<select>` replaces the button list visually (CSS hides
+  // whichever one the current width does not want), but both stay mounted
+  // and both drive the same `activeCategory` ref — see interface-standards.md's
+  // Settings contract for why a wrapped button strip was not the fix.
+  it('offers the same categories through the narrow-width select', async () => {
+    const wrapper = await mountView()
+    const select = rail(wrapper).get('.settings-rail-select')
+
+    expect(select.findAll('option').map((option) => option.text())).toEqual([
+      'Show all settings',
+      'Printer service',
+      'Printers',
+      'Accounts',
+      'Language',
+      'Appearance',
+      'Display',
+      'Editor',
+      'Safety',
+      'Backup',
+    ])
+
+    await select.setValue('language')
+
+    expect(wrapper.text()).toContain('Language')
+    expect(wrapper.text()).not.toContain('Moonraker connection')
+    expect(railButton(wrapper, 'Language').attributes('aria-current')).toBe('true')
+  })
 })
 
 describe('SettingsView — backup', () => {
