@@ -1853,7 +1853,6 @@
   "users": {
     "eyebrow": "Accounts",
     "title": "Users",
-    "description": "This printer's own Moonraker login and user accounts. Only appears when its Moonraker has authorization configured — most printers never do.",
     "session": {
       "loggedInAs": "Logged in as {name}",
       "trusted": "Connected as a trusted client — no login required",

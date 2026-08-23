@@ -1853,7 +1853,6 @@
   "users": {
     "eyebrow": "Kontoer",
     "title": "Brukere",
-    "description": "Denne skriverens egen Moonraker-innlogging og brukerkontoer. Vises bare når dens Moonraker har autorisasjon konfigurert — de fleste skrivere har aldri det.",
     "session": {
       "loggedInAs": "Logget inn som {name}",
       "trusted": "Tilkoblet som en tiltrodd klient — ingen innlogging kreves",

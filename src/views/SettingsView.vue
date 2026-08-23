@@ -832,9 +832,6 @@ const lastSyncedDisplay = computed(() => {
             <h2 class="mt-2 text-section-title">
               {{ t('users.title') }}
             </h2>
-            <p class="mt-2 max-w-2xl text-sm leading-6 text-muted">
-              {{ t('users.description') }}
-            </p>
 
             <div class="mt-7 flex items-center justify-between gap-3">
               <div class="min-w-0">
