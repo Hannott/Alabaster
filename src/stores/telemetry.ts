@@ -743,9 +743,15 @@ export const useTelemetryStore = defineStore('telemetry', () => {
         selection[objectName] = null
 
       const nextConfiguredSelection = JSON.stringify(selection)
-      if (nextConfiguredSelection === configuredSelection) return
-      configuredSelection = nextConfiguredSelection
-      await moonraker.setObjectSubscription(telemetrySubscriptionKey, selection)
+      if (nextConfiguredSelection !== configuredSelection) {
+        configuredSelection = nextConfiguredSelection
+        await moonraker.setObjectSubscription(telemetrySubscriptionKey, selection)
+      }
+      // Always attempted, not only when the subscription changed: a discovery
+      // cycle whose own backfill declined (the subscription snapshot had not
+      // reported an eventtime yet, or it lost a race with a later cycle) must
+      // get another chance the next time Klipper is reported ready, which is
+      // exactly the cycle that runs this same selection again.
       await backfillHistory(generation)
     } catch {
       // A lifecycle change will retry discovery when Klipper becomes ready again.
@@ -771,15 +777,25 @@ export const useTelemetryStore = defineStore('telemetry', () => {
     // Once per session. Live readings are the better record — their timestamps
     // are real rather than reconstructed — so this only ever fills in front of
     // them, and a reconnect does not re-seed over history already collected.
+    //
+    // The flag is set only once an attempt reaches a definitive outcome —
+    // never at entry. A discovery cycle can lose a race (its subscription
+    // snapshot has not reported an eventtime yet, or a later cycle finishes
+    // first and makes this one stale) without that being the answer for the
+    // session: latching here regardless used to let a losing cycle spend the
+    // one attempt permanently, so the chart stayed empty for a session whose
+    // very next discovery cycle would otherwise have succeeded — the failure
+    // this reload was written to prevent, reappearing through a side door.
     if (hasBackfilled) return
-    hasBackfilled = true
 
     let store: Awaited<ReturnType<typeof moonraker.rpcCall<'server.temperature_store'>>>
     try {
       store = await moonraker.rpcCall('server.temperature_store', { include_monitors: false })
     } catch {
       // A read that is allowed to fail is not a command: an older Moonraker, or
-      // one with the data store disabled, simply starts the chart empty.
+      // one with the data store disabled, simply starts the chart empty. That
+      // will not change mid-session, so it is fine to stop trying.
+      hasBackfilled = true
       return
     }
     if (generation !== discoveryGeneration) return
@@ -787,12 +803,26 @@ export const useTelemetryStore = defineStore('telemetry', () => {
     const latest = lastEventtime.value
     if (latest === null) return
 
+    // None of the discovered sensors have anything recorded — nothing to seed
+    // from, ever, for this set of sensors. Guarded explicitly rather than
+    // folded into the Math.min below: spreading an empty array into it leaves
+    // only `maximumHistoryPoints`, which reads as a full, valid window and
+    // would have built that many samples out of nothing but null values.
     const tracked = sensorObjects.value.filter((objectName) => objectName in store)
+    if (tracked.length === 0) {
+      hasBackfilled = true
+      return
+    }
+
     const length = Math.min(
       maximumHistoryPoints,
       ...tracked.map((objectName) => store[objectName]?.temperatures?.length ?? 0),
     )
-    if (!Number.isFinite(length) || length < 2) return
+    if (!Number.isFinite(length) || length < 2) {
+      hasBackfilled = true
+      return
+    }
+    hasBackfilled = true
 
     const seeded: TemperatureHistoryPoint[] = []
     for (let index = 0; index < length; index += 1) {

@@ -247,6 +247,79 @@ describe('telemetry store', () => {
     expect(telemetry.sensorObjects).toEqual(['extruder'])
   })
 
+  it('starts empty rather than seeding fabricated points when the recording covers none of the discovered sensors', async () => {
+    const moonraker = useMoonrakerStore()
+    vi.spyOn(moonraker, 'setObjectSubscription').mockResolvedValue(undefined)
+    vi.spyOn(moonraker, 'onObjectSnapshot').mockImplementation(() => () => undefined)
+    vi.spyOn(moonraker, 'onNotification').mockImplementation(() => () => undefined)
+    vi.spyOn(moonraker, 'rpcCall').mockImplementation((method: string) => {
+      if (method === 'printer.objects.list') {
+        return Promise.resolve({ objects: ['extruder'] } as never)
+      }
+      // The store answered, but has nothing recorded for the extruder — an
+      // empty spread into `Math.min` used to leave the cap itself standing
+      // as a seemingly valid length, seeding a screenful of samples that
+      // carried no reading for any tracked sensor.
+      return Promise.resolve({} as never)
+    })
+
+    const telemetry = useTelemetryStore()
+    telemetry.start()
+    telemetry.lastEventtime = 1_000
+    await telemetry.discoverSensors()
+
+    expect(telemetry.temperatureHistory).toEqual([])
+  })
+
+  /*
+   * A reconnect right after the tab comes back from being idle can find the
+   * subscription's opening snapshot slower to report an eventtime than the
+   * backfill attempt that follows it. Latching "done" the moment that attempt
+   * is made — rather than once it actually succeeds — used to spend the
+   * session's only try on a race it had already lost, leaving the chart
+   * empty until a full page reload started the flag over.
+   */
+  it('retries backfilling on the next discovery cycle when the first found no live eventtime yet', async () => {
+    const moonraker = useMoonrakerStore()
+    let statusHandler: NotificationHandler | undefined
+    vi.spyOn(moonraker, 'setObjectSubscription').mockResolvedValue(undefined)
+    vi.spyOn(moonraker, 'onObjectSnapshot').mockImplementation(() => () => undefined)
+    vi.spyOn(moonraker, 'onNotification').mockImplementation((method, handler) => {
+      if (method === 'notify_status_update') statusHandler = handler
+      return () => undefined
+    })
+    vi.spyOn(moonraker, 'rpcCall').mockImplementation((method: string) => {
+      if (method === 'printer.objects.list') {
+        return Promise.resolve({ objects: ['extruder'] } as never)
+      }
+      return Promise.resolve({
+        extruder: { temperatures: [20, 30, 40, 50], targets: [0, 0, 0, 0], powers: [0, 0, 0, 0] },
+      } as never)
+    })
+
+    const telemetry = useTelemetryStore()
+    telemetry.start()
+
+    // The subscription's own snapshot has not landed yet, so there is no
+    // eventtime to date seeded samples from.
+    await telemetry.discoverSensors()
+    expect(telemetry.temperatureHistory).toEqual([])
+
+    // The live feed catches up...
+    statusHandler?.({
+      jsonrpc: '2.0',
+      method: 'notify_status_update',
+      params: [{ extruder: { temperature: 50 } }, 1_000],
+    })
+    // ...and Klipper is reported ready again — the same cycle a reconnect
+    // after an idle tab runs, with the selection unchanged from before.
+    await telemetry.discoverSensors()
+
+    expect(telemetry.temperatureHistory.map((point) => point.values.extruder)).toEqual([
+      20, 30, 40, 50,
+    ])
+  })
+
   it('drops readings for sensors the printer stopped reporting', async () => {
     const moonraker = useMoonrakerStore()
     vi.spyOn(moonraker, 'setObjectSubscription').mockResolvedValue(undefined)
