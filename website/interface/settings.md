@@ -1,6 +1,6 @@
 # Settings
 
-Nine categories, chosen from a rail that stays put while you scroll. Pick one
+Ten categories, chosen from a rail that stays put while you scroll. Pick one
 and only that card is shown; **Show all settings** brings the rest back.
 
 Your choice is remembered, so leaving the page and coming back does not reset it.
@@ -32,6 +32,27 @@ the printer back and its dashboard returns.
 
 [Several printers](/guide/printers) has the whole picture, including why settings
 follow a printer's identity rather than its address.
+
+## Cameras
+
+Every camera the printer knows about. These live in Moonraker's own webcam
+database, not in Alabaster — so Mainsail or Fluidd running on the same printer
+sees whatever you add or change here, and a camera either of them already added
+shows up the moment you open this card.
+
+**Add a camera** with a name, its stream, and how it draws: rotation, flip,
+target frame rate, and a crosshair with its own colour and size — the fields
+offered follow the streaming service you chose, so you are never shown a
+control that would do nothing. A live preview sits beside the form the whole
+time you are setting one up.
+
+Toggle a camera **on or off** straight from its row — the switch every Camera
+card respects, without opening the form. A camera declared directly in
+`moonraker.conf` is shown but not editable: Moonraker refuses to change one, so
+there is no save button here that would work.
+
+Which cameras a *card* shows, and in what arrangement, is a separate choice made
+on the card's own settings — see [Camera](/interface/modules#camera).
 
 ## Users
 

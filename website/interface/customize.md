@@ -55,10 +55,10 @@ so you can try one and go back.
 
 ## More than one of the same card
 
-**Macros** can appear as many times as you like. Each card is a group with its
-own name, its own set of macros, and its own rules.
+**Macros** and **Camera** can each appear as many times as you like. Every copy
+is its own card with its own name and its own configuration.
 
-The usual arrangement is one card per job:
+The usual **Macros** arrangement is one card per job:
 
 - **Preparation** — home, level, load filament. Shown while idle.
 - **Mid-print** — pause at layer, purge, adjust. Shown while printing and paused.
@@ -66,6 +66,11 @@ The usual arrangement is one card per job:
 
 Each macro button can carry a colour from the Okabe-Ito palette, and each group
 can be set to appear only while the printer is idle, paused, or printing.
+
+The usual **Camera** arrangement is one card per subject — "the printer" tiled
+from two angles, "the filament path" on its own — rather than every camera
+stacked on one card. A camera already claimed by one card is not offered to
+another, so nothing streams twice.
 
 Use **Add another card** on the card's own controls, and **Remove this card** to
 take one away.

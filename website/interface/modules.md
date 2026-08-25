@@ -86,10 +86,22 @@ This cannot be undone for that job, and the confirmation says so.
 
 ## Camera
 
-The first enabled webcam Moonraker returns.
+Any number of the printer's cameras, tiled in a grid or run one at a time behind
+a tab strip — your choice per card, from the card's own settings. A grid runs
+every stream at once, for watching two angles of a first layer; tabs run only
+the one showing, for a phone on mobile data or a Pi that is also slicing.
 
-No camera configured is said plainly. A stream that fails offers a retry rather
-than leaving a broken frame.
+**Add another card** to split cameras across more than one — "the printer" on
+one card, "the filament path" on another. A camera already showing on a card is
+not offered to a second one, so nothing streams twice for no reason.
+
+No camera configured, no camera chosen for this card, and a chosen camera
+switched off are three different empty states, not one generic blank. A stream
+that fails offers a retry rather than leaving a broken frame.
+
+A camera's address, streaming service, rotation, and crosshair are configured
+once on [Settings → Cameras](/interface/settings#cameras) and shared by every
+card that shows it.
 
 ## Temperatures
 

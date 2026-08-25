@@ -19,7 +19,7 @@ This page is the accurate account. It is kept current with the code.
 | [Machine](/interface/machine)             | Complete. Host telemetry, controller modules, peripherals, services, updates, repository recovery. |
 | [G-code viewer](/interface/gcode-viewer)  | Complete. Streaming parse, live follow, simulation, adaptive quality.                              |
 | [Console](/interface/console)             | Complete. Transcript, filters, command browser, completion.                                        |
-| [Settings](/interface/settings)           | Complete. Nine categories, backup and restore, opt-in sync to a printer's database.                |
+| [Settings](/interface/settings)           | Complete. Ten categories, backup and restore, opt-in sync to a printer's database.                 |
 
 ## Dashboard modules
 
@@ -27,8 +27,8 @@ All fourteen are shipped: Print, Camera, Temperatures, Movement, Controls,
 Machine, Macros, Extruder, Spool, Bed mesh, Job queue, Console, Activity, and
 Maintenance.
 
-Spool needs Moonraker's Spoolman component and hides itself without it. Macros
-can appear more than once, one card per group.
+Spool needs Moonraker's Spoolman component and hides itself without it. Camera
+and Macros can each appear more than once, one card per subject or group.
 
 ## Languages and appearance
 
@@ -93,8 +93,6 @@ wired up yet.
   you turn sync on for a printer. The list of printers itself stays in the
   browser by design — it is the answer to which databases can be reached, so it
   cannot live in one of them.
-- **One camera.** The Camera module shows the first enabled webcam Moonraker
-  returns. Multiple camera selection is not there yet.
 - **No CAN bus peripheral listing.** Serial and USB devices are listed; CAN
   needs an interface name up front and was left for whoever actually needs it.
 
