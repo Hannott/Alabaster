@@ -128,6 +128,33 @@ describe('page layout contract', () => {
     expect(styles).toMatch(/\.history-outcome-table\s*\{[^}]*overflow-x:\s*auto/s)
   })
 
+  /*
+   * `1fr` alone still floors a grid track at its widest item's content-based
+   * minimum size, which for a `white-space: nowrap`-truncated string is that
+   * string's full unwrapped width — so a `.page-card` reporting a long
+   * unbreakable one (a camera's `http://192.168.1.125:4747/video`) widened the
+   * single column every Settings card stacks in, and every card on the page,
+   * not only the wide one, inherited the oversized column. Caught only by a
+   * real printer's own camera data; the reference fixtures never had a string
+   * long enough to trigger it. `minmax(0, 1fr)` is required everywhere a track
+   * holds a `.page-card`, including inside the narrow-width media query, which
+   * had silently dropped the floor `.settings-body`'s own desktop declaration
+   * two lines above it already carried.
+   */
+  it('floors every settings grid track so a long camera URL cannot widen it', () => {
+    expect(styles).toMatch(/\.settings-content\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\)/s)
+
+    // Two `.settings-body` declarations exist on purpose — the desktop rule
+    // and the narrow-width override that replaces its whole track list — and
+    // each has to carry its own floor rather than inherit the other's.
+    const settingsBodyBlocks = [...styles.matchAll(/\.settings-body\s*\{([^}]*)\}/gs)].map(
+      (match) => match[1],
+    )
+    expect(settingsBodyBlocks).toHaveLength(2)
+    expect(settingsBodyBlocks[0]).toMatch(/grid-template-columns:\s*12rem minmax\(0, 1fr\)/)
+    expect(settingsBodyBlocks[1]).toMatch(/grid-template-columns:\s*minmax\(0, 1fr\)/)
+  })
+
   it('keeps Configuration and Machine as separate primary routes', () => {
     const router = source('router/index.ts')
     const destinationNames = navigationDestinations.map((entry) => entry.name)

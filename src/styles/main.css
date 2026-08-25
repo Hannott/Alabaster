@@ -8176,8 +8176,21 @@ select {
   display: none;
 }
 
+/*
+ * `minmax(0, 1fr)`, not a bare `1fr`: a `1fr` track's automatic minimum is
+ * still its item's content-based minimum size, and a `.page-card` holding a
+ * long unbreakable string — a camera's `http://192.168.1.125:4747/video`,
+ * truncated with `white-space: nowrap` — has a content-based minimum equal to
+ * that string's full unwrapped width. Without the explicit `0` floor, the one
+ * implicit column stacking every Settings card widened to fit that string
+ * instead of letting `truncate` clip it, and every other card on the page —
+ * not just the wide one — inherited the same oversized column. `.settings-body`
+ * already uses this pattern for its own content column; this carries it one
+ * level deeper, to the column that actually stacks the cards.
+ */
 .settings-content {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 1rem;
 }
 
@@ -8197,8 +8210,15 @@ select {
  * one change here.
  */
 @media (max-width: 47.999rem) {
+  /*
+   * `minmax(0, 1fr)`, matching the desktop declaration above rather than
+   * dropping the floor along with the rail column — the same grid-blowout
+   * mechanism `.settings-content` guards against applies here too, and this
+   * override replaced the whole track list rather than only the rail's, so it
+   * silently lost the `0` the desktop rule carried.
+   */
   .settings-body {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .settings-rail-button {
