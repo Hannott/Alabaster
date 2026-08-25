@@ -12,6 +12,7 @@ export const dashboardModuleIds = [
   'console',
   'activity',
   'spool',
+  'sensors',
   'maintenance',
 ] as const
 

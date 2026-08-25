@@ -10,7 +10,7 @@ This page is the accurate account. It is kept current with the code.
 
 | Page                                      | State                                                                                                                          |
 | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| [Dashboard](/interface/overview)          | Complete. Fourteen modules, three layout profiles, presets.                                                                    |
+| [Dashboard](/interface/overview)          | Complete. Fifteen modules, three layout profiles, presets.                                                                     |
 | [Print files](/interface/print-files)     | Complete. Browsing, previews, metadata, upload, print, queue, accurate estimates.                                              |
 | [Calibration](/interface/calibration)     | Complete. Live probe map, endstops, probe accuracy, filament sensors, mesh profiles, graphs.                                   |
 | [History](/interface/history)             | Complete. Lifetime totals, statistics window, trend and distribution charts, job list.                                         |
@@ -23,12 +23,13 @@ This page is the accurate account. It is kept current with the code.
 
 ## Dashboard modules
 
-All fourteen are shipped: Print, Camera, Temperatures, Movement, Controls,
-Machine, Macros, Extruder, Spool, Bed mesh, Job queue, Console, Activity, and
-Maintenance.
+All fifteen are shipped: Print, Camera, Temperatures, Movement, Controls,
+Machine, Macros, Extruder, Spool, Sensors, Bed mesh, Job queue, Console,
+Activity, and Maintenance.
 
-Spool needs Moonraker's Spoolman component and hides itself without it. Camera
-and Macros can each appear more than once, one card per subject or group.
+Spool needs Moonraker's Spoolman component and Sensors needs its generic
+sensor component; each hides itself without its own. Camera and Macros can
+each appear more than once, one card per subject or group.
 
 ## Languages and appearance
 
@@ -71,14 +72,6 @@ resume, cancel, layer-pause, and filament macros described in
 
 It is optional by design: the controls that need it hide themselves on a printer
 that does not have it, so nothing regresses for someone who declines.
-
-## Deliberately not done
-
-These are decisions, not gaps.
-
-**Generic sensors.** Moonraker's `server.sensors.*` endpoints are unused. They
-matter only for printers configuring sensors beyond heaters, and will be added
-when someone needs them.
 
 ## Known gaps
 

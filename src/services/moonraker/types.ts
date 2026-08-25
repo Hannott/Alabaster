@@ -627,6 +627,22 @@ export interface MoonrakerAuthInfo {
   trusted: boolean | null
 }
 
+/**
+ * One sensor Moonraker's own `sensor` component reports — a different
+ * population from Klipper's heaters and `temperature_sensor` objects,
+ * configured in `moonraker.conf` (`[sensor <name>]`) rather than
+ * `printer.cfg`. `values` holds whatever the sensor itself names its
+ * readings: an MQTT sensor might report `value1`/`value2`, another
+ * `temperature`/`humidity` — there is no fixed set of keys across sensor
+ * types, so it is read as a plain record rather than typed further.
+ */
+export interface MoonrakerSensorInfo {
+  id: string
+  friendly_name: string
+  type: string
+  values: Record<string, number>
+}
+
 /** One registered account, as `access.get_user`/`access.users.list` report it. */
 export interface MoonrakerUserInfo {
   username: string
@@ -966,6 +982,17 @@ export interface MoonrakerRpcMethods {
       use_v2_response?: boolean
     }
     result: SpoolmanProxyResponse<unknown>
+  }
+  /**
+   * `extended` adds `parameter_info`/`history_fields` per sensor — neither is
+   * read anywhere yet, so Alabaster never asks for it. `.info` (one sensor)
+   * and `.measurements` (history arrays) stay undeclared for the same reason:
+   * this single call already covers the card's Need, a live snapshot of
+   * every configured sensor.
+   */
+  'server.sensors.list': {
+    params: { extended?: boolean }
+    result: { sensors: Record<string, MoonrakerSensorInfo> }
   }
   'machine.system_info': {
     params: undefined

@@ -36,6 +36,7 @@ import PrintModule from '@/components/dashboard/modules/PrintModule.vue'
 import PrintQuickSettings from '@/components/dashboard/modules/PrintQuickSettings.vue'
 import PrintSettingsPane from '@/components/dashboard/modules/PrintSettingsPane.vue'
 import { printProgressFraction } from '@/components/dashboard/modules/printCardSettings'
+import SensorsModule from '@/components/dashboard/modules/SensorsModule.vue'
 import SpoolModule from '@/components/dashboard/modules/SpoolModule.vue'
 import SpoolQuickSettings from '@/components/dashboard/modules/SpoolQuickSettings.vue'
 import SpoolSettingsPane from '@/components/dashboard/modules/SpoolSettingsPane.vue'
@@ -62,6 +63,7 @@ import { useBedMeshStore } from '@/stores/bedMesh'
 import { useMaintenanceStore } from '@/stores/maintenance'
 import { usePrinterStore } from '@/stores/printer'
 import { usePrinterConfigStore } from '@/stores/printerConfig'
+import { useSensorsStore } from '@/stores/sensors'
 import { useSpoolStore } from '@/stores/spool'
 import { useTelemetryStore } from '@/stores/telemetry'
 import { useWebcamsStore } from '@/stores/webcams'
@@ -385,6 +387,23 @@ export const dashboardModuleRegistry: readonly DashboardModuleDefinition[] = [
       const remaining = spool.activeSpool?.remaining_weight
       if (remaining === null || remaining === undefined) return null
       return `${Math.round(remaining)}${i18n.global.t('dashboard.weightUnit')}`
+    },
+  },
+  {
+    id: 'sensors',
+    titleKey: 'dashboard.modules.sensors',
+    icon: 'sensor',
+    requires: 'moonraker',
+    requiresComponent: 'sensor',
+    component: markRaw(SensorsModule),
+    // How many sensors are currently reporting — the module has no single
+    // reading that speaks for every configured sensor the way Spool's
+    // remaining weight does, so the collapsed header counts them instead of
+    // guessing which one matters. Null before the first list has landed,
+    // same as a genuinely sensor-less report — both have nothing to say yet.
+    summary: () => {
+      const sensors = useSensorsStore()
+      return sensors.sensors.length > 0 ? `${sensors.sensors.length}` : null
     },
   },
   {

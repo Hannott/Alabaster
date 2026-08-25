@@ -3700,6 +3700,18 @@ input.z-axis__slider {
 }
 
 /*
+ * A population of readings, one row per sensor value — a `module-table`
+ * instance rather than a bespoke grid. No head row: a sensor's own name is
+ * already the row, and there is no shared unit across rows to name in a
+ * heading — Moonraker's generic sensors report whatever their own
+ * configuration calls a value, so a column heading here would either
+ * restate the row label or claim a unit some rows do not have.
+ */
+.sensor-table {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+/*
  * The spinning-fan exception in ADR 0004: rotation stands for a fan that is
  * actually turning, so it only ever animates a transform and only while the
  * fan reports a nonzero speed. `animation-play-state` starts paused rather

@@ -398,6 +398,7 @@
       "bedMesh": "Bed mesh",
       "jobQueue": "Job queue",
       "spool": "Spoolman",
+      "sensors": "Sensors",
       "maintenance": "Maintenance"
     },
     "layout": {
@@ -918,6 +919,9 @@
       "automationTitle": "Automation",
       "autoPauseHint": "Based on Spoolman's own tracked remaining weight, not a sensor on the printer.",
       "autoPauseOnEmpty": "Pause the print automatically when Spoolman reports the spool is empty"
+    },
+    "sensors": {
+      "none": "No sensors reporting yet."
     },
     "maintenance": {
       "empty": "No maintenance intervals yet.",

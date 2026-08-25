@@ -81,6 +81,7 @@ export type AppIconName =
   | 'right'
   | 'save'
   | 'send'
+  | 'sensor'
   | 'settings'
   | 'spool'
   | 'sidebarCollapse'
@@ -887,6 +888,11 @@ defineProps<{ name: AppIconName }>()
       <path
         d="M12.49 7.14L3.44 2.27c-.76-.41-1.64.3-1.4 1.13l1.24 4.34q.075.27 0 .54l-1.24 4.34c-.24.83.64 1.54 1.4 1.13l9.05-4.87a.98.98 0 0 0 0-1.72Z"
       />
+    </g>
+    <!-- Lucide's "gauge" glyph (ISC licensed). -->
+    <g v-else-if="name === 'sensor'">
+      <path d="m12 14 4-4" />
+      <path d="M3.34 19a10 10 0 1 1 17.32 0" />
     </g>
     <rect v-else-if="name === 'stop'" x="6" y="6" width="12" height="12" rx="2" />
     <!-- Material Symbols' "speed-outline" glyph (Google, Apache 2.0). -->

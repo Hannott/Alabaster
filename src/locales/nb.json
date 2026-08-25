@@ -398,6 +398,7 @@
       "bedMesh": "Bednett",
       "jobQueue": "Jobbkø",
       "spool": "Spoolman",
+      "sensors": "Sensorer",
       "maintenance": "Vedlikehold"
     },
     "layout": {
@@ -918,6 +919,9 @@
       "automationTitle": "Automatikk",
       "autoPauseHint": "Basert på Spoolmans egen registrerte gjenværende vekt, ikke en sensor på skriveren.",
       "autoPauseOnEmpty": "Sett utskriften automatisk på pause når Spoolman melder at spolen er tom"
+    },
+    "sensors": {
+      "none": "Ingen sensorer rapporterer ennå."
     },
     "maintenance": {
       "empty": "Ingen vedlikeholdsintervaller ennå.",

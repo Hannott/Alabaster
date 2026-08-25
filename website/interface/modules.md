@@ -1,6 +1,6 @@
 # Dashboard modules
 
-Fourteen cards. This page covers what each one does and what is behind its
+Fifteen cards. This page covers what each one does and what is behind its
 settings.
 
 Every card has a quick-settings layer on the card and a full pane behind
@@ -377,6 +377,23 @@ Requires Moonraker's Spoolman component. Without it the card does not appear.
 ::: info It is Spoolman's number, not a sensor
 The remaining weight comes from Spoolman's own tracking. It is only as good as
 what Spoolman knows, and it is not a runout sensor.
+:::
+
+## Sensors
+
+Requires Moonraker's generic sensor component (`[sensor]` in `moonraker.conf`).
+Without it the card does not appear.
+
+- **Every configured sensor**, with its current reading, live — a power meter,
+  an environmental probe, anything reporting through Moonraker rather than
+  through Klipper.
+- A sensor that reports more than one value shows each on its own line, named
+  after the value itself.
+
+::: info A different population from Temperatures
+Temperatures reads Klipper's own heaters and `temperature_sensor` objects.
+This card reads whatever `moonraker.conf` configures instead — a different
+source, and a different card.
 :::
 
 ## Bed mesh

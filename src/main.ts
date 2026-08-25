@@ -20,6 +20,7 @@ import { useMoonrakerStore } from '@/stores/moonraker'
 import { usePrinterStore } from '@/stores/printer'
 import { usePrinterConfigStore } from '@/stores/printerConfig'
 import { useRunoutSensorsStore } from '@/stores/runoutSensors'
+import { useSensorsStore } from '@/stores/sensors'
 import { useSettingsSyncStore } from '@/stores/settingsSync'
 import { useSpoolStore } from '@/stores/spool'
 import { useTelemetryStore } from '@/stores/telemetry'
@@ -42,6 +43,9 @@ useMacrosStore(pinia).start()
 useJobQueueStore(pinia).start()
 useBedMeshStore(pinia).start()
 useSpoolStore(pinia).start()
+// Feeds the collapsed Sensors card's own count, so it stays live regardless
+// of whether that card happens to be mounted.
+useSensorsStore(pinia).start()
 useExcludeObjectStore(pinia).start()
 // A manual probe can be started from anywhere — the console, a macro button,
 // the printer's own screen — so the object that reports one is watched from
