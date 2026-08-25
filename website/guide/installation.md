@@ -190,4 +190,3 @@ point it at Alabaster explicitly:
 - Or edit `octoeverywhere.conf` directly: set `frontend_port = 8081` (or
   whichever port you installed Alabaster on) and restart the OctoEverywhere
   service.
-

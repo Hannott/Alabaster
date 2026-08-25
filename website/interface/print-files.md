@@ -69,9 +69,3 @@ current job finishes.
 Or drop one from your desktop onto the page. `.gcode`, `.g`, `.gco`, `.ufp`, and
 `.nc` are accepted, and files land in the folder you are in rather than at the
 root.
-
-## Sending a file to the viewer
-
-Any file here can be opened in the [G-code viewer](/interface/gcode-viewer) to
-inspect its layers and toolpath before you commit filament to it. This is the
-usual route in.

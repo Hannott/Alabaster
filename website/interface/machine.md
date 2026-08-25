@@ -7,7 +7,7 @@ The computer running Klipper, the boards it talks to, and the software on both.
 Live figures as Moonraker publishes them, not a snapshot from when the page
 opened:
 
-- **CPU load**, per core.
+- **CPU load**, averaged across all cores.
 - **Memory**, used and free.
 - **Host temperature.**
 - **Network bandwidth.**
@@ -43,13 +43,16 @@ read when the page loads and again when you choose **Refresh**.
 The services Moonraker manages, each with its state — **Running**, **Stopped**, or
 **Failed** — and a link to open it where it has a web interface of its own.
 
-**Each service can be started, stopped, or restarted from its own row.** A
-stopped or failed service offers Start; a running one offers Stop, and Restart
-alongside it. Stopping is always confirmed, since it is worth a moment's pause
-regardless of what else is going on; restarting asks more lightly, since the
-service comes back on its own. Moonraker itself is the one exception: while it
-is running, only Restart is offered. Stopping the service that is serving this
-very page would leave nothing able to start it again.
+**Most services can be started, stopped, or restarted from their own row.** A
+stopped service offers only Start; a failed service offers both Start and
+Restart; a running service offers Stop and Restart. Stopping is always
+confirmed, since it is worth a moment's pause regardless of what else is going
+on; restarting asks more lightly, since the service comes back on its own.
+Moonraker itself is the one exception: while it is running, only Restart is
+offered. Stopping the service that is serving this very page would leave
+nothing able to start it again. Spoolman runs outside systemd, so its row
+shows only its status and a link to its web interface, with no Start, Stop, or
+Restart control.
 
 Restarting Klipper, restarting Moonraker, and rebooting or shutting down the host
 are also in the header's power menu, on every page. See

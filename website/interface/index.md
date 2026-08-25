@@ -31,8 +31,6 @@ The header is on every page and holds what you might need from any of them.
 | Connection status | The one global status indicator. Ready, printing, paused, needs attention, or not connected.                       |
 | Notifications     | Recent printer activity, and Moonraker's own announcements.                                                        |
 | Power and service | Restart Klipper, firmware restart, restart Moonraker, reboot or shut down the host, and any device power switches. |
-| Theme             | Light and dark, without going to Settings.                                                                         |
-| Language          | Switch language from wherever you are.                                                                             |
 | Emergency stop    | Shuts down heaters and motion immediately. Asks first, unless you have turned that off.                            |
 
 **Save new config** appears here when Klipper is holding changes, summarising what
@@ -41,8 +39,9 @@ they are.
 ## Navigation
 
 On the desktop, a sidebar that collapses to icons. On a phone, a bottom bar with
-the four destinations worth a permanent slot — Overview, Print files,
-Configuration, Machine — and everything else behind an overflow menu.
+the four destinations worth a permanent slot — Overview, Console, Print files,
+History — and everything else, including Configuration and Machine, behind an
+overflow menu.
 
 Unsaved configuration edits are flagged on the navigation itself, from whatever
 page you are on, so an edit left somewhere you are not looking is never lost

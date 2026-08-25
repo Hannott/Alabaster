@@ -22,9 +22,6 @@ Two shortcuts save you finding a file twice:
   is sent to the printer, so this works for checking a slice before you commit
   to it.
 
-Print files can also hand a file straight here, which is the usual route in from
-browsing.
-
 A file over about 150 MB asks before it loads, because rendering one costs real
 memory on the device you are sitting at. Files above 4 GB are declined outright.
 
@@ -84,6 +81,10 @@ point in space — so inspecting a detail does not send it swinging out of frame
 
 Double-click, or press <kbd>0</kbd>, to frame the whole model again. Arrow keys
 pan, <kbd>Shift</kbd> with them turns, and <kbd>+</kbd> and <kbd>-</kbd> zoom.
+
+On a touchscreen, one finger orbits the same way a left-drag does. Add a
+second finger and it switches to panning and pinch-zooming, the same
+two-finger gesture the bed mesh map uses.
 
 The chips in the corner of the view zoom, reset the framing, and save a
 screenshot of exactly what is on screen. The gear beside them holds two

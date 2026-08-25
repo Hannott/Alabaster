@@ -91,9 +91,10 @@ mounting anything.
 
 ## Where the rules live
 
-The repository carries its own contributor documentation under `docs/` —
-architecture decision records and design contracts. It is not published here, and
-it is binding: code and documents are not allowed to disagree.
+Alabaster keeps its own internal architecture decision records and design
+contracts — not published here, and not part of this repository's public
+checkout. They are binding on every change: code and documents are not
+allowed to disagree.
 
-[Contributing](/contributing) covers what those documents govern and what the
-tests enforce.
+[Contributing](/contributing) covers what areas they govern and how to ask
+before designing a change that touches one.

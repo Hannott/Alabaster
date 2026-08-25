@@ -63,15 +63,15 @@ The row menu can also add or remove an include for you, and files that
 
 ## The editor knows what it is reading
 
-Four tokenizers, picked by extension, and the active line's number is highlighted
-in the gutter:
-
-| Format                           | Files              | Highlights                                                                                                                            |
-| -------------------------------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------- |
-| Klipper configuration and macros | everything else    | Sections, keys, values, booleans, pin names, Jinja templates and their comments, `[include]` paths, and `SAVE_CONFIG` autogen markers |
-| JSON                             | `.json`            | Object keys apart from string values, numbers, and literals                                                                           |
-| Markdown                         | `.md`, `.markdown` | Headings, emphasis, inline code, and links                                                                                            |
-| G-code                           | `.gcode`, `.nc`    | Command codes, parameters, numbers, and comments                                                                                      |
+A single syntax highlighter reads Klipper configuration and macros — sections,
+keys, values, booleans, pin names, Jinja templates and their comments,
+`[include]` paths, and `SAVE_CONFIG` autogen markers — and it applies only to
+`.cfg`, `.conf`, `.cnf`, `.ini`, `.toml`, and `.bkp` files, alongside the active
+line's number highlighted in the gutter. Every other file type, including
+`.json`, `.md`, and `.gcode`, opens as plain text: Klipper's grammar applied to
+a format it does not describe would invent structure that is not there, and the
+files that are not config are exactly the large ones where highlighting gets
+expensive.
 
 Images open in their own viewer with zoom: `png`, `jpg`, `gif`, `webp`, `bmp`,
 `svg`, `ico`, `avif`.
@@ -83,6 +83,22 @@ file deserves the whole screen.
 A file Alabaster cannot place as text or image can still be opened, as can a text
 file over 2 MB or an image over 20 MB — it asks first instead of refusing outright.
 :::
+
+## Editing whole lines at once
+
+| Command                  | Shortcut                      |
+| ------------------------ | ----------------------------- |
+| Toggle comment           | Ctrl/Cmd+/                    |
+| Move line up / down      | Alt+Up / Alt+Down             |
+| Duplicate line up / down | Shift+Alt+Up / Shift+Alt+Down |
+| Reindent the whole file  | Shift+Alt+F                   |
+| Indent / outdent         | Tab / Shift+Tab               |
+
+These act on the config formats the syntax highlighter understands, since each
+one assumes something about Klipper's format — `#` as the comment marker, its
+continuation-line indentation — that a plain-text file was never written to.
+The full reference, with every other editor shortcut, opens from the header's
+help button or Ctrl/Cmd+?.
 
 **Save and restart** — if the file you are saving is the only one with unsaved
 edits, it saves and restarts straight away; if others are unsaved, it asks to save

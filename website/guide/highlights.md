@@ -203,6 +203,9 @@ two metres away and a phone held at arm's length are not the same problem.
 - **Repository recovery.** A dirty, invalid, detached, or corrupt update source
   offers the recovery it actually needs instead of failing the same way as
   everything else.
+- **Roll back an update.** A git-tracked source — Klipper, Moonraker, a git-based
+  client — can be reverted to the version it had before its last update, guarded
+  the same way an install is.
 - **Screen wake lock** for a shop-floor display watching a print.
 - **Logs into a printer that requires it.** Hidden entirely on the trusted-LAN
   setup most printers use; appears the moment one is configured to require a

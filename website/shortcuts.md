@@ -43,11 +43,25 @@ With the pointer:
 
 ## Configuration
 
-| Key                                              | Action                             |
-| ------------------------------------------------ | ---------------------------------- |
-| <kbd>Ctrl</kbd>+click an `[include]` path        | Open that file                     |
-| <kbd>Ctrl</kbd>+click a missing `[include]` path | Offer to create it, and its folder |
-| <kbd>Tab</kbd> in the editor                     | Indent                             |
+| Key                                                         | Action                                               |
+| ----------------------------------------------------------- | ---------------------------------------------------- |
+| <kbd>Ctrl</kbd>+click an `[include]` path                   | Open that file                                       |
+| <kbd>Ctrl</kbd>+click a missing `[include]` path            | Offer to create it, and its folder                   |
+| <kbd>Alt</kbd>+<kbd>←</kbd>                                 | Return to the file you came from                     |
+| <kbd>Alt</kbd>+<kbd>→</kbd>                                 | Go forward again through the files you opened        |
+| <kbd>Tab</kbd> in the editor                                | Indent the selected lines                            |
+| <kbd>Shift</kbd>+<kbd>Tab</kbd>                             | Outdent the selected lines                           |
+| <kbd>Ctrl</kbd>+<kbd>/</kbd>                                | Comment or uncomment the selected lines              |
+| <kbd>Alt</kbd>+<kbd>↑</kbd> / <kbd>↓</kbd>                  | Move the selected lines up or down                   |
+| <kbd>Shift</kbd>+<kbd>Alt</kbd>+<kbd>↑</kbd> / <kbd>↓</kbd> | Duplicate the selected lines                         |
+| <kbd>Shift</kbd>+<kbd>Alt</kbd>+<kbd>F</kbd>                | Fix the indentation throughout the file              |
+| <kbd>Enter</kbd>                                            | Start the next line at the indentation this one uses |
+| <kbd>Ctrl</kbd>+<kbd>S</kbd>                                | Save this file                                       |
+| <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>S</kbd>                 | Save this file and restart the firmware              |
+
+The mouse's back and forward buttons do the same as the arrow shortcuts above.
+Open the shortcuts icon in the editor toolbar, or press <kbd>Ctrl</kbd>+<kbd>?</kbd>,
+for this same list without leaving the page.
 
 ## Dashboard
 

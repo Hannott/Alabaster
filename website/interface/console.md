@@ -10,9 +10,10 @@ machine can actually do.
 
 ## Sending commands
 
-Type a command and press <kbd>Enter</kbd>. What you sent appears immediately,
-with the printer's reply underneath it — including when Klipper rejects the
-command, so you always have a record of what was tried.
+Type a command and press <kbd>Enter</kbd>. What you sent appears immediately.
+If Klipper has anything to say back — an error, a `RESPOND`, ordinary chatter —
+it appears underneath; many commands complete silently, and the echo of what
+you typed is itself the record that it was tried.
 
 - <kbd>↑</kbd> and <kbd>↓</kbd> walk back through commands you have sent before.
   That history survives a reload; it is kept in your browser, not on the printer.
@@ -92,6 +93,9 @@ Moving the prompt to the top also flips the transcript so the newest line is
 next to it — typing in one place and watching the answer appear at the far end of
 the box is nobody's idea of an improvement.
 
-The dashboard card carries the two filters you reach for mid-print plus a line
-count for how tall it should be; the full set lives on the page. The two keep
-their own settings, so a quiet card and a verbose page are a valid combination.
+The dashboard card starts with one filter — hiding temperature reports — plus
+two display toggles, timestamps and compact rows. The rest of the table above
+lives on the page; you can pin any of it onto the card from the card's own
+settings pane, which is also where its line count — how tall it should be —
+lives. The two keep their own settings, so a quiet card and a verbose page are
+a valid combination.

@@ -51,7 +51,7 @@ card respects, without opening the form. A camera declared directly in
 `moonraker.conf` is shown but not editable: Moonraker refuses to change one, so
 there is no save button here that would work.
 
-Which cameras a *card* shows, and in what arrangement, is a separate choice made
+Which cameras a _card_ shows, and in what arrangement, is a separate choice made
 on the card's own settings — see [Camera](/interface/modules#camera).
 
 ## Users
@@ -73,8 +73,8 @@ Once logged in, you can:
   yourself afterward if you meant to keep managing the printer.
 - **Remove another user's account**, though not your own — Moonraker requires
   a different logged-in account to do that.
-- **See and regenerate the API key**, for other Moonraker clients — a mobile
-  app, a script — that cannot log in interactively.
+- **See, copy, and regenerate the API key**, for other Moonraker clients — a
+  mobile app, a script — that cannot log in interactively.
 
 [Connecting to Moonraker](/guide/connecting#logging-in) covers how a printer
 comes to require this in the first place, and how it differs from the
@@ -151,9 +151,10 @@ exactly as it is — tabs included, though they are displayed at this width too.
 
 Every confirmation dialog in Alabaster, in one place, grouped by area — Power,
 Interrupting an active print, Bed mesh, Console, Configuration, History,
-Machine, Printers, Accounts, G-code viewer, Timelapse, and Backup and sync.
+Machine, Cameras, Printers, Accounts, G-code viewer, Timelapse, and Backup and
+sync.
 
-Checking a box skips that one dialog from now on. Twenty-eight of them, and
+Checking a box skips that one dialog from now on. Thirty-two of them, and
 this is all of them:
 
 - Emergency stop, reboot host, shut down host
@@ -164,7 +165,9 @@ this is all of them:
 - Delete a file or folder, open an unsupported file, create a missing include
   file
 - Delete a job from history, reprint a job
-- Install an update
+- Install an update, roll back an installed update, stop a service, restart a
+  service
+- Remove a camera
 - Remove a saved printer
 - Delete a user, regenerate the API key
 - Open a large G-code file

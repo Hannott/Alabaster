@@ -44,15 +44,15 @@ each appear more than once, one card per subject or group.
 
 Built, published, and proven on real hardware.
 
-| Piece                                                                  | State                                                                                                      |
-| ---------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| Release workflow publishing a versioned `alabaster.zip` with checksums | Done. Tag-triggered, and it runs the full check gate first.                                                |
-| Installer and uninstaller                                              | Done. Interactive, idempotent, checksum-verified, with a staged swap so an interrupted install rolls back. |
-| nginx configuration                                                    | Done. Shipped in the archive and written for you.                                                          |
-| Moonraker `update_manager` example using `type: web`                   | Done. The installer offers to add it.                                                                      |
-| Rollback for an interrupted or invalid update                          | Done for installation. Moonraker owns updates after that.                                                  |
-| Run on 64-bit Raspberry Pi OS from a published release                 | Done. Installed with the one-line installer and running on a real printer.                                 |
-| Tested on 32-bit Raspberry Pi OS                                       | **Not done.**                                                                                              |
+| Piece                                                                  | State                                                                                                                           |
+| ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| Release workflow publishing a versioned `alabaster.zip` with checksums | Done. Tag-triggered, and it runs the full check gate first.                                                                     |
+| Installer and uninstaller                                              | Done. Interactive, idempotent, checksum-verified, with a staged swap so an interrupted install rolls back.                      |
+| nginx configuration                                                    | Done. Shipped in the archive and written for you.                                                                               |
+| Moonraker `update_manager` example using `type: web`                   | Done. The installer offers to add it.                                                                                           |
+| Rollback for an interrupted or invalid update                          | Done for installation, and the Machine page can roll back a rollback-eligible update via Moonraker's `machine.update.rollback`. |
+| Run on 64-bit Raspberry Pi OS from a published release                 | Done. Installed with the one-line installer and running on a real printer.                                                      |
+| Tested on 32-bit Raspberry Pi OS                                       | **Not done.**                                                                                                                   |
 
 That last row is the remaining gap, and it is narrower than it was. The whole
 flow — download, checksum, install, run — has been through a published release

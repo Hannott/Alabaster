@@ -76,19 +76,17 @@ These fail the build. They are not review preferences.
 
 ## Where the standards live
 
-The repository carries contributor documentation under `docs/` — architecture
-decision records and design contracts. It is not published on this site, and it
-is binding: code and documents are not allowed to disagree, and a product
-decision that changes gets its document updated in the same change.
+Alabaster keeps internal design and architecture documents — one each for page
+layout and shared UI, navigation, buttons, dialogs, module settings, the
+dashboard module contract, motion, availability and reconnection, the
+Moonraker transport, the frontend stack, and deployment. They are not part of
+this repository's public checkout, so you can't open them directly, but they
+are binding on every change: code and documents are not allowed to disagree.
 
-Open the one that governs your change **before** designing it. There is one for
-page layout and shared UI, one for navigation, one for buttons, one for dialogs,
-one for module settings, one for the dashboard module contract, one for motion,
-one for availability and reconnection, one for the Moonraker transport, one for
-the frontend stack, and one for deployment.
-
-The common failure is not disagreeing with a document. It is never opening it and
-reinventing what it already settled.
+If your change touches one of these areas, say so in the issue or pull request
+before investing effort in a design — a reviewer can tell you what it already
+settled. The common failure is not disagreeing with a document. It is
+reinventing what it already settled because nobody knew to ask.
 
 ## Editing this site
 

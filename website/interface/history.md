@@ -64,14 +64,17 @@ you thought when you bought it.
 The full list, newest first, with **Load older jobs** at the end. It pages on what
 was actually returned rather than a count, so nothing is skipped at a boundary.
 
-Each job shows its file, outcome, duration, and filament. Jobs that used a
-Spoolman spool carry the spool it came off.
+Each row shows its file, outcome, and when it ran. Click a job to see its
+duration and filament — and the spool it came off, for jobs that used a
+Spoolman spool.
 
-Two actions per job:
+Three actions per job:
 
 - **Print again** — starts the same file now, and asks first. If the file is no
   longer on the printer, the action says so rather than failing when you press
   it.
+- **Add to queue** — adds the job's file to the print queue instead of starting
+  it right away.
 - **Remove** — deletes the record. The lifetime totals keep it, and the
   confirmation says that.
 

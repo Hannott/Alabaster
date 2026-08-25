@@ -15,8 +15,7 @@ The two are independent. Every pack supplies complete light and dark modes, so
 switching mode never changes your pack and switching pack never changes your
 mode.
 
-The sun and moon control in the header does the same thing from any page. Both
-preferences are kept in your browser.
+Both preferences are kept in your browser.
 
 ## The bundled pack
 
