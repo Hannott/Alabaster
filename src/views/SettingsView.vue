@@ -54,7 +54,9 @@ import {
 } from '@/stores/printers'
 import { useServerCapabilitiesStore } from '@/stores/serverCapabilities'
 import { useSettingsSyncStore } from '@/stores/settingsSync'
+import { useToastsStore } from '@/stores/toasts'
 import type { ThemePackId } from '@/themes/registry'
+import { copyToClipboard } from '@/utils/clipboard'
 
 const { locale, t } = useI18n({ useScope: 'global' })
 const { mode: themeMode, setMode, setThemePack, themePack, themePacks } = useTheme()
@@ -73,6 +75,7 @@ const confirmations = useConfirmationsStore()
 const auth = useAuthStore()
 const serverCapabilities = useServerCapabilitiesStore()
 const settingsSync = useSettingsSyncStore()
+const toasts = useToastsStore()
 const endpointInput = ref(moonraker.endpoint)
 const themeModes: readonly ThemeMode[] = ['system', 'light', 'dark']
 const textWeightModes: readonly TextWeightMode[] = [
@@ -301,6 +304,21 @@ function requestApiKeyRegeneration(): void {
     () => void auth.regenerateApiKey(),
     () => (pendingApiKeyRegeneration.value = true),
   )
+}
+
+const apiKeyCopied = ref(false)
+let apiKeyCopiedTimeout: ReturnType<typeof setTimeout> | undefined
+
+async function copyApiKey(): Promise<void> {
+  if (!auth.apiKey) return
+  const succeeded = await copyToClipboard(auth.apiKey)
+  if (!succeeded) {
+    toasts.push(t('users.apiKey.copyFailed'))
+    return
+  }
+  apiKeyCopied.value = true
+  clearTimeout(apiKeyCopiedTimeout)
+  apiKeyCopiedTimeout = setTimeout(() => (apiKeyCopied.value = false), 1500)
 }
 
 async function confirmUserDeletion(): Promise<void> {
@@ -1085,9 +1103,25 @@ const lastSyncedDisplay = computed(() => {
               <p class="mt-2 text-sm leading-6 text-muted">
                 {{ t('users.apiKey.description') }}
               </p>
-              <code class="mt-3 block truncate font-mono text-xs text-primary">
-                {{ auth.apiKey ?? t('users.apiKey.loading') }}
-              </code>
+              <div class="mt-3 flex items-center gap-2">
+                <code class="min-w-0 flex-1 truncate font-mono text-xs text-primary">
+                  {{ auth.apiKey ?? t('users.apiKey.loading') }}
+                </code>
+                <button
+                  type="button"
+                  class="button button--quiet button--xs button--icon shrink-0"
+                  :disabled="!auth.apiKey"
+                  :aria-label="apiKeyCopied ? t('users.apiKey.copied') : t('users.apiKey.copy')"
+                  :title="apiKeyCopied ? t('users.apiKey.copied') : t('users.apiKey.copy')"
+                  @click="copyApiKey()"
+                >
+                  <AppIcon
+                    :name="apiKeyCopied ? 'check' : 'duplicate'"
+                    class="size-4"
+                    aria-hidden="true"
+                  />
+                </button>
+              </div>
               <button
                 type="button"
                 class="button button--sm mt-3"
