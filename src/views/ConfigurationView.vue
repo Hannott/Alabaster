@@ -13,6 +13,7 @@ import EditorShortcutsDialog from '@/components/machine/EditorShortcutsDialog.vu
 import FileContextMenu from '@/components/machine/FileContextMenu.vue'
 import HtmlFileViewer from '@/components/machine/HtmlFileViewer.vue'
 import { useAvailability } from '@/composables/useAvailability'
+import { useConfigFileHistory } from '@/composables/useConfigFileHistory'
 import { useEditorIndent } from '@/composables/useEditorIndent'
 import { useMachineFilesSettings } from '@/composables/useMachineFilesSettings'
 import {
@@ -101,6 +102,8 @@ const {
   setSearchInFileContents,
 } = useMachineFilesSettings()
 const { indentWidth } = useEditorIndent()
+const { fileHistory, fileHistoryIndex, pushFileHistory, setFileHistoryIndex } =
+  useConfigFileHistory()
 const search = ref('')
 const sortKey = ref<FileSortKey>('name')
 const sortDirection = ref<'ascending' | 'descending'>('ascending')
@@ -129,13 +132,6 @@ interface PendingIncludeCreate {
   directoryMissing: boolean
 }
 const pendingIncludeCreate = ref<PendingIncludeCreate | null>(null)
-interface FileHistoryEntry {
-  path: string
-  name: string
-}
-const MAX_FILE_HISTORY = 10
-const fileHistory = ref<FileHistoryEntry[]>([])
-const fileHistoryIndex = ref(-1)
 /**
  * Set to the path a back/forward step is opening, right before it starts —
  * and cleared once that exact path lands (or the open is cancelled) — so the
@@ -1504,21 +1500,11 @@ function goToLine(line: number): void {
   syncEditorScroll()
 }
 
-/** Appends `path`, dropping any forward history past the current step — the
- *  same "new navigation prunes the redo stack" rule a browser follows. */
-function pushFileHistory(path: string, name: string): void {
-  const truncated = fileHistory.value.slice(0, fileHistoryIndex.value + 1)
-  truncated.push({ path, name })
-  const overflow = truncated.length - MAX_FILE_HISTORY
-  fileHistory.value = overflow > 0 ? truncated.slice(overflow) : truncated
-  fileHistoryIndex.value = fileHistory.value.length - 1
-}
-
 async function navigateFileHistory(direction: -1 | 1): Promise<void> {
   const nextIndex = fileHistoryIndex.value + direction
   const entry = fileHistory.value[nextIndex]
   if (!entry) return
-  fileHistoryIndex.value = nextIndex
+  setFileHistoryIndex(nextIndex)
   suppressedHistoryPath = entry.path
   await openFileAtPath(entry.path)
 }
@@ -1544,10 +1530,17 @@ watch(
     }
     // Reopening the file already at the front of history (closed, then
     // reopened the same way) shouldn't grow it — back would otherwise land on
-    // an identical, redundant entry.
+    // an identical, redundant entry. This is also what keeps `immediate`
+    // below from duplicating the front entry on every remount, since the
+    // path it fires with hasn't actually changed.
     if (fileHistory.value[fileHistoryIndex.value]?.path === path) return
     pushFileHistory(path, machineFiles.currentFile?.name ?? path.slice(path.lastIndexOf('/') + 1))
   },
+  // Immediate, so a file already open when this view mounts — the very first
+  // selection of a session, or one that was open before navigating away and
+  // back — becomes the first history entry instead of being invisible to a
+  // trail that only ever recorded subsequent changes.
+  { immediate: true },
 )
 
 /*

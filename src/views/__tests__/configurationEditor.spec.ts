@@ -3,6 +3,7 @@ import { enableAutoUnmount, flushPromises, mount, type VueWrapper } from '@vue/t
 import { nextTick } from 'vue'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { useConfigFileHistory } from '@/composables/useConfigFileHistory'
 import { useEditorIndent } from '@/composables/useEditorIndent'
 import { i18n } from '@/i18n'
 import { useAvailabilityStore } from '@/stores/availability'
@@ -45,6 +46,10 @@ function stubFetch(body: string): void {
 beforeEach(() => {
   vi.restoreAllMocks()
   window.localStorage.clear()
+  // Module-level state (it must survive leaving and returning to the
+  // Configuration route), so it outlives `createPinia()` and one test's
+  // trail leaks into the next unless cleared explicitly.
+  useConfigFileHistory().resetFileHistory()
   pinia = createPinia()
   setActivePinia(pinia)
   const moonraker = useMoonrakerStore(pinia)
@@ -716,5 +721,71 @@ describe('the mouse’s own back and forward buttons', () => {
     await flushPromises()
 
     expect(files.currentFile?.name).toBe('printer.cfg')
+  })
+
+  /*
+   * The defect this pins: the trail used to live in a component-local ref, so
+   * leaving the Configuration route and coming back reset it to empty even
+   * though the store's open file never closed.
+   */
+  it('survives leaving and returning to the route', async () => {
+    const view = await openConfigFile()
+    await openSecondFile()
+    view.unmount()
+
+    const secondView = mount(ConfigurationView, { global: { plugins: [i18n, pinia] } })
+    await flushPromises()
+
+    const back = new KeyboardEvent('keydown', {
+      key: 'ArrowLeft',
+      altKey: true,
+      bubbles: true,
+      cancelable: true,
+    })
+    window.dispatchEvent(back)
+    await flushPromises()
+
+    expect(back.defaultPrevented).toBe(true)
+    expect(useMachineFilesStore(pinia).currentFile?.name).toBe('printer.cfg')
+    secondView.unmount()
+  })
+
+  /*
+   * The defect this pins: the trail only grew on a *change* of the open file,
+   * so a file already open when the route mounts — the first selection of a
+   * session, or one left open from before an earlier visit — was never itself
+   * a step, leaving back with one fewer place to land than the user expects.
+   */
+  it('records the file already open when the route mounts', async () => {
+    const files = useMachineFilesStore(pinia)
+    const moonraker = useMoonrakerStore(pinia)
+    vi.spyOn(moonraker, 'rpcCall').mockResolvedValue(configListing)
+    stubFetch(configFile)
+    await files.openFile({
+      kind: 'file',
+      name: 'printer.cfg',
+      size: configFile.length,
+      modified: 20,
+      permissions: 'rw',
+    })
+    await flushPromises()
+    useConfigFileHistory().resetFileHistory()
+
+    const view = mount(ConfigurationView, { global: { plugins: [i18n, pinia] } })
+    await flushPromises()
+    await openSecondFile()
+
+    const back = new KeyboardEvent('keydown', {
+      key: 'ArrowLeft',
+      altKey: true,
+      bubbles: true,
+      cancelable: true,
+    })
+    window.dispatchEvent(back)
+    await flushPromises()
+
+    expect(back.defaultPrevented).toBe(true)
+    expect(files.currentFile?.name).toBe('printer.cfg')
+    view.unmount()
   })
 })
