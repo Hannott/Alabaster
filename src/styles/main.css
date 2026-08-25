@@ -8584,6 +8584,20 @@ select {
 }
 
 /*
+ * A rollback control sits beside the row rather than inside it — see
+ * `MachineView.vue`'s comment on that button for why a second control does
+ * not fold into the row's own available/current/attention click. Grouping
+ * the two in a flex row rather than a grid keeps every other
+ * `.machine-update-row` rule, including its own edge padding below, exactly
+ * as it was for the common case where the rollback button is absent.
+ */
+.machine-update-row-group {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+/*
  * The list's padding, the row's own border, and the row's inline padding sum to
  * the `1rem` every other panel row uses, so the source names stay on the same
  * edge as the panel heading and the facts above them. The border is subtracted
@@ -8592,6 +8606,8 @@ select {
  * dense-row value.
  */
 .machine-update-row {
+  flex: 1 1 auto;
+  min-width: 0;
   justify-content: space-between;
   gap: 1rem;
   padding: 0.75rem calc(0.5rem - 1px);

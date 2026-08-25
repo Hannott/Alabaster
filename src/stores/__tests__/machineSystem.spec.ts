@@ -12,6 +12,7 @@ import {
 } from '@/stores/machineSystem'
 import { useMoonrakerStore } from '@/stores/moonraker'
 import { useSpoolStore } from '@/stores/spool'
+import { useToastsStore } from '@/stores/toasts'
 import { MoonrakerDisconnectedError, MoonrakerRpcError } from '@/services/moonraker'
 import type { JsonRpcNotification, MoonrakerProcStats } from '@/services/moonraker'
 
@@ -1062,5 +1063,95 @@ describe('machine system store', () => {
     machine.runningUpdateId = null
     expect(await machine.recoverUpdate('absent')).toBe(false)
     expect(rpcCall).toHaveBeenCalledTimes(2)
+  })
+
+  it('rolls back a git/web source but refuses a system source or one needing attention', async () => {
+    const moonraker = useMoonrakerStore()
+    moonraker.connectionPhase = 'connected'
+    const machine = useMachineSystemStore()
+    machine.updates = [
+      { id: 'klipper', displayName: 'Klipper', configured_type: 'git_repo', version: 'v2' },
+      { id: 'system', displayName: 'system', configured_type: 'system', package_count: 4 },
+      { id: 'webclient', displayName: 'webclient', configured_type: 'web', is_dirty: true },
+    ]
+    const rpcCall = vi.spyOn(moonraker, 'rpcCall').mockResolvedValue('ok' as never)
+
+    expect(await machine.rollbackUpdate('klipper')).toBe(true)
+    expect(rpcCall).toHaveBeenCalledWith(
+      'machine.update.rollback',
+      { name: 'klipper' },
+      { timeoutMs: null },
+    )
+
+    // A `system` source's PackageKit path has no prior version to revert to.
+    expect(await machine.rollbackUpdate('system')).toBe(false)
+    // A source already needing attention is resolved through recovery, not this.
+    expect(await machine.rollbackUpdate('webclient')).toBe(false)
+    expect(await machine.rollbackUpdate('absent')).toBe(false)
+    expect(rpcCall).toHaveBeenCalledOnce()
+  })
+
+  it('reports a failed rollback the same way a failed upgrade is reported', async () => {
+    const moonraker = useMoonrakerStore()
+    moonraker.connectionPhase = 'connected'
+    const machine = useMachineSystemStore()
+    machine.updates = [{ id: 'klipper', displayName: 'Klipper', configured_type: 'git_repo' }]
+    vi.spyOn(moonraker, 'rpcCall').mockRejectedValue(new Error('refused'))
+
+    expect(await machine.rollbackUpdate('klipper')).toBe(false)
+    expect(machine.updateFailed).toBe(true)
+    expect(machine.runningUpdateId).toBe(null)
+  })
+
+  it('starts and stops a systemd unit independently of the update manager', async () => {
+    const moonraker = useMoonrakerStore()
+    moonraker.connectionPhase = 'connected'
+    const machine = useMachineSystemStore()
+    const rpcCall = vi.spyOn(moonraker, 'rpcCall').mockResolvedValue('ok' as never)
+
+    expect(await machine.startService('crowsnest')).toBe(true)
+    expect(rpcCall).toHaveBeenCalledWith('machine.services.start', { service: 'crowsnest' })
+
+    expect(await machine.stopService('crowsnest')).toBe(true)
+    expect(rpcCall).toHaveBeenCalledWith('machine.services.stop', { service: 'crowsnest' })
+    expect(machine.isServicePending('crowsnest')).toBe(false)
+
+    expect(await machine.restartService('crowsnest')).toBe(true)
+    expect(rpcCall).toHaveBeenCalledWith('machine.services.restart', { service: 'crowsnest' })
+    expect(machine.isServicePending('crowsnest')).toBe(false)
+  })
+
+  it('refuses a second action for a service already in flight, without touching another service', async () => {
+    const moonraker = useMoonrakerStore()
+    moonraker.connectionPhase = 'connected'
+    const machine = useMachineSystemStore()
+    const resolvers: (() => void)[] = []
+    vi.spyOn(moonraker, 'rpcCall').mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolvers.push(() => resolve('ok' as never))
+        }),
+    )
+
+    const first = machine.stopService('klipper')
+    expect(machine.isServicePending('klipper')).toBe(true)
+    expect(await machine.stopService('klipper')).toBe(false)
+
+    const second = machine.startService('moonraker')
+    resolvers.forEach((resolve) => resolve())
+    expect(await first).toBe(true)
+    expect(await second).toBe(true)
+    expect(machine.isServicePending('klipper')).toBe(false)
+  })
+
+  it('reports a refused service action as a toast, the same as any other one-shot command', async () => {
+    const moonraker = useMoonrakerStore()
+    moonraker.connectionPhase = 'connected'
+    const machine = useMachineSystemStore()
+    const toasts = useToastsStore()
+    vi.spyOn(moonraker, 'rpcCall').mockRejectedValueOnce(new Error('refused'))
+
+    expect(await machine.stopService('crowsnest')).toBe(false)
+    expect(toasts.entries.map((entry) => entry.message)).toEqual(['Error: refused'])
   })
 })

@@ -8,18 +8,18 @@ This page is the accurate account. It is kept current with the code.
 
 ## Pages
 
-| Page                                      | State                                                                                              |
-| ----------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| [Dashboard](/interface/overview)          | Complete. Fourteen modules, three layout profiles, presets.                                        |
-| [Print files](/interface/print-files)     | Complete. Browsing, previews, metadata, upload, print, queue, accurate estimates.                  |
-| [Calibration](/interface/calibration)     | Complete. Live probe map, endstops, probe accuracy, filament sensors, mesh profiles, graphs.       |
-| [History](/interface/history)             | Complete. Lifetime totals, statistics window, trend and distribution charts, job list.             |
-| [Timelapse](/interface/timelapse)         | Complete. Appears only with the timelapse component installed.                                     |
-| [Configuration](/interface/configuration) | Complete. Editor, include navigation, search, uploads, drag and drop.                              |
-| [Machine](/interface/machine)             | Complete. Host telemetry, controller modules, peripherals, services, updates, repository recovery. |
-| [G-code viewer](/interface/gcode-viewer)  | Complete. Streaming parse, live follow, simulation, adaptive quality.                              |
-| [Console](/interface/console)             | Complete. Transcript, filters, command browser, completion.                                        |
-| [Settings](/interface/settings)           | Complete. Ten categories, backup and restore, opt-in sync to a printer's database.                 |
+| Page                                      | State                                                                                                                          |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| [Dashboard](/interface/overview)          | Complete. Fourteen modules, three layout profiles, presets.                                                                    |
+| [Print files](/interface/print-files)     | Complete. Browsing, previews, metadata, upload, print, queue, accurate estimates.                                              |
+| [Calibration](/interface/calibration)     | Complete. Live probe map, endstops, probe accuracy, filament sensors, mesh profiles, graphs.                                   |
+| [History](/interface/history)             | Complete. Lifetime totals, statistics window, trend and distribution charts, job list.                                         |
+| [Timelapse](/interface/timelapse)         | Complete. Appears only with the timelapse component installed.                                                                 |
+| [Configuration](/interface/configuration) | Complete. Editor, include navigation, search, uploads, drag and drop.                                                          |
+| [Machine](/interface/machine)             | Complete. Host telemetry, controller modules, peripherals, service start/stop/restart, updates, rollback, repository recovery. |
+| [G-code viewer](/interface/gcode-viewer)  | Complete. Streaming parse, live follow, simulation, adaptive quality.                                                          |
+| [Console](/interface/console)             | Complete. Transcript, filters, command browser, completion.                                                                    |
+| [Settings](/interface/settings)           | Complete. Ten categories, backup and restore, opt-in sync to a printer's database.                                             |
 
 ## Dashboard modules
 
@@ -79,9 +79,6 @@ These are decisions, not gaps.
 **Generic sensors.** Moonraker's `server.sensors.*` endpoints are unused. They
 matter only for printers configuring sensors beyond heaters, and will be added
 when someone needs them.
-
-**Update rollback and service start/stop.** Moonraker exposes both. Neither is
-wired up yet.
 
 ## Known gaps
 

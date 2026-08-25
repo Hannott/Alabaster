@@ -7,6 +7,7 @@ import MachineView from '@/views/MachineView.vue'
 import { useAvailabilityStore } from '@/stores/availability'
 import { useMachineSystemStore } from '@/stores/machineSystem'
 import { useMoonrakerStore } from '@/stores/moonraker'
+import { useToastsStore } from '@/stores/toasts'
 
 // A view left mounted keeps reacting to the next test's stores.
 enableAutoUnmount(afterEach)
@@ -51,6 +52,26 @@ function rowFor(wrapper: VueWrapper, name: string) {
     .find((candidate) => candidate.text().includes(name))
   if (!row) throw new Error(`No update row for ${name}`)
   return row
+}
+
+function rollbackButtonFor(wrapper: VueWrapper, name: string) {
+  const group = wrapper
+    .findAll('.machine-update-row-group')
+    .find((candidate) => candidate.text().includes(name))
+  return group?.findAll('button').find((button) => !button.classes().includes('machine-update-row'))
+}
+
+function serviceRowFor(wrapper: VueWrapper, name: string) {
+  const row = wrapper
+    .findAll('.machine-service-row')
+    .find((candidate) => candidate.find('.machine-service-name').text() === name)
+  if (!row) throw new Error(`No service row for ${name}`)
+  return row
+}
+
+/** The Start/Stop toggle is always the row's first icon button; Restart, when offered, is the second. */
+function restartButtonFor(wrapper: VueWrapper, name: string) {
+  return serviceRowFor(wrapper, name).findAll('button.button--icon')[1]
 }
 
 /** The dialog stays in the DOM while closed, so its copy is not page text. */
@@ -383,6 +404,157 @@ describe('MachineView', () => {
     expect(wrapper.get('.machine-panel-notice').text()).toContain(
       'The update could not be started.',
     )
+  })
+
+  it('offers a rollback for a git/web source but not a system source or one needing attention', async () => {
+    const { machine, wrapper } = mountMachineView()
+    machine.updates = [
+      { id: 'klipper', displayName: 'Klipper', configured_type: 'git_repo', version: 'v2' },
+      { id: 'system', displayName: 'system', configured_type: 'system', package_count: 4 },
+      { id: 'webclient', displayName: 'webclient', configured_type: 'web', is_dirty: true },
+    ]
+    await flushPromises()
+
+    expect(rollbackButtonFor(wrapper, 'Klipper')).toBeTruthy()
+    expect(rollbackButtonFor(wrapper, 'system')).toBeUndefined()
+    expect(rollbackButtonFor(wrapper, 'webclient')).toBeUndefined()
+  })
+
+  it('confirms a rollback and opens the update console once it starts', async () => {
+    const { machine, wrapper } = mountMachineView()
+    machine.updates = [
+      { id: 'klipper', displayName: 'Klipper', configured_type: 'git_repo', version: 'v2' },
+    ]
+    const rollbackUpdate = vi.spyOn(machine, 'rollbackUpdate').mockImplementation(async () => {
+      machine.runningUpdateId = 'klipper'
+      return true
+    })
+    await flushPromises()
+
+    await rollbackButtonFor(wrapper, 'Klipper')?.trigger('click')
+    expect(wrapper.text()).toContain('Roll back Klipper?')
+    expect(rollbackUpdate).not.toHaveBeenCalled()
+
+    await wrapper.get('.confirm-dialog[open] .button--danger').trigger('click')
+    expect(rollbackUpdate).toHaveBeenCalledWith('klipper')
+
+    const dialog = wrapper.get('.update-console-dialog')
+    expect(dialog.attributes('open')).toBeDefined()
+  })
+
+  it('offers Start or Stop per systemd service, refusing a control for Spoolman', async () => {
+    const { machine, wrapper } = mountMachineView()
+    machine.systemInfo = {
+      provider: 'systemd_cli',
+      distribution: { name: 'Debian', version: '13', codename: 'trixie' },
+      available_services: ['klipper', 'crowsnest'],
+      service_state: { crowsnest: { active_state: 'inactive' } },
+    }
+    await flushPromises()
+
+    expect(serviceRowFor(wrapper, 'klipper').get('button.button--icon').attributes('title')).toBe(
+      'Stop klipper',
+    )
+    expect(serviceRowFor(wrapper, 'crowsnest').get('button.button--icon').attributes('title')).toBe(
+      'Start crowsnest',
+    )
+
+    // Active offers Restart alongside Stop; a cleanly stopped unit does not,
+    // since Restart would do nothing Start does not already cover.
+    expect(restartButtonFor(wrapper, 'klipper')?.attributes('title')).toBe('Restart klipper')
+    expect(restartButtonFor(wrapper, 'crowsnest')).toBeUndefined()
+  })
+
+  it('offers no Stop for a running Moonraker, since nothing could start it again', async () => {
+    const { machine, wrapper } = mountMachineView()
+    machine.systemInfo = {
+      provider: 'systemd_cli',
+      distribution: { name: 'Debian', version: '13', codename: 'trixie' },
+      available_services: ['moonraker'],
+      service_state: { moonraker: { active_state: 'active' } },
+    }
+    await flushPromises()
+
+    // Restart still reaches it -- systemd relaunches it as one operation --
+    // but the plain toggle, which would offer only Stop while active, does not:
+    // Restart is the row's only icon button rather than its second.
+    const buttons = serviceRowFor(wrapper, 'moonraker').findAll('button.button--icon')
+    expect(buttons).toHaveLength(1)
+    expect(buttons[0]?.attributes('title')).toBe('Restart moonraker')
+  })
+
+  it('confirms a restart, milder than a stop but still guarded', async () => {
+    const { machine, wrapper } = mountMachineView()
+    machine.systemInfo = {
+      provider: 'systemd_cli',
+      distribution: { name: 'Debian', version: '13', codename: 'trixie' },
+      available_services: ['crowsnest'],
+      service_state: { crowsnest: { active_state: 'active' } },
+    }
+    const restartService = vi.spyOn(machine, 'restartService').mockResolvedValue(true)
+    await flushPromises()
+
+    await restartButtonFor(wrapper, 'crowsnest')?.trigger('click')
+    expect(wrapper.text()).toContain('Restart crowsnest?')
+    expect(restartService).not.toHaveBeenCalled()
+
+    // Its own dialog carries no `tone="danger"`, unlike Stop's -- a restart
+    // recovers rather than destroys.
+    const dialog = wrapper.get('.confirm-dialog[open]')
+    expect(dialog.find('.button--danger').exists()).toBe(false)
+    await dialog.get('.button--primary').trigger('click')
+
+    expect(restartService).toHaveBeenCalledWith('crowsnest')
+  })
+
+  it('confirms before stopping any service, but starts one back up with no confirmation', async () => {
+    const { machine, wrapper } = mountMachineView()
+    machine.systemInfo = {
+      provider: 'systemd_cli',
+      distribution: { name: 'Debian', version: '13', codename: 'trixie' },
+      available_services: ['klipper', 'crowsnest'],
+      service_state: { crowsnest: { active_state: 'inactive' } },
+    }
+    const startService = vi.spyOn(machine, 'startService').mockResolvedValue(true)
+    const stopService = vi.spyOn(machine, 'stopService').mockResolvedValue(true)
+    await flushPromises()
+
+    // Starting a stopped unit is corrective, not consequential, so it runs
+    // straight away with no dialog.
+    await serviceRowFor(wrapper, 'crowsnest').get('button.button--icon').trigger('click')
+    expect(startService).toHaveBeenCalledWith('crowsnest')
+
+    // Stopping klipper is confirmed the same way any other service's Stop is —
+    // this is not the print-derived `restartKlipper`/`firmwareRestart` guard.
+    await serviceRowFor(wrapper, 'klipper').get('button.button--icon').trigger('click')
+    expect(wrapper.text()).toContain('Stop klipper?')
+    expect(stopService).not.toHaveBeenCalled()
+
+    await wrapper.get('.confirm-dialog[open] .button--danger').trigger('click')
+    expect(stopService).toHaveBeenCalledWith('klipper')
+  })
+
+  it('reports a refused service action as a toast rather than inline', async () => {
+    const { machine, wrapper } = mountMachineView()
+    machine.systemInfo = {
+      provider: 'systemd_cli',
+      distribution: { name: 'Debian', version: '13', codename: 'trixie' },
+      available_services: ['crowsnest'],
+      service_state: { crowsnest: { active_state: 'active' } },
+    }
+    const toasts = useToastsStore()
+    vi.spyOn(machine, 'stopService').mockImplementation(async () => {
+      toasts.pushError(new Error('refused'))
+      return false
+    })
+    await flushPromises()
+
+    await serviceRowFor(wrapper, 'crowsnest').get('button.button--icon').trigger('click')
+    await wrapper.get('.confirm-dialog[open] .button--danger').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.find('.machine-panel-notice').exists()).toBe(false)
+    expect(toasts.entries.some((entry) => entry.message.includes('refused'))).toBe(true)
   })
 
   describe('peripherals', () => {

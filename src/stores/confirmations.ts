@@ -58,6 +58,9 @@ export const confirmationKeys = [
   'importSettings',
   'resetSettings',
   'forgetSyncedData',
+  'rollbackUpdate',
+  'stopService',
+  'restartService',
 ] as const
 
 export type ConfirmationKey = (typeof confirmationKeys)[number]

@@ -15,6 +15,7 @@ import type {
 import { useMoonrakerStore } from '@/stores/moonraker'
 import { useAvailabilityStore, type KlipperState } from '@/stores/availability'
 import { useSpoolStore } from '@/stores/spool'
+import { useToastsStore } from '@/stores/toasts'
 import { isRecord } from '@/utils/records'
 
 const machineMcuSubscriptionKey = 'alabaster.machine-mcus'
@@ -246,6 +247,7 @@ export const useMachineSystemStore = defineStore('machineSystem', () => {
   const availability = useAvailabilityStore()
   const moonraker = useMoonrakerStore()
   const spool = useSpoolStore()
+  const toasts = useToastsStore()
   const systemInfo = ref<MoonrakerSystemInfo | null>(null)
   const procStats = ref<MoonrakerProcStats | null>(null)
   const updates = ref<MachineUpdateItem[]>([])
@@ -266,6 +268,8 @@ export const useMachineSystemStore = defineStore('machineSystem', () => {
   /** A multi-source run, which walks `runningUpdateId` through its targets. */
   const isUpdatingAll = ref(false)
   const updateFailed = ref(false)
+  /** The systemd unit name a `start`/`stop` request is in flight for, if any. */
+  const pendingServiceNames = ref<Set<string>>(new Set())
   /**
    * Distinct from `updateFailed`: updating Moonraker restarts Moonraker, so the
    * socket carrying the request is expected to drop and the work continues on the
@@ -623,6 +627,35 @@ export const useMachineSystemStore = defineStore('machineSystem', () => {
     }
   }
 
+  /**
+   * Reverts one source to the version it tracked before its most recent install.
+   * Only a `git_repo`/`web` source can answer this — a `system` source's
+   * PackageKit path has no prior version to hold onto — and a source Moonraker
+   * has already marked dirty, invalid, or corrupt is recovered instead, through
+   * [Repository recovery](#repository-recovery) rather than this.
+   */
+  async function rollbackUpdate(id: string): Promise<boolean> {
+    if (!moonraker.isConnected || isUpdateManagerBusy.value) return false
+    const target = updates.value.find((item) => item.id === id)
+    if (
+      !target ||
+      target.configured_type === 'system' ||
+      updateAvailability(target) === 'attention'
+    )
+      return false
+
+    beginUpdateRun()
+    runningUpdateId.value = id
+
+    try {
+      await moonraker.rpcCall('machine.update.rollback', { name: id }, withoutLocalTimeout)
+      finishUpdateRun(id)
+      return true
+    } catch (rollbackError) {
+      return reportUpdateFailure(rollbackError)
+    }
+  }
+
   /*
    * ADR 0005 requires a mutation that loses its socket to fail explicitly and to
    * wait for an explicit retry — never a silent replay. Both paths do that; they
@@ -639,6 +672,51 @@ export const useMachineSystemStore = defineStore('machineSystem', () => {
     outputLines.value = []
     updateFailed.value = false
     updateInterrupted.value = false
+  }
+
+  function isServicePending(name: string): boolean {
+    return pendingServiceNames.value.has(name)
+  }
+
+  /**
+   * Starts, stops, or restarts one systemd unit directly. Independent of the
+   * update manager's own busy gate — `machine.services.*` is a different
+   * subsystem — so more than one service action can be in flight at once,
+   * each disabling only its own row. This is a one-shot mutating command
+   * with no console of its own, so a failure is reported the way
+   * `commandRunner.ts` already reports every other one: a toast, not an
+   * inline panel notice.
+   */
+  async function runServiceAction(
+    name: string,
+    action: 'start' | 'stop' | 'restart',
+  ): Promise<boolean> {
+    if (!moonraker.isConnected || pendingServiceNames.value.has(name)) return false
+    pendingServiceNames.value = new Set(pendingServiceNames.value).add(name)
+
+    try {
+      await moonraker.rpcCall(`machine.services.${action}`, { service: name })
+      return true
+    } catch (serviceError) {
+      toasts.pushError(serviceError)
+      return false
+    } finally {
+      const next = new Set(pendingServiceNames.value)
+      next.delete(name)
+      pendingServiceNames.value = next
+    }
+  }
+
+  async function startService(name: string): Promise<boolean> {
+    return runServiceAction(name, 'start')
+  }
+
+  async function stopService(name: string): Promise<boolean> {
+    return runServiceAction(name, 'stop')
+  }
+
+  async function restartService(name: string): Promise<boolean> {
+    return runServiceAction(name, 'restart')
   }
 
   async function refreshProcStats(): Promise<void> {
@@ -821,6 +899,7 @@ export const useMachineSystemStore = defineStore('machineSystem', () => {
     updateInterrupted.value = false
     checkFailed.value = false
     updateFailed.value = false
+    pendingServiceNames.value = new Set()
     isLoading.value = false
     error.value = false
   }
@@ -929,6 +1008,11 @@ export const useMachineSystemStore = defineStore('machineSystem', () => {
     startUpdate,
     startAllUpdates,
     recoverUpdate,
+    rollbackUpdate,
+    isServicePending,
+    startService,
+    stopService,
+    restartService,
     clearUpdateOutput,
     refreshProcStats,
     start,

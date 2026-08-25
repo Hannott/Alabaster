@@ -9,8 +9,8 @@ import MachineUpdateConsoleDialog from '@/components/MachineUpdateConsoleDialog.
 import PageHeading from '@/components/PageHeading.vue'
 import UpdateCommitList from '@/components/UpdateCommitList.vue'
 import UpdateRecoveryDialog from '@/components/UpdateRecoveryDialog.vue'
-import { useActionGuard } from '@/composables/useActionGuard'
-import type { MachineUpdateItem } from '@/stores/machineSystem'
+import { useActionGuard, type ActionGuardBindings } from '@/composables/useActionGuard'
+import type { MachineServiceStatus, MachineUpdateItem } from '@/stores/machineSystem'
 import { updateAvailability, useMachineSystemStore } from '@/stores/machineSystem'
 import { useMoonrakerStore } from '@/stores/moonraker'
 
@@ -25,6 +25,36 @@ const machine = useMachineSystemStore()
  * an update-all are the same decision.
  */
 const installGuard = useActionGuard({ tier: 'terminal', emphasis: 'primary', key: 'installUpdate' })
+/**
+ * `danger-quiet`: rolling back is a real regression, but the control sits in a
+ * list of otherwise-quiet rows, the same reasoning that keeps the header
+ * power menu's `rebootHost`/`shutdownHost` off the louder plain `danger`.
+ */
+const rollbackGuard = useActionGuard({
+  tier: 'terminal',
+  emphasis: 'danger-quiet',
+  key: 'rollbackUpdate',
+})
+/**
+ * One guard for every service's Stop, regardless of which one: stopping a
+ * systemd unit directly is worth confirming on its own terms, not only while
+ * it happens to be the one keeping a print alive -- unlike `restartKlipper`
+ * and `firmwareRestart`, this always asks rather than only while a job is
+ * loaded, which is why it is its own key rather than joining their group.
+ * Starting one back up is corrective, not consequential, so it carries no
+ * guard at all.
+ */
+const stopServiceGuard = useActionGuard({
+  tier: 'terminal',
+  emphasis: 'danger-quiet',
+  key: 'stopService',
+})
+/** Milder than Stop -- the service comes back on its own -- so it rests at `quiet` rather than `danger-quiet`. */
+const restartServiceGuard = useActionGuard({
+  tier: 'terminal',
+  emphasis: 'quiet',
+  key: 'restartService',
+})
 let pollTimer: ReturnType<typeof setInterval> | undefined
 const completeStatsRefreshMs = 5_000
 
@@ -108,6 +138,109 @@ function formatCanbusBitrate(bitrate: number | null): string | null {
   return t('machine.peripherals.canbusBitrateKbps', {
     value: frequencyFormatter.value.format(bitrate / 1_000),
   })
+}
+
+/** Spoolman's row has no systemd unit behind it, so it never earns a start/stop control. */
+function isSystemdService(name: string): boolean {
+  return machine.systemInfo?.available_services.includes(name) ?? false
+}
+
+/**
+ * A running Moonraker offers no way back from Stop: the request that stops it
+ * is answered by the very process it just killed, and nothing short of SSH
+ * can start it again, since `machine.services.start` needs a running
+ * Moonraker to carry it. Restart is unaffected -- systemd relaunches it as
+ * one operation, the same one `restartMoonraker` already uses safely -- so
+ * only the toggle hides; the row still offers Restart.
+ */
+function canToggleService(service: MachineServiceStatus): boolean {
+  return !(service.name === 'moonraker' && service.state === 'active')
+}
+
+function serviceActionIcon(service: MachineServiceStatus): 'spinner' | 'stop' | 'play' {
+  if (machine.isServicePending(service.name)) return 'spinner'
+  return service.state === 'active' ? 'stop' : 'play'
+}
+
+function serviceActionLabel(service: MachineServiceStatus): string {
+  if (machine.isServicePending(service.name)) {
+    return service.state === 'active'
+      ? t('machine.services.stopping')
+      : t('machine.services.starting')
+  }
+  return service.state === 'active'
+    ? t('machine.services.stop', { name: service.name })
+    : t('machine.services.start', { name: service.name })
+}
+
+/** Stopping is the only half that carries a guard; starting a stopped unit has nothing to ask about. */
+function serviceActionVariant(service: MachineServiceStatus): string | null {
+  return service.state === 'active' ? stopServiceGuard.variant.value : null
+}
+
+function serviceActionBind(service: MachineServiceStatus): ActionGuardBindings {
+  return service.state === 'active' ? stopServiceGuard.bind.value : {}
+}
+
+const pendingServiceStop = ref<string | null>(null)
+
+function requestServiceAction(service: MachineServiceStatus): void {
+  if (!moonraker.isConnected || machine.isServicePending(service.name)) return
+  if (service.state !== 'active') {
+    void machine.startService(service.name)
+    return
+  }
+  if (stopServiceGuard.guarded.value) {
+    pendingServiceStop.value = service.name
+    return
+  }
+  void machine.stopService(service.name)
+}
+
+function cancelServiceStop(): void {
+  pendingServiceStop.value = null
+}
+
+function confirmServiceStop(): void {
+  const name = pendingServiceStop.value
+  pendingServiceStop.value = null
+  if (name) void machine.stopService(name)
+}
+
+/** Restarting nothing is just starting it, so the separate control only offers what Start does not already cover. */
+function canRestartService(service: MachineServiceStatus): boolean {
+  return service.state !== 'inactive'
+}
+
+function restartActionIcon(service: MachineServiceStatus): 'spinner' | 'refresh' {
+  return machine.isServicePending(service.name) ? 'spinner' : 'refresh'
+}
+
+function restartActionLabel(service: MachineServiceStatus): string {
+  return machine.isServicePending(service.name)
+    ? t('machine.services.restarting')
+    : t('machine.services.restart', { name: service.name })
+}
+
+const pendingServiceRestart = ref<string | null>(null)
+
+function requestServiceRestart(service: MachineServiceStatus): void {
+  if (!moonraker.isConnected || machine.isServicePending(service.name)) return
+  if (restartServiceGuard.guarded.value) {
+    pendingServiceRestart.value = service.name
+    return
+  }
+  void machine.restartService(service.name)
+}
+
+function cancelServiceRestart(): void {
+  pendingServiceRestart.value = null
+}
+
+function confirmServiceRestart(): void {
+  const name = pendingServiceRestart.value
+  pendingServiceRestart.value = null
+  if (name) void machine.restartService(name)
 }
 
 function updateVersion(update: MachineUpdateItem): string {
@@ -256,6 +389,39 @@ function confirmUpdate(): void {
 function confirmRecovery(id: string): void {
   investigating.value = null
   void machine.recoverUpdate(id)
+}
+
+/**
+ * Only a `git_repo`/`web` source has a previous version Moonraker can revert
+ * to, and a source already needing attention is resolved through Investigate
+ * instead -- a dirty or corrupt repository is no more rollback-able than it is
+ * upgradeable.
+ */
+function canRollbackUpdate(update: MachineUpdateItem): boolean {
+  return update.configured_type !== 'system' && updateAvailability(update) !== 'attention'
+}
+
+const pendingRollback = ref<MachineUpdateItem | null>(null)
+
+function requestRollback(update: MachineUpdateItem): void {
+  if (updatesDisabled.value) return
+  if (rollbackGuard.guarded.value) pendingRollback.value = update
+  else void machine.rollbackUpdate(update.id)
+}
+
+function cancelRollback(): void {
+  pendingRollback.value = null
+}
+
+/*
+ * The dialog closes as the rollback starts: its progress belongs in the same
+ * update console popout every other update action opens, via the shared
+ * `isUpdating` watcher below.
+ */
+function confirmRollback(): void {
+  const target = pendingRollback.value
+  pendingRollback.value = null
+  if (target) void machine.rollbackUpdate(target.id)
 }
 
 const isConsoleOpen = ref(false)
@@ -436,6 +602,34 @@ onBeforeUnmount(() => {
                   >
                     <AppIcon name="globe" class="size-4" aria-hidden="true" />
                   </a>
+                  <button
+                    v-if="isSystemdService(service.name) && canToggleService(service)"
+                    type="button"
+                    class="button button--quiet button--xs button--icon"
+                    :class="serviceActionVariant(service)"
+                    v-bind="serviceActionBind(service)"
+                    :disabled="!moonraker.isConnected || machine.isServicePending(service.name)"
+                    :data-pending="machine.isServicePending(service.name) ? 'true' : undefined"
+                    :aria-label="serviceActionLabel(service)"
+                    :title="serviceActionLabel(service)"
+                    @click="requestServiceAction(service)"
+                  >
+                    <AppIcon :name="serviceActionIcon(service)" class="size-4" aria-hidden="true" />
+                  </button>
+                  <button
+                    v-if="isSystemdService(service.name) && canRestartService(service)"
+                    type="button"
+                    class="button button--quiet button--xs button--icon"
+                    :class="restartServiceGuard.variant.value"
+                    v-bind="restartServiceGuard.bind.value"
+                    :disabled="!moonraker.isConnected || machine.isServicePending(service.name)"
+                    :data-pending="machine.isServicePending(service.name) ? 'true' : undefined"
+                    :aria-label="restartActionLabel(service)"
+                    :title="restartActionLabel(service)"
+                    @click="requestServiceRestart(service)"
+                  >
+                    <AppIcon :name="restartActionIcon(service)" class="size-4" aria-hidden="true" />
+                  </button>
                   <span class="machine-service-status" :data-state="service.state">
                     {{ t(`machine.services.status.${service.state}`) }}
                   </span>
@@ -638,46 +832,72 @@ onBeforeUnmount(() => {
           </p>
 
           <div v-if="machine.updates.length" class="machine-update-list">
-            <button
+            <div
               v-for="update in machine.updates"
               :key="update.id"
-              type="button"
-              class="button button--quiet button--start button--block machine-update-row"
-              :disabled="updatesDisabled"
-              :data-pending="rowIsPending(update) ? 'true' : undefined"
-              :title="rowActionName(update)"
-              @click="activateRow(update)"
+              class="machine-update-row-group"
             >
-              <span class="machine-update-row__detail">
-                <span class="machine-update-row__name">{{ update.displayName }}</span>
-                <span class="machine-update-row__version">{{ updateVersion(update) }}</span>
-                <span
-                  v-if="updateAvailability(update) === 'attention'"
-                  class="machine-update-warning"
-                >
-                  {{ t('machine.updates.dirty') }}
+              <button
+                type="button"
+                class="button button--quiet button--start button--block machine-update-row"
+                :disabled="updatesDisabled"
+                :data-pending="rowIsPending(update) ? 'true' : undefined"
+                :title="rowActionName(update)"
+                @click="activateRow(update)"
+              >
+                <span class="machine-update-row__detail">
+                  <span class="machine-update-row__name">{{ update.displayName }}</span>
+                  <span class="machine-update-row__version">{{ updateVersion(update) }}</span>
+                  <span
+                    v-if="updateAvailability(update) === 'attention'"
+                    class="machine-update-warning"
+                  >
+                    {{ t('machine.updates.dirty') }}
+                  </span>
                 </span>
-              </span>
+                <!--
+                  Both labels occupy one grid cell, so the chip is already as wide as
+                  the wider of the two and the hover swap is a crossfade rather than
+                  a reflow of the row.
+                -->
+                <span class="machine-update-status" :data-state="updateAvailability(update)">
+                  <span class="machine-update-status__label">
+                    {{ t(`machine.updates.status.${updateAvailability(update)}`) }}
+                  </span>
+                  <span class="machine-update-status__action" aria-hidden="true">
+                    {{ rowActionLabel(update) }}
+                  </span>
+                </span>
+                <!--
+                  The chip's action label is a hover affordance, so the action is
+                  named here instead. Leaving the row's own text in the accessible
+                  name is why this is not an `aria-label`.
+                -->
+                <span class="sr-only">{{ rowActionName(update) }}</span>
+              </button>
               <!--
-                Both labels occupy one grid cell, so the chip is already as wide as
-                the wider of the two and the hover swap is a crossfade rather than
-                a reflow of the row.
+                A secondary control beside the row's own button rather than a
+                fourth state folded into it: rollback has nothing to do with
+                whether a source is behind, so it does not fit the row's
+                existing available/current/attention click. Icon-only, per
+                button-system.md's bounded exception for icon-only confirming
+                controls -- `aria-haspopup` is its only carrier, same as the
+                Console card header's clear and the job queue row's remove.
               -->
-              <span class="machine-update-status" :data-state="updateAvailability(update)">
-                <span class="machine-update-status__label">
-                  {{ t(`machine.updates.status.${updateAvailability(update)}`) }}
-                </span>
-                <span class="machine-update-status__action" aria-hidden="true">
-                  {{ rowActionLabel(update) }}
-                </span>
-              </span>
-              <!--
-                The chip's action label is a hover affordance, so the action is
-                named here instead. Leaving the row's own text in the accessible
-                name is why this is not an `aria-label`.
-              -->
-              <span class="sr-only">{{ rowActionName(update) }}</span>
-            </button>
+              <button
+                v-if="canRollbackUpdate(update)"
+                type="button"
+                class="button button--quiet button--xs button--icon"
+                :class="rollbackGuard.variant.value"
+                v-bind="rollbackGuard.bind.value"
+                :disabled="updatesDisabled"
+                :aria-label="t('machine.updates.rollbackOne', { name: update.displayName })"
+                :title="t('machine.updates.rollback')"
+                @click="requestRollback(update)"
+              >
+                <AppIcon name="undo" class="size-4" aria-hidden="true" />
+              </button>
+            </div>
           </div>
           <p v-else class="machine-panel-empty">{{ t('machine.updates.empty') }}</p>
         </section>
@@ -712,6 +932,41 @@ onBeforeUnmount(() => {
       :busy="machine.isUpdateManagerBusy"
       @reset="confirmRecovery"
       @close="investigating = null"
+    />
+
+    <ConfirmDialog
+      :open="pendingRollback !== null"
+      :title="
+        t('machine.updates.rollbackConfirmTitle', { name: pendingRollback?.displayName ?? '' })
+      "
+      :description="t('machine.updates.rollbackConfirmDescription')"
+      :confirm-label="t('machine.updates.rollback')"
+      tone="danger"
+      @confirm="confirmRollback"
+      @cancel="cancelRollback"
+    />
+
+    <ConfirmDialog
+      :open="pendingServiceStop !== null"
+      :title="t('machine.services.stopConfirmTitle', { name: pendingServiceStop ?? '' })"
+      :description="
+        t('machine.services.stopConfirmDescription', { name: pendingServiceStop ?? '' })
+      "
+      :confirm-label="t('machine.services.stop', { name: pendingServiceStop ?? '' })"
+      tone="danger"
+      @confirm="confirmServiceStop"
+      @cancel="cancelServiceStop"
+    />
+
+    <ConfirmDialog
+      :open="pendingServiceRestart !== null"
+      :title="t('machine.services.restartConfirmTitle', { name: pendingServiceRestart ?? '' })"
+      :description="
+        t('machine.services.restartConfirmDescription', { name: pendingServiceRestart ?? '' })
+      "
+      :confirm-label="t('machine.services.restart', { name: pendingServiceRestart ?? '' })"
+      @confirm="confirmServiceRestart"
+      @cancel="cancelServiceRestart"
     />
 
     <MachineUpdateConsoleDialog

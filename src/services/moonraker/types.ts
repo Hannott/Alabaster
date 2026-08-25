@@ -1007,6 +1007,15 @@ export interface MoonrakerRpcMethods {
     params: { name: string; hard?: boolean }
     result: string
   }
+  /**
+   * Reverts one source to the version it tracked before its most recent
+   * install. Only a `git_repo`/`web` source can answer this — a `system`
+   * source's PackageKit path has no prior version for Moonraker to hold onto.
+   */
+  'machine.update.rollback': {
+    params: { name: string }
+    result: string
+  }
   /*
    * Superseded by `machine.update.upgrade`, which Moonraker gained later. They
    * remain declared because a Pi running an older Moonraker answers only these,
@@ -1033,6 +1042,14 @@ export interface MoonrakerRpcMethods {
     result: string
   }
   'machine.services.restart': {
+    params: { service: string }
+    result: string
+  }
+  'machine.services.start': {
+    params: { service: string }
+    result: string
+  }
+  'machine.services.stop': {
     params: { service: string }
     result: string
   }

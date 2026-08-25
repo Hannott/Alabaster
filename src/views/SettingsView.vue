@@ -456,7 +456,10 @@ const confirmationGroups: readonly ConfirmationGroup[] = [
     ],
   },
   { titleKey: 'confirmations.groups.history', keys: ['deleteHistoryJob', 'reprintJob'] },
-  { titleKey: 'confirmations.groups.machine', keys: ['installUpdate'] },
+  {
+    titleKey: 'confirmations.groups.machine',
+    keys: ['installUpdate', 'rollbackUpdate', 'stopService', 'restartService'],
+  },
   { titleKey: 'confirmations.groups.printers', keys: ['removePrinter'] },
   { titleKey: 'confirmations.groups.cameras', keys: ['removeCamera'] },
   {

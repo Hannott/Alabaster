@@ -41,8 +41,16 @@ read when the page loads and again when you choose **Refresh**.
 The services Moonraker manages, each with its state — **Running**, **Stopped**, or
 **Failed** — and a link to open it where it has a web interface of its own.
 
+**Each service can be started, stopped, or restarted from its own row.** A
+stopped or failed service offers Start; a running one offers Stop, and Restart
+alongside it. Stopping is always confirmed, since it is worth a moment's pause
+regardless of what else is going on; restarting asks more lightly, since the
+service comes back on its own. Moonraker itself is the one exception: while it
+is running, only Restart is offered. Stopping the service that is serving this
+very page would leave nothing able to start it again.
+
 Restarting Klipper, restarting Moonraker, and rebooting or shutting down the host
-are in the header's power menu, on every page. See
+are also in the header's power menu, on every page. See
 [Restarting things on purpose](/guide/connecting#restarting-things-on-purpose).
 
 ## Software updates
@@ -94,6 +102,16 @@ this row into **Needs attention**: the clone now has local changes, and the
 recovery below is how you either keep them or discard them before the next
 update.
 :::
+
+### Rolling back an update
+
+A source Moonraker tracks by its own git history — Klipper, Moonraker, and a
+git-based client — can be reverted to the version it had before its most
+recent update, if a new version turns out to be the problem. It sits beside
+its row as a separate control, confirmed the same way an install is: the
+printer must not be printing. A source updated from packages has no previous
+version for Moonraker to hold onto, and a row already needing attention is
+resolved through the recovery below instead, so neither offers this control.
 
 ## Recovering a broken repository
 
