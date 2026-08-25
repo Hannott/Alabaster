@@ -98,6 +98,18 @@ function formatMcuFrequency(frequency: number | null): string | null {
   })
 }
 
+function formatCanbusBitrate(bitrate: number | null): string | null {
+  if (bitrate === null || bitrate <= 0) return null
+  if (bitrate >= 1_000_000) {
+    return t('machine.peripherals.canbusBitrateMbps', {
+      value: frequencyFormatter.value.format(bitrate / 1_000_000),
+    })
+  }
+  return t('machine.peripherals.canbusBitrateKbps', {
+    value: frequencyFormatter.value.format(bitrate / 1_000),
+  })
+}
+
 function updateVersion(update: MachineUpdateItem): string {
   if (update.configured_type === 'system') {
     return t('machine.updates.packages', { count: update.package_count ?? 0 })
@@ -442,7 +454,11 @@ onBeforeUnmount(() => {
             `machine.mcuModules` already treat as "nothing to show" above.
           -->
           <section
-            v-if="machine.serialDevices.length || machine.usbDevices.length"
+            v-if="
+              machine.serialDevices.length ||
+              machine.usbDevices.length ||
+              machine.canbusInterfaces.length
+            "
             class="machine-status-panel"
             aria-labelledby="machine-peripherals-title"
           >
@@ -492,6 +508,53 @@ onBeforeUnmount(() => {
                   <p>{{ device.usb_location }}</p>
                 </div>
               </article>
+            </section>
+
+            <!--
+              `machine.peripherals.canbus` reports only UUIDs neither Klipper
+              nor Katapult has claimed yet, so most rows here are the
+              interface itself confirming "nothing pending" — that is still
+              worth showing, since it confirms the CAN adapter is seen at all.
+            -->
+            <section v-if="machine.canbusInterfaces.length" class="machine-module-list">
+              <h3>{{ t('machine.peripherals.canbusTitle') }}</h3>
+              <template v-for="iface in machine.canbusInterfaces" :key="iface.interface">
+                <article
+                  v-for="node in iface.uuids"
+                  :key="node.uuid"
+                  class="machine-module-row machine-peripheral-row selectable"
+                >
+                  <div class="min-w-0">
+                    <h4>{{ node.uuid }}</h4>
+                    <p>
+                      {{
+                        [iface.interface, node.application, formatCanbusBitrate(iface.bitrate)]
+                          .filter(Boolean)
+                          .join(' · ')
+                      }}
+                    </p>
+                  </div>
+                </article>
+                <article
+                  v-if="iface.uuids.length === 0"
+                  class="machine-module-row machine-peripheral-row"
+                >
+                  <div class="min-w-0">
+                    <h4>{{ iface.interface }}</h4>
+                    <p>
+                      {{
+                        [
+                          formatCanbusBitrate(iface.bitrate),
+                          iface.driver,
+                          t('machine.peripherals.canbusNone'),
+                        ]
+                          .filter(Boolean)
+                          .join(' · ')
+                      }}
+                    </p>
+                  </div>
+                </article>
+              </template>
             </section>
           </section>
         </div>

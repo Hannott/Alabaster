@@ -341,6 +341,13 @@ export interface MoonrakerSystemInfo {
     string,
     { mac_address?: string; ip_addresses?: Array<{ family?: string; address?: string }> }
   >
+  /**
+   * CAN interfaces the host itself sees, keyed by interface name (`can0`,
+   * `can1`, ...) — this is where an interface name comes from before
+   * `machine.peripherals.canbus` can be asked to scan it; the endpoint takes
+   * no interface list of its own.
+   */
+  canbus?: Record<string, { tx_queue_len: number; bitrate: number; driver: string }>
 }
 
 /**
@@ -377,6 +384,17 @@ export interface MoonrakerUsbDevice {
   product: string | null
   serial: string | null
   description: string | null
+}
+
+/**
+ * One CAN node `machine.peripherals.canbus` found on an interface that
+ * neither Klipper nor Katapult has claimed yet — the endpoint reports only
+ * unassigned UUIDs, not every node a running `printer.cfg` already wired up,
+ * so this list is "what could still be added", not "what's on the bus".
+ */
+export interface MoonrakerCanbusUuid {
+  uuid: string
+  application: 'Klipper' | 'Katapult'
 }
 
 export interface MoonrakerProcStats {
@@ -964,6 +982,10 @@ export interface MoonrakerRpcMethods {
   'machine.peripherals.usb': {
     params: undefined
     result: { usb_devices: MoonrakerUsbDevice[] }
+  }
+  'machine.peripherals.canbus': {
+    params: { interface?: string }
+    result: { can_uuids: MoonrakerCanbusUuid[] }
   }
   'machine.update.status': {
     params: { refresh?: boolean }

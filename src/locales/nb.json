@@ -1660,6 +1660,10 @@
       "refresh": "Oppdater",
       "serialTitle": "Serielle enheter",
       "usbTitle": "USB-enheter",
+      "canbusTitle": "CAN-buss",
+      "canbusNone": "Ingen utildelte noder",
+      "canbusBitrateKbps": "{value} kbps",
+      "canbusBitrateMbps": "{value} Mbps",
       "serialType": {
         "hardware_uart": "Innebygd UART",
         "usb": "USB",

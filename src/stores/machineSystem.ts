@@ -4,6 +4,7 @@ import { computed, ref, watch, type WatchStopHandle } from 'vue'
 import { MoonrakerDisconnectedError, MoonrakerRpcError } from '@/services/moonraker'
 import type {
   JsonRpcNotification,
+  MoonrakerCanbusUuid,
   MoonrakerProcStats,
   MoonrakerSerialDevice,
   MoonrakerSystemInfo,
@@ -52,6 +53,20 @@ export interface MachineMcuModule {
   load: number | null
   frequency: number | null
   isDisconnected: boolean | null
+}
+
+/**
+ * One CAN interface `system_info.canbus` reported, plus whatever unassigned
+ * UUIDs `machine.peripherals.canbus` found on it. `uuids` is empty both when
+ * nothing is unassigned and when the scan itself failed — Peripherals still
+ * shows the interface either way, since knowing the interface exists and is
+ * configured is itself useful without a pending node to report.
+ */
+export interface MachineCanbusInterface {
+  interface: string
+  bitrate: number | null
+  driver: string | null
+  uuids: MoonrakerCanbusUuid[]
 }
 
 function stringValue(value: unknown): string | null {
@@ -237,6 +252,7 @@ export const useMachineSystemStore = defineStore('machineSystem', () => {
   const mcuModules = ref<MachineMcuModule[]>([])
   const serialDevices = ref<MoonrakerSerialDevice[]>([])
   const usbDevices = ref<MoonrakerUsbDevice[]>([])
+  const canbusInterfaces = ref<MachineCanbusInterface[]>([])
   const isLoadingPeripherals = ref(false)
   const isLoading = ref(false)
   const error = ref(false)
@@ -676,28 +692,54 @@ export const useMachineSystemStore = defineStore('machineSystem', () => {
   }
 
   /**
-   * Serial and USB devices attached to the host — chiefly so a reader can find
-   * the `/dev/serial/by-id/...` path a `[mcu]`/`[probe]` config's `serial:`
-   * line wants without SSH-ing in. There is no notification for a device being
-   * plugged or unplugged, so this is read once with the rest of `load()` and
-   * again only on an explicit "Refresh" action — the same shape
+   * Serial, USB, and CAN devices attached to the host — chiefly so a reader
+   * can find the `/dev/serial/by-id/...` path a `[mcu]`/`[probe]` config's
+   * `serial:` line wants, or a `canbus_uuid:` a canbus-connected toolhead's
+   * config wants, without SSH-ing in. There is no notification for a device
+   * being plugged or unplugged, so this is read once with the rest of
+   * `load()` and again only on an explicit "Refresh" action — the same shape
    * `machine.update.status` already uses for its own explicit check, per
    * AGENTS.md's rule that a field with no notification behind it still needs
-   * an explicit way to become current rather than staying frozen. Either call
-   * failing (an older Moonraker, or a provider that never implemented this)
-   * simply leaves that list empty rather than erroring the whole page.
+   * an explicit way to become current rather than staying frozen. Any one
+   * call failing (an older Moonraker, or a provider that never implemented
+   * it) simply leaves that list empty rather than erroring the whole page.
+   *
+   * The CAN scan needs an interface name upfront — unlike `serial`/`usb`,
+   * which need no arguments — so it reads `systemInfo.value.canbus`'s keys
+   * rather than guessing `can0`. That is also why this runs after `load()`
+   * has already assigned `systemInfo.value`, instead of alongside it: the
+   * interface names have to be known before they can be scanned.
    */
   async function refreshPeripherals(): Promise<void> {
     if (!moonraker.isConnected) return
     isLoadingPeripherals.value = true
     try {
-      const [serialResult, usbResult] = await Promise.allSettled([
+      const canbusInterfaceNames = Object.keys(systemInfo.value?.canbus ?? {})
+      const [serialResult, usbResult, ...canbusResults] = await Promise.allSettled([
         moonraker.rpcCall('machine.peripherals.serial'),
         moonraker.rpcCall('machine.peripherals.usb'),
+        ...canbusInterfaceNames.map((name) =>
+          moonraker.rpcCall('machine.peripherals.canbus', { interface: name }),
+        ),
       ])
       if (serialResult.status === 'fulfilled')
         serialDevices.value = serialResult.value.serial_devices
       if (usbResult.status === 'fulfilled') usbDevices.value = usbResult.value.usb_devices
+      canbusInterfaces.value = canbusInterfaceNames.reduce<MachineCanbusInterface[]>(
+        (list, name, index) => {
+          const result = canbusResults[index]
+          if (result?.status !== 'fulfilled') return list
+          const config = systemInfo.value?.canbus?.[name]
+          list.push({
+            interface: name,
+            bitrate: config?.bitrate ?? null,
+            driver: config?.driver ?? null,
+            uuids: result.value.can_uuids,
+          })
+          return list
+        },
+        [],
+      )
     } finally {
       isLoadingPeripherals.value = false
     }
@@ -721,7 +763,6 @@ export const useMachineSystemStore = defineStore('machineSystem', () => {
         moonraker.rpcCall('machine.proc_stats'),
         moonraker.rpcCall('machine.update.status', {}),
         refreshMcuModules(),
-        refreshPeripherals(),
       ])
       if (systemResult.status === 'fulfilled') {
         const info = systemResult.value.system_info
@@ -746,6 +787,9 @@ export const useMachineSystemStore = defineStore('machineSystem', () => {
         }
       }
       if (updateResult.status === 'fulfilled') applyUpdateStatus(updateResult.value)
+      // Waits on `systemResult` above, since the CAN scan needs the interface
+      // names `system_info.canbus` just reported.
+      await refreshPeripherals()
       error.value = [systemResult, statsResult, updateResult].some(
         (result) => result.status === 'rejected',
       )
@@ -769,6 +813,7 @@ export const useMachineSystemStore = defineStore('machineSystem', () => {
     mcuModules.value = []
     serialDevices.value = []
     usbDevices.value = []
+    canbusInterfaces.value = []
     outputLines.value = []
     checkingUpdateId.value = null
     runningUpdateId.value = null
@@ -859,6 +904,7 @@ export const useMachineSystemStore = defineStore('machineSystem', () => {
     mcuModules,
     serialDevices,
     usbDevices,
+    canbusInterfaces,
     isLoadingPeripherals,
     services,
     isLoading,

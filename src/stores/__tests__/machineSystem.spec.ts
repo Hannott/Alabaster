@@ -207,8 +207,6 @@ describe('machine system store', () => {
         },
       } as never)
       .mockResolvedValueOnce({ objects: ['toolhead', 'mcu toolboard', 'mcu'] } as never)
-      .mockResolvedValueOnce({ serial_devices: [] } as never)
-      .mockResolvedValueOnce({ usb_devices: [] } as never)
       .mockResolvedValueOnce({
         eventtime: 1,
         status: {
@@ -216,6 +214,8 @@ describe('machine system store', () => {
           mcu: { mcu_constants: { MCU: 'STM32F446xx' } },
         },
       } as never)
+      .mockResolvedValueOnce({ serial_devices: [] } as never)
+      .mockResolvedValueOnce({ usb_devices: [] } as never)
 
     const machine = useMachineSystemStore()
     await machine.load()
@@ -496,6 +496,73 @@ describe('machine system store', () => {
     expect(machine.usbDevices).toEqual([])
   })
 
+  it('scans each CAN interface system_info already reported, for the unassigned UUIDs it carries', async () => {
+    const moonraker = useMoonrakerStore()
+    moonraker.connectionPhase = 'connected'
+    const machine = useMachineSystemStore()
+    machine.systemInfo = {
+      provider: 'systemd_cli',
+      distribution: { name: 'Debian', version: '13', codename: 'trixie' },
+      available_services: [],
+      service_state: {},
+      canbus: { can0: { tx_queue_len: 128, bitrate: 500000, driver: 'mcp251x' } },
+    }
+    vi.spyOn(moonraker, 'rpcCall').mockImplementation((method, params) => {
+      if (method === 'machine.peripherals.serial')
+        return Promise.resolve({ serial_devices: [] }) as never
+      if (method === 'machine.peripherals.usb') return Promise.resolve({ usb_devices: [] }) as never
+      if (method === 'machine.peripherals.canbus') {
+        expect(params).toEqual({ interface: 'can0' })
+        return Promise.resolve({
+          can_uuids: [{ uuid: '11AABBCCDD', application: 'Klipper' }],
+        }) as never
+      }
+      return Promise.reject(new Error('unexpected call'))
+    })
+
+    await machine.refreshPeripherals()
+
+    expect(machine.canbusInterfaces).toEqual([
+      {
+        interface: 'can0',
+        bitrate: 500000,
+        driver: 'mcp251x',
+        uuids: [{ uuid: '11AABBCCDD', application: 'Klipper' }],
+      },
+    ])
+  })
+
+  it('keeps an interface with nothing pending, rather than treating an empty scan as nothing to show', async () => {
+    // Most printers reach this state once the toolhead is already configured:
+    // the interface is real and answers, it simply has no unclaimed node left
+    // to report. Hiding the row here would read as "canbus isn't working"
+    // instead of "canbus is working and there's nothing new".
+    const moonraker = useMoonrakerStore()
+    moonraker.connectionPhase = 'connected'
+    const machine = useMachineSystemStore()
+    machine.systemInfo = {
+      provider: 'systemd_cli',
+      distribution: { name: 'Debian', version: '13', codename: 'trixie' },
+      available_services: [],
+      service_state: {},
+      canbus: { can0: { tx_queue_len: 128, bitrate: 1000000, driver: 'mcp251x' } },
+    }
+    vi.spyOn(moonraker, 'rpcCall').mockImplementation((method) => {
+      if (method === 'machine.peripherals.serial')
+        return Promise.resolve({ serial_devices: [] }) as never
+      if (method === 'machine.peripherals.usb') return Promise.resolve({ usb_devices: [] }) as never
+      if (method === 'machine.peripherals.canbus')
+        return Promise.resolve({ can_uuids: [] }) as never
+      return Promise.reject(new Error('unexpected call'))
+    })
+
+    await machine.refreshPeripherals()
+
+    expect(machine.canbusInterfaces).toEqual([
+      { interface: 'can0', bitrate: 1000000, driver: 'mcp251x', uuids: [] },
+    ])
+  })
+
   it('clears peripherals when the connection is retargeted', async () => {
     const realWebSocket = globalThis.WebSocket
     globalThis.WebSocket = class {
@@ -511,6 +578,13 @@ describe('machine system store', () => {
     moonraker.connectionPhase = 'connected'
     const machine = useMachineSystemStore()
     machine.start()
+    machine.systemInfo = {
+      provider: 'systemd_cli',
+      distribution: { name: 'Debian', version: '13', codename: 'trixie' },
+      available_services: [],
+      service_state: {},
+      canbus: { can0: { tx_queue_len: 128, bitrate: 500000, driver: 'mcp251x' } },
+    }
     vi.spyOn(moonraker, 'rpcCall').mockImplementation((method) => {
       if (method === 'machine.peripherals.serial') {
         return Promise.resolve({ serial_devices: [{ device_path: '/dev/ttyACM0' }] }) as never
@@ -518,16 +592,23 @@ describe('machine system store', () => {
       if (method === 'machine.peripherals.usb') {
         return Promise.resolve({ usb_devices: [{ vendor_id: '1d50' }] }) as never
       }
+      if (method === 'machine.peripherals.canbus') {
+        return Promise.resolve({
+          can_uuids: [{ uuid: '11AABBCCDD', application: 'Klipper' }],
+        }) as never
+      }
       return Promise.reject(new Error('unexpected call'))
     })
     await machine.refreshPeripherals()
     expect(machine.serialDevices).toHaveLength(1)
+    expect(machine.canbusInterfaces).toHaveLength(1)
 
     moonraker.connect('a-different-printer.local')
     globalThis.WebSocket = realWebSocket
 
     expect(machine.serialDevices).toEqual([])
     expect(machine.usbDevices).toEqual([])
+    expect(machine.canbusInterfaces).toEqual([])
     machine.stop()
   })
 

@@ -1660,6 +1660,10 @@
       "refresh": "Refresh",
       "serialTitle": "Serial devices",
       "usbTitle": "USB devices",
+      "canbusTitle": "CAN bus",
+      "canbusNone": "No unassigned nodes",
+      "canbusBitrateKbps": "{value} kbps",
+      "canbusBitrateMbps": "{value} Mbps",
       "serialType": {
         "hardware_uart": "Onboard UART",
         "usb": "USB",

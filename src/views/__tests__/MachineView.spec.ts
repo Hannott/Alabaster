@@ -426,6 +426,25 @@ describe('MachineView', () => {
       expect(wrapper.text()).toContain('Klipper 3d-Printer Firmware')
     })
 
+    it('lists an unassigned CAN UUID, and shows an interface with nothing pending as its own row', async () => {
+      const { machine, wrapper } = mountMachineView()
+      machine.canbusInterfaces = [
+        {
+          interface: 'can0',
+          bitrate: 500000,
+          driver: 'mcp251x',
+          uuids: [{ uuid: '11AABBCCDD', application: 'Klipper' }],
+        },
+        { interface: 'can1', bitrate: 1000000, driver: 'mcp251x', uuids: [] },
+      ]
+      await flushPromises()
+
+      expect(wrapper.text()).toContain('Peripherals')
+      expect(wrapper.text()).toContain('11AABBCCDD')
+      expect(wrapper.text()).toContain('can1')
+      expect(wrapper.text()).toContain('No unassigned nodes')
+    })
+
     it('asks the store to refresh peripherals from its own action', async () => {
       const { machine, wrapper } = mountMachineView()
       machine.serialDevices = [
