@@ -76,10 +76,6 @@ that does not have it, so nothing regresses for someone who declines.
 
 These are decisions, not gaps.
 
-**HTTPS.** A page on `https://` cannot open a `ws://` socket, so an HTTPS host
-would need TLS on every Moonraker. [The reasoning is
-here](/guide/installation#why-http-and-not-https).
-
 **Generic sensors.** Moonraker's `server.sensors.*` endpoints are unused. They
 matter only for printers configuring sensors beyond heaters, and will be added
 when someone needs them.

@@ -216,7 +216,5 @@ Saying so plainly is part of the pitch.
 - It is **early**. Releases are published and the one-line install works — it
   has been run end to end onto a 64-bit Raspberry Pi — but 32-bit Pi OS has not
   been exercised on real hardware yet.
-- There is **no HTTPS**, deliberately. [The reason is a real
-  constraint](/guide/installation#why-http-and-not-https), not an oversight.
 
 [Project status](/guide/status) is the full account.

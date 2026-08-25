@@ -178,16 +178,16 @@ Only needed to run unreleased code. Building on the Pi is deliberately
 unsupported — build on a workstation and copy the result. See
 [Development setup](/guide/development).
 
-## Why HTTP, and not HTTPS
+## Remote access with OctoEverywhere
 
-A page served over `https://` cannot open a `ws://` socket — browsers block it
-as mixed content and will not upgrade it. So serving Alabaster over HTTPS would
-mean putting TLS on every Moonraker too.
+[OctoEverywhere](https://octoeverywhere.com/klipper) can relay Alabaster from
+outside your network. Its own setup only looks for a frontend on a fixed list
+of ports and by name, and Alabaster's default port (`8081`) is neither, so
+point it at Alabaster explicitly:
 
-On a home network that costs more than it protects, so Alabaster is built for
-trusted networks and served over plain HTTP. That is a deliberate limit.
+- During interactive setup, choose **m** for manual setup and enter your
+  Alabaster port.
+- Or edit `octoeverywhere.conf` directly: set `frontend_port = 8081` (or
+  whichever port you installed Alabaster on) and restart the OctoEverywhere
+  service.
 
-If you do need it reachable from outside your network, terminate TLS in front of
-both Alabaster and every Moonraker together, so the page and its sockets share a
-scheme. Do not put HTTPS in front of Alabaster alone — every printer will appear
-unreachable, with nothing in the interface able to explain why.

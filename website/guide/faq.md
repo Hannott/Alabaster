@@ -36,15 +36,6 @@ Two different failures, and Alabaster tells them apart:
 [Connecting to Moonraker](/guide/connecting#letting-your-browser-reach-moonraker)
 has the details.
 
-## Why does putting it behind HTTPS break everything?
-
-Because a page served over `https://` cannot open a `ws://` socket. The browser
-blocks it as mixed content, so every printer appears unreachable.
-
-If you need TLS, put it in front of Alabaster **and every Moonraker** together so
-the page and its sockets share a scheme. [The full
-reasoning](/guide/installation#why-http-and-not-https).
-
 ## A page I expect is missing from the navigation
 
 That is deliberate. Pages that need something your Moonraker does not have are

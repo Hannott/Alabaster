@@ -44,10 +44,9 @@ Moonraker component you do not have installed do not appear at all.
 
 | You need               | Notes                                                                                                          |
 | ---------------------- | -------------------------------------------------------------------------------------------------------------- |
-| Klipper with Moonraker | Any current release.                                                                                           |
-| A modern browser       | Chrome, Edge, Firefox, or Safari, on desktop or mobile.                                                        |
-| WebGL 2                | Only for the [G-code viewer](/interface/gcode-viewer). Everything else works without it.                       |
-| A trusted network      | Alabaster is served over plain HTTP by design. See [Installation](/guide/installation#why-http-and-not-https). |
+| Klipper with Moonraker | Any current release.                                                       |
+| A modern browser       | Chrome, Edge, Firefox, or Safari, on desktop or mobile.                     |
+| WebGL 2                | Only for the [G-code viewer](/interface/gcode-viewer). Everything else works without it. |
 
 ## Where to go next
 
