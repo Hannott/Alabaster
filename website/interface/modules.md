@@ -396,6 +396,18 @@ This card reads whatever `moonraker.conf` configures instead — a different
 source, and a different card.
 :::
 
+::: warning Nothing in printer.cfg triggers this card
+Klipper itself has no generic `[sensor]` section, so nothing added to
+`printer.cfg` populates this one — that is what Temperatures already covers.
+A sensor here comes entirely from Moonraker's own `moonraker.conf`, and today
+Moonraker's `sensor` component only reads values over **MQTT**: an `[mqtt]`
+section configured first, then a `[sensor <name>]` block with `type: mqtt`
+naming the topic to subscribe to and how to parse its payload. Moonraker's own
+[sensor configuration reference](https://github.com/Arksine/moonraker/blob/master/docs/configuration.md#sensor)
+has the full syntax, with worked examples for a Shelly power meter and a
+Tasmota smart plug.
+:::
+
 ## Bed mesh
 
 The measured bed, as a map you can actually read.
