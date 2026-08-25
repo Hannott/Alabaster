@@ -194,8 +194,9 @@ two metres away and a phone held at arm's length are not the same problem.
   picked back up without answering it.
 - **Input-shaper graphs** read straight out of the config folder, so your tuning
   results are in the interface instead of a folder you have to remember.
-- **Peripherals.** The serial and USB devices actually attached to the host, so
-  finding the right `/dev/serial/by-id` path is a page rather than an SSH session.
+- **Peripherals.** The serial, USB, and CAN devices actually attached to the
+  host, so finding the right `/dev/serial/by-id` path or CAN UUID is a page
+  rather than an SSH session.
 - **Save new config**, summarised. Klipper holding a probe offset, a heater
   model, and a mesh tells you which, and waits for the print to finish rather
   than offering to end it.

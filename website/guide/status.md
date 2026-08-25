@@ -86,8 +86,6 @@ when someone needs them.
   you turn sync on for a printer. The list of printers itself stays in the
   browser by design — it is the answer to which databases can be reached, so it
   cannot live in one of them.
-- **No CAN bus peripheral listing.** Serial and USB devices are listed; CAN
-  needs an interface name up front and was left for whoever actually needs it.
 
 ## Following along
 

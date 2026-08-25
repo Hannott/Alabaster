@@ -26,12 +26,14 @@ last-known numbers as though they were current.
 
 ## Peripherals
 
-The serial and USB devices actually attached to the host.
+The serial, USB, and CAN devices actually attached to the host.
 
 This exists for one specific job: finding the `/dev/serial/by-id/...` path for an
-`[mcu]` or `[probe]` section without an SSH session. The USB list also confirms
+`[mcu]` or `[probe]` section, or the UUID a CAN-connected toolhead's
+`canbus_uuid:` line wants, without an SSH session. The USB list also confirms
 that a board is enumerating at all, which is the answer when it has not been
-given a tty node yet.
+given a tty node yet. A CAN interface is listed even with nothing unclaimed on
+it — that is what confirms the adapter itself is working, not just quiet.
 
 There is no notification for a device being plugged in or unplugged, so this is
 read when the page loads and again when you choose **Refresh**.
