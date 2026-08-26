@@ -29,12 +29,20 @@ The header is on every page and holds what you might need from any of them.
 | ----------------- | ------------------------------------------------------------------------------------------------------------------ |
 | Printer           | Switches between saved printers, and opens printer management.                                                     |
 | Connection status | The one global status indicator. Ready, printing, paused, needs attention, or not connected.                       |
-| Notifications     | Recent printer activity, and Moonraker's own announcements.                                                        |
+| Notifications     | Configuration problems, recent printer activity, and Moonraker's own announcements.                                |
 | Power and service | Restart Klipper, firmware restart, restart Moonraker, reboot or shut down the host, and any device power switches. |
 | Emergency stop    | Shuts down heaters and motion immediately. Asks first, unless you have turned that off.                            |
 
 **Save new config** appears here when Klipper is holding changes, summarising what
 they are.
+
+A component Moonraker could not load at startup — a sensor referencing an
+`[mqtt]` section nobody configured, for example — shows at the top of
+Notifications rather than staying silent, ahead of announcements and recent
+activity. The bell fills in once there is anything to see and animates until
+you open the menu. Since Moonraker has no way to acknowledge one of these
+itself, each one can be silenced until the next reboot or for good; fixing the
+underlying config still needs a Moonraker restart either way.
 
 ## Navigation
 
