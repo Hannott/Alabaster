@@ -49,18 +49,34 @@ function onDocumentKeydown(event: KeyboardEvent): void {
   if (event.key === 'Escape') close()
 }
 
+/*
+ * The click listener is capture-phase, not bubble. This watcher flushes at the
+ * microtask checkpoint *between* listeners of the very click that opened the
+ * menu — a checkpoint only real, browser-dispatched events have, which is why
+ * no scripted click (tests included) reproduces what it guards against. By
+ * that point the same flush may also have re-rendered the trigger's slot:
+ * opening the notifications bell marks its warnings read, which swaps the
+ * bell glyph and detaches the SVG node the click landed on, so a
+ * bubble-phase listener would run for the opening click itself, find
+ * `root.contains(event.target)` false, and close the menu in the same
+ * dispatch that opened it. In the capture phase the document's stop is
+ * already behind the event before any handler can open a menu, so the
+ * mid-dispatch attach stays inert for the current click — and later clicks
+ * are heard before an inner handler can detach their target (snoozing a
+ * warning unmounts its row mid-dispatch the same way).
+ */
 watch(open, (isOpen) => {
   if (isOpen) {
-    document.addEventListener('click', onDocumentClick)
+    document.addEventListener('click', onDocumentClick, true)
     document.addEventListener('keydown', onDocumentKeydown)
   } else {
-    document.removeEventListener('click', onDocumentClick)
+    document.removeEventListener('click', onDocumentClick, true)
     document.removeEventListener('keydown', onDocumentKeydown)
   }
 })
 
 onBeforeUnmount(() => {
-  document.removeEventListener('click', onDocumentClick)
+  document.removeEventListener('click', onDocumentClick, true)
   document.removeEventListener('keydown', onDocumentKeydown)
 })
 </script>
