@@ -13,13 +13,11 @@ import MovementZAxis from '@/components/dashboard/modules/MovementZAxis.vue'
 import { readMovementCardSetting } from '@/components/dashboard/modules/movementCardSettings'
 import {
   descending,
-  movementStepScales,
-  offsetStepSets,
   offsetValue,
-  planarStepModes,
-  planarStepSets,
+  readOffsetSteps,
+  readPlanarSteps,
+  readVerticalSteps,
   signedOffsetStep,
-  verticalStepSets,
   zOffsetUnits,
   type ZOffsetUnit,
 } from '@/components/dashboard/modules/movementSteps'
@@ -136,9 +134,9 @@ function scaleFor<T extends string>(key: string, fallback: T, valid: readonly T[
   return (valid as readonly string[]).includes(stored) ? (stored as T) : fallback
 }
 
-const planarScale = computed(() => scaleFor('planarStepScale', 'coarse', planarStepModes))
-const verticalScale = computed(() => scaleFor('verticalStepScale', 'fine', movementStepScales))
-const offsetScale = computed(() => scaleFor('offsetStepScale', 'fine', movementStepScales))
+const planarSteps = computed(() => readPlanarSteps(config.value))
+const verticalSteps = computed(() => readVerticalSteps(config.value))
+const offsetSteps = computed(() => readOffsetSteps(config.value))
 const offsetUnit = computed<ZOffsetUnit>(() => scaleFor('zOffsetUnit', 'micrometre', zOffsetUnits))
 /**
  * The steps row is sized by its widest label rather than by a column count, so
@@ -204,6 +202,20 @@ const showBedPlan = computed(() => readMovementCardSetting(config.value, 'showBe
 const showBedPlanWhilePrinting = computed(() =>
   readMovementCardSetting(config.value, 'showBedPlanWhilePrinting'),
 )
+const showHomeXY = computed(() => readMovementCardSetting(config.value, 'showHomeXY'))
+const showBedScrewsCheck = computed(() =>
+  readMovementCardSetting(config.value, 'showBedScrewsCheck'),
+)
+/**
+ * The shortcut beside home-all is a second way to reach
+ * `SCREWS_TILT_CALCULATE`, not a promise that this machine has it — a
+ * printer with only `quad_gantry_level` gets nothing here even with the
+ * setting on, same as the leveling row itself only ever lists what
+ * `printerConfig` reports.
+ */
+const hasScrewsTiltMethod = computed(() =>
+  printerConfig.levelingMethods.includes('screwsTiltAdjust'),
+)
 const skipMotorsOffWarning = computed(() =>
   configBoolean(config.value, 'skipMotorsOffWarning', false),
 )
@@ -214,7 +226,6 @@ const skipLevelingWarning = computed(() =>
 // sends — see `movementCardSettings.ts`.
 const swapZDirection = computed(() => readMovementCardSetting(config.value, 'swapZDirection'))
 
-const offsetSteps = computed(() => offsetStepSets[offsetScale.value])
 const homedAxes = computed(() => printer.motion.homedAxes.toUpperCase())
 const isFullyHomed = computed(() => axes.every((axis) => homedAxes.value.includes(axis)))
 const zOffset = computed(() => printer.motion.homingOrigin[2] ?? 0)
@@ -281,7 +292,7 @@ const canMoveToTarget = computed(
 
 /** One arrow press moves by the same distance a jog button would. */
 const planKeyboardStep = computed(() => {
-  const steps = planarStepSets[planarScale.value]
+  const steps = planarSteps.value
   return steps[Math.floor(steps.length / 2)] ?? 1
 })
 
@@ -372,7 +383,7 @@ function position(axis: Axis, value: number | null): string {
 }
 
 function stepsFor(axis: Axis): readonly number[] {
-  return axis === 'Z' ? verticalStepSets[verticalScale.value] : planarStepSets[planarScale.value]
+  return axis === 'Z' ? verticalSteps.value : planarSteps.value
 }
 
 /**
@@ -553,9 +564,19 @@ async function applyOffset(): Promise<void> {
  */
 const hasMotionRow = computed(() => hasBedPlan.value || !printer.isPrinting)
 const hasParkRow = computed(() => showParking.value && parkPositions.value.length > 0)
-const hasLevelingRow = computed(
-  () => printerConfig.levelingMethods.length > 0 && !hasJobLoaded.value,
+/**
+ * The full-width leveling row's own methods, minus whichever one the
+ * machine-actions shortcut above already offers — a reader who turned that
+ * shortcut on does not need the same action twice, once beside home-all and
+ * once again down here. Off, this list is every method `printerConfig`
+ * reports, exactly as before the shortcut existed.
+ */
+const levelingRowMethods = computed(() =>
+  showBedScrewsCheck.value && hasScrewsTiltMethod.value
+    ? printerConfig.levelingMethods.filter((method) => method !== 'screwsTiltAdjust')
+    : printerConfig.levelingMethods,
 )
+const hasLevelingRow = computed(() => levelingRowMethods.value.length > 0 && !hasJobLoaded.value)
 
 const unappliedLeveling = computed(() => {
   if (hasJobLoaded.value) return []
@@ -848,17 +869,19 @@ function screwInstruction(screw: (typeof screwResults.value)[number]): string {
               role="group"
               :aria-label="axisLabel(axis)"
             >
-              <button
-                v-for="step in descending(stepsFor(axis))"
-                :key="`${axis}-minus-${step}`"
-                type="button"
-                class="button button--xs button--value jog-button"
-                :disabled="printer.pendingCommands.move || homing || !isHomed(axis)"
-                :aria-label="t('dashboard.movement.jog', { axis, distance: signedStep(-step) })"
-                @click="printer.moveAxis(axis, -step)"
-              >
-                {{ signedStep(-step) }}
-              </button>
+              <div class="jog-steps">
+                <button
+                  v-for="step in descending(stepsFor(axis))"
+                  :key="`${axis}-minus-${step}`"
+                  type="button"
+                  class="button button--xs button--value jog-button"
+                  :disabled="printer.pendingCommands.move || homing || !isHomed(axis)"
+                  :aria-label="t('dashboard.movement.jog', { axis, distance: signedStep(-step) })"
+                  @click="printer.moveAxis(axis, -step)"
+                >
+                  {{ signedStep(-step) }}
+                </button>
+              </div>
 
               <button
                 type="button"
@@ -869,22 +892,24 @@ function screwInstruction(screw: (typeof screwResults.value)[number]): string {
                 :title="pivotTitle(axis)"
                 @click="printer.homeAxes(axis)"
               >
-                <AppIcon name="home" class="size-4" aria-hidden="true" />
+                <AppIcon name="home" class="size-4 shrink-0" aria-hidden="true" />
                 <span>{{ axis }}</span>
                 <span v-if="!isHomed(axis)" class="jog-pivot__dot" aria-hidden="true"></span>
               </button>
 
-              <button
-                v-for="step in stepsFor(axis)"
-                :key="`${axis}-plus-${step}`"
-                type="button"
-                class="button button--xs button--value jog-button"
-                :disabled="printer.pendingCommands.move || homing || !isHomed(axis)"
-                :aria-label="t('dashboard.movement.jog', { axis, distance: signedStep(step) })"
-                @click="printer.moveAxis(axis, step)"
-              >
-                {{ signedStep(step) }}
-              </button>
+              <div class="jog-steps">
+                <button
+                  v-for="step in stepsFor(axis)"
+                  :key="`${axis}-plus-${step}`"
+                  type="button"
+                  class="button button--xs button--value jog-button"
+                  :disabled="printer.pendingCommands.move || homing || !isHomed(axis)"
+                  :aria-label="t('dashboard.movement.jog', { axis, distance: signedStep(step) })"
+                  @click="printer.moveAxis(axis, step)"
+                >
+                  {{ signedStep(step) }}
+                </button>
+              </div>
             </div>
 
             <!--
@@ -909,6 +934,31 @@ function screwInstruction(screw: (typeof screwResults.value)[number]): string {
               role="group"
               :aria-label="t('dashboard.movement.machineActions')"
             >
+              <!--
+              A shortcut to `SCREWS_TILT_CALCULATE`, beside home-all rather
+              than only in the full-width leveling row below — for a check run
+              often enough between prints that the row below is an extra
+              scroll every time. It replaces that row's own copy of the same
+              button rather than duplicating it — see `levelingRowMethods` —
+              and shares this guard and disabled condition exactly, since it
+              is the same action reached from a second place, not a second
+              action.
+            -->
+              <button
+                v-if="showBedScrewsCheck && hasScrewsTiltMethod"
+                type="button"
+                class="button button--xs jog-leveling-shortcut"
+                :class="levelingGuard.variant.value"
+                v-bind="levelingGuard.bind.value"
+                :data-pending="printer.pendingCommands.leveling ? 'true' : undefined"
+                :aria-busy="printer.pendingCommands.leveling || undefined"
+                :disabled="printer.pendingCommands.leveling || homing || !isFullyHomed"
+                :aria-label="t('dashboard.movement.leveling.screwsTiltAdjust')"
+                :title="t('dashboard.movement.leveling.screwsTiltAdjust')"
+                @click="requestLeveling('screwsTiltAdjust')"
+              >
+                {{ t('dashboard.movement.screwsCheckShort') }}
+              </button>
               <button
                 type="button"
                 class="jog-pivot jog-pivot--primary"
@@ -916,22 +966,43 @@ function screwInstruction(screw: (typeof screwResults.value)[number]): string {
                 :disabled="printer.pendingCommands.home"
                 @click="printer.homeAxes()"
               >
-                <AppIcon name="home" class="size-4" aria-hidden="true" />
+                <AppIcon name="home" class="size-4 shrink-0" aria-hidden="true" />
                 <span>{{ t('dashboard.movement.homeAllShort') }}</span>
               </button>
-              <button
-                type="button"
-                class="button button--xs jog-motors-off"
-                :class="motorsOffGuard.variant.value"
-                v-bind="motorsOffGuard.bind.value"
-                :aria-label="t('dashboard.movement.motorsOff')"
-                :title="t('dashboard.movement.motorsOff')"
-                :disabled="printer.pendingCommands.motorsOff"
-                @click="requestMotorsOff"
-              >
-                <AppIcon name="bolt" class="size-4" aria-hidden="true" />
-                <span>{{ t('dashboard.movement.motorsOffShort') }}</span>
-              </button>
+              <div class="jog-actions">
+                <!--
+                `G28 X Y` beside `G28` itself: homing the gantry without
+                re-homing Z matters wherever Z homing is the slow or disruptive
+                half — a probe deploy/stow, a bed mesh only a Z re-home
+                perturbs. Off by default, like `showBedPlanWhilePrinting`: a
+                control nobody asked for outright until it existed does not get
+                to change what an existing card already shows.
+              -->
+                <button
+                  v-if="showHomeXY"
+                  type="button"
+                  class="jog-pivot"
+                  :aria-label="t('dashboard.movement.homeXY')"
+                  :disabled="printer.pendingCommands.home"
+                  @click="printer.homeAxes('XY')"
+                >
+                  <AppIcon name="home" class="size-4 shrink-0" aria-hidden="true" />
+                  <span>{{ t('dashboard.movement.homeXYShort') }}</span>
+                </button>
+                <button
+                  type="button"
+                  class="button button--xs jog-motors-off"
+                  :class="motorsOffGuard.variant.value"
+                  v-bind="motorsOffGuard.bind.value"
+                  :aria-label="t('dashboard.movement.motorsOff')"
+                  :title="t('dashboard.movement.motorsOff')"
+                  :disabled="printer.pendingCommands.motorsOff"
+                  @click="requestMotorsOff"
+                >
+                  <AppIcon name="bolt" class="size-4 shrink-0" aria-hidden="true" />
+                  <span>{{ t('dashboard.movement.motorsOffShort') }}</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -971,7 +1042,7 @@ function screwInstruction(screw: (typeof screwResults.value)[number]): string {
 
         <div v-if="hasLevelingRow" class="movement-actions__row">
           <button
-            v-for="method in printerConfig.levelingMethods"
+            v-for="method in levelingRowMethods"
             :key="`leveling-${method}`"
             type="button"
             class="button button--sm"

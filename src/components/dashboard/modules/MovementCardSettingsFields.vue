@@ -41,6 +41,10 @@ const showBedPlanWhilePrinting = computed(() =>
   readMovementCardSetting(config.value, 'showBedPlanWhilePrinting'),
 )
 const showParking = computed(() => readMovementCardSetting(config.value, 'showParking'))
+const showHomeXY = computed(() => readMovementCardSetting(config.value, 'showHomeXY'))
+const showBedScrewsCheck = computed(() =>
+  readMovementCardSetting(config.value, 'showBedScrewsCheck'),
+)
 const showZOffset = computed(() => readMovementCardSetting(config.value, 'showZOffset'))
 const showSpeedFactor = computed(() => readMovementCardSetting(config.value, 'showSpeedFactor'))
 const swapZDirection = computed(() => readMovementCardSetting(config.value, 'swapZDirection'))
@@ -101,6 +105,40 @@ const swapZDirection = computed(() => readMovementCardSetting(config.value, 'swa
       :label="t('dashboard.movement.showParking')"
       :shown="quick.isQuick('showParking')"
       @toggle="quick.setQuick('showParking', $event)"
+    />
+  </div>
+
+  <div v-if="quick.visible('showHomeXY')" class="settings-row">
+    <label class="check-row">
+      <input
+        type="checkbox"
+        :checked="showHomeXY"
+        @change="updateConfig({ showHomeXY: !showHomeXY })"
+      />
+      <span>{{ t('dashboard.movement.showHomeXY') }}</span>
+    </label>
+    <QuickSettingToggle
+      v-if="mode === 'pane'"
+      :label="t('dashboard.movement.showHomeXY')"
+      :shown="quick.isQuick('showHomeXY')"
+      @toggle="quick.setQuick('showHomeXY', $event)"
+    />
+  </div>
+
+  <div v-if="quick.visible('showBedScrewsCheck')" class="settings-row">
+    <label class="check-row">
+      <input
+        type="checkbox"
+        :checked="showBedScrewsCheck"
+        @change="updateConfig({ showBedScrewsCheck: !showBedScrewsCheck })"
+      />
+      <span>{{ t('dashboard.movement.showBedScrewsCheck') }}</span>
+    </label>
+    <QuickSettingToggle
+      v-if="mode === 'pane'"
+      :label="t('dashboard.movement.showBedScrewsCheck')"
+      :shown="quick.isQuick('showBedScrewsCheck')"
+      @toggle="quick.setQuick('showBedScrewsCheck', $event)"
     />
   </div>
 

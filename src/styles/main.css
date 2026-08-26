@@ -2971,6 +2971,50 @@ input[type='number']::-webkit-inner-spin-button {
   }
 }
 
+/*
+ * One of Movement's three step-value lists — see `MovementStepSettingsFields`
+ * for why these carry no pin and render only in the settings pane. The label
+ * sits on its own line rather than beside the editor the way `.settings-row`
+ * puts a label beside a compact picker: an add/remove list has no fixed
+ * width to share a line with a label the way a two-button segmented picker
+ * did, and wrapping the editor under its own label reads better than the
+ * label competing with however many chips the user has added.
+ */
+.step-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-block-end: 0.75rem;
+}
+
+/*
+ * A wrapping row of chips rather than one value per line: three to six short
+ * numbers read as a set, the same reason the jog row itself lays its steps
+ * out horizontally rather than stacking them. `flex-wrap` is deliberate here,
+ * unlike `.jog-steps` on the card — this editor answers to the settings
+ * pane's own width, not to a container query tuned against the jog row's
+ * pixel-exact cell sizing, and a pane is typically wide enough that wrapping
+ * past three or four values is the exception rather than the every-time case
+ * `.jog-steps` was built for.
+ */
+.step-editor {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.step-editor__item {
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+}
+
+/* Sized to hold a handful of digits, not stretched to the editor's own width. */
+.step-editor__item .field {
+  inline-size: 4.5rem;
+}
+
 /* A preset is a name and the two temperatures it sets, so it edits as one row
    rather than as a labelled form. */
 .preset-row {
@@ -3175,16 +3219,6 @@ input[type='number']::-webkit-inner-spin-button {
    */
   .movement-layout .bed-plan__plot {
     max-block-size: 12rem;
-  }
-
-  /*
-   * Capped and centred on the same 26rem `.movement-plan` uses, so the two
-   * line up as one control — only here, where there is a plan to line up
-   * against. `.jog-matrix`'s own rule explains why it is otherwise full width.
-   */
-  .movement-layout--paired .jog-matrix {
-    inline-size: min(100%, 26rem);
-    justify-self: center;
   }
 }
 
@@ -3529,45 +3563,134 @@ input.z-axis__slider {
 }
 
 /*
- * Seven cells: three steps, the axis pivot, three steps. Direct step buttons
- * cost less width than a step picker plus two stretched buttons did, and one
- * press instead of two.
+ * Three cells now, not seven: the minus steps, the axis pivot, the plus
+ * steps — each side a single grid item holding however many step buttons the
+ * user has configured, per `movementSteps.ts`. It used to be seven fixed
+ * columns, three per side, because the step count itself used to be fixed —
+ * exactly `fine` or `coarse`, always three values. Custom step lists broke
+ * that assumption: a `repeat(3, ...)` track has no way to become `repeat(5,
+ * ...)` when the user adds two more values, and a hard cap at three would
+ * have meant silently discarding whatever the user added past it. `.jog-steps`
+ * is the fix — a flex row inside each side's single grid cell, so the cell's
+ * own width comes from the grid same as before, and however many buttons
+ * live inside it divide that width evenly and stay on one line rather than
+ * wrapping or overflowing.
  *
- * The gap and the button padding below are sized together, against the widest
- * label the module can produce in the widest font `--font-mono` can resolve
- * to. Both matter. A dashboard card's body is 271px, so a cell is 36.7px and
- * its content box 29.9px; `+100` — the *default* X and Y scale — measures
- * 26.4px in Consolas but 28.8px in Liberation Mono, which is what a Raspberry
- * Pi's own browser reaches for. Sizing this against the font the developer
- * happens to have is how it shipped overflowing: at 0.35rem inline padding the
- * content box was 22.8px and every four-character label ran past its border
- * into the gap, on every platform — 0.15rem is what actually clears it.
- *
- * The home column is a fixed width rather than a `1fr` share like the six step
- * columns: the pivot holds only an icon and a single letter (`homeAllShort` in
- * the fourth row runs to "Alle" in Norwegian), which never needs a full
- * seventh of the row the way "+100" does — giving it an equal share only wasted
- * width the step columns could stretch into instead. A fixed width also keeps
+ * The home column is a fixed width rather than a `1fr` share: the pivot holds
+ * only an icon and a single letter (`homeAllShort` runs to "Alle" in
+ * Norwegian, and the machine row's own home-xy pivot to "XY"), which never
+ * needs as much room as a side full of step buttons. A fixed width also keeps
  * the four `.jog-matrix` grids (one per row, so each sizes its own tracks)
  * aligned with each other: an `auto` track would size to whatever that row's
  * own pivot label happens to be, and "Alle" is wider than a bare axis letter,
  * so the home column would drift out of line between the per-axis rows and
  * the machine-actions row beneath them.
  *
- * No width cap here, unlike the plan and its Z slider beside it: without a
- * bed plan to line up against (`hasBedPlan` false), a cap left the card's
- * full width unused on either side of a centred, narrower grid, while the
- * axis boxes above it — the same card, the same row of controls — already
- * filled the card edge to edge. The paired case, where the jog rows share a
- * wide card with the plan, still wants a cap so the two controls read as one;
- * that cap is applied only there, in the `--paired` container query below.
+ * No width cap, in the paired case either: a cap here once matched the jog
+ * matrix to the plan's own footprint so the two read as one control, but
+ * a docked settings card can dwarf the 860px card that cap was measured
+ * against — several times the width the plan and its height-limited plot
+ * ever grow into — and centring a capped grid inside a column that wide
+ * left most of the card's own width doing nothing on either side of it,
+ * exactly the defect this rule prevents on the unpaired side. The jog rows
+ * fill their column at every width now, on both sides of `--paired`, and
+ * the plan is left to grow only as far as its own height cap already lets it.
+ * `.jog-steps`' own buttons grow with it, wide as that gets — accepted
+ * deliberately, on the reasoning that idle width the controls can use beats
+ * idle width nothing uses; see `dashboard-module-plan.md`.
  */
 .jog-matrix {
   display: grid;
   min-width: 0;
   inline-size: 100%;
-  grid-template-columns: repeat(3, minmax(0, 1fr)) 3.25rem repeat(3, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr) 3.25rem minmax(0, 1fr);
   gap: 0.15rem;
+}
+
+/*
+ * The gap and the button padding below are sized together, against the widest
+ * label the module can produce in the widest font `--font-mono` can resolve
+ * to. Both matter. A dashboard card's body is 271px, so three buttons in a
+ * ~90px side gives each roughly 29.9px content box; `+100` — the default X
+ * and Y step — measures 26.4px in Consolas but 28.8px in Liberation Mono,
+ * which is what a Raspberry Pi's own browser reaches for. Sizing this against
+ * the font the developer happens to have is how the old fixed-column version
+ * of this row shipped overflowing: at 0.35rem inline padding the content box
+ * was 22.8px and every four-character label ran past its border into the
+ * gap, on every platform — 0.15rem is what actually clears it, and the same
+ * number the row's own gap and `.jog-button`'s padding both still use.
+ *
+ * `flex: 1 1 0` divides the side evenly across however many buttons it holds
+ * rather than sizing each to its own label — three narrow steps and three
+ * wide ones would otherwise draw a row with no shared right edge, which reads
+ * as unrelated buttons rather than one ladder. `min-width: 0` is what lets a
+ * button actually shrink below its label's natural width once five or six
+ * custom values share a side that only ever measured three; a step label is
+ * one unbroken token (`+100`, never `+ 100`) so there is no space for it to
+ * wrap at regardless — past this cell's floor it clips instead, which a step
+ * value long enough to need it (a five-digit custom entry) already risks
+ * before this component does anything about it.
+ */
+.jog-steps {
+  display: flex;
+  min-width: 0;
+  gap: 0.15rem;
+}
+
+.jog-steps > .jog-button {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+/*
+ * The machine-actions row's own two side cells: `showBedScrewsCheck`'s own
+ * shortcut, optionally, in the first — there is no third pivot to balance
+ * there, only the home-all pivot's own alignment column to keep in step with
+ * the per-axis rows above it, so the cell is free for a second shortcut the
+ * same way home-xy took the second cell's spare room — and home-xy plus
+ * motors-off in the second, in that order, so "between home-all and
+ * motors-off" is simply document order inside one flex row. Unlike
+ * `.jog-steps`, these do not divide evenly — every button here is a
+ * text-labelled action of its own natural width, not a ladder of magnitudes
+ * read against each other, so each keeps its own content width and the row
+ * packs them from the start instead of stretching either to match.
+ *
+ * `grid-column: 3` is explicit for the same reason `.jog-pivot--primary`
+ * above states its own column: whether or not the first cell's shortcut is
+ * present, grid auto-placement has to land this specific cell in the third
+ * track, after the pivot, rather than wherever it falls in document order.
+ */
+.jog-actions {
+  grid-column: 3;
+  display: flex;
+  min-width: 0;
+  gap: 0.15rem;
+}
+
+/*
+ * The bed-screws shortcut's own cell, column 1, would otherwise stretch to
+ * fill it the way every grid item does by default — a lone button spanning
+ * the whole minus-side width, most of it dead space around a label nowhere
+ * near that wide. `justify-self: end` keeps it its own content width and
+ * packs it against the cell's trailing edge — against home-all, the same
+ * side every other machine-action button sits snug against — rather than
+ * stranding it at the row's far-left edge with a gap of dead space on the
+ * side that matters, the one beside the button it's grouped with.
+ *
+ * `white-space: nowrap` is deliberate here, unlike the plain step buttons:
+ * "Start bed level" is long enough that the default grid stretch left it
+ * genuinely wrapping to two lines at the narrowest dashboard column, and a
+ * taller wrapped button stretched every sibling in the row to match through
+ * ordinary grid cross-axis alignment — home-xy and motors-off both gained
+ * twelve pixels of dead vertical padding for a label neither of them has.
+ * `nowrap` trades that for the reverse, smaller defect: at that one width the
+ * label can overflow its own cell by a handful of pixels rather than wrap,
+ * and every wider card — a docked settings card among them — has room for it
+ * on one line with nothing to trade at all.
+ */
+.jog-leveling-shortcut {
+  justify-self: end;
+  white-space: nowrap;
 }
 
 /*
@@ -3601,14 +3724,16 @@ input.z-axis__slider {
 }
 
 /*
- * Home-all sits in the fourth row of the jog table, in the same column as the
- * three per-axis pivots — it is what they generalise, so it takes their shape
- * and keeps the `primary` emphasis outlier 2 gives it. The two controls beside
- * it are placed by grid column rather than by order, so an empty cell is
- * genuinely empty and nothing has to be spanned to reach the right one.
+ * Home-all sits in the middle column of the machine-actions row, the same
+ * column the three per-axis pivots occupy in their own rows — it is what they
+ * generalise, so it takes their shape and keeps the `primary` emphasis
+ * outlier 2 gives it. Explicit rather than left to document order: the row
+ * has no minus-side content of its own (see `.jog-actions` above it), so
+ * auto-placement would put this pivot in column 1, one column short of where
+ * the per-axis pivots stand.
  */
 .jog-pivot--primary {
-  grid-column: 4;
+  grid-column: 2;
   border-color: transparent;
   background: var(--action-primary);
   color: var(--action-on-primary);
@@ -3617,21 +3742,12 @@ input.z-axis__slider {
 /*
  * Motors-off reads by its label now, not by an enlarged glyph standing alone —
  * see outlier 8 in button-system.md — so it is an ordinary `xs` icon-and-label
- * button like any other. An icon plus "Off" needs more room than a bare
- * two-character step label, which a single column of this grid never has to
- * give at a 271px card: three of the icon's own pixels were lost to flex
- * shrink before this spanned, letting the icon go squint rather than sit at
- * its real size. Columns 5 through 7 are otherwise empty in this row — the
- * per-axis rows have step buttons there, but the machine-actions row only
- * ever placed home-all and motors-off — so the span costs nothing beside it.
- * `justify-self: start` keeps the button its own content width inside that
- * wider cell rather than stretching it to fill three columns' worth of grid.
+ * button like any other, needing more room than a bare two-character step
+ * label. `.jog-actions` already gives it that room without a grid rule of its
+ * own here: unlike `.jog-motors-off`'s old fixed span across the three
+ * step-button columns this used to share a row with, it now sits in a plain
+ * flex row that only ever holds it and, optionally, home-xy before it.
  */
-.button--xs.jog-motors-off {
-  grid-column: 5 / -1;
-  justify-self: start;
-}
-
 .jog-pivot--homed {
   border-color: color-mix(in srgb, var(--action-primary) 55%, transparent);
   background: color-mix(in srgb, var(--action-primary) 12%, var(--surface-soft));

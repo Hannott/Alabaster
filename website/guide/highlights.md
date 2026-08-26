@@ -215,8 +215,6 @@ two metres away and a phone held at arm's length are not the same problem.
 
 ## And a few things it does not do
 
-Saying so plainly is part of the pitch.
-
 - It is **early**. Releases are published and the one-line install works — it
   has been run end to end onto a 64-bit Raspberry Pi — but 32-bit Pi OS has not
   been exercised on real hardware yet.

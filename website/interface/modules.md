@@ -192,8 +192,11 @@ included, since the heat-up cycle would end it.
 
 Position, homing, and everything that moves the toolhead.
 
-- **Per-axis homing**, plus home all, with unhomed axes marked.
-- **Jogging** at step sizes you set, in millimetres.
+- **Per-axis homing**, plus home all, with unhomed axes marked. A combined
+  X and Y home button can be added beside it, for machines where re-homing Z
+  is the slow or disruptive half.
+- **Jogging** at step sizes you choose — add, edit, or remove values freely,
+  in millimetres.
 - **Motors off**, which asks first — the printer forgets where it is.
 - **Park positions** — centre and front.
 - **Speed factor**, with a reset to 100%.
@@ -204,7 +207,9 @@ Jogging keeps working while a print is **paused** — reaching the nozzle is oft
 why you paused it. Homing, motors off and bed levelling do not: each of those
 ends a paused print rather than interrupting it.
 
-![The Movement settings pane beside the card, with step sizes, Z offset steps, and confirmations](/images/modules/movement-settings-popout.png)
+![Home all, home X/Y, a bed level shortcut, and motors off sitting together under the jog buttons](/images/modules/movement-home-xy.png)
+
+![The Movement settings pane, with editable step-value lists, Z offset steps, and confirmations](/images/modules/movement-settings-popout.png)
 
 ### The bed plan
 
@@ -250,6 +255,11 @@ Whichever your printer supports, run from the card:
 
 Screw results are shown as a table of turns and minutes, clockwise or
 counter-clockwise, against the reference screw. All of them ask before starting.
+
+**Check bed screws** can also get a shortcut of its own beside home all, for a
+check run often enough between prints that scrolling to the row below every
+time gets old. Turning it on moves the button rather than duplicating it — it
+still only appears once.
 
 **Adjust bed screws** is a conversation, not a one-shot: the printer moves the
 nozzle to each screw in turn and waits. A prompt names the screw it is standing

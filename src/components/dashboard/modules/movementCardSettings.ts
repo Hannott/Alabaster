@@ -37,6 +37,22 @@ export const movementCardDefaults = {
    * axis boxes any printer without one already shows.
    */
   showBedPlanWhilePrinting: false,
+  /**
+   * `G28 X Y` beside `G28` itself, for machines where re-homing Z is the slow
+   * or disruptive half — a probe deploy/stow, a bed mesh only a Z re-home
+   * perturbs. Defaults off for the same reason `showBedPlanWhilePrinting`
+   * does: a control nobody asked for outright until it existed does not get
+   * to change what an existing card already shows.
+   */
+  showHomeXY: false,
+  /**
+   * A shortcut to `SCREWS_TILT_CALCULATE` beside home-all, for a check run
+   * often enough between prints that the full-width leveling row below is an
+   * extra scroll every time. It replaces that row's own copy of the same
+   * button rather than duplicating it — see `levelingRowMethods` in
+   * `MovementModule.vue`. Defaults off for the same reason `showHomeXY` does.
+   */
+  showBedScrewsCheck: false,
 } as const
 
 export type MovementCardSettingKey = keyof typeof movementCardDefaults

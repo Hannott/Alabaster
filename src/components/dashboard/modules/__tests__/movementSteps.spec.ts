@@ -1,9 +1,14 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  defaultOffsetSteps,
+  defaultPlanarSteps,
+  defaultVerticalSteps,
   offsetMagnitude,
-  offsetStepSets,
   offsetValue,
+  readOffsetSteps,
+  readPlanarSteps,
+  readVerticalSteps,
   signedOffsetStep,
 } from '@/components/dashboard/modules/movementSteps'
 
@@ -13,32 +18,20 @@ describe('offsetMagnitude', () => {
    * card — so any change to how they are written changes whether the row fits.
    */
   it('writes every offered step as whole micrometres', () => {
-    expect(offsetStepSets.fine.map((step) => offsetMagnitude(step, 'micrometre'))).toEqual([
+    expect(defaultOffsetSteps.map((step) => offsetMagnitude(step, 'micrometre'))).toEqual([
       '5',
       '10',
       '25',
       '50',
     ])
-    expect(offsetStepSets.coarse.map((step) => offsetMagnitude(step, 'micrometre'))).toEqual([
-      '10',
-      '25',
-      '50',
-      '100',
-    ])
   })
 
   it('writes millimetres with a dot and no leading zero', () => {
-    expect(offsetStepSets.fine.map((step) => offsetMagnitude(step, 'millimetre'))).toEqual([
+    expect(defaultOffsetSteps.map((step) => offsetMagnitude(step, 'millimetre'))).toEqual([
       '.005',
       '.01',
       '.025',
       '.05',
-    ])
-    expect(offsetStepSets.coarse.map((step) => offsetMagnitude(step, 'millimetre'))).toEqual([
-      '.01',
-      '.025',
-      '.05',
-      '.1',
     ])
   })
 
@@ -83,5 +76,48 @@ describe('offsetValue', () => {
     expect(offsetValue(0, 'micrometre')).toBe('0')
     expect(offsetValue(-0.0001, 'micrometre')).toBe('0')
     expect(offsetValue(-0.0001, 'millimetre')).toBe('0')
+  })
+})
+
+describe('readPlanarSteps', () => {
+  it("falls back to today's default with nothing stored", () => {
+    expect(readPlanarSteps({})).toEqual([...defaultPlanarSteps])
+  })
+
+  it("reads a pre-upgrade scale's own numbers rather than jumping to the default", () => {
+    expect(readPlanarSteps({ planarStepScale: 'fine' })).toEqual([0.1, 1, 10])
+    expect(readPlanarSteps({ planarStepScale: 'position' })).toEqual([...defaultPlanarSteps])
+  })
+
+  it('prefers a stored custom list over the legacy scale, however short', () => {
+    expect(readPlanarSteps({ planarSteps: [5], planarStepScale: 'fine' })).toEqual([5])
+  })
+
+  it('sorts and de-duplicates whatever the editor saved', () => {
+    expect(readPlanarSteps({ planarSteps: [50, 5, 50, 0.5] })).toEqual([0.5, 5, 50])
+  })
+
+  it('drops entries that cannot be a real distance', () => {
+    expect(readPlanarSteps({ planarSteps: [10, -5, 0, Infinity, 'oops'] })).toEqual([10])
+  })
+})
+
+describe('readVerticalSteps', () => {
+  it("falls back to today's default with nothing stored", () => {
+    expect(readVerticalSteps({})).toEqual([...defaultVerticalSteps])
+  })
+
+  it("reads a pre-upgrade scale's own numbers", () => {
+    expect(readVerticalSteps({ verticalStepScale: 'coarse' })).toEqual([0.5, 5, 25])
+  })
+})
+
+describe('readOffsetSteps', () => {
+  it("falls back to today's default with nothing stored", () => {
+    expect(readOffsetSteps({})).toEqual([...defaultOffsetSteps])
+  })
+
+  it("reads a pre-upgrade scale's own numbers", () => {
+    expect(readOffsetSteps({ offsetStepScale: 'coarse' })).toEqual([0.01, 0.025, 0.05, 0.1])
   })
 })

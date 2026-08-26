@@ -60,50 +60,98 @@ function checkRow(wrapper: VueWrapper, label: string) {
   return wrapper.findAll('.settings-row').find((row) => row.text().includes(label))
 }
 
+/** A step-value list's own group, keyed by the same label text `field` uses. */
+function stepGroup(wrapper: VueWrapper, label: string) {
+  return wrapper
+    .findAll('.step-group')
+    .find((row) => row.get('.settings-row__label').text() === label)
+}
+
+function stepValues(wrapper: VueWrapper, label: string): string[] | undefined {
+  return stepGroup(wrapper, label)
+    ?.findAll('.step-editor__item input')
+    .map((input) => (input.element as HTMLInputElement).value)
+}
+
 describe('MovementSettingsPane', () => {
   beforeEach(() => {
     window.localStorage.clear()
   })
 
-  it('offers a step set per axis group, showing the values rather than a scale name', async () => {
+  it('offers an editable step-value list per axis group, seeded from the defaults', async () => {
     const { wrapper } = mountPane()
     await flushPromises()
 
     expect(
-      wrapper
-        .findAll('.settings-row__label')
-        .map((label) => label.text())
-        .slice(0, 3),
+      wrapper.findAll('.step-group .settings-row__label').map((label) => label.text()),
+      // `min / centre / max` is gone — the bed plan answers that question now.
     ).toEqual(['X and Y step size', 'Z step size', 'Z offset step'])
 
-    expect(
-      field(wrapper, 'X and Y step size')
-        ?.findAll('.segmented button')
-        .map((button) => button.text()),
-      // `min / centre / max` is gone — the bed plan answers that question now.
-    ).toEqual(['0.1 / 1 / 10', '1 / 10 / 100'])
+    expect(stepValues(wrapper, 'X and Y step size')).toEqual(['1', '10', '100'])
+    expect(stepValues(wrapper, 'Z step size')).toEqual(['0.1', '1', '10'])
   })
 
-  it('marks the selected set and writes the choice to the card configuration', async () => {
+  it('commits an edited value to the card configuration as a list', async () => {
     const { wrapper, config } = mountPane()
     await flushPromises()
 
-    // Planar defaults to coarse, matching what the card renders.
-    const planar = field(wrapper, 'X and Y step size')
-    expect(planar?.findAll('.segmented button').at(1)?.attributes('aria-pressed')).toBe('true')
+    const input = stepGroup(wrapper, 'X and Y step size')?.findAll('.step-editor__item input').at(1)
+    await input?.setValue('25')
+    await input?.trigger('change')
 
-    await planar?.findAll('.segmented button').at(0)?.trigger('click')
-    expect(config.value.planarStepScale).toBe('fine')
-    await flushPromises()
-    expect(planar?.findAll('.segmented button').at(0)?.attributes('aria-pressed')).toBe('true')
+    expect(config.value.planarSteps).toEqual([1, 25, 100])
   })
 
-  it('degrades an unknown stored scale to the default rather than rendering nothing', async () => {
+  it('reverts an invalid edit rather than writing it or silently dropping the value', async () => {
+    const { wrapper, config } = mountPane()
+    await flushPromises()
+
+    const input = stepGroup(wrapper, 'X and Y step size')?.findAll('.step-editor__item input').at(1)
+    await input?.setValue('-5')
+    await input?.trigger('change')
+
+    expect(config.value.planarSteps).toBeUndefined()
+    // The revert rebuilds the item under a fresh key (see `revisions` in the
+    // component), so the corrected value has to be read off a re-query rather
+    // than off the now-detached node `input` still points at.
+    expect(stepValues(wrapper, 'X and Y step size')).toEqual(['1', '10', '100'])
+  })
+
+  it('adds a value and removes one, down to a floor of one value per side', async () => {
+    const { wrapper, config } = mountPane()
+    await flushPromises()
+
+    const group = stepGroup(wrapper, 'X and Y step size')
+    await group?.get('.step-editor button:not(.button--icon)').trigger('click')
+    expect(stepValues(wrapper, 'X and Y step size')).toEqual(['1', '10', '100', ''])
+
+    const removeButtons = () => stepGroup(wrapper, 'X and Y step size')?.findAll('.button--icon')
+    await removeButtons()?.at(-1)?.trigger('click')
+    await removeButtons()?.at(0)?.trigger('click')
+    await removeButtons()?.at(0)?.trigger('click')
+    expect(config.value.planarSteps).toEqual([100])
+
+    // One value left: removing it is not offered, so a side never empties out.
+    expect(removeButtons()?.at(0)?.attributes('disabled')).toBeDefined()
+  })
+
+  it('degrades an unknown legacy scale to the default rather than an empty list', async () => {
     const { wrapper } = mountPane({ planarStepScale: 'enormous' })
     await flushPromises()
 
-    const planar = field(wrapper, 'X and Y step size')
-    expect(planar?.findAll('.segmented button').at(1)?.attributes('aria-pressed')).toBe('true')
+    expect(stepValues(wrapper, 'X and Y step size')).toEqual(['1', '10', '100'])
+  })
+
+  it('offers no quick-settings promotion for a step-value list, unlike the unit picker beside it', async () => {
+    const { wrapper } = mountPane()
+    await flushPromises()
+
+    for (const label of ['X and Y step size', 'Z step size', 'Z offset step']) {
+      expect(stepGroup(wrapper, label)?.find('[aria-label*="quick settings"]').exists()).toBe(false)
+    }
+    expect(field(wrapper, 'Z offset unit')?.find('[aria-label*="quick settings"]').exists()).toBe(
+      true,
+    )
   })
 
   it.each([
@@ -202,28 +250,25 @@ describe('MovementSettingsPane', () => {
   })
 
   /**
-   * The offset scales preview in the unit the buttons will use, not through
-   * the locale formatter. Previewing `0.005` beside a card whose buttons read
-   * `5` would be showing the reader a different control from the one they get.
+   * The offset list edits in the unit the buttons will use, not always in the
+   * millimetres it is stored as. Editing `5` beside a card whose buttons read
+   * `+5` is the same number the reader is looking at; editing `0.005` while
+   * the card reads `+5` is not.
    */
-  it('previews the offset steps in the chosen unit', async () => {
-    const { wrapper } = mountPane()
+  it('edits the offset list in the chosen unit, converting back to millimetres underneath', async () => {
+    const { wrapper, config } = mountPane()
     await flushPromises()
 
-    expect(
-      field(wrapper, 'Z offset step')
-        ?.findAll('.segmented button')
-        .map((button) => button.text()),
-    ).toEqual(['5 / 10 / 25 / 50', '10 / 25 / 50 / 100'])
+    expect(stepValues(wrapper, 'Z offset step')).toEqual(['5', '10', '25', '50'])
 
     await field(wrapper, 'Z offset unit')?.findAll('.segmented button').at(1)?.trigger('click')
     await flushPromises()
+    expect(stepValues(wrapper, 'Z offset step')).toEqual(['0.005', '0.01', '0.025', '0.05'])
 
-    expect(
-      field(wrapper, 'Z offset step')
-        ?.findAll('.segmented button')
-        .map((button) => button.text()),
-    ).toEqual(['.005 / .01 / .025 / .05', '.01 / .025 / .05 / .1'])
+    const input = stepGroup(wrapper, 'Z offset step')?.findAll('.step-editor__item input').at(0)
+    await input?.setValue('0.02')
+    await input?.trigger('change')
+    expect(config.value.offsetSteps).toEqual([0.02, 0.01, 0.025, 0.05])
   })
 })
 
@@ -259,13 +304,13 @@ describe('Movement quick settings', () => {
     const { wrapper: pane, config } = mountPane()
     await flushPromises()
 
-    const promote = field(pane, 'X and Y step size')?.get('[aria-label*="quick settings"]')
+    const promote = field(pane, 'Z offset unit')?.get('[aria-label*="quick settings"]')
     await promote?.trigger('click')
-    expect(config.value.quickSettings).toContain('planarStepScale')
+    expect(config.value.quickSettings).toContain('zOffsetUnit')
 
     const { wrapper: quick } = mountQuick(config.value)
     await flushPromises()
-    expect(quick.text()).toContain('X and Y step size')
+    expect(quick.text()).toContain('Z offset unit')
   })
 
   /**

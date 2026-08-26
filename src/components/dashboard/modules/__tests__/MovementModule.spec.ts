@@ -272,6 +272,40 @@ describe('MovementModule', () => {
     expect(buttonNamed(wrapper, 'Park centre')?.attributes('disabled')).toBeUndefined()
   })
 
+  /**
+   * `showBedScrewsCheck` moves the button rather than duplicating it: the
+   * same action reachable from two places would read as two different
+   * actions to a screen reader, and a click on either has to run exactly the
+   * one command either way.
+   */
+  it('replaces the leveling row\'s "Check bed screws" with the shortcut, rather than duplicating it', async () => {
+    const { printer, wrapper } = mountModule({
+      leveling: ['screwsTiltAdjust', 'zTilt'],
+      config: { showBedScrewsCheck: true },
+    })
+    readyToMove(printer)
+    await flushPromises()
+
+    expect(buttonNamed(wrapper, 'Check bed screws')).toBeUndefined()
+    expect(buttonNamed(wrapper, 'Adjust Z tilt')).toBeDefined()
+    const shortcut = wrapper.find('.jog-leveling-shortcut')
+    expect(shortcut.exists()).toBe(true)
+    expect(shortcut.attributes('aria-label')).toBe('Check bed screws')
+  })
+
+  /** A machine with no `[screws_tilt_adjust]` gets nothing extra, setting or not. */
+  it('offers no shortcut for a leveling method this printer does not report', async () => {
+    const { printer, wrapper } = mountModule({
+      leveling: ['zTilt'],
+      config: { showBedScrewsCheck: true },
+    })
+    readyToMove(printer)
+    await flushPromises()
+
+    expect(wrapper.find('.jog-leveling-shortcut').exists()).toBe(false)
+    expect(buttonNamed(wrapper, 'Adjust Z tilt')).toBeDefined()
+  })
+
   it('shows a dash instead of a stale coordinate for an axis that is not homed', async () => {
     const { printer, wrapper } = mountModule()
     printer.motion.position = [299, 246, 300.1]

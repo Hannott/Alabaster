@@ -1,53 +1,104 @@
+import { configNumberList, configString } from '@/dashboard/context'
+
 /**
- * Movement's step scales, shared by the card and its settings pane so the two
+ * Movement's step values, shared by the card and its settings pane so the two
  * cannot drift. Steps are buttons rather than a selection, so what the pane
- * chooses is which three values appear — not which one is armed.
- */
-export const movementStepScales = ['fine', 'coarse'] as const
-export type StepScale = (typeof movementStepScales)[number]
-
-export const planarStepSets: Record<StepScale, readonly number[]> = {
-  fine: [0.1, 1, 10],
-  coarse: [1, 10, 100],
-}
-
-/**
- * X and Y once offered a third "position" mode that jumped to the axis's
- * configured travel limits instead of stepping by a distance. It is gone: the
- * bed plan answers the same question — reach a corner or the centre without
- * adding up jog presses — for any coordinate rather than three, and it could
- * never be drawn anyway. `235.0` is 33px of text in a jog cell whose content
- * box is 29.9px at the dashboard's own card width, and there was no
- * configuration in which it fitted.
+ * edits is which values appear — not which one is armed.
  *
- * The alias stays so a stored `planarStepScale: 'position'` has something to
- * fall back from rather than rendering a segment that no longer exists.
+ * Each group is a plain list the user edits directly (add a value, remove a
+ * value), not a choice among named presets — Alabaster shipped two presets,
+ * "fine" and "coarse", and dropped the distinction once editing was added:
+ * a preset only earns its keep if it can express something the editor
+ * cannot, and a fixed pair of three-value arrays is fully inside what a list
+ * editor already covers. These defaults are what a fresh instance starts
+ * from, and what `readStepList` below falls back to.
  */
-export const planarStepModes = movementStepScales
-export type PlanarStepMode = (typeof planarStepModes)[number]
-
-export const verticalStepSets: Record<StepScale, readonly number[]> = {
-  fine: [0.1, 1, 10],
-  coarse: [0.5, 5, 25],
-}
+export const defaultPlanarSteps: readonly number[] = [1, 10, 100]
+export const defaultVerticalSteps: readonly number[] = [0.1, 1, 10]
 
 /**
  * Babystepping lives here; the Z jog row deliberately stops at 0.1mm. Always
  * millimetres, whatever the card is asked to display: this is the unit
- * `SET_GCODE_OFFSET` takes, so the unit setting below is a choice about
- * writing, never about what gets sent.
- *
- * Four magnitudes per scale, so the row draws eight buttons around its own
- * middle. Three left a gap in the ladder that mattered: `fine` jumped 0.01 to
- * 0.05, and a first layer being dialed in wants the step between them far more
- * often than it wants either end. The fourth rung costs nothing at the default
- * unit — eight micrometre labels fit one row of a 299px card, see
- * `.trim__steps` — and where it does not fit, the row wraps to four and four,
- * which lands the split exactly on the sign change.
+ * `SET_GCODE_OFFSET` takes, so the unit setting is a choice about writing,
+ * never about what gets sent.
  */
-export const offsetStepSets: Record<StepScale, readonly number[]> = {
-  fine: [0.005, 0.01, 0.025, 0.05],
+export const defaultOffsetSteps: readonly number[] = [0.005, 0.01, 0.025, 0.05]
+
+/**
+ * Every scale Alabaster shipped before custom lists, keyed by the config
+ * value each card used to store — kept only so a profile saved back then
+ * reads the numbers it was already showing instead of silently jumping to
+ * today's defaults the first time it opens post-upgrade. `position` was the
+ * X/Y mode retired with the bed plan (see `interface-standards.md`); it never
+ * had its own numbers, so it maps to the same three `coarse` always used.
+ */
+const legacyPlanarSteps: Record<string, readonly number[]> = {
+  fine: [0.1, 1, 10],
+  coarse: defaultPlanarSteps,
+  position: defaultPlanarSteps,
+}
+const legacyVerticalSteps: Record<string, readonly number[]> = {
+  fine: defaultVerticalSteps,
+  coarse: [0.5, 5, 25],
+}
+const legacyOffsetSteps: Record<string, readonly number[]> = {
+  fine: defaultOffsetSteps,
   coarse: [0.01, 0.025, 0.05, 0.1],
+}
+
+/** Ascending and duplicate-free: every renderer here reads "outward from the pivot" from this order. */
+function normalizeSteps(values: readonly number[]): number[] {
+  return [...new Set(values)].sort((a, b) => a - b)
+}
+
+/**
+ * A group's current values: the list the user has actually edited, or —
+ * absent that — the pre-upgrade scale it was showing, or — absent that too —
+ * today's default. Never a mix: a stored list, however short, is the user's
+ * own edit and wins outright over both fallbacks.
+ */
+function readStepList(
+  config: Record<string, unknown>,
+  listKey: string,
+  legacyScaleKey: string,
+  legacyScales: Record<string, readonly number[]>,
+  fallback: readonly number[],
+): number[] {
+  const stored = configNumberList(config, listKey)
+  if (stored.length > 0) return normalizeSteps(stored)
+  const legacyScale = configString(config, legacyScaleKey, '')
+  const legacy = legacyScales[legacyScale]
+  return normalizeSteps(legacy ?? fallback)
+}
+
+export function readPlanarSteps(config: Record<string, unknown>): number[] {
+  return readStepList(
+    config,
+    'planarSteps',
+    'planarStepScale',
+    legacyPlanarSteps,
+    defaultPlanarSteps,
+  )
+}
+
+export function readVerticalSteps(config: Record<string, unknown>): number[] {
+  return readStepList(
+    config,
+    'verticalSteps',
+    'verticalStepScale',
+    legacyVerticalSteps,
+    defaultVerticalSteps,
+  )
+}
+
+export function readOffsetSteps(config: Record<string, unknown>): number[] {
+  return readStepList(
+    config,
+    'offsetSteps',
+    'offsetStepScale',
+    legacyOffsetSteps,
+    defaultOffsetSteps,
+  )
 }
 
 export const zOffsetUnits = ['micrometre', 'millimetre'] as const
@@ -57,15 +108,12 @@ export type ZOffsetUnit = (typeof zOffsetUnits)[number]
  * The offset row is the one place in Alabaster that writes a decimal separator
  * itself instead of taking the active locale's, and it is deliberate.
  *
- * Three reasons, and the row needs all three. The buttons are sized against
- * these exact labels — six of them across a 271px card — so a separator that
- * changes with the language changes the width the row was measured for.
- * Dropping the leading zero is what makes millimetres fit at all, and `,005`
- * is not how any locale writes that number, so the comma form would have to
- * keep the zero and then no longer fit. And the six magnitudes are read
- * against each other and against the value above them, where telling `.05`
- * from `.005` at a glance matters more than matching the surrounding prose —
- * mistaking one for the other is a ten-fold babystep into the bed.
+ * The six or eight magnitudes are read against each other and against the
+ * value above them, where telling `.05` from `.005` at a glance matters more
+ * than matching the surrounding prose — mistaking one for the other is a
+ * ten-fold babystep into the bed. Dropping the leading zero is what makes
+ * millimetres fit at all, and `,005` is not how any locale writes that
+ * number, so the comma form would have to keep the zero and then not fit.
  *
  * Do not "fix" this by routing it through `Intl.NumberFormat`. Every other
  * number on the card should go through the locale; this row is the exception,
@@ -74,9 +122,9 @@ export type ZOffsetUnit = (typeof zOffsetUnits)[number]
  */
 export function offsetMagnitude(millimetres: number, unit: ZOffsetUnit): string {
   if (unit === 'micrometre') return String(Math.round(millimetres * 1000))
-  // Three decimals is the finest step offered and finer than Klipper's own
-  // babystepping resolution. Trailing zeros go only after the point, so 0.05
-  // reads as `.05` rather than `.050` and 10 never collapses to 1.
+  // Three decimals is finer than Klipper's own babystepping resolution.
+  // Trailing zeros go only after the point, so 0.05 reads as `.05` rather
+  // than `.050` and 10 never collapses to 1.
   const fixed = millimetres
     .toFixed(3)
     .replace(/(\.\d*?)0+$/, '$1')

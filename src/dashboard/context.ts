@@ -171,6 +171,25 @@ export function configStringList(config: Record<string, unknown>, key: string): 
 }
 
 /**
+ * A list of positive, finite numbers, for a module that lets the user edit the
+ * actual set of values a control offers rather than choosing among named
+ * presets. Zero, negative and non-finite entries are dropped rather than
+ * trusted — a hand-edited or imported profile degrades to whatever entries
+ * are still usable instead of handing a module a step of `0` or `-Infinity`
+ * to divide the toolhead by. Returns `[]`, never a fallback, on the same
+ * reasoning `configStringList` does: what an empty list means is the caller's
+ * business, since only it knows whether that means "use the built-in default"
+ * or "the user removed every value on purpose".
+ */
+export function configNumberList(config: Record<string, unknown>, key: string): number[] {
+  const value = config[key]
+  if (!Array.isArray(value)) return []
+  return value.filter(
+    (entry): entry is number => typeof entry === 'number' && Number.isFinite(entry) && entry > 0,
+  )
+}
+
+/**
  * Like `configStringList`, but distinguishes a key that was never written from
  * one explicitly stored as an empty list — `null` for the former, `[]` for the
  * latter. `configStringList` collapses both to `[]`, which is right wherever
