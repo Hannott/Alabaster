@@ -380,4 +380,28 @@ describe('page layout contract', () => {
     expect(styles).not.toMatch(/\.console-main\s*{[^}]*flex:\s*1 0 auto/s)
     expect(styles).toMatch(/\.gcode-console--fill\s*{[^}]*min-height:\s*0/s)
   })
+
+  /*
+   * Whichever element owns the scrolling is the one allowed to state a height.
+   * The settings surface has two arrangements and they answer that differently:
+   * side by side the pane is the bound and `__content` scrolls inside it, while
+   * stacked hands the scrolling to `__body` and `__content` goes back to visible
+   * overflow. A `max-height` left standing over visible overflow bounds only what
+   * is *painted* — the border, the radius and the fill stop at the cap while the
+   * content carries on past it — so the last rows of a long pane stood on the
+   * backdrop below the card that was supposed to contain them. The two
+   * declarations are one decision, and this pins them to each other.
+   */
+  it('lets the stacked settings pane grow with the content it no longer scrolls', () => {
+    expect(styles).toMatch(
+      /\.settings-surface--stacked \.settings-surface__content\s*{[^}]*overflow-y:\s*visible/s,
+    )
+    expect(styles).toMatch(
+      /\.settings-surface--stacked \.settings-surface__pane\s*{[^}]*max-height:\s*none/s,
+    )
+
+    // Side by side the pane *is* the scroll region, so there it keeps its bound.
+    expect(styles).toMatch(/\.settings-surface__pane\s*{[^}]*max-height:\s*calc\(100dvh - 2rem\)/s)
+    expect(styles).toMatch(/\.settings-surface__content\s*{[^}]*overflow-y:\s*auto/s)
+  })
 })

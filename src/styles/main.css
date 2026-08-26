@@ -4172,7 +4172,20 @@ input.z-axis__slider {
   opacity: 1;
 }
 
+/*
+ * The cap comes off with the pane's own scrolling. Side by side, the pane holds
+ * a scroll region — `max-height` bounds it and `__content` scrolls inside that
+ * bound. Stacked, the arrangement hands scrolling to `__body` instead and
+ * `__content` goes back to `overflow-y: visible`, and a cap left standing over
+ * visible overflow bounds only what is *painted*: the border, the radius and the
+ * fill stopped at `100dvh - 2rem` while the settings kept going, so the last few
+ * rows of a long pane stood on the backdrop below the card that was supposed to
+ * contain them — measured at 390px as a 780px box around 1116px of content. The
+ * two declarations are one decision and have to move together: whichever
+ * element owns the scrolling is the one allowed to state a height.
+ */
 .settings-surface--stacked .settings-surface__pane {
+  max-height: none;
   justify-self: center;
 }
 
