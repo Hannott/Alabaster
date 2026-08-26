@@ -348,4 +348,36 @@ describe('page layout contract', () => {
     expect(styles).toMatch(/\.desktop-sidebar\s*{[^}]*block-size:\s*100dvh/s)
     expect(styles).toMatch(/\.desktop-sidebar\s*{[^}]*max-block-size:\s*100dvh/s)
   })
+
+  /*
+   * Every box that measures itself against the viewport measures against the one
+   * on screen. A single `vh` left in this chain is a phone-only defect no desktop
+   * check can see: `vh` is the large viewport — the height the page would have
+   * once the browser's URL bar has retracted — so with the bar showing the
+   * document outgrows the screen and the whole application acquires a page scroll
+   * the length of that bar, with nothing under it but background. On desktop the
+   * two units are the same number, and this assertion is the only thing that
+   * notices.
+   */
+  it('measures the shell against the viewport actually on screen', () => {
+    expect(styles).toMatch(/\nbody\s*{[^}]*min-height:\s*100dvh/s)
+    expect(styles).not.toMatch(/\nbody\s*{[^}]*min-height:\s*100vh/s)
+    expect(styles).toMatch(/\.app-shell\s*{[^}]*min-block-size:\s*100dvh/s)
+    expect(styles).toMatch(/\.app-content\s*{[^}]*min-height:\s*100dvh/s)
+  })
+
+  /*
+   * The console page's panel states its flex basis rather than taking `auto`.
+   * With `auto` the panel sizes from its own content, and its content is the
+   * transcript — so a long transcript grew the panel far past the workspace
+   * (9006px inside 564px at 390px wide), left `.gcode-console--fill` nothing to
+   * overflow, and put the prompt thousands of pixels below the fold. This page
+   * exists to give the transcript its own scroll; a content-sized basis takes
+   * that away and hands the scrolling to the workspace instead.
+   */
+  it('keeps the console transcript scrolling inside its own panel at phone widths', () => {
+    expect(styles).toMatch(/\.console-main\s*{[^}]*min-height:\s*22rem;[^}]*flex:\s*1 1 22rem/s)
+    expect(styles).not.toMatch(/\.console-main\s*{[^}]*flex:\s*1 0 auto/s)
+    expect(styles).toMatch(/\.gcode-console--fill\s*{[^}]*min-height:\s*0/s)
+  })
 })

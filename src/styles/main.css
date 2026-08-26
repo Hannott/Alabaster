@@ -399,10 +399,22 @@ html {
   text-rendering: optimizeLegibility;
 }
 
+/*
+ * `dvh`, not `vh`. On a phone `100vh` resolves against the *large* viewport —
+ * the height the page would have once the browser's URL bar has retracted —
+ * while `.app-shell` and `.app-content` size themselves to `100dvh`, the height
+ * actually on screen right now. With the bar showing, the shell fitted the
+ * viewport exactly and this floor still made the document taller than it, so
+ * every route carried a page scroll the length of the URL bar with nothing under
+ * it but background, and whatever the shell had pinned to its own bottom edge
+ * went with it. Desktop cannot show this: with no retracting chrome, `vh` and
+ * `dvh` are the same number, which is why a narrow window or device emulation
+ * reproduces none of it.
+ */
 body {
   margin: 0;
   min-width: 20rem;
-  min-height: 100vh;
+  min-height: 100dvh;
 }
 
 :where(button, select, a, header, aside, article, section, nav) {
@@ -6603,9 +6615,21 @@ input.z-axis__slider {
     overflow-y: auto;
   }
 
+  /*
+   * A stated basis, never `auto`. `flex-basis: auto` sizes this panel from its
+   * own content, and its content is the transcript — so the panel grew to the
+   * full height of every line it held (measured 9006px inside a 564px workspace
+   * at 390px wide), `.gcode-console--fill` was left with nothing to overflow,
+   * and the prompt below it sat nine thousand pixels past the fold. The
+   * transcript stopped scrolling and the workspace scrolled the whole console
+   * instead, which is the exact arrangement this page exists to avoid. A pinned
+   * basis keeps the panel definite-height, so the transcript takes what is left
+   * and scrolls inside it; `min-height` still floors the panel when the aside is
+   * open and the workspace has to scroll the pair.
+   */
   .console-main {
     min-height: 22rem;
-    flex: 1 0 auto;
+    flex: 1 1 22rem;
   }
 
   .console-aside {
@@ -8870,9 +8894,20 @@ select {
  * so a click's target can equal the `<dialog>` element only on the true
  * backdrop; see `MachineUpdateConsoleDialog.vue`'s click handler.
  */
+/*
+ * The block axis is `dvh`, never `vh`, and this is the instance the rule is
+ * written against. `vh` is the *large* viewport — the height the page would have
+ * once a phone browser's URL bar had retracted — so a dialog sized in `vh` is
+ * taller than the screen for as long as that bar is showing, and a dialog that
+ * tiles its own header and body edge to edge loses the bottom of the body off
+ * the end of the display with no way to scroll to it. `.editor-shortcuts-dialog`
+ * and `.image-lightbox` follow this; `.manual-probe-dialog` and
+ * `.bed-screws-dialog` already state the same axis as `calc(100dvh - 2rem)`.
+ * The inline `vw` beside it is left alone: no browser chrome retracts sideways.
+ */
 .update-console-dialog {
   width: min(90vw, 60rem);
-  height: min(78vh, 40rem);
+  height: min(78dvh, 40rem);
   margin: auto;
   padding: 0;
   border: 1px solid var(--border-subtle);
@@ -8985,7 +9020,7 @@ select {
  */
 .editor-shortcuts-dialog {
   width: min(34rem, calc(100vw - 2rem));
-  max-height: min(80vh, 44rem);
+  max-height: min(80dvh, 44rem);
   margin: auto;
   padding: 0;
   border: 1px solid var(--border-subtle);
@@ -10075,7 +10110,7 @@ body.machine-editor-fullscreen-open {
  */
 .image-lightbox {
   width: min(96vw, 90rem);
-  height: min(92vh, 56rem);
+  height: min(92dvh, 56rem);
   margin: auto;
   padding: 0;
   border: 1px solid var(--border-subtle);

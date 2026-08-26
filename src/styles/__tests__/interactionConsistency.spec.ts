@@ -250,6 +250,48 @@ describe('interaction and iconography contract', () => {
     expect(offenders).toEqual([])
   })
 
+  /*
+   * A dialog measures its block axis against the viewport actually on screen:
+   * `dvh`, never `vh`. The two are the same number on a desktop and differ on a
+   * phone, where `vh` is the *large* viewport — the height the page would have
+   * once the browser's URL bar had retracted. A dialog sized in `vh` is therefore
+   * taller than the screen for as long as that bar is showing, and one that tiles
+   * its header and body edge to edge drops the bottom of the body off the end of
+   * the display with nothing to scroll to reach it. No desktop check can catch
+   * that, which is the whole reason it is asserted here.
+   *
+   * `.image-lightbox` is the one dialog element not named `-dialog`, so it is
+   * matched by name; the inline axis is deliberately not covered, because no
+   * browser chrome retracts sideways and `vw` is still the right unit there.
+   */
+  it('sizes every dialog against the viewport actually on screen', () => {
+    const withoutComments = styles.replace(/\/\*[\s\S]*?\*\//g, '')
+    const offenders: string[] = []
+
+    for (const [, selectorList, body] of withoutComments.matchAll(/([^{}]+)\{([^}]*)\}/g)) {
+      const isDialog = selectorList.split(',').some((selector) => {
+        const subject =
+          selector
+            .trim()
+            .split(/\s*[>+~]\s*|\s+/)
+            .at(-1) ?? ''
+        return /\.[\w-]*-dialog(?![\w-])/.test(subject) || /\.image-lightbox(?![\w-])/.test(subject)
+      })
+      if (!isDialog) continue
+
+      for (const [, property, value] of body.matchAll(/([\w-]+)\s*:\s*([^;]+)/g)) {
+        if (!/^(?:min-|max-)?(?:height|block-size)$/.test(property)) continue
+        // `100dvh` must not read as a `vh`: the digit-then-`vh` shape only
+        // matches the bare unit, since `dvh` puts a `d` between the two.
+        if (/\d\s*vh(?![\w-])/.test(value)) {
+          offenders.push(`${selectorList.trim()} { ${property}: ${value.trim()} }`)
+        }
+      }
+    }
+
+    expect(offenders).toEqual([])
+  })
+
   it('keeps a help text to what the control cannot say itself', () => {
     // A hint says a consequence, a boundary, or a dependency outside Alabaster.
     // It never narrates the interface back to the reader and never sells the
