@@ -22,6 +22,7 @@ import { usePrinterStore } from '@/stores/printer'
 import { usePrinterConfigStore } from '@/stores/printerConfig'
 import { usePrintersStore } from '@/stores/printers'
 import { useServerCapabilitiesStore } from '@/stores/serverCapabilities'
+import { useServerWarningsStore } from '@/stores/serverWarnings'
 import { useShakeTuneStore } from '@/stores/shakeTune'
 import { useTelemetryStore } from '@/stores/telemetry'
 import { useTimelapseStore } from '@/stores/timelapse'
@@ -127,6 +128,17 @@ describe('switching to another printer', () => {
     // Back to optimistic: nothing is gated until the new printer has answered.
     expect(capabilities.hasComponent('timelapse')).toBe(true)
     expect(capabilities.hasRoot('config')).toBe(true)
+  })
+
+  it('forgets the previous printer’s failed components and warnings', () => {
+    const warnings = useServerWarningsStore()
+    warnings.applyServerInfo({ failed_components: ['mqtt: broken'], warnings: ['stale'] })
+    expect(warnings.hasNotices).toBe(true)
+
+    warnings.reset()
+
+    expect(warnings.notices).toEqual([])
+    expect(warnings.hasNotices).toBe(false)
   })
 
   it('drops the previous printer’s transcript, activities and print state', async () => {

@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink, RouterView } from 'vue-router'
 
 import ActivityList from '@/components/ActivityList.vue'
 import AlabasterMark from '@/components/AlabasterMark.vue'
-import AppIcon from '@/components/AppIcon.vue'
+import AppIcon, { type AppIconName } from '@/components/AppIcon.vue'
 import BedScrewsDialog from '@/components/BedScrewsDialog.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import HeaderMenu from '@/components/HeaderMenu.vue'
@@ -42,6 +42,7 @@ import { usePrinterStore } from '@/stores/printer'
 import { printerDisplayLabel, printerHost, usePrintersStore } from '@/stores/printers'
 import { usePrinterConfigStore } from '@/stores/printerConfig'
 import { useServerCapabilitiesStore } from '@/stores/serverCapabilities'
+import { useServerWarningsStore, type ServerNotice } from '@/stores/serverWarnings'
 
 const { t } = useI18n({ useScope: 'global' })
 // Only Settings reads the rest of this composable's return value, but the
@@ -99,6 +100,7 @@ const printers = usePrintersStore()
 const moonraker = useMoonrakerStore()
 
 const serverCapabilities = useServerCapabilitiesStore()
+const serverWarnings = useServerWarningsStore()
 
 useContextMenuGuard()
 useSelectValueOnFocus()
@@ -172,8 +174,71 @@ const hasNotice = computed(
   () =>
     !printerAvailability.value.isAvailable ||
     printer.lastCommandError !== null ||
-    announcements.hasEntries,
+    announcements.hasEntries ||
+    serverWarnings.hasNotices,
 )
+
+function serverWarningTitle(notice: ServerNotice): string {
+  return notice.component
+    ? t('header.notifications.componentFailedTitle', { component: notice.component })
+    : t('header.notifications.warningTitle')
+}
+
+/**
+ * A server configuration problem outranks every other reason the bell has
+ * something to say: it is an active, fixable problem rather than a release
+ * notice or a lifecycle state the header's own status pill already reports.
+ * `bellNew` — the pre-existing dot-bell — is left to the conditions it always
+ * covered (a lost connection, a failed command, an announcement) once no
+ * server warning is present.
+ */
+const notificationIconName = computed<AppIconName>(() => {
+  if (serverWarnings.hasUnread) return 'bellAlertTwotone'
+  if (serverWarnings.hasNotices) return 'bellTwotone'
+  return hasNotice.value ? 'bellNew' : 'bell'
+})
+
+const notificationBellIcon = ref<InstanceType<typeof AppIcon> | null>(null)
+
+function notificationBellIconSvg(): SVGSVGElement | undefined {
+  return notificationBellIcon.value?.$el as SVGSVGElement | undefined
+}
+
+/**
+ * `bellAlertTwotone` is the one glyph in the product with a `repeatCount`
+ * that never ends, so seeking past its draw-in with `setCurrentTime` (the
+ * `emergencyStop` trick above) is not enough by itself — the loop would keep
+ * advancing right past the point it was seeked to. `pauseAnimations` is the
+ * SMIL call that actually freezes a timeline, SVG's equivalent of
+ * `estopIconSvg`'s reduced-motion handling for a timeline that repeats
+ * forever instead of playing once.
+ */
+function settleNotificationBellIcon(): void {
+  if (!prefersReducedMotion()) return
+  const svg = notificationBellIconSvg()
+  svg?.setCurrentTime?.(2)
+  svg?.pauseAnimations?.()
+}
+
+watch(notificationIconName, () => nextTick(settleNotificationBellIcon))
+onMounted(settleNotificationBellIcon)
+
+/** Which server warning, if any, has its "next reboot / never" choice open. */
+const expandedWarningId = ref<string | null>(null)
+
+function toggleWarningRemind(id: string): void {
+  expandedWarningId.value = expandedWarningId.value === id ? null : id
+}
+
+function snoozeWarning(id: string): void {
+  serverWarnings.snooze(id)
+  if (expandedWarningId.value === id) expandedWarningId.value = null
+}
+
+function muteWarning(id: string): void {
+  serverWarnings.mute(id)
+  if (expandedWarningId.value === id) expandedWarningId.value = null
+}
 
 /**
  * The account shortcut, unlike the emergency stop, notifications, and power
@@ -687,19 +752,100 @@ async function discardPendingConfig(): Promise<void> {
             @mouseenter="replayEstopIcon"
             @focus="replayEstopIcon"
           >
-            <AppIcon ref="estopIcon" name="emergencyStop" class="size-5" aria-hidden="true" />
+            <AppIcon ref="estopIcon" name="emergencyStop" class="size-6" aria-hidden="true" />
             {{ t('dashboard.emergencyStop') }}
           </button>
 
           <HeaderMenu
             :label="t('header.notifications.label')"
             align="end"
-            trigger-class="button button--quiet button--icon"
+            trigger-class="button button--quiet button--icon header-icon"
+            @open="serverWarnings.markRead()"
           >
             <template #trigger>
-              <AppIcon :name="hasNotice ? 'bellNew' : 'bell'" class="size-5" aria-hidden="true" />
+              <AppIcon
+                ref="notificationBellIcon"
+                :name="notificationIconName"
+                class="size-6"
+                aria-hidden="true"
+              />
             </template>
             <template #default>
+              <!--
+                `server.info`'s failed_components and warnings — a component
+                Moonraker could not load, most often a sensor or macro
+                referencing a section nobody configured. First in the menu:
+                unlike an announcement or activity entry, this is an active
+                configuration problem, not something read once and skimmed.
+              -->
+              <template v-if="serverWarnings.hasNotices">
+                <p class="header-menu__section-title">
+                  {{ t('header.notifications.warningsTitle') }}
+                </p>
+                <ul class="grid gap-1">
+                  <li
+                    v-for="notice in serverWarnings.visibleNotices"
+                    :key="notice.id"
+                    class="header-notice-row header-notice-row--high"
+                  >
+                    <AppIcon
+                      name="warning"
+                      class="size-4 shrink-0 text-caution-text"
+                      aria-hidden="true"
+                    />
+                    <div class="min-w-0 flex-1">
+                      <strong class="block truncate text-xs">{{
+                        serverWarningTitle(notice)
+                      }}</strong>
+                      <span class="mt-0.5 block text-[0.68rem] text-muted">{{
+                        notice.message
+                      }}</span>
+                      <!--
+                        Mainsail's own shape for this exact choice: a label and
+                        two `xs` buttons in place of a second floating popover
+                        stacked on top of the one already open.
+                      -->
+                      <div
+                        v-if="expandedWarningId === notice.id"
+                        class="mt-1 flex flex-wrap items-center gap-1"
+                      >
+                        <span class="text-[0.68rem] text-muted">{{
+                          t('header.notifications.remindLabel')
+                        }}</span>
+                        <button
+                          type="button"
+                          class="button button--quiet button--xs"
+                          @click="snoozeWarning(notice.id)"
+                        >
+                          {{ t('header.notifications.remindNextReboot') }}
+                        </button>
+                        <button
+                          type="button"
+                          class="button button--quiet button--xs"
+                          @click="muteWarning(notice.id)"
+                        >
+                          {{ t('header.notifications.remindNever') }}
+                        </button>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      class="button button--quiet button--xs button--icon shrink-0"
+                      :aria-expanded="expandedWarningId === notice.id"
+                      :aria-label="
+                        t('header.notifications.remind', { title: serverWarningTitle(notice) })
+                      "
+                      :title="
+                        t('header.notifications.remind', { title: serverWarningTitle(notice) })
+                      "
+                      @click="toggleWarningRemind(notice.id)"
+                    >
+                      <AppIcon name="bellSlash" class="size-4" aria-hidden="true" />
+                    </button>
+                  </li>
+                </ul>
+                <p class="header-menu__divider" role="separator"></p>
+              </template>
               <!--
                 Moonraker/Klipper/component release notices — the header
                 notice docs/design/navigation-plan.md names as a real gap.
@@ -714,8 +860,8 @@ async function discardPendingConfig(): Promise<void> {
                   <li
                     v-for="entry in announcements.entries"
                     :key="entry.entry_id"
-                    class="announcement-row"
-                    :class="{ 'announcement-row--high': entry.priority === 'high' }"
+                    class="header-notice-row"
+                    :class="{ 'header-notice-row--high': entry.priority === 'high' }"
                   >
                     <AppIcon
                       v-if="entry.priority === 'high'"
@@ -781,10 +927,10 @@ async function discardPendingConfig(): Promise<void> {
           <HeaderMenu
             :label="t('header.power.label')"
             align="end"
-            trigger-class="button button--quiet button--icon"
+            trigger-class="button button--quiet button--icon header-icon"
           >
             <template #trigger>
-              <AppIcon name="power" class="size-5" aria-hidden="true" />
+              <AppIcon name="power" class="size-6" aria-hidden="true" />
             </template>
             <template #default="{ close }">
               <p class="header-menu__section-title">{{ t('header.power.klipperControl') }}</p>

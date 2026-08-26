@@ -279,6 +279,13 @@
     "notifications": {
       "label": "Varsler",
       "title": "Nylig aktivitet",
+      "warningsTitle": "Konfigurasjonsproblemer",
+      "componentFailedTitle": "Moonraker: {component}",
+      "warningTitle": "Moonraker-advarsel",
+      "remind": "Minn meg på «{title}»",
+      "remindLabel": "Påminnelse:",
+      "remindNextReboot": "Neste omstart",
+      "remindNever": "Aldri",
       "announcementsTitle": "Kunngjøringer",
       "dismiss": "Lukk «{title}»",
       "highPriority": "Høy prioritet"

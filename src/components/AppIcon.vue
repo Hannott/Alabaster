@@ -4,7 +4,10 @@ export type AppIconName =
   | 'add'
   | 'back'
   | 'bell'
+  | 'bellAlertTwotone'
   | 'bellNew'
+  | 'bellSlash'
+  | 'bellTwotone'
   | 'bolt'
   | 'bulb'
   | 'bulbOn'
@@ -130,11 +133,150 @@ defineProps<{ name: AppIconName }>()
     <path v-else-if="name === 'minus'" d="M5 12h14" />
     <path v-else-if="name === 'back'" d="m15 18-6-6 6-6" />
     <path v-else-if="name === 'forward'" d="m9 18 6-6-6-6" />
-    <!-- Griddy Icons' "notification" glyph (MIT licensed). -->
-    <g v-else-if="name === 'bell'" fill="currentColor" stroke="none">
+    <!--
+      line-md's "bell" glyph (MIT licensed): a top hook, the body traced in
+      one continuous stroke, then the clapper — drawn in once via SMIL on
+      mount, the same one-shot-singleton reasoning `emergencyStop` documents
+      above, since this is the one bell in the header and never mounts more
+      than once. `bellTwotone` and `bellAlertTwotone` below share this exact
+      path data and add only a fill and, for the alert variant, a continuous
+      loop plus the exclamation mark line-md draws to its upper right.
+    -->
+    <g v-else-if="name === 'bell'">
+      <path stroke-dasharray="4" d="M12 3v2">
+        <animate fill="freeze" attributeName="stroke-dashoffset" dur="0.2s" values="4;0" />
+      </path>
       <path
-        d="m20 15.05l-1.5-2.6V8.5C18.5 4.915 15.585 2 12 2a6.506 6.506 0 0 0-6.5 6.5v3.95L4 15.05V19h4.325c.35 1.71 1.865 3 3.675 3s3.325-1.29 3.675-3H20zm-8 5.45c-.975 0-1.8-.63-2.11-1.5h4.225c-.31.87-1.135 1.5-2.11 1.5zm6.5-3h-13v-2.05l1.5-2.6V8.495c0-2.755 2.245-5 5-5s5 2.245 5 5v4.355l1.5 2.6z"
-      />
+        stroke-dasharray="30"
+        stroke-dashoffset="30"
+        d="M12 5c-3.31 0 -6 2.69 -6 6l0 6c-1 0 -2 1 -2 2h8M12 5c3.31 0 6 2.69 6 6l0 6c1 0 2 1 2 2h-8"
+      >
+        <animate fill="freeze" attributeName="stroke-dashoffset" begin="0.2s" dur="0.4s" to="0" />
+      </path>
+      <path
+        stroke-dasharray="10"
+        stroke-dashoffset="10"
+        d="M10 20c0 1.1 0.9 2 2 2c1.1 0 2 -0.9 2 -2"
+      >
+        <animate fill="freeze" attributeName="stroke-dashoffset" begin="0.7s" dur="0.2s" to="0" />
+      </path>
+    </g>
+    <!--
+      line-md's "bell-twotone" glyph (MIT licensed) — `bell` above, plus the
+      body filling to 30% once the outline finishes drawing: "there is
+      something here, already seen." App.vue swaps to this once the reader
+      has opened the notifications menu while a server configuration problem
+      is still listed.
+    -->
+    <g v-else-if="name === 'bellTwotone'">
+      <path stroke-dasharray="4" d="M12 3v2">
+        <animate fill="freeze" attributeName="stroke-dashoffset" dur="0.2s" values="4;0" />
+      </path>
+      <path
+        fill="currentColor"
+        fill-opacity="0"
+        stroke-dasharray="30"
+        stroke-dashoffset="30"
+        d="M12 5c-3.31 0 -6 2.69 -6 6l0 6c-1 0 -2 1 -2 2h8M12 5c3.31 0 6 2.69 6 6l0 6c1 0 2 1 2 2h-8"
+      >
+        <animate fill="freeze" attributeName="stroke-dashoffset" begin="0.2s" dur="0.4s" to="0" />
+        <animate fill="freeze" attributeName="fill-opacity" begin="0.9s" dur="0.15s" to="0.3" />
+      </path>
+      <path
+        stroke-dasharray="10"
+        stroke-dashoffset="10"
+        d="M10 20c0 1.1 0.9 2 2 2c1.1 0 2 -0.9 2 -2"
+      >
+        <animate fill="freeze" attributeName="stroke-dashoffset" begin="0.7s" dur="0.2s" to="0" />
+      </path>
+    </g>
+    <!--
+      line-md's "bell-alert-loop" glyph (MIT licensed), recoloured rather than
+      left monochrome: the bell keeps `bellTwotone`'s fill but is forced to
+      the app's own blue accent, and the exclamation mark to its upper right —
+      line-md's own glyph for "alert," two short strokes rather than a
+      wiggling clapper — is forced to the danger red, so the two things this
+      reports (something is here; it needs attention) stay legible without
+      reading the label. The bell's gentle rotation and the exclamation's
+      pulsing weight both loop indefinitely by design: this is the one glyph
+      in the product allowed a continuous animation, because App.vue calls
+      `pauseAnimations()` on it the instant reduced motion is requested (SMIL
+      sits outside the CSS blanket rule main.css otherwise applies, same as
+      `emergencyStop`), and it never appears until there is an unread
+      configuration problem for it to say something about.
+    -->
+    <g v-else-if="name === 'bellAlertTwotone'">
+      <path class="text-accent" stroke-dasharray="4" d="M12 3v2">
+        <animate fill="freeze" attributeName="stroke-dashoffset" dur="0.2s" values="4;0" />
+        <animateTransform
+          attributeName="transform"
+          type="rotate"
+          dur="6s"
+          repeatCount="indefinite"
+          keyTimes="0;0.05;0.15;0.2;1"
+          values="0 12 3;3 12 3;-3 12 3;0 12 3;0 12 3"
+        />
+      </path>
+      <path
+        class="text-accent"
+        fill="currentColor"
+        fill-opacity="0"
+        stroke-dasharray="30"
+        stroke-dashoffset="30"
+        d="M12 5c-3.31 0 -6 2.69 -6 6l0 6c-1 0 -2 1 -2 2h8M12 5c3.31 0 6 2.69 6 6l0 6c1 0 2 1 2 2h-8"
+      >
+        <animateTransform
+          attributeName="transform"
+          type="rotate"
+          dur="6s"
+          repeatCount="indefinite"
+          keyTimes="0;0.05;0.15;0.2;1"
+          values="0 12 3;3 12 3;-3 12 3;0 12 3;0 12 3"
+        />
+        <animate fill="freeze" attributeName="stroke-dashoffset" begin="0.2s" dur="0.4s" to="0" />
+        <animate fill="freeze" attributeName="fill-opacity" begin="1.3s" dur="0.15s" to="0.3" />
+      </path>
+      <path
+        class="text-accent"
+        stroke-dasharray="10"
+        stroke-dashoffset="10"
+        d="M10 20c0 1.1 0.9 2 2 2c1.1 0 2 -0.9 2 -2"
+      >
+        <animateTransform
+          attributeName="transform"
+          type="rotate"
+          begin="0.2s"
+          dur="6s"
+          repeatCount="indefinite"
+          keyTimes="0;0.05;0.15;0.2;1"
+          values="0 12 8;6 12 8;-6 12 8;0 12 8;0 12 8"
+        />
+        <animate fill="freeze" attributeName="stroke-dashoffset" begin="0.7s" dur="0.2s" to="0" />
+      </path>
+      <g class="text-danger-text">
+        <path stroke-dasharray="6" stroke-dashoffset="6" d="M22 6v4">
+          <animate
+            attributeName="stroke-width"
+            begin="0.9s"
+            dur="3s"
+            repeatCount="indefinite"
+            keyTimes="0;0.1;0.2;0.3;1"
+            values="1.8;2.8;2.8;1.8;1.8"
+          />
+          <animate fill="freeze" attributeName="stroke-dashoffset" begin="0.9s" dur="0.2s" to="0" />
+        </path>
+        <path stroke-dasharray="4" stroke-dashoffset="4" d="M22 14v0.01">
+          <animate
+            attributeName="stroke-width"
+            begin="1.1s"
+            dur="3s"
+            repeatCount="indefinite"
+            keyTimes="0;0.1;0.2;0.3;1"
+            values="1.8;2.8;2.8;1.8;1.8"
+          />
+          <animate fill="freeze" attributeName="stroke-dashoffset" begin="1.1s" dur="0.2s" to="0" />
+        </path>
+      </g>
     </g>
     <!--
       Griddy Icons' "notification-new" glyph (MIT licensed) — `bell` plus a
@@ -142,11 +284,27 @@ defineProps<{ name: AppIconName }>()
       trigger swaps to this instead of layering the shared `.button--badged`
       CSS dot on top of a plain `bell`, since the two dots would land in
       almost the same corner and read as one doubled, slightly-off badge.
+      Kept as its own family rather than folded into the line-md trio above:
+      it reports an unrelated set of conditions (a lost connection, a failed
+      command, an announcement) that are not "read" the way a server warning
+      is, so it has no twotone or alert sibling to share path data with.
     -->
     <g v-else-if="name === 'bellNew'" fill="currentColor" stroke="none">
       <path
         fill-rule="evenodd"
         d="m18.5 12.45l1.5 2.6V19h-4.325c-.35 1.71-1.865 3-3.675 3a3.76 3.76 0 0 1-3.675-3H4v-3.95l1.5-2.6V8.5C5.5 4.915 8.415 2 12 2h.5v1.5H12c-2.755 0-5 2.245-5 5v4.355l-1.5 2.6v2.05h13v-2.05l-1.5-2.6V9.5h1.5zM9.89 19c.31.87 1.135 1.5 2.11 1.5h.005c.975 0 1.8-.63 2.11-1.5zM20 5a3 3 0 1 1-6 0a3 3 0 0 1 6 0"
+      />
+    </g>
+    <!--
+      BoxIcons' "bell-off" glyph (MIT licensed, published on the BoxIcons site
+      as "bell-slash") — a crossed-out bell, for the per-notice action on a
+      server configuration problem that is not an outright dismiss: it opens
+      the choice between snoozing until the next reboot and muting the
+      warning for good.
+    -->
+    <g v-else-if="name === 'bellSlash'" fill="currentColor" stroke="none">
+      <path
+        d="M12 22a2.98 2.98 0 0 0 2.818-2H9.182A2.98 2.98 0 0 0 12 22m9-4v-2a1 1 0 0 0-.293-.707L19 13.586V10c0-3.217-2.185-5.927-5.145-6.742C13.562 2.52 12.846 2 12 2s-1.562.52-1.855 1.258c-1.323.364-2.463 1.128-3.346 2.127L3.707 2.293L2.293 3.707l18 18l1.414-1.414l-1.362-1.362A.99.99 0 0 0 21 18M12 5c2.757 0 5 2.243 5 5v4c0 .266.105.52.293.707L19 16.414V17h-.586L8.207 6.793C9.12 5.705 10.471 5 12 5m-5.293 9.707A1 1 0 0 0 7 14v-2.879L5.068 9.189C5.037 9.457 5 9.724 5 10v3.586l-1.707 1.707A1 1 0 0 0 3 16v2a1 1 0 0 0 1 1h10.879l-2-2H5v-.586z"
       />
     </g>
     <path v-else-if="name === 'check'" d="M5 13l4 4L19 7" />

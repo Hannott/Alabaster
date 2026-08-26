@@ -46,6 +46,17 @@ export interface MoonrakerServerInfo {
   klippy_state: KlippyState
   /** Components Moonraker loaded successfully; failures are reported separately. */
   components?: string[]
+  /**
+   * Components Moonraker attempted to load and could not, formatted as
+   * `"{name}: {reason}"` — the section a sensor or macro depends on but that
+   * was never configured, most often.
+   */
+  failed_components?: string[]
+  /**
+   * Startup conditions worth the reader's attention that are not tied to one
+   * component, such as a config reference Moonraker could not resolve.
+   */
+  warnings?: string[]
   /** File roots this instance serves, such as `gcodes` and `config`. */
   registered_directories?: string[]
   [key: string]: unknown

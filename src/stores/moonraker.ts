@@ -21,6 +21,7 @@ import {
 import { useAvailabilityStore } from '@/stores/availability'
 import { usePrintersStore } from '@/stores/printers'
 import { useServerCapabilitiesStore } from '@/stores/serverCapabilities'
+import { useServerWarningsStore } from '@/stores/serverWarnings'
 import { isRecord } from '@/utils/records'
 
 const availabilitySubscriptionKey = 'alabaster.availability'
@@ -48,6 +49,7 @@ function classifyError(error: Error): ConnectionErrorKind {
 export const useMoonrakerStore = defineStore('moonraker', () => {
   const availability = useAvailabilityStore()
   const serverCapabilities = useServerCapabilitiesStore()
+  const serverWarnings = useServerWarningsStore()
   const printers = usePrintersStore()
   /**
    * The endpoint being connected to, which is not the same thing as the printer
@@ -178,6 +180,7 @@ export const useMoonrakerStore = defineStore('moonraker', () => {
         lastError.value = 'none'
         availability.moonrakerConnected(serverInfo)
         serverCapabilities.applyServerInfo(serverInfo)
+        serverWarnings.applyServerInfo(serverInfo)
       }),
       moonraker.onObjectSnapshot(() => {
         availability.printerSnapshotSynchronized()
@@ -252,6 +255,7 @@ export const useMoonrakerStore = defineStore('moonraker', () => {
     if (isPrinterChange) {
       availability.printerChanged()
       serverCapabilities.reset()
+      serverWarnings.reset()
       for (const reset of printerChangeResets) reset()
     }
 

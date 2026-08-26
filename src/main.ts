@@ -21,6 +21,7 @@ import { usePrinterStore } from '@/stores/printer'
 import { usePrinterConfigStore } from '@/stores/printerConfig'
 import { useRunoutSensorsStore } from '@/stores/runoutSensors'
 import { useSensorsStore } from '@/stores/sensors'
+import { useServerWarningsStore } from '@/stores/serverWarnings'
 import { useSettingsSyncStore } from '@/stores/settingsSync'
 import { useSpoolStore } from '@/stores/spool'
 import { useTelemetryStore } from '@/stores/telemetry'
@@ -60,6 +61,9 @@ useBedScrewsStore(pinia).start()
 useRunoutSensorsStore(pinia).start()
 useDevicePowerStore(pinia).start()
 useAnnouncementsStore(pinia).start()
+// The muted-warnings list is scoped per printer; this reloads it on a switch
+// rather than only while the notifications menu happens to be open.
+useServerWarningsStore(pinia).start()
 useAuthStore(pinia).start()
 // Lifetime totals feed the Maintenance module's overdue check regardless of
 // whether the History page has ever been opened, so both start here rather

@@ -279,6 +279,13 @@
     "notifications": {
       "label": "Notifications",
       "title": "Recent activity",
+      "warningsTitle": "Configuration problems",
+      "componentFailedTitle": "Moonraker: {component}",
+      "warningTitle": "Moonraker warning",
+      "remind": "Remind me about \"{title}\"",
+      "remindLabel": "Remind:",
+      "remindNextReboot": "Next reboot",
+      "remindNever": "Never",
       "announcementsTitle": "Announcements",
       "dismiss": "Dismiss \"{title}\"",
       "highPriority": "High priority"

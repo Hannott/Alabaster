@@ -26,11 +26,15 @@ defineSlots<{
   default(props: { close: () => void }): unknown
 }>()
 
+/** Fires only on the closed-to-open edge, for a caller that treats opening as "read" — the header notifications menu marking its contents seen. */
+const emit = defineEmits<{ open: [] }>()
+
 const open = ref(false)
 const root = ref<HTMLElement | null>(null)
 
 function toggle(): void {
   open.value = !open.value
+  if (open.value) emit('open')
 }
 
 function close(): void {

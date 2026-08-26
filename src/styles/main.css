@@ -1040,6 +1040,10 @@ input[type='radio']:focus-visible,
  * is `AppIcon`'s `emergencyStop` glyph replaying its draw-in animation once
  * (`App.vue`'s `replayEstopIcon`), which already says "something happened
  * here" without a second, unvalidated red next to one already at rest.
+ *
+ * Its text sits at the `md` size token, one step up from the `sm` this outlier
+ * used before: `.header-icon` below explains why the header's own action
+ * cluster grew, and this control sits beside it in the same row.
  */
 .header-estop {
   display: inline-flex;
@@ -1049,7 +1053,7 @@ input[type='radio']:focus-visible,
   background: none;
   padding: 0;
   color: var(--status-danger-text);
-  font-size: var(--control-text-sm-size);
+  font-size: var(--control-text-md-size);
   font-weight: var(--font-weight-increased);
   text-transform: uppercase;
   letter-spacing: 0.02em;
@@ -1795,6 +1799,23 @@ input[type='number']::-webkit-inner-spin-button {
   flex: 0 0 auto;
   align-items: center;
   gap: 0.4rem;
+}
+
+/*
+ * The header's own icon-only cluster — notifications and power — sized up
+ * from the ordinary `md` `button--icon` box, registered here as an outlier
+ * rather than left as an undocumented header-only override; see
+ * button-system.md's outlier list. `App.vue`'s `min-h-20` fixes the header at
+ * 5rem for reasons unrelated to control size (room for the brand mark and the
+ * status pill's own label reveal), which leaves roughly 22px of clearance
+ * above and below an ordinary 36px `md` icon button going unused. `.header-estop`
+ * beside these two grew by one text-size step rather than through this class,
+ * since it carries no button box of its own to enlarge.
+ */
+.header-icon {
+  inline-size: 2.75rem;
+  min-height: 2.75rem;
+  border-radius: 0.5rem;
 }
 
 /*
@@ -6585,11 +6606,16 @@ input.z-axis__slider {
 }
 
 /*
- * Items-start rather than centered, unlike `.activity-row`: an announcement's
+ * Items-start rather than centered, unlike `.activity-row`: a row's
  * description can wrap to a second line, and centering would leave the icon
  * and dismiss button drifting away from the title once it does.
+ *
+ * Shared by every row in the header notifications menu — announcements and
+ * server warnings are different subjects, but one row anatomy (icon, title,
+ * description, dismiss button) that must stay visually identical between
+ * them, not two things that merely look alike.
  */
-.announcement-row {
+.header-notice-row {
   display: flex;
   min-width: 0;
   align-items: flex-start;
@@ -6599,7 +6625,7 @@ input.z-axis__slider {
 }
 
 /* A tint plus the row's own warning icon carry this state — never the tint alone. */
-.announcement-row--high {
+.header-notice-row--high {
   background: color-mix(in srgb, var(--status-caution-text) 10%, transparent);
 }
 
