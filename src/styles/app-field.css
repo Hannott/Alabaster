@@ -95,6 +95,26 @@
   color: var(--text-muted);
 }
 
+/*
+ * The truncation below only works if the box holding the words is allowed to
+ * get smaller than them, and this is the element that has to say so. With
+ * `label-front` and `label-back` the label is a flex item of the field, so it
+ * takes `min-width: auto` — an automatic minimum equal to its own min-content
+ * width, which for `white-space: nowrap` text is the entire string. It therefore
+ * refused to shrink at any width, the ellipsis on the text inside it never
+ * engaged, and the value box was pushed out of the field instead: Print's
+ * "Report drift past this many percent" ran its number input 59px past the
+ * settings pane and 43px past the right edge of a 390px screen, where it could
+ * not be read or reached. The `min-width: 0` one level down is necessary and was
+ * never sufficient — an intermediate flex item that cannot shrink stops the
+ * whole chain. `label-embed` needs no such rule: that label is absolutely
+ * positioned, so it is not a flex item and never had the automatic minimum.
+ */
+.app-field--label-front > .app-field__label,
+.app-field--label-back > .app-field__label {
+  min-width: 0;
+}
+
 /* An outside label may consume width, never a second line of height. */
 .app-field--label-front > .app-field__label .app-field__label-text,
 .app-field--label-back > .app-field__label .app-field__label-text {

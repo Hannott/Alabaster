@@ -1117,4 +1117,29 @@ describe('interaction and iconography contract', () => {
       expect(standard).toContain('every download action uses `download`')
     },
   )
+
+  /*
+   * A label that cannot shrink is a label that never truncates. With
+   * `label-front` and `label-back` the label is a flex item of the field, so it
+   * takes `min-width: auto` — an automatic minimum equal to its own min-content
+   * width, which for `white-space: nowrap` text is the whole string. Without
+   * this rule it held that width at every viewport, the ellipsis one level down
+   * never engaged, and the value box was pushed clean out of the field instead:
+   * Print's "Report drift past this many percent" ran its number input 59px past
+   * the settings pane and 43px past the right edge of a 390px screen, where it
+   * could be neither read nor reached. The two declarations are one mechanism —
+   * the inner `min-width: 0` was never sufficient on its own, because an
+   * intermediate flex item that cannot shrink stops the whole chain.
+   *
+   * `label-embed` is deliberately absent: that label is absolutely positioned,
+   * so it is not a flex item and never had the automatic minimum to clear.
+   */
+  it('lets an outside field label shrink so its own ellipsis can engage', () => {
+    expect(appFieldStyles).toMatch(
+      /\.app-field--label-front > \.app-field__label,\s*\.app-field--label-back > \.app-field__label\s*{[^}]*min-width:\s*0/s,
+    )
+    expect(appFieldStyles).toMatch(
+      /\.app-field--label-front > \.app-field__label \.app-field__label-text[^{]*{[^}]*text-overflow:\s*ellipsis/s,
+    )
+  })
 })
