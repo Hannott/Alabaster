@@ -8925,9 +8925,20 @@ select {
   text-transform: uppercase;
 }
 
-.update-console-state[data-running='true'] {
+.update-console-state[data-state='running'] {
   border-color: color-mix(in srgb, var(--action-primary) 55%, var(--border-subtle));
   color: var(--action-primary);
+}
+
+/* A completed run reads as unambiguously done, the same green `.machine-update-status[data-state='current']` uses for "nothing left to install". */
+.update-console-state[data-state='finished'] {
+  border-color: color-mix(in srgb, var(--status-available) 55%, var(--border-subtle));
+  color: var(--status-available);
+}
+
+.update-console-state[data-state='failed'] {
+  border-color: color-mix(in srgb, var(--status-danger) 55%, var(--border-subtle));
+  color: var(--status-danger-text);
 }
 
 /*

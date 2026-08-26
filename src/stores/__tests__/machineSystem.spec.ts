@@ -1015,6 +1015,47 @@ describe('machine system store', () => {
     machine.stop()
   })
 
+  it('tracks each completed source through a run, unaffected by a later interruption', async () => {
+    const moonraker = useMoonrakerStore()
+    moonraker.connectionPhase = 'connected'
+    const machine = useMachineSystemStore()
+    machine.updates = [
+      { id: 'moonraker', displayName: 'moonraker', commits_behind_count: 2 },
+      { id: 'klipper', displayName: 'Klipper', commits_behind_count: 5 },
+      {
+        id: 'alabaster',
+        displayName: 'Alabaster',
+        configured_type: 'web',
+        commits_behind_count: 1,
+      },
+    ]
+    const rpcCall = vi.spyOn(moonraker, 'rpcCall').mockImplementation(async (method, params) => {
+      if (
+        method === 'machine.update.upgrade' &&
+        (params as { name: string }).name === 'moonraker'
+      ) {
+        throw new MoonrakerDisconnectedError()
+      }
+      return 'ok' as never
+    })
+
+    expect(await machine.startAllUpdates()).toBe(false)
+
+    // Klipper and Alabaster genuinely finished even though the run as a whole
+    // reports `updateInterrupted` — Moonraker restarting drops the socket, but
+    // only after everything sequenced ahead of it already reached `finishUpdateRun`.
+    expect(machine.completedUpdateIds.has('klipper')).toBe(true)
+    expect(machine.completedUpdateIds.has('alabaster')).toBe(true)
+    expect(machine.completedUpdateIds.has('moonraker')).toBe(false)
+    expect(machine.updateInterrupted).toBe(true)
+    expect(rpcCall).toHaveBeenCalled()
+
+    // The next run starts clean rather than carrying the previous one's ids forward.
+    rpcCall.mockResolvedValue('ok' as never)
+    expect(await machine.startUpdate('klipper')).toBe(true)
+    expect([...machine.completedUpdateIds]).toEqual(['klipper'])
+  })
+
   it('stops a multi-source run at the first refusal instead of walking into the rest', async () => {
     const moonraker = useMoonrakerStore()
     moonraker.connectionPhase = 'connected'

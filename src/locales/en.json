@@ -1757,6 +1757,7 @@
       "empty": "Output appears here while an update runs.",
       "running": "Running",
       "finished": "Finished",
+      "failed": "Failed",
       "clear": "Clear output"
     }
   },

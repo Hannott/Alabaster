@@ -1757,6 +1757,7 @@
       "empty": "Utdata vises her mens en oppdatering kjører.",
       "running": "Kjører",
       "finished": "Ferdig",
+      "failed": "Feilet",
       "clear": "Tøm utdata"
     }
   },

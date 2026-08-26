@@ -276,6 +276,19 @@ export const useMachineSystemStore = defineStore('machineSystem', () => {
    * host. Reporting that as "could not be started" would be untrue.
    */
   const updateInterrupted = ref(false)
+  /**
+   * The ids that reached `finishUpdateRun` during the current or most recent
+   * run — reset at each `beginUpdateRun`, so a source interrupted or failed
+   * later in the same multi-source run never erases an earlier source's
+   * confirmed success. `MachineView` reads this once the run ends to decide
+   * whether Alabaster's own served bundle changed and the page needs to
+   * reload — a per-source fact `updateFailed`/`updateInterrupted` cannot
+   * answer, since those describe the run as a whole. Klipper needs no
+   * equivalent check: Moonraker already restarts it as part of finishing its
+   * own update, the same fact `updateOneConfirmDescription` tells the reader
+   * before the run even starts.
+   */
+  const completedUpdateIds = ref<Set<string>>(new Set())
   const outputLines = ref<MachineUpdateOutputLine[]>([])
   let procStatsEventRevision = 0
   let mcuRefreshRevision = 0
@@ -530,6 +543,7 @@ export const useMachineSystemStore = defineStore('machineSystem', () => {
    */
   function finishUpdateRun(id: string): void {
     if (runningUpdateId.value === id) runningUpdateId.value = null
+    completedUpdateIds.value = new Set(completedUpdateIds.value).add(id)
   }
 
   /**
@@ -563,6 +577,7 @@ export const useMachineSystemStore = defineStore('machineSystem', () => {
   function beginUpdateRun(): void {
     updateFailed.value = false
     updateInterrupted.value = false
+    completedUpdateIds.value = new Set()
   }
 
   async function startUpdate(id: string): Promise<boolean> {
@@ -899,6 +914,7 @@ export const useMachineSystemStore = defineStore('machineSystem', () => {
     updateInterrupted.value = false
     checkFailed.value = false
     updateFailed.value = false
+    completedUpdateIds.value = new Set()
     pendingServiceNames.value = new Set()
     isLoading.value = false
     error.value = false
@@ -994,6 +1010,7 @@ export const useMachineSystemStore = defineStore('machineSystem', () => {
     isUpdatingAll,
     updateFailed,
     updateInterrupted,
+    completedUpdateIds,
     outputLines,
     cpuUsage,
     memoryUsage,

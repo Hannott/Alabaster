@@ -19,9 +19,9 @@ beforeAll(() => {
   }
 })
 
-function mountDialog(lines: MachineUpdateOutputLine[] = [], running = false) {
+function mountDialog(lines: MachineUpdateOutputLine[] = [], running = false, failed = false) {
   return mount(MachineUpdateConsoleDialog, {
-    props: { open: true, lines, running },
+    props: { open: true, lines, running, failed },
     global: { plugins: [i18n] },
   })
 }
@@ -47,6 +47,7 @@ describe('MachineUpdateConsoleDialog', () => {
     const wrapper = mountDialog([{ id: 1, application: 'moonraker', message: 'line' }], true)
 
     expect(wrapper.get('.update-console-state').text()).toBe('Running')
+    expect(wrapper.get('.update-console-state').attributes('data-state')).toBe('running')
     expect(wrapper.get('dialog').attributes('aria-busy')).toBe('true')
     // Clearing the scrollback mid-run would discard the transcript being written.
     expect(wrapper.get('.button--quiet').attributes('disabled')).toBeDefined()
@@ -54,8 +55,16 @@ describe('MachineUpdateConsoleDialog', () => {
     await wrapper.setProps({ running: false })
 
     expect(wrapper.get('.update-console-state').text()).toBe('Finished')
+    expect(wrapper.get('.update-console-state').attributes('data-state')).toBe('finished')
     expect(wrapper.get('dialog').attributes('aria-busy')).toBeUndefined()
     expect(wrapper.get('.button--quiet').attributes('disabled')).toBeUndefined()
+  })
+
+  it('states Failed, not Finished, once a completed run reported updateFailed/updateInterrupted', () => {
+    const wrapper = mountDialog([{ id: 1, application: 'moonraker', message: 'line' }], false, true)
+
+    expect(wrapper.get('.update-console-state').text()).toBe('Failed')
+    expect(wrapper.get('.update-console-state').attributes('data-state')).toBe('failed')
   })
 
   it('emits clear from its own button rather than mutating the transcript itself', async () => {

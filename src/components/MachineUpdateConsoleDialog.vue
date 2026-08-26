@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { nextTick, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import AppIcon from '@/components/AppIcon.vue'
@@ -26,6 +26,8 @@ const props = defineProps<{
   open: boolean
   lines: readonly MachineUpdateOutputLine[]
   running: boolean
+  /** Whether the run this transcript reports on ended in `updateFailed`/`updateInterrupted`. */
+  failed: boolean
 }>()
 
 const emit = defineEmits<{ close: []; clear: [] }>()
@@ -86,6 +88,20 @@ onBeforeUnmount(() => {
   if (dialog.value?.open) dialog.value.close()
 })
 
+/**
+ * Drives both the header text and its colour, per the "not by color alone"
+ * rule: `running` is always reachable mid-run, `failed` only once the run
+ * that just ended reported `updateFailed`/`updateInterrupted`, and
+ * `finished` otherwise — the dialog is only ever reachable with `running`
+ * false after a run has actually completed, per `openConsole`'s own
+ * `outputLines.length > 0 || isUpdating` gate, so "finished" here always
+ * means a real completed run rather than an idle default.
+ */
+const state = computed<'running' | 'failed' | 'finished'>(() => {
+  if (props.running) return 'running'
+  return props.failed ? 'failed' : 'finished'
+})
+
 /** A run in progress must not be dismissed and lose track of — see above. */
 function requestClose(): void {
   if (props.running) return
@@ -114,8 +130,14 @@ function handleDialogClick(event: MouseEvent): void {
     <header class="update-console-dialog__header">
       <AppIcon name="workUpdate" class="size-5 text-action" aria-hidden="true" />
       <span class="update-console-dialog__title truncate">{{ t('machine.output.title') }}</span>
-      <span class="update-console-state" :data-running="running">
-        {{ running ? t('machine.output.running') : t('machine.output.finished') }}
+      <span class="update-console-state" :data-state="state">
+        {{
+          state === 'running'
+            ? t('machine.output.running')
+            : state === 'failed'
+              ? t('machine.output.failed')
+              : t('machine.output.finished')
+        }}
       </span>
       <div class="update-console-dialog__actions">
         <button

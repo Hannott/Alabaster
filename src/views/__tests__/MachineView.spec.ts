@@ -442,6 +442,63 @@ describe('MachineView', () => {
     expect(dialog.attributes('open')).toBeDefined()
   })
 
+  it('reloads once the console closes after Alabaster updates, without prompting about Klipper even when it updated too', async () => {
+    const { machine, wrapper } = mountMachineView()
+    // jsdom's `location.reload` is non-configurable, so `vi.spyOn` cannot wrap it
+    // directly — the whole `window.location` is replaced instead.
+    const reload = vi.fn()
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      value: { ...window.location, reload },
+    })
+
+    machine.updates = [
+      { id: 'klipper', displayName: 'Klipper', configured_type: 'git_repo', version: 'v2' },
+      { id: 'alabaster', displayName: 'Alabaster', configured_type: 'web', version: 'v2' },
+    ]
+    machine.runningUpdateId = 'klipper'
+    await flushPromises()
+
+    // Both sources reached `finishUpdateRun` in the same run.
+    machine.runningUpdateId = null
+    machine.completedUpdateIds = new Set(['klipper', 'alabaster'])
+    await flushPromises()
+
+    // The reload does not fire while the reader is still watching the transcript.
+    expect(reload).not.toHaveBeenCalled()
+
+    await wrapper.get('.update-console-dialog').get('.button--icon').trigger('click')
+
+    // Moonraker already restarted Klipper as part of finishing its own update,
+    // so nothing here should ask the reader to restart it a second time.
+    expect(wrapper.find('.confirm-dialog[open]').exists()).toBe(false)
+    expect(reload).toHaveBeenCalledOnce()
+  })
+
+  it('reloads without prompting when only Alabaster updated', async () => {
+    const { machine, wrapper } = mountMachineView()
+    // jsdom's `location.reload` is non-configurable, so `vi.spyOn` cannot wrap it
+    // directly — the whole `window.location` is replaced instead.
+    const reload = vi.fn()
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      value: { ...window.location, reload },
+    })
+
+    machine.updates = [{ id: 'alabaster', displayName: 'Alabaster', configured_type: 'web' }]
+    machine.runningUpdateId = 'alabaster'
+    await flushPromises()
+
+    machine.runningUpdateId = null
+    machine.completedUpdateIds = new Set(['alabaster'])
+    await flushPromises()
+
+    await wrapper.get('.update-console-dialog').get('.button--icon').trigger('click')
+
+    expect(wrapper.find('.confirm-dialog[open]').exists()).toBe(false)
+    expect(reload).toHaveBeenCalledOnce()
+  })
+
   it('offers Start or Stop per systemd service, refusing a control for Spoolman', async () => {
     const { machine, wrapper } = mountMachineView()
     machine.systemInfo = {
