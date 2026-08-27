@@ -352,6 +352,97 @@ describe('MoonrakerClient', () => {
     })
   })
 
+  describe('resumeNow', () => {
+    /*
+     * The backoff timer that was ticking when a tab froze goes on ticking
+     * after the reader comes back, so a page in front of somebody can spend
+     * the full ten-second delay waiting on a retry scheduled for nobody.
+     *
+     * `reconnecting` rather than `connecting` is the part that matters
+     * visually: it is what keeps every module in the dimmed `recovering`
+     * treatment with its last-known data mounted. A resume routed through
+     * `stop()`/`start()` would clear `hasConnected` and drop them to
+     * `unavailable` instead — deepening exactly the state this shortens.
+     */
+    it('brings a waiting reconnect forward without restarting the connection', async () => {
+      vi.useFakeTimers()
+      const { factory, sockets } = createMockSocketFactory()
+      const client = createClient(factory)
+      client.start()
+      await completeHandshake(sockets[0]!)
+
+      const states: string[] = []
+      client.onConnectionStatus((status) => states.push(status.phase))
+      sockets[0]!.closeFromServer()
+      await flushPromises()
+      expect(sockets).toHaveLength(1)
+
+      client.resumeNow()
+      await flushPromises()
+
+      // The retry happened on the resume, not at the end of its timer.
+      expect(sockets).toHaveLength(2)
+      expect(states).toEqual(['connected', 'reconnecting', 'reconnecting'])
+
+      // And the delay that was pending is gone rather than still armed, so it
+      // cannot open a second socket behind the one now being established.
+      await vi.advanceTimersByTimeAsync(10_000)
+      expect(sockets).toHaveLength(2)
+    })
+
+    it('leaves an open connection alone', async () => {
+      const { factory, sockets } = createMockSocketFactory()
+      const client = createClient(factory)
+      client.start()
+      await completeHandshake(sockets[0]!)
+
+      client.resumeNow({ abandonAttempt: true })
+      await flushPromises()
+
+      expect(sockets).toHaveLength(1)
+    })
+
+    /*
+     * A tab merely becoming visible says nothing about an attempt in
+     * progress, and a reader flipping between tabs would otherwise restart a
+     * slow first handshake on every flip. A back/forward-cache restore is the
+     * one case where the browser itself killed the handshake, so the attempt
+     * that still looks live is dead and may be abandoned.
+     */
+    it('finishes an attempt in progress unless the page was restored', async () => {
+      const { factory, sockets } = createMockSocketFactory()
+      const client = createClient(factory)
+      client.start()
+      expect(sockets).toHaveLength(1)
+
+      client.resumeNow()
+      await flushPromises()
+      expect(sockets).toHaveLength(1)
+
+      client.resumeNow({ abandonAttempt: true })
+      await flushPromises()
+      expect(sockets).toHaveLength(2)
+
+      // The abandoned socket must not be able to report anything afterwards.
+      sockets[0]!.closeFromServer()
+      await flushPromises()
+      expect(sockets).toHaveLength(2)
+    })
+
+    it('does nothing for a client that was deliberately stopped', async () => {
+      const { factory, sockets } = createMockSocketFactory()
+      const client = createClient(factory)
+      client.start()
+      await completeHandshake(sockets[0]!)
+      client.stop()
+
+      client.resumeNow({ abandonAttempt: true })
+      await flushPromises()
+
+      expect(sockets).toHaveLength(1)
+    })
+  })
+
   describe('refreshIdentity', () => {
     it('awaits the hook and carries its access token into identify', async () => {
       const refreshIdentity = vi.fn(async (call: Parameters<MoonrakerIdentityRefresher>[0]) => {

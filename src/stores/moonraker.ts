@@ -224,6 +224,40 @@ export const useMoonrakerStore = defineStore('moonraker', () => {
       }),
     )
 
+    /*
+     * A backgrounded tab gets frozen and its socket dropped, and the retry
+     * timer that was ticking when that happened goes on ticking after the
+     * reader comes back — up to ten seconds of a page they are already
+     * looking at spent waiting on a delay set for nobody. Both events below
+     * mean the same thing to us: the page is in front of someone again, so a
+     * reconnect that is merely waiting should happen now.
+     *
+     * They are not the same about what may be interrupted. `pageshow` with
+     * `persisted` is a back/forward-cache restore, where the browser itself
+     * killed the handshake, so an attempt that still looks in flight is dead
+     * and may be abandoned. A tab merely becoming visible says nothing of the
+     * sort, so an attempt in progress there is left to finish — otherwise
+     * flipping between tabs would restart a slow first handshake each time.
+     *
+     * Neither path renders anything new. `resumeNow` reconnects the existing
+     * client rather than restarting it, so `hasReachedMoonraker` stands, the
+     * modules stay in the dimmed `recovering` treatment they were already in
+     * with their last-known data mounted, and the dimming simply lifts
+     * sooner. See `AvailabilityRegion` and ADR 0002.
+     */
+    const onPageShow = (event: PageTransitionEvent): void => {
+      if (event.persisted) moonraker.resumeNow({ abandonAttempt: true })
+    }
+    const onVisibilityChange = (): void => {
+      if (document.visibilityState === 'visible') moonraker.resumeNow()
+    }
+    window.addEventListener('pageshow', onPageShow)
+    document.addEventListener('visibilitychange', onVisibilityChange)
+    disposers.push(
+      () => window.removeEventListener('pageshow', onPageShow),
+      () => document.removeEventListener('visibilitychange', onVisibilityChange),
+    )
+
     void moonraker.setObjectSubscription(availabilitySubscriptionKey, {
       webhooks: ['state', 'state_message'],
     })

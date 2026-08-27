@@ -139,6 +139,44 @@ export class MoonrakerClient {
     this.setConnectionStatus('stopped', 0)
   }
 
+  /**
+   * The page is in front of the user again, so a reconnect that is only
+   * waiting out its backoff happens now rather than at the end of a timer set
+   * while nobody was looking. A browser freezes a backgrounded tab and drops
+   * its socket; the delay that was ticking when it froze can be the full
+   * `maximumReconnectDelayMs`, and the whole of it is spent on a page the user
+   * is already reading.
+   *
+   * Deliberately not `stop()` then `start()`, and never `setEndpoint`. Both
+   * clear `hasConnected`, which is what separates a printer that dropped from
+   * one that has never answered — so a resume routed through either would
+   * report `connecting` instead of `reconnecting` and drop every module from
+   * the dimmed, data-retaining `recovering` treatment to `unavailable`. The
+   * point of this is to shorten that dimming, not to deepen it.
+   *
+   * `abandonAttempt` is for the one case where an attempt that looks in
+   * flight is known to be dead: a page restored from the back/forward cache
+   * had its handshake killed by the browser, and the failure that would have
+   * scheduled a retry may not have been delivered to us yet. Restarting is
+   * safe whenever it is true — `transport.connect` detaches the old socket's
+   * handlers before opening the new one, so the superseded attempt cannot
+   * report anything afterwards. Left false, an attempt genuinely in progress
+   * is allowed to finish, so a reader flipping between tabs cannot keep
+   * restarting a slow first handshake.
+   */
+  resumeNow({ abandonAttempt = false }: { abandonAttempt?: boolean } = {}): void {
+    if (!this.shouldRun || this.transport.isOpen) return
+    // No timer and no permission to abandon means a connect is under way.
+    if (this.reconnectTimer === null && !abandonAttempt) return
+
+    this.clearTimers()
+    // The backoff had escalated because the tab was frozen, not because the
+    // printer refused anything. A resume that failed schedules again from the
+    // bottom, so a machine that really is gone still backs off as before.
+    this.reconnectAttempt = 0
+    void this.connect()
+  }
+
   setEndpoint(endpoint: string): void {
     if (endpoint === this.endpoint) return
     const wasRunning = this.shouldRun

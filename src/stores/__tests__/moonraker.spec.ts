@@ -76,6 +76,11 @@ beforeEach(() => {
 })
 
 afterEach(() => {
+  // Each client registers page-lifecycle listeners on the shared window, and a
+  // fresh pinia does not take them off it. Left alive, every store this file
+  // ever built resumes on the next test's `pageshow` and opens a socket into
+  // the same list the assertions count.
+  useMoonrakerStore().dispose()
   globalThis.WebSocket = realWebSocket
   vi.useRealTimers()
 })
@@ -200,5 +205,88 @@ describe('diagnosing a failed connection', () => {
     // The stale answer was for voron; prusa's own state must be what shows.
     expect(moonraker.endpoint).toBe('ws://prusa.local:7125/websocket')
     expect(moonraker.lastError).toBe('connectionFailed')
+  })
+})
+
+/*
+ * A browser freezes a backgrounded tab and drops its socket, and the retry
+ * delay that was ticking when it did goes on ticking after the reader comes
+ * back. Ten seconds of a page somebody is already looking at, spent waiting on
+ * a timer set for nobody.
+ */
+describe('resuming after the page comes back', () => {
+  it('reconnects on a back/forward-cache restore rather than waiting out the backoff', async () => {
+    vi.useFakeTimers()
+    const availability = useAvailabilityStore()
+    const moonraker = useMoonrakerStore()
+    moonraker.connect('voron.local:7125')
+    await failConnection()
+    expect(FakeWebSocket.instances).toHaveLength(1)
+
+    window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true }))
+    await flushPromises()
+
+    // Immediately, on the event — no timer has been advanced to get here.
+    expect(FakeWebSocket.instances).toHaveLength(2)
+
+    // And the delay that was pending is gone rather than still armed behind it.
+    await vi.advanceTimersByTimeAsync(10_000)
+    expect(FakeWebSocket.instances).toHaveLength(2)
+    expect(availability.availabilityFor('moonraker').phase).toBe('recovering')
+  })
+
+  /*
+   * The resume must reconnect the existing client, never restart it.
+   * `stop()` clears the client's own `hasConnected` and reports `stopped`,
+   * which the store turns into `moonrakerDisconnected` — and that drops every
+   * module from the dimmed `recovering` treatment, where its last-known data
+   * stays mounted, to `unavailable`. Deepening that dimming is the opposite of
+   * what this is for.
+   */
+  it('never routes the resume through a disconnect', async () => {
+    const availability = useAvailabilityStore()
+    availability.moonrakerConnected({ klippy_connected: true, klippy_state: 'ready' })
+    const disconnected = vi.spyOn(availability, 'moonrakerDisconnected')
+
+    const moonraker = useMoonrakerStore()
+    moonraker.connect('voron.local:7125')
+    await failConnection()
+
+    window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true }))
+    await flushPromises()
+
+    expect(disconnected).not.toHaveBeenCalled()
+    expect(availability.availabilityFor('moonraker')).toMatchObject({
+      phase: 'recovering',
+      isStale: true,
+    })
+  })
+
+  /*
+   * A tab merely becoming visible says nothing about an attempt in progress,
+   * so flipping between tabs must not keep restarting a slow first handshake.
+   * Only a restore, where the browser itself killed the socket, may abandon
+   * one.
+   */
+  it('leaves a handshake in progress alone when a tab is merely brought forward', async () => {
+    const moonraker = useMoonrakerStore()
+    moonraker.connect('voron.local:7125')
+    expect(FakeWebSocket.instances).toHaveLength(1)
+
+    document.dispatchEvent(new Event('visibilitychange'))
+    await flushPromises()
+
+    expect(FakeWebSocket.instances).toHaveLength(1)
+  })
+
+  it('ignores a restore of a page whose document was never cached', async () => {
+    const moonraker = useMoonrakerStore()
+    moonraker.connect('voron.local:7125')
+    await failConnection()
+
+    window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: false }))
+    await flushPromises()
+
+    expect(FakeWebSocket.instances).toHaveLength(1)
   })
 })
