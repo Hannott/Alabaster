@@ -186,6 +186,28 @@ describe('TemperaturesModule', () => {
   })
 
   /*
+   * The breakpoint is a measured minimum, not a round number, and it has to stay
+   * under the widths the dashboard actually hands this card. It shipped at
+   * 34rem, and an L column at a 1920px viewport gives the card a 542px content
+   * box — two pixels short — so a row with 60px of slack in it stacked its
+   * controls onto a second line and paid 39px of height for 394px of empty name
+   * track. Read the number rather than the layout because jsdom resolves no
+   * container query: what regresses here is the threshold, not the tracks.
+   */
+  it('flips to the wide row below the width an L dashboard column produces', () => {
+    const styles = readFileSync(join(process.cwd(), 'src', 'styles', 'main.css'), 'utf8')
+    const [, breakpoint] =
+      styles.match(/@container temperature-card \(min-width: ([\d.]+)rem\)/) ?? []
+    expect(breakpoint).toBeDefined()
+
+    // 542px is the narrowest L column measured on the real dashboard, and the
+    // wide row's own tracks stop overflowing at 30rem, so the threshold lives
+    // between the two.
+    expect(Number(breakpoint) * 16).toBeLessThanOrEqual(542)
+    expect(Number(breakpoint)).toBeGreaterThanOrEqual(30)
+  })
+
+  /*
    * The cell is placed by its class, never by counting. The wide layout adds
    * two control columns that come *after* the field in the markup — source
    * order is reading-first so the field keeps its place in the tab sequence —

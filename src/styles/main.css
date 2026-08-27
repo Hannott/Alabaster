@@ -2757,8 +2757,19 @@ input[type='number']::-webkit-inner-spin-button {
   display: contents;
 }
 
+/*
+ * The row holds the height, rather than inheriting it from whatever the name
+ * cell's line box happened to be. Same 2.4rem it always was — a text-only row
+ * and a row holding an `sm` field still match without either knowing the other
+ * exists — but a name is now free to be one line or two inside it, and both are
+ * centred in the row instead of one of them sitting high in a box the text does
+ * not fill. Take this off and a wrapped name is the only thing setting the
+ * height of the row it wraps in, which is the coupling that made every name in
+ * every one of these tables a single line.
+ */
 .module-table__row {
   display: grid;
+  min-height: 2.4rem;
   grid-column: 1 / -1;
   grid-template-columns: subgrid;
   align-items: center;
@@ -2782,15 +2793,35 @@ input[type='number']::-webkit-inner-spin-button {
   white-space: nowrap;
 }
 
+/*
+ * Up to two lines, and a name too long for two is cut at the second. A line box
+ * is half the 2.4rem the row reserves anyway, so a name that wraps spends height
+ * that was already being held open and moves nothing beside it: measured on
+ * Temperatures' 73px name track — the narrowest its wide row produces —
+ * `raspberry pi` read `raspberry…` on one line and reads as both words on two.
+ *
+ * `max-height` of exactly two line boxes rather than `-webkit-line-clamp: 2`,
+ * which would have kept the ellipsis. The clamp needs `display: -webkit-box` on
+ * the element it clamps, and this element is a grid item: a grid item's display
+ * is blockified, `-webkit-box` computes to `flow-root`, and the clamp silently
+ * does nothing. Measured in Chromium, inline style and all. Reaching for it
+ * again means adding an inner element to every one of these templates purely to
+ * be the box that gets clipped, so the bound lives here instead — and because
+ * the line box divides the reserved height exactly, a third line falls wholly
+ * outside the box rather than showing a row of clipped letter-tops.
+ */
 .module-table__name {
   min-width: 0;
+  /* Two line boxes. The row already reserves this much, so wrapping is free. */
+  max-height: 2.4rem;
   overflow: hidden;
   font-size: var(--text-row-name-size);
   font-weight: var(--font-weight);
-  /* Doubles as the row height, so every row matches without a fixed track. */
-  line-height: 2.4rem;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  /* Half the row's reserved height, so two lines are exactly that height. */
+  line-height: 1.2rem;
+  /* A sensor named in one long token still gets both lines rather than losing
+     everything past the first. */
+  overflow-wrap: break-word;
 }
 
 .module-table__value {
@@ -3049,7 +3080,28 @@ input[type='number']::-webkit-inner-spin-button {
   white-space: nowrap;
 }
 
-@container temperature-card (min-width: 34rem) {
+/*
+ * Where a heater's controls move up beside its reading, derived from the tracks
+ * rather than picked as a round figure.
+ *
+ * Add the wide row up: 0.5rem of rail, the nudge pair and `Off` at 8.7rem, the
+ * status track at 8.5rem, the field at 7.75rem and four 0.5rem gaps come to
+ * 27.45rem, so the row stops overflowing its card at 30rem — with the name
+ * pinned to its 2.5rem floor, which is not a row anybody can read, since it cuts
+ * `Hotend` to two letters. The breakpoint sits 2rem above that floor so the name
+ * starts at 4.5rem and grows a pixel per pixel of card after it: a name longer
+ * than about nine characters ellipsizes at the breakpoint itself, which is what
+ * this column does everywhere and is cheaper than the 39px of extra row height
+ * the stacked line costs to avoid it.
+ *
+ * It was 34rem, and that number failed a width the dashboard actually produces:
+ * an L column at a 1920px viewport gives this card a 542px content box, two
+ * pixels under the threshold, so a row with 60px of slack in it stacked its
+ * controls onto a second line and left 394px of empty name track paying for the
+ * height. A breakpoint set by eye above the width a row needs is one that
+ * eventually lands on the wrong side of a real column.
+ */
+@container temperature-card (min-width: 32rem) {
   .temperature-table {
     grid-template-columns: 0.5rem minmax(2.5rem, 1fr) auto 8.5rem 7.75rem;
   }
@@ -11268,6 +11320,10 @@ body.machine-editor-fullscreen-open {
   flex: 0 0 auto;
   align-items: center;
   gap: 0.25rem;
+  /* The icon and its word are one unit. `module-table__name` used to forbid
+     the break from outside, and stopped doing so when a row name became free
+     to wrap; a badge that wrapped would put its icon on a line of its own. */
+  white-space: nowrap;
   font-size: var(--text-badge-size);
   font-weight: var(--font-weight);
   letter-spacing: var(--text-badge-tracking);

@@ -486,4 +486,42 @@ describe('page layout contract', () => {
     expect(ruleBody('.gcode-console')).toMatch(/position:\s*relative/)
     expect(ruleBody('.sr-only')).toMatch(/position:\s*absolute/)
   })
+
+  /*
+   * A row name gets two lines inside the height its row already reserves. The
+   * height used to be the name cell's own `line-height`, which is the coupling
+   * that kept every name in every one of these tables on one line: a name
+   * cannot wrap where its line box *is* the row. So the row reserves the
+   * 2.4rem, the name is bounded at two line boxes of half that, and the two
+   * numbers have to stay in that exact relationship — a line box that is not
+   * half the reserved height either lets a third line grow the row or leaves a
+   * strip of clipped letter-tops where the box cuts one off mid-glyph.
+   */
+  it('gives a table row name two lines inside the height the row reserves', () => {
+    const row = ruleBody('.module-table__row')
+    const name = ruleBody('.module-table__name')
+
+    const reserved = row.match(/min-height:\s*([\d.]+)rem/)?.[1]
+    const bound = name.match(/max-height:\s*([\d.]+)rem/)?.[1]
+    const lineBox = name.match(/line-height:\s*([\d.]+)rem/)?.[1]
+
+    expect(reserved).toBeDefined()
+    expect(bound).toBe(reserved)
+    expect(Number(lineBox)).toBeCloseTo(Number(reserved) / 2)
+
+    // Wrapping is the whole point, so the declaration that forbade it may not
+    // come back, and a name written as one long token still gets both lines
+    // rather than losing everything past the first.
+    expect(name).not.toMatch(/white-space:\s*nowrap/)
+    expect(name).toMatch(/overflow:\s*hidden/)
+    expect(name).toMatch(/overflow-wrap:\s*break-word/)
+
+    /*
+     * The badge in History's outcome column is an icon and a word, and it used
+     * to be the name cell's `nowrap` that kept them on one line. Nothing said
+     * so where the badge is written, so the day the cell stopped forbidding a
+     * break the badge would have put its icon on a line of its own.
+     */
+    expect(ruleBody('.history-job__outcome')).toMatch(/white-space:\s*nowrap/)
+  })
 })
