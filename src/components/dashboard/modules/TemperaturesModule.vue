@@ -32,7 +32,7 @@ const nudgeStep = 5
 /** Below this a fitted rate reads as noise, not a trend worth printing. */
 const minimumDisplayedRate = 0.1
 /** Below this an estimate flashes past rather than being read. */
-const minimumDisplayedEta = 10
+const minimumDisplayedEta = 5
 // Re-scaled when the chart gained axes: 4rem left no room for a label row.
 const chartHeightRem: Record<ChartHeightOption, number> = { compact: 6, standard: 9, tall: 13 }
 
