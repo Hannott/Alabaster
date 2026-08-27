@@ -469,4 +469,21 @@ describe('page layout contract', () => {
     expect(styles).toMatch(/\.settings-surface__pane\s*{[^}]*max-height:\s*calc\(100dvh - 2rem\)/s)
     expect(styles).toMatch(/\.settings-surface__content\s*{[^}]*overflow-y:\s*auto/s)
   })
+
+  /*
+   * `overflow` makes a box a scrollport; only `position` makes it the containing
+   * block for the absolutely positioned boxes inside it. Every transcript line
+   * carries a visually hidden role label, and `.sr-only` is `position: absolute`,
+   * so a static transcript sent those labels to the nearest positioned ancestor
+   * instead — the page shell — at the static offset each line has in the
+   * transcript's full, unscrolled content, and outside the transcript's
+   * containing block its overflow could not clip them either. The dashboard then
+   * carried hundreds of pixels of empty scroll below the last card, growing with
+   * every line the printer sent, and a settings surface scrolled while both its
+   * panes fitted the viewport.
+   */
+  it('keeps the transcript hidden line labels inside the transcript scrollport', () => {
+    expect(ruleBody('.gcode-console')).toMatch(/position:\s*relative/)
+    expect(ruleBody('.sr-only')).toMatch(/position:\s*absolute/)
+  })
 })

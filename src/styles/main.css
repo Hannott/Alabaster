@@ -6438,6 +6438,26 @@ input.z-axis__slider {
   --console-line-box: round(calc(var(--console-font-size) * var(--console-line-height)), 1px);
   --console-inset: var(--console-padding);
   --console-inset: round(var(--console-padding), 1px);
+  /*
+   * The transcript is a scroll container, but `overflow` alone does not make a
+   * box the containing block for absolutely positioned descendants — only
+   * `position` does. Every line carries a visually hidden role label ("Sent",
+   * "Response"), and `.sr-only` is `position: absolute`, so without this those
+   * labels resolved against the nearest *positioned* ancestor instead: the
+   * page shell. They then took their static position — the offset the line has
+   * in the transcript's full, unscrolled content — and, being outside the
+   * transcript's containing block, were not clipped by its overflow either. A
+   * transcript with more history than fits therefore scattered one 1px box per
+   * line down the page shell's scrollable area, well past the last card:
+   * measured on the dashboard as 518px of empty scroll below the grid, growing
+   * with every line the printer sent, and as a settings surface that scrolled
+   * while both its panes fitted the viewport. Positioning the box puts the
+   * labels back inside it, where its own overflow accounts for them.
+   *
+   * Any scroll container holding `.sr-only` content needs the same; static
+   * position plus `overflow` is the shape to look for.
+   */
+  position: relative;
   display: flex;
   flex-direction: column;
   block-size: calc(var(--console-lines) * var(--console-line-box) + 2 * var(--console-inset));
