@@ -15,8 +15,13 @@ resizing works with a keyboard and on a touchscreen:
 | Hide                   | Takes it off this layout. It keeps its configuration.       |
 | Collapse               | Keeps it in place, showing only its header and one reading. |
 
-**Column widths** sets the shape of the grid: equal columns, one wide column,
-or one narrow column. Choose which column it applies to.
+**Column widths** sets each column separately. Pick a column on the numbered
+ruler, then choose XS, S, M, L, or XL — so XS-XL-XS and L-S-S are both
+yours to build, and the ruler shows the shape you are making.
+
+Each width has a ceiling of its own. Three XS columns stay narrow and sit
+centred with space either side rather than stretching to fill a large monitor,
+and an XL column keeps growing long after an XS one has stopped.
 
 Hidden cards are listed under **Available modules**, ready to add back.
 

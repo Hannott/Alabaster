@@ -9,6 +9,7 @@ website/.vitepress/dist/
 
 # Internal working material
 .claude/
+.impeccable/
 CLAUDE.md
 AGENTS.md
 docs/

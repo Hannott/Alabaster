@@ -58,7 +58,46 @@ describe('dashboard profile normalization', () => {
     expect(desktop.some((placement) => placement.instanceId === 'ghost')).toBe(false)
     expect(desktop).toHaveLength(profile.instances.length)
     expect(profile.placements.mobile.every((placement) => placement.column === 0)).toBe(true)
-    expect(profile.columnWidths.desktop).toEqual({ shape: 'equal', target: 0 })
+    expect(profile.columnWidths.desktop).toEqual(['normal', 'normal', 'normal'])
+  })
+
+  it('reads a width for every column and replaces the ones it does not recognize', () => {
+    const profile = normalizeDashboardProfile({
+      columnWidths: { desktop: ['xl', 'huge', 's', 'l'], tablet: 'xs' },
+    })
+
+    expect(profile.columnWidths.desktop).toEqual(['xl', 'normal', 's'])
+    expect(profile.columnWidths.tablet).toEqual(['normal', 'normal'])
+    expect(profile.columnWidths.mobile).toEqual(['normal'])
+  })
+
+  it('renames the width names that were called after their neighbours', () => {
+    expect(
+      normalizeDashboardProfile({ columnWidths: { desktop: ['narrow', 'normal', 'wide'] } })
+        .columnWidths.desktop,
+    ).toEqual(['xs', 'normal', 'xl'])
+  })
+
+  /*
+   * The geometry a stored `{ shape, target }` described has to survive, or every
+   * dashboard arranged before per-column widths silently flattens to equal
+   * columns on first load.
+   */
+  it('translates a single-target column shape into per-column widths', () => {
+    expect(
+      normalizeDashboardProfile({ columnWidths: { desktop: { shape: 'wide', target: 1 } } })
+        .columnWidths.desktop,
+    ).toEqual(['normal', 'xl', 'normal'])
+
+    expect(
+      normalizeDashboardProfile({ columnWidths: { desktop: { shape: 'narrow', target: 9 } } })
+        .columnWidths.desktop,
+    ).toEqual(['normal', 'normal', 'xs'])
+
+    expect(
+      normalizeDashboardProfile({ columnWidths: { desktop: { shape: 'equal', target: 2 } } })
+        .columnWidths.desktop,
+    ).toEqual(['normal', 'normal', 'normal'])
   })
 
   /*
@@ -157,7 +196,7 @@ describe('dashboard profile normalization', () => {
     expect(
       profile?.placements.desktop.find((placement) => placement.instanceId === 'macros')?.visible,
     ).toBe(true)
-    expect(profile?.columnWidths.desktop).toEqual({ shape: 'equal', target: 0 })
+    expect(profile?.columnWidths.desktop).toEqual(['normal', 'normal', 'normal'])
   })
 })
 
@@ -283,13 +322,14 @@ describe('dashboard layout store', () => {
     )
   })
 
-  it('sets and clamps the column width preset per viewport', () => {
+  it('sets each column width independently and clamps the column index', () => {
     const layout = useDashboardLayoutStore()
-    layout.setColumnWidths('desktop', { shape: 'wide', target: 1 })
-    expect(layout.columnWidthsFor('desktop')).toEqual({ shape: 'wide', target: 1 })
+    layout.setColumnWidth('desktop', 1, 'xl')
+    layout.setColumnWidth('desktop', 2, 'xs')
+    expect(layout.columnWidthsFor('desktop')).toEqual(['normal', 'xl', 'xs'])
 
-    layout.setColumnWidths('mobile', { shape: 'narrow', target: 5 })
-    expect(layout.columnWidthsFor('mobile')).toEqual({ shape: 'narrow', target: 0 })
+    layout.setColumnWidth('mobile', 5, 's')
+    expect(layout.columnWidthsFor('mobile')).toEqual(['s'])
   })
 
   it('duplicates a module into every viewport and copies its configuration', () => {
@@ -346,7 +386,7 @@ describe('dashboard layout store', () => {
   it('applies a preset without discarding configured instances or the column width', () => {
     const layout = useDashboardLayoutStore()
     layout.updateConfig('macros', { macros: ['HOME'] })
-    layout.setColumnWidths('desktop', { shape: 'wide', target: 2 })
+    layout.setColumnWidth('desktop', 2, 'l')
     layout.applyPreset('minimal')
 
     const visible = layout
@@ -357,20 +397,20 @@ describe('dashboard layout store', () => {
     expect(
       layout.profile.instances.find((instance) => instance.instanceId === 'macros')?.config,
     ).toEqual({ macros: ['HOME'] })
-    expect(layout.columnWidthsFor('desktop')).toEqual({ shape: 'wide', target: 2 })
+    expect(layout.columnWidthsFor('desktop')).toEqual(['normal', 'normal', 'l'])
   })
 
   it('resets placement and column widths for one viewport', () => {
     const layout = useDashboardLayoutStore()
     layout.moveColumn('desktop', 'print', 1)
-    layout.setColumnWidths('desktop', { shape: 'narrow', target: 1 })
+    layout.setColumnWidth('desktop', 1, 'xs')
     layout.reset('desktop')
 
     expect(
       layout.profile.placements.desktop.find((placement) => placement.instanceId === 'print')
         ?.column,
     ).toBe(0)
-    expect(layout.columnWidthsFor('desktop')).toEqual({ shape: 'equal', target: 0 })
+    expect(layout.columnWidthsFor('desktop')).toEqual(['normal', 'normal', 'normal'])
   })
 
   it('reads a version 1 layout from storage when no newer profile exists', () => {

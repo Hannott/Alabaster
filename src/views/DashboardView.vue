@@ -15,9 +15,11 @@ import { useDashboardViewport } from '@/composables/useDashboardViewport'
 import {
   columnCountFor,
   columnWidthFractions,
+  columnWidthUnits,
+  dashboardColumnWidthNames,
   movePlacement,
   visibleIndexOf,
-  type DashboardColumnShape,
+  type DashboardColumnWidth,
   type DashboardDropTarget,
   type DashboardViewport,
 } from '@/dashboard/layout'
@@ -33,8 +35,6 @@ import { useServerCapabilitiesStore } from '@/stores/serverCapabilities'
 interface RenderedDashboardModule extends RenderedDashboardInstance {
   definition: DashboardModuleDefinition
 }
-
-const columnShapes: DashboardColumnShape[] = ['equal', 'wide', 'narrow']
 
 const { t } = useI18n({ useScope: 'global' })
 const printers = usePrintersStore()
@@ -117,9 +117,46 @@ const displayedViewport = computed(() =>
 )
 const columnCount = computed(() => columnCountFor(displayedViewport.value))
 const columnWidths = computed(() => layout.columnWidthsFor(selectedViewport.value))
-const columnTemplate = computed(() =>
-  columnWidthFractions(layout.columnWidthsFor(displayedViewport.value), displayedViewport.value)
+/** Which column the width picker is currently pointed at. */
+const selectedColumn = ref(0)
+watch([selectedViewport, editing], () => {
+  selectedColumn.value = 0
+})
+
+/** The smallest the width picker lets one of its segments get. */
+const rulerSegmentMinimum = '1.75rem'
+
+function trackTemplate(widths: DashboardColumnWidth[], viewport: DashboardViewport): string {
+  return columnWidthFractions(widths, viewport)
     .map((fraction) => `${fraction}fr`)
+    .join(' ')
+}
+
+const columnTemplate = computed(() =>
+  trackTemplate(layout.columnWidthsFor(displayedViewport.value), displayedViewport.value),
+)
+/*
+ * The cap, in normal-column widths. The grid multiplies it by
+ * `--dashboard-column-width` and stops there, so a row of narrow columns keeps
+ * its own modest total instead of stretching to whatever three columns of any
+ * width would have filled — which is the difference between a narrow column and
+ * a column that is merely narrower than its neighbour.
+ */
+const columnUnits = computed(() =>
+  columnWidthUnits(layout.columnWidthsFor(displayedViewport.value), displayedViewport.value),
+)
+/**
+ * The picker's own track, mirroring the real grid so it reads as a scale model.
+ *
+ * Its own floor, not the grid's: at the picker's fixed width a narrow column
+ * beside two wide ones works out to under 24px, which is the target size this
+ * project commits to. The floor costs the most extreme pairing a little of its
+ * proportion and keeps every segment pressable; the dashboard behind it is
+ * showing the true geometry either way.
+ */
+const rulerTemplate = computed(() =>
+  columnWidthFractions(columnWidths.value, selectedViewport.value)
+    .map((fraction) => `minmax(${rulerSegmentMinimum}, ${fraction}fr)`)
     .join(' '),
 )
 /*
@@ -517,12 +554,8 @@ function applyPreset(event: Event): void {
   target.value = ''
 }
 
-function setColumnShape(shape: DashboardColumnShape): void {
-  layout.setColumnWidths(selectedViewport.value, { shape, target: columnWidths.value.target })
-}
-
-function setColumnTarget(target: number): void {
-  layout.setColumnWidths(selectedViewport.value, { shape: columnWidths.value.shape, target })
+function setColumnWidth(width: DashboardColumnWidth): void {
+  layout.setColumnWidth(selectedViewport.value, selectedColumn.value, width)
 }
 </script>
 
@@ -551,17 +584,26 @@ function setColumnTarget(target: number): void {
       <PageHeading :title="t('dashboard.operationalTitle')" :action="customizeAction" />
 
       <div v-if="editing" class="dashboard-edit-banner">
-        <div class="flex min-w-0 items-center gap-3">
+        <!--
+        The heading takes the leftover space rather than the first control
+        pushing itself right with an auto margin. Same result while the banner
+        fits on one line, and the difference shows the moment it wraps: an auto
+        margin belongs to whichever line the control lands on, so it would
+        indent the whole second row by whatever space that row had left over.
+
+        `grow`, never `flex-1`: the latter also sets the basis to zero, which
+        takes the heading out of the calculation that decides where the row
+        breaks. The controls then stay on its line and squeeze it down to one
+        word per line instead of wrapping to a line of their own.
+      -->
+        <div class="flex min-w-0 grow items-center gap-3">
           <AppIcon name="drag" class="size-5 shrink-0 text-data-sky" aria-hidden="true" />
           <div class="min-w-0">
             <p class="text-card-title">{{ t('dashboard.layout.title') }}</p>
             <p class="mt-0.5 text-xs text-muted">{{ t('dashboard.layout.description') }}</p>
           </div>
         </div>
-        <div
-          class="segmented dashboard-viewport-picker"
-          :aria-label="t('dashboard.layout.viewportLabel')"
-        >
+        <div class="segmented" :aria-label="t('dashboard.layout.viewportLabel')">
           <button
             v-for="candidate in ['desktop', 'tablet', 'mobile'] as DashboardViewport[]"
             :key="candidate"
@@ -573,34 +615,51 @@ function setColumnTarget(target: number): void {
             {{ t(`dashboard.layout.viewport.${candidate}`) }}
           </button>
         </div>
+        <!--
+        Two controls rather than one per column: pick the column, then set its
+        width. The ruler's own tracks are the layout's tracks, so it is a scale
+        model of the grid behind it and the widths are legible without reading a
+        single label — which is what lets its buttons be numbered rather than
+        named, and is why a narrow column stays a comfortable target instead of
+        shrinking to fit the word "Narrow".
+      -->
         <div
           v-if="columnCountFor(selectedViewport) > 1"
           class="dashboard-column-width-picker"
+          role="group"
           :aria-label="t('dashboard.layout.columnWidthLabel')"
         >
-          <div class="segmented">
-            <button
-              v-for="shape in columnShapes"
-              :key="shape"
-              type="button"
-              class="button button--sm"
-              :aria-pressed="columnWidths.shape === shape"
-              @click="setColumnShape(shape)"
-            >
-              {{ t(`dashboard.layout.columnShape.${shape}`) }}
-            </button>
-          </div>
-          <div v-if="columnWidths.shape !== 'equal'" class="segmented">
+          <div
+            class="segmented dashboard-column-ruler"
+            :style="{ '--dashboard-ruler-template': rulerTemplate }"
+          >
             <button
               v-for="column in columnCountFor(selectedViewport)"
               :key="column"
               type="button"
               class="button button--sm"
-              :aria-pressed="columnWidths.target === column - 1"
-              :aria-label="t('dashboard.layout.columnNumber', { number: column })"
-              @click="setColumnTarget(column - 1)"
+              :aria-pressed="selectedColumn === column - 1"
+              :aria-label="
+                t('dashboard.layout.columnWidthOf', {
+                  number: column,
+                  width: t(`dashboard.layout.columnWidth.${columnWidths[column - 1] ?? 'normal'}`),
+                })
+              "
+              @click="selectedColumn = column - 1"
             >
               {{ column }}
+            </button>
+          </div>
+          <div class="segmented dashboard-column-width-scale">
+            <button
+              v-for="width in dashboardColumnWidthNames"
+              :key="width"
+              type="button"
+              class="button button--sm"
+              :aria-pressed="(columnWidths[selectedColumn] ?? 'normal') === width"
+              @click="setColumnWidth(width)"
+            >
+              {{ t(`dashboard.layout.columnWidth.${width}`) }}
             </button>
           </div>
         </div>
@@ -653,7 +712,10 @@ function setColumnTarget(target: number): void {
         class="dashboard-columns"
         :data-layout-viewport="displayedViewport"
         :data-dragging="drag.instanceId.value ? true : undefined"
-        :style="{ '--dashboard-column-template': columnTemplate }"
+        :style="{
+          '--dashboard-column-template': columnTemplate,
+          '--dashboard-column-units': columnUnits,
+        }"
       >
         <!--
         Each column is its own TransitionGroup, so a card previewed into another

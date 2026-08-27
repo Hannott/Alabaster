@@ -3,19 +3,21 @@ import { computed, ref } from 'vue'
 
 import {
   clampColumn,
-  clampColumnTarget,
+  columnCountFor,
   dashboardModuleIds,
   dashboardViewports,
   defaultColumnForIndex,
   defaultColumnWidths,
+  isDashboardColumnWidth,
   isDashboardModuleId,
   moduleIdOfInstance,
   movePlacement,
   nextInstanceId,
+  renameStoredColumnWidth,
   renameStoredInstanceId,
   renameStoredModuleId,
   visibleIndexOf,
-  type DashboardColumnShape,
+  type DashboardColumnWidth,
   type DashboardColumnWidths,
   type DashboardColumnWidthsByViewport,
   type DashboardDropTarget,
@@ -142,11 +144,39 @@ function normalizePlacements(
   return placements
 }
 
+/**
+ * Stored column widths, in either shape they have been written in.
+ *
+ * Before every column could pick its own width the profile stored one
+ * `{ shape, target }` pair: a single column nominated to be wider or narrower
+ * than its equal siblings. Those two records describe the same geometry, so the
+ * migration is a translation rather than a reset — `{ shape: 'wide', target: 1 }`
+ * on desktop is exactly `['normal', 'wide', 'normal']`, and a dashboard someone
+ * arranged before this change looks identical after it. That is the whole reason
+ * the ratios in `columnWidthRatios` were kept at their old values.
+ */
 function normalizeColumnWidths(value: unknown, viewport: DashboardViewport): DashboardColumnWidths {
-  if (!isRecord(value)) return defaultColumnWidths()
-  const shape: DashboardColumnShape =
-    value.shape === 'wide' || value.shape === 'narrow' ? value.shape : 'equal'
-  return { shape, target: clampColumnTarget(value.target, viewport) }
+  const count = columnCountFor(viewport)
+
+  if (Array.isArray(value)) {
+    return Array.from({ length: count }, (_, index) => {
+      const stored = renameStoredColumnWidth(value[index])
+      return isDashboardColumnWidth(stored) ? stored : 'normal'
+    })
+  }
+
+  if (isRecord(value) && (value.shape === 'wide' || value.shape === 'narrow')) {
+    const widths = defaultColumnWidths(viewport)
+    const target =
+      typeof value.target === 'number' && Number.isFinite(value.target)
+        ? Math.min(count - 1, Math.max(0, Math.round(value.target)))
+        : 0
+    const width = renameStoredColumnWidth(value.shape)
+    if (isDashboardColumnWidth(width)) widths[target] = width
+    return widths
+  }
+
+  return defaultColumnWidths(viewport)
 }
 
 export function normalizeDashboardProfile(value: unknown): DashboardProfile {
@@ -215,7 +245,7 @@ export function migrateLegacyProfile(value: unknown): DashboardProfile | null {
   ) as DashboardPlacements
 
   const columnWidths = Object.fromEntries(
-    dashboardViewports.map((viewport) => [viewport, defaultColumnWidths()]),
+    dashboardViewports.map((viewport) => [viewport, defaultColumnWidths(viewport)]),
   ) as DashboardColumnWidthsByViewport
 
   return { instances, placements, columnWidths }
@@ -414,15 +444,26 @@ export const useDashboardLayoutStore = defineStore('dashboardLayout', () => {
     }))
   }
 
-  function setColumnWidths(viewport: DashboardViewport, widths: DashboardColumnWidths): void {
+  /**
+   * Sets one column's width. Per column rather than per profile because that is
+   * the only edit the picker makes, and routing it through the array's own
+   * normalizer keeps a stale index or an unknown name from reaching storage.
+   */
+  function setColumnWidth(
+    viewport: DashboardViewport,
+    column: number,
+    width: DashboardColumnWidth,
+  ): void {
+    const index = clampColumn(column, viewport)
+    if (index === null || !isDashboardColumnWidth(width)) return
+
+    const widths = [...profile.value.columnWidths[viewport]]
+    widths[index] = width
     profile.value = {
       ...profile.value,
       columnWidths: {
         ...profile.value.columnWidths,
-        [viewport]: {
-          shape: widths.shape,
-          target: clampColumnTarget(widths.target, viewport),
-        },
+        [viewport]: normalizeColumnWidths(widths, viewport),
       },
     }
     persist()
@@ -649,7 +690,14 @@ export const useDashboardLayoutStore = defineStore('dashboardLayout', () => {
         collapsed: false,
       })),
     )
-    setColumnWidths(viewport, defaultColumnWidths())
+    profile.value = {
+      ...profile.value,
+      columnWidths: {
+        ...profile.value.columnWidths,
+        [viewport]: defaultColumnWidths(viewport),
+      },
+    }
+    persist()
   }
 
   return {
@@ -663,7 +711,7 @@ export const useDashboardLayoutStore = defineStore('dashboardLayout', () => {
     setVisible,
     setCollapsed,
     toggleCollapsed,
-    setColumnWidths,
+    setColumnWidth,
     moveTo,
     reorder,
     move,

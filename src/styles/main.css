@@ -2308,23 +2308,65 @@ input[type='number']::-webkit-inner-spin-button {
   background: var(--surface-raised);
 }
 
+/*
+ * The row wraps rather than compressing. Its controls are segmented tracks whose
+ * own `flex-wrap` is the last resort for a track too narrow for its labels, and
+ * a non-wrapping banner reaches that resort early: somewhere below 1100px the
+ * viewport picker was stacking Desktop, Tablet, and Mobile into three lines and
+ * dragging the banner's height with it, on screens wide enough to lay all of it
+ * out flat. Wrapping at the banner spends a second line instead of three, and
+ * every control keeps the size it was designed at.
+ */
 .dashboard-edit-banner {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 0.75rem;
   padding: 0.75rem;
   border-style: dashed;
   border-color: var(--accent-primary);
 }
 
-.dashboard-viewport-picker {
-  margin-inline-start: auto;
-}
-
 .dashboard-column-width-picker {
   display: flex;
   align-items: center;
   gap: 0.4rem;
+}
+
+/*
+ * The picker's column track, sized by the same fractions as the dashboard's own
+ * so the control shows the shape it is editing. `grid` rather than the
+ * `segmented` track's usual flex, because `flex: 1 1 auto` on the items sizes
+ * them from their labels and a proportion cannot survive that.
+ *
+ * The fixed inline size is what makes the proportions readable: left to fill the
+ * banner row it would be wide enough that even an XS column looked ordinary.
+ * The tracks carry their own minimum — see `rulerTemplate` — so no pairing of
+ * widths can shrink a segment below the target size at this width.
+ */
+/*
+ * The width ladder, on even rungs. Sized from their own labels, `S` and `L`
+ * come out at 26px beside a longer rung's 64px — a control whose buttons differ
+ * in size while what they set is a size, which reads as though a button were
+ * showing the width it stands for. Equal tracks say the opposite, and they keep
+ * the one-letter rungs clear of the 24px target minimum they otherwise sit
+ * barely above. It is also why the middle rung is labelled `M` rather than
+ * spelling out its `normal` key: at 64px across five rungs the ladder pushed the
+ * edit banner onto a second row at 1920px. `grid-auto-columns` rather than a
+ * track count, so a sixth rung needs no CSS.
+ */
+.dashboard-column-width-scale {
+  display: inline-grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+}
+
+.dashboard-column-ruler {
+  display: grid;
+  grid-template-columns: var(--dashboard-ruler-template, repeat(3, minmax(1.75rem, 1fr)));
+  /* Never compressed by a crowded row: the proportions are the whole control. */
+  flex: none;
+  inline-size: 11rem;
 }
 
 /*
@@ -2336,9 +2378,41 @@ input[type='number']::-webkit-inner-spin-button {
  * instead of being dead space outside every column's box.
  */
 .dashboard-columns {
+  --dashboard-column-gap: 0.85rem;
+  /*
+   * How wide one normal column is allowed to get. Calibrated so a three-column
+   * desktop dashboard is unchanged at 1920px and only starts leaving margins
+   * above that; the rest of the ladder caps at its own ratio of this — XS at
+   * 0.55 of it, XL at 1.6.
+   */
+  --dashboard-column-width: 36rem;
+
   display: grid;
   grid-template-columns: var(--dashboard-column-template, repeat(3, minmax(0, 1fr)));
-  gap: 0.85rem;
+  gap: var(--dashboard-column-gap);
+  /*
+   * The cap belongs to the grid, not to its tracks. Per-track maxima are handed
+   * out equally by grid's own sizing once the window is narrower than their sum,
+   * which flattens an XS-XL-XS row into three equal columns exactly where the
+   * shape still mattered. Capping the total instead leaves every track a pure
+   * `fr`: the proportions hold at every width, and once each column has reached
+   * its own limit the leftover space goes to the margins — so three XS columns
+   * end up narrow with space either side rather than silently filling the window
+   * exactly as three M ones would.
+   */
+  max-inline-size: calc(
+    var(--dashboard-column-units, 3) * var(--dashboard-column-width) +
+      (var(--dashboard-column-count, 3) - 1) * var(--dashboard-column-gap)
+  );
+  margin-inline: auto;
+}
+
+.dashboard-columns[data-layout-viewport='tablet'] {
+  --dashboard-column-count: 2;
+}
+
+.dashboard-columns[data-layout-viewport='mobile'] {
+  --dashboard-column-count: 1;
 }
 
 .dashboard-column {
@@ -7537,10 +7611,6 @@ input.z-axis__slider {
   .dashboard-module-tray {
     align-items: stretch;
     flex-direction: column;
-  }
-
-  .dashboard-viewport-picker {
-    margin-inline-start: 0;
   }
 
   .segmented > .button {

@@ -41,17 +41,23 @@ export interface DashboardPlacement {
 export type DashboardPlacements = Record<DashboardViewport, DashboardPlacement[]>
 
 /**
- * Column width is a profile-wide choice, not a per-module one: every module
- * fills the full width of whichever column it sits in. `target` names the
- * column that is wider or narrower than its siblings and is ignored when
- * `shape` is 'equal'.
+ * Every column carries its own width, so a profile is free to be
+ * narrow-normal-narrow or wide-narrow-narrow rather than picking one column to
+ * be the exception. A module still never sets its own width: it fills whichever
+ * column it sits in.
  */
-export type DashboardColumnShape = 'equal' | 'wide' | 'narrow'
+/*
+ * The ladder is labelled XS · S · M · L · XL, but the middle rung's key stays
+ * `normal`: it is the reference every ratio is expressed against and the width a
+ * fresh profile fills itself with, and a key named for the label would hide that
+ * behind a letter. The label is an i18n string; this is storage.
+ */
+export const dashboardColumnWidthNames = ['xs', 's', 'normal', 'l', 'xl'] as const
 
-export interface DashboardColumnWidths {
-  shape: DashboardColumnShape
-  target: number
-}
+export type DashboardColumnWidth = (typeof dashboardColumnWidthNames)[number]
+
+/** One entry per column of the viewport, in column order. */
+export type DashboardColumnWidths = DashboardColumnWidth[]
 
 export type DashboardColumnWidthsByViewport = Record<DashboardViewport, DashboardColumnWidths>
 
@@ -69,8 +75,40 @@ const columnCounts: Record<DashboardViewport, number> = {
   mobile: 1,
 }
 
-export const wideColumnRatio = 1.6
-export const narrowColumnRatio = 0.55
+/**
+ * How wide each column is relative to a normal one.
+ *
+ * The ends of the ladder are the ratios the single-target `wide`/`narrow` shapes
+ * carried before every column could pick its own, so a layout migrated from that
+ * model keeps the exact geometry it had — which is also why `normal` is exactly
+ * 1 rather than the midpoint of a tidier progression: three normal columns have
+ * to come out at the width three equal ones always did.
+ */
+export const columnWidthRatios: Readonly<Record<DashboardColumnWidth, number>> = {
+  xs: 0.55,
+  s: 0.75,
+  normal: 1,
+  l: 1.3,
+  xl: 1.6,
+}
+
+/**
+ * Width names that have been stored under an earlier one. The ladder grew from
+ * three rungs to five, and its outer two were named for the comparison they made
+ * with their neighbours rather than for a size — a name that stops working the
+ * moment there is a rung outside it. An unrecognized name falls back to `normal`
+ * and silently flattens a layout, so a rename without an entry here is a rename
+ * that loses somebody's dashboard.
+ */
+const renamedColumnWidths: Readonly<Record<string, DashboardColumnWidth>> = {
+  narrow: 'xs',
+  wide: 'xl',
+}
+
+/** The current name for a stored one, or the value unchanged. */
+export function renameStoredColumnWidth(value: unknown): unknown {
+  return typeof value === 'string' ? (renamedColumnWidths[value] ?? value) : value
+}
 
 export function columnCountFor(viewport: DashboardViewport): number {
   return columnCounts[viewport]
@@ -84,8 +122,14 @@ export function defaultColumnForIndex(index: number, viewport: DashboardViewport
   return index % columnCountFor(viewport)
 }
 
-export function defaultColumnWidths(): DashboardColumnWidths {
-  return { shape: 'equal', target: 0 }
+export function defaultColumnWidths(viewport: DashboardViewport): DashboardColumnWidths {
+  return Array<DashboardColumnWidth>(columnCountFor(viewport)).fill('normal')
+}
+
+export function isDashboardColumnWidth(value: unknown): value is DashboardColumnWidth {
+  return (
+    typeof value === 'string' && dashboardColumnWidthNames.includes(value as DashboardColumnWidth)
+  )
 }
 
 export function isDashboardModuleId(value: unknown): value is DashboardModuleId {
@@ -102,27 +146,38 @@ export function clampColumn(value: unknown, viewport: DashboardViewport): number
   return Math.min(count - 1, Math.max(0, Math.round(value)))
 }
 
-export function clampColumnTarget(value: unknown, viewport: DashboardViewport): number {
-  const count = columnCountFor(viewport)
-  if (typeof value !== 'number' || !Number.isFinite(value)) return 0
-  return Math.min(count - 1, Math.max(0, Math.round(value)))
-}
-
 /**
- * The fr value for each column track, in column order. A shape only changes
- * geometry when the viewport has more than one column to redistribute.
+ * The fr value for each column track, in column order. Proportional rather than
+ * absolute so the shape a profile chose survives every container width: at any
+ * size below the cap the columns shrink together and a narrow column stays
+ * narrower than the wide one beside it.
  */
 export function columnWidthFractions(
   widths: DashboardColumnWidths,
   viewport: DashboardViewport,
 ): number[] {
-  const count = columnCountFor(viewport)
-  const fractions = Array<number>(count).fill(1)
-  if (widths.shape === 'equal' || count < 2) return fractions
+  return Array.from(
+    { length: columnCountFor(viewport) },
+    (_, index) => columnWidthRatios[widths[index] ?? 'normal'],
+  )
+}
 
-  const target = Math.min(count - 1, Math.max(0, widths.target))
-  fractions[target] = widths.shape === 'wide' ? wideColumnRatio : narrowColumnRatio
-  return fractions
+/**
+ * How many normal-column widths the whole grid is worth, which is what caps it.
+ *
+ * The cap has to live on the grid rather than on each track. A per-track maximum
+ * is distributed equally by grid's own track sizing once space runs short, so
+ * three columns capped at 317/576/922 all come out the same width the moment the
+ * window is narrower than their sum — the shape collapses exactly when it is
+ * still meaningful. Capping the grid at the sum of its columns' maxima instead
+ * keeps every track a pure `fr`, so the proportions hold at every width and the
+ * leftover space goes to the margins once each column has reached its own limit.
+ */
+export function columnWidthUnits(
+  widths: DashboardColumnWidths,
+  viewport: DashboardViewport,
+): number {
+  return columnWidthFractions(widths, viewport).reduce((total, ratio) => total + ratio, 0)
 }
 
 /**

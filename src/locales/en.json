@@ -462,12 +462,14 @@
         "tuning": "Tuning"
       },
       "columnWidthLabel": "Column widths",
-      "columnShape": {
-        "equal": "Equal",
-        "wide": "Wide",
-        "narrow": "Narrow"
+      "columnWidth": {
+        "xs": "XS",
+        "s": "S",
+        "normal": "M",
+        "l": "L",
+        "xl": "XL"
       },
-      "columnNumber": "Column {number}"
+      "columnWidthOf": "Column {number}, {width}"
     },
     "duration": {
       "hoursMinutes": "{hours}h {minutes}m",

@@ -75,7 +75,7 @@ export function dashboardProfileForPreset(preset: DashboardPresetId): DashboardP
   ) as DashboardPlacements
 
   const columnWidths = Object.fromEntries(
-    dashboardViewports.map((viewport) => [viewport, defaultColumnWidths()]),
+    dashboardViewports.map((viewport) => [viewport, defaultColumnWidths(viewport)]),
   ) as DashboardColumnWidthsByViewport
 
   return {

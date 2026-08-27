@@ -14,3 +14,9 @@ website/.vitepress/dist
 # upstream formatting, so a re-vendor diffs against the upstream commit it
 # names rather than against our formatter's opinion of it.
 .claude/skills/
+
+# Design-tooling scratch state, written by the tooling rather than by us. Same
+# reason as the two entries above: git-ignored globally, which Prettier does not
+# read, so without this line `format:check` fails on whichever machine last ran
+# a design pass.
+.impeccable/

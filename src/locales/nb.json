@@ -462,12 +462,14 @@
         "tuning": "Tuning"
       },
       "columnWidthLabel": "Kolonnebredder",
-      "columnShape": {
-        "equal": "Lik",
-        "wide": "Bred",
-        "narrow": "Smal"
+      "columnWidth": {
+        "xs": "XS",
+        "s": "S",
+        "normal": "M",
+        "l": "L",
+        "xl": "XL"
       },
-      "columnNumber": "Kolonne {number}"
+      "columnWidthOf": "Kolonne {number}, {width}"
     },
     "duration": {
       "hoursMinutes": "{hours} t {minutes} min",
