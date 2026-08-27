@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, useId, useTemplateRef, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import {
@@ -50,16 +50,6 @@ const props = defineProps<{
 const cursorEventtime = defineModel<number | null>('cursorEventtime', { required: true })
 
 const { t } = useI18n({ useScope: 'global' })
-/**
- * Scopes the clip path's id to this instance: a dashboard can hold more than
- * one Temperatures card (ADR 0006), and an `id` shared between two `<svg>`s
- * would let the second one's `<clipPath>` silently win, clipping the first
- * chart's line to whatever the second chart's plot rectangle happens to be.
- */
-const clipId = useId()
-/** Same instance-scoping reason, for the time labels' fade band. */
-const labelMaskId = useId()
-const labelFadeId = useId()
 
 /*
  * Drawn in real pixels rather than a fixed `viewBox` stretched to fit. The old
@@ -161,6 +151,20 @@ const time = computed(() =>
  * themselves persist across patches.
  */
 let scrollLagSeconds = 0
+/**
+ * The widest gap between two samples the axis will still slide across, rather
+ * than place itself at.
+ *
+ * The shift is only ever meant to cover one beat of the feed, which the store
+ * holds to one point a second. Two seconds carries an ordinary sample and a
+ * late one and stays under thirteen pixels even on the narrowest window the
+ * card offers, so the strip it leaves bare at the left edge is invisible.
+ * Anything longer is silence rather than cadence — a stalled feed, or a
+ * frozen tab — and there is no continuous motion between the two moments to
+ * interpolate: the newest sample is simply the present, and the axis belongs
+ * at it.
+ */
+const maximumCarrySeconds = 2
 /** Where the edge had reached when the newest sample landed, and when that was. */
 let anchorEnd: number | null = null
 let anchorAt = 0
@@ -170,10 +174,64 @@ const pixelsPerSecond = computed(() =>
   props.windowSeconds > 0 ? plotWidth.value / props.windowSeconds : 0,
 )
 
-const traceGroup = useTemplateRef<SVGGElement>('traceGroup')
-const labelGroup = useTemplateRef<SVGGElement>('labelGroup')
+/**
+ * The two surfaces the axis scrolls, each an `<svg>` of its own inside a box
+ * that clips it — not a `<g>` inside one svg, which is what this replaced.
+ *
+ * The shift has to be applied sixty times a second, and an svg group is the
+ * one place it cannot be applied cheaply: a group's transform is not a
+ * composited property, so every write rebuilt the traces, the gridlines and
+ * the label band on the main thread. That is what made a dashboard carrying a
+ * Temperatures card feel heavy to scroll on a phone. A positioned element does
+ * get its own compositor layer, so the same shift written to one of these is a
+ * transform node update with no repaint behind it — the bed mesh is smooth on
+ * the same page for the same reason, one level further down.
+ *
+ * Both layers are laid out at the full size of the chart and pulled back into
+ * place by their wrapper's offset, so every projection below still returns a
+ * coordinate in one space shared with the static layer. Splitting the drawing
+ * across three surfaces must not turn into three coordinate systems.
+ */
+const traceLayer = useTemplateRef<SVGSVGElement>('traceLayer')
+const labelLayer = useTemplateRef<SVGSVGElement>('labelLayer')
 /** The applied shift in pixels, kept for the pointer math in `eventtimeAt`. */
 let scrollOffsetPx = 0
+
+/**
+ * Whether the page under the card is being scrolled, which the cursor further
+ * down needs to know — a pointer that never moved still reports a move when
+ * the content slides under it. Deliberately *not* used to throttle the axis:
+ * see "Two suppressions that do not work" under ADR 0004's scrolling
+ * time-axis exception for what each attempt cost.
+ */
+const scrollSettleMs = 120
+let pageIsScrolling = false
+let settleTimer: number | null = null
+
+function onPageScroll(): void {
+  pageIsScrolling = true
+  if (settleTimer !== null) clearTimeout(settleTimer)
+  settleTimer = window.setTimeout(() => {
+    settleTimer = null
+    pageIsScrolling = false
+  }, scrollSettleMs)
+}
+
+/*
+ * Captured, not bubbled: a scroll event from an element does not bubble, and
+ * the routed page holding the dashboard is a scroll container of its own
+ * rather than the document. Passive, so listening for the gesture can never be
+ * what delays it.
+ */
+onMounted(() => {
+  document.addEventListener('scroll', onPageScroll, { capture: true, passive: true })
+})
+
+onBeforeUnmount(() => {
+  document.removeEventListener('scroll', onPageScroll, { capture: true })
+  if (settleTimer !== null) clearTimeout(settleTimer)
+  settleTimer = null
+})
 
 /**
  * Rightward, and never more than one sample interval. Shifting the drawn axis
@@ -182,18 +240,31 @@ let scrollOffsetPx = 0
  * edge and snapping back each time a sample lands. Written straight to the
  * two groups — see the note on `scrollLagSeconds` for why this is not a
  * template binding.
+ *
+ * Written on every frame, unconditionally. Skipping a write that moves the
+ * axis less than a whole device pixel looks free and is not: the trace is
+ * antialiased, so a fraction of a pixel of travel genuinely changes what is
+ * on the screen, and quantising it to whole pixels reads as stepping on the
+ * one-minute window. See ADR 0004. There is nothing left to save by writing
+ * less often anyway — the write goes to a composited layer, so what it costs
+ * is a transform node and not a repaint.
+ *
+ * A style property rather than an attribute, because only the CSS transform
+ * reaches the compositor; the svg `transform` attribute is laid out and
+ * painted. Vue patches a bound style object key by key and never sees this
+ * one, so writing it here does not fight the bindings the layers do carry.
  */
 function applyScroll(): void {
   scrollOffsetPx = scrollLagSeconds * pixelsPerSecond.value
-  const transform = `translate(${scrollOffsetPx.toFixed(2)} 0)`
-  traceGroup.value?.setAttribute('transform', transform)
-  labelGroup.value?.setAttribute('transform', transform)
+  const transform = `translate3d(${scrollOffsetPx.toFixed(2)}px, 0, 0)`
+  if (traceLayer.value) traceLayer.value.style.transform = transform
+  if (labelLayer.value) labelLayer.value.style.transform = transform
 }
 
 // The frame loop only runs while there is lag to work off, so a resize, a
 // window change, or the svg (re)mounting has to reapply the shift itself —
-// after render, when the groups exist at their new geometry.
-watch([pixelsPerSecond, traceGroup, labelGroup], () => applyScroll(), { flush: 'post' })
+// after render, when the layers exist at their new geometry.
+watch([pixelsPerSecond, traceLayer, labelLayer], () => applyScroll(), { flush: 'post' })
 
 function prefersReducedMotion(): boolean {
   // Optional-called, so an environment without matchMedia still animates
@@ -242,6 +313,14 @@ watch(
     // A printer switch empties the history, so the axis restarts at the new
     // machine's clock rather than scrolling across the gap between two.
     anchorEnd = latest < carried ? latest : carried
+    // A gap wider than a beat is not a sample landing, it is a new present.
+    // Carried, the shift becomes the whole length of the gap — a backgrounded
+    // tab is frozen, its socket dropped, and half an hour of silence arrives
+    // as one sample — which pushes the entire drawing off the right-hand clip
+    // and leaves the frame loop to work it off in real time. The chart reads
+    // as blank until it is remounted, which is what made navigating away and
+    // back look like the fix. See `maximumCarrySeconds`.
+    if (latest - anchorEnd > maximumCarrySeconds) anchorEnd = latest
     anchorAt = performance.now()
 
     // Reduced motion keeps the axis on the discrete step it always had, rather
@@ -414,6 +493,65 @@ const timeLines = computed(() =>
  */
 const labelFade = computed(() => (plotWidth.value > 0 ? Math.min(0.35, 16 / plotWidth.value) : 0))
 
+/*
+ * The three layer boxes.
+ *
+ * Physical `left`/`top`/`width`/`height`, not the logical properties the rest
+ * of the stylesheet prefers. These position a box against an svg coordinate
+ * system, and svg coordinates are physical: a logical inset would flip the
+ * plot's frame under a right-to-left locale while every point drawn inside it
+ * stayed where it was, which is not a layout mirror but a chart sliced apart.
+ * Time also runs left to right here whatever the reading direction does.
+ */
+const plotBox = computed(() => ({
+  left: `${gutterStart}px`,
+  top: `${gutterTop}px`,
+  width: `${plotWidth.value}px`,
+  height: `${plotHeight.value}px`,
+}))
+
+/**
+ * The clip is not decoration — see ADR 0004. It is what lets the newest sample
+ * sit just past the right-hand edge, so the trace reaches the side of the plot
+ * instead of its tip retreating and snapping back once a second. `overflow`
+ * on the wrapper does that job now; a `clipPath` in `<defs>` did it before,
+ * and needed an id scoped per instance to stop a second Temperatures card's
+ * clip from silently winning over the first's.
+ */
+const traceLayerBox = computed(() => ({
+  left: `${-gutterStart}px`,
+  top: `${-gutterTop}px`,
+}))
+
+/**
+ * The time labels sit below the plot, where a clip would slice one in half as
+ * it left. They fade instead, over roughly half a label at each end, so a
+ * label leaving is gone before it reaches the value axis and one arriving is
+ * legible by the time it clears the edge — and neither is ever moved off the
+ * gridline it names to stay on the card. The stops are handed to the
+ * stylesheet as lengths rather than built here, so the gradient itself stays
+ * where the rest of the chart's paint lives.
+ */
+const labelBandBox = computed(() => {
+  const bandTop = gutterTop + plotHeight.value
+  const fadeWidth = labelFade.value * plotWidth.value
+  return {
+    left: '0px',
+    top: `${bandTop}px`,
+    width: `${width.value}px`,
+    height: `${Math.max(0, height.value - bandTop)}px`,
+    '--chart-label-start': `${gutterStart}px`,
+    '--chart-label-fade-in': `${gutterStart + fadeWidth}px`,
+    '--chart-label-fade-out': `${gutterStart + plotWidth.value - fadeWidth}px`,
+    '--chart-label-end': `${gutterStart + plotWidth.value}px`,
+  }
+})
+
+const labelLayerBox = computed(() => ({
+  left: '0px',
+  top: `${-(gutterTop + plotHeight.value)}px`,
+}))
+
 const paths = computed(() =>
   drawnSeries.value.flatMap((series) => {
     const entries: Array<{
@@ -514,7 +652,10 @@ const cursor = computed(() => {
 
 /** Snapped to a sample the chart actually drew, never to wherever the pointer is. */
 function eventtimeAt(clientX: number): number | null {
-  const element = root.value?.querySelector('svg')
+  // The root box, not a layer's: the layers are offset and shifted, and one of
+  // them is the thing being scrolled. The root is the one box that stands
+  // still and shares its origin with every projection below.
+  const element = root.value
   if (!element) return null
   const box = element.getBoundingClientRect()
   if (box.width === 0) return null
@@ -528,11 +669,30 @@ function eventtimeAt(clientX: number): number | null {
 }
 
 function moveCursor(clientX: number): void {
+  // Content sliding under a pointer that never moved still reports a move, so
+  // scrolling with the pointer over the plot used to re-read the past — and
+  // repaint every reading in the table with it — on each frame of the gesture.
+  if (pageIsScrolling) return
   cursorEventtime.value = eventtimeAt(clientX)
 }
 
 function clearCursor(): void {
   cursorEventtime.value = null
+}
+
+/**
+ * Keeps the focus ring keyboard-only — see the note on `tabindex` in the
+ * template — without touching a touch gesture.
+ *
+ * A touch press is deliberately left alone: WebKit treats a prevented
+ * `pointerdown` as a cancelled gesture, so preventing it there is one of the
+ * ways an element stops the page scrolling under a finger. Touch cannot draw
+ * the focus ring this exists to suppress in the first place, and which
+ * gestures the chart claims is `touch-action`'s job instead.
+ */
+function blockPointerFocus(event: PointerEvent): void {
+  if (event.pointerType === 'touch') return
+  event.preventDefault()
 }
 
 /** Arrow keys walk the samples, so this is not a pointer-only affordance. */
@@ -563,118 +723,104 @@ const description = computed(() => t('dashboard.temperature.chartLabel'))
 </script>
 
 <template>
-  <div ref="root" class="temperature-chart">
-    <!--
-      `tabindex` is only here so arrow keys can walk the samples from the
-      keyboard — the pointer already scrubs the chart without it. Letting a
-      click focus the svg as well gains nothing and costs the ring a plain
-      `:focus-visible` rule can't keep off a click: Chromium isn't as
-      forgiving of a bare `tabindex` element there as it is of a real button.
-      Blocking the pointer's own default focus keeps focus, and the ring,
-      keyboard-only.
-    -->
-    <svg
-      v-if="width > 0"
-      :viewBox="`0 0 ${width} ${height}`"
-      :width="width"
-      :height="height"
-      role="img"
-      tabindex="0"
-      :aria-label="description"
-      @pointerdown.prevent
-      @pointermove="moveCursor($event.clientX)"
-      @pointerleave="clearCursor"
-      @blur="clearCursor"
-      @keydown.left.prevent="stepCursor(-1)"
-      @keydown.right.prevent="stepCursor(1)"
-      @keydown.esc.prevent="clearCursor"
-    >
-      <defs>
-        <!--
-          The plot rectangle, and the reason the axis below may be drawn
-          shifted. A series carried past this edge is cut off by it, so the
-          newest sample sits just outside rather than at the boundary — which
-          is what stops the trace's tip retreating from the right-hand side
-          and snapping back each time a sample lands. The left edge is the
-          same bargain from the other end, and the caller holds samples from
-          before the window (`chartBleedSamples`) so there is always line to
-          be cut off there too.
-        -->
-        <clipPath :id="clipId">
-          <rect :x="gutterStart" :y="gutterTop" :width="plotWidth" :height="plotHeight" />
-        </clipPath>
-        <!--
-          The time labels sit below the plot, where a clip would slice one in
-          half as it left. Black and white here are a mask's luminance rather
-          than paint — the neutral the theme rules already allow — so a label
-          leaving fades out and one arriving fades in, without either being
-          moved off its own gridline to stay on the card.
-        -->
-        <linearGradient
-          :id="labelFadeId"
-          gradientUnits="userSpaceOnUse"
-          :x1="gutterStart"
-          :x2="gutterStart + plotWidth"
-          y1="0"
-          y2="0"
-        >
-          <stop offset="0" stop-color="black" />
-          <stop :offset="labelFade" stop-color="white" />
-          <stop :offset="1 - labelFade" stop-color="white" />
-          <stop offset="1" stop-color="black" />
-        </linearGradient>
-        <mask :id="labelMaskId">
-          <rect
-            x="0"
-            :y="gutterTop + plotHeight"
-            :width="width"
-            :height="Math.max(0, height - gutterTop - plotHeight)"
-            :fill="`url(#${labelFadeId})`"
-          />
-        </mask>
-      </defs>
-      <line
-        v-for="line in gridLines"
-        :key="`grid-${line.tick}`"
-        :x1="gutterStart"
-        :y1="line.y"
-        :x2="gutterStart + plotWidth"
-        :y2="line.y"
-        class="temperature-chart__grid"
-      />
-      <text
-        v-for="line in gridLines"
-        :key="`value-${line.tick}`"
-        :x="gutterStart - 5"
-        :y="line.y + 3"
-        text-anchor="end"
-        class="temperature-chart__label"
-      >
-        {{ line.label }}
-      </text>
+  <!--
+    Three stacked boxes, not one svg: a static layer carrying everything
+    measured against the value axis, and two clipped boxes each holding a
+    layer the time axis scrolls. See `traceLayer` for why the scrolled parts
+    have to be elements of their own rather than groups inside one drawing.
 
-      <text
-        v-for="tick in powerTicks"
-        :key="`power-${tick.fraction}`"
-        :x="gutterStart + plotWidth + powerLabelGap"
-        :y="tick.y + 3"
-        text-anchor="start"
-        class="temperature-chart__label"
+    `tabindex` is only here so arrow keys can walk the samples from the
+    keyboard — the pointer already scrubs the chart without it. Letting a
+    click focus it as well gains nothing and costs the ring a plain
+    `:focus-visible` rule can't keep off a click: Chromium isn't as forgiving
+    of a bare `tabindex` element there as it is of a real button. Blocking the
+    pointer's own default focus keeps focus, and the ring, keyboard-only — for
+    a mouse or a pen. A touch press is left alone, and what a finger's gesture
+    is allowed to do is settled by `touch-action` in the stylesheet: a drag
+    across the plot scrubs it, a drag up or down scrolls the page, and the
+    browser decides which without waiting on us.
+
+    The pointer target is this box rather than any layer, because the layers
+    move and it does not — and `role="img"` makes the whole thing one image to
+    assistive technology, so nothing inside needs hiding individually.
+  -->
+  <div
+    ref="root"
+    class="temperature-chart"
+    :style="{ height: `${height}px` }"
+    role="img"
+    tabindex="0"
+    :aria-label="description"
+    @pointerdown="blockPointerFocus"
+    @pointermove="moveCursor($event.clientX)"
+    @pointerleave="clearCursor"
+    @pointercancel="clearCursor"
+    @blur="clearCursor"
+    @keydown.left.prevent="stepCursor(-1)"
+    @keydown.right.prevent="stepCursor(1)"
+    @keydown.esc.prevent="clearCursor"
+  >
+    <template v-if="width > 0">
+      <!--
+        Everything measured against the value axis. It holds still, so it is
+        drawn once and repainted only when the scale itself moves.
+      -->
+      <svg
+        class="temperature-chart__static"
+        :viewBox="`0 0 ${width} ${height}`"
+        :width="width"
+        :height="height"
       >
-        {{ Math.round(tick.fraction * 100) }}%
-      </text>
+        <line
+          v-for="line in gridLines"
+          :key="`grid-${line.tick}`"
+          :x1="gutterStart"
+          :y1="line.y"
+          :x2="gutterStart + plotWidth"
+          :y2="line.y"
+          class="temperature-chart__grid"
+        />
+        <text
+          v-for="line in gridLines"
+          :key="`value-${line.tick}`"
+          :x="gutterStart - 5"
+          :y="line.y + 3"
+          text-anchor="end"
+          class="temperature-chart__label"
+        >
+          {{ line.label }}
+        </text>
+
+        <text
+          v-for="tick in powerTicks"
+          :key="`power-${tick.fraction}`"
+          :x="gutterStart + plotWidth + powerLabelGap"
+          :y="tick.y + 3"
+          text-anchor="start"
+          class="temperature-chart__label"
+        >
+          {{ Math.round(tick.fraction * 100) }}%
+        </text>
+      </svg>
 
       <!--
         Everything measured against the time axis moves as one: the gridlines,
         the trace, and the cursor tied to a sample of it. One transform on one
-        group is also what keeps this affordable — the paths are rebuilt only
-        when a sample lands, and each frame in between costs a single attribute
-        rather than reprojecting every point in every series. The transform is
-        set through the ref by `applyScroll`, never bound: a binding read here
-        re-rendered the whole svg on every animation frame.
+        layer is also what keeps this affordable — the paths are rebuilt only
+        when a sample lands, and each frame in between costs the compositor a
+        transform rather than the main thread a repaint. The transform is set
+        through the ref by `applyScroll`, never bound: a binding read here
+        re-rendered the whole chart on every animation frame.
       -->
-      <g :clip-path="`url(#${clipId})`">
-        <g ref="traceGroup">
+      <div class="temperature-chart__plot" :style="plotBox">
+        <svg
+          ref="traceLayer"
+          class="temperature-chart__layer"
+          :style="traceLayerBox"
+          :viewBox="`0 0 ${width} ${height}`"
+          :width="width"
+          :height="height"
+        >
           <line
             v-for="line in timeLines"
             :key="`time-grid-${line.key}`"
@@ -710,12 +856,19 @@ const description = computed(() => t('dashboard.temperature.chartLabel'))
               :style="{ stroke: dot.color }"
             />
           </template>
-        </g>
-      </g>
+        </svg>
+      </div>
 
       <!-- The labels travel with their own gridlines, faded rather than clipped. -->
-      <g :mask="`url(#${labelMaskId})`">
-        <g ref="labelGroup">
+      <div class="temperature-chart__label-band" :style="labelBandBox">
+        <svg
+          ref="labelLayer"
+          class="temperature-chart__layer"
+          :style="labelLayerBox"
+          :viewBox="`0 0 ${width} ${height}`"
+          :width="width"
+          :height="height"
+        >
           <text
             v-for="line in timeLines"
             :key="`time-${line.key}`"
@@ -726,8 +879,8 @@ const description = computed(() => t('dashboard.temperature.chartLabel'))
           >
             {{ line.label }}
           </text>
-        </g>
-      </g>
-    </svg>
+        </svg>
+      </div>
+    </template>
   </div>
 </template>

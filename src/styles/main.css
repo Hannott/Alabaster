@@ -3996,13 +3996,82 @@ input.z-axis__slider {
  * fixed `viewBox` stretched to fit. `preserveAspectRatio="none"` was survivable
  * while the plot was a bare line, but it scales the coordinate space unevenly
  * and an axis is mostly glyphs.
+ *
+ * A drag across the plot reads the past out of it; a drag up or down is the
+ * page scrolling past. `pan-y` is how the browser is told which is which
+ * without waiting to see: left unset, it has to watch a finger travel its slop
+ * distance before it can rule out a horizontal gesture the chart might want,
+ * and it delivers every pointer event of that wait to the chart — which then
+ * re-reads the past and repaints the whole card's readings, at the exact
+ * moment the user was asking the page to move. Pinch-zoom stays with the
+ * browser: the plot is small, and magnifying it is not the chart's to refuse.
+ *
+ * The height is set from the component rather than inherited from an svg in
+ * flow, because every layer inside is positioned out of it.
  */
 .temperature-chart {
+  position: relative;
   min-width: 0;
+  touch-action: pan-y pinch-zoom;
 }
 
-.temperature-chart svg {
+/*
+ * The three layers. Each is the full size of the chart and none of them takes
+ * the pointer: the box above is the one surface that stands still, so it is
+ * the one that answers a scrub — see `eventtimeAt`.
+ */
+.temperature-chart__static,
+.temperature-chart__plot,
+.temperature-chart__label-band {
+  position: absolute;
+  pointer-events: none;
+}
+
+.temperature-chart__static {
+  inset-block-start: 0;
+  inset-inline-start: 0;
+}
+
+/*
+ * What the `clipPath` and the luminance `mask` in `<defs>` used to do. Both
+ * are ordinary box properties now, which matters for more than tidiness: a
+ * clip and a mask on a still wrapper leave the layer inside free to be
+ * composited, while the svg equivalents made the whole drawing one painted
+ * unit with the scrolled part inside it.
+ */
+.temperature-chart__plot,
+.temperature-chart__label-band {
+  overflow: hidden;
+}
+
+.temperature-chart__label-band {
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent var(--chart-label-start),
+    black var(--chart-label-fade-in),
+    black var(--chart-label-fade-out),
+    transparent var(--chart-label-end)
+  );
+  mask-image: linear-gradient(
+    to right,
+    transparent var(--chart-label-start),
+    black var(--chart-label-fade-in),
+    black var(--chart-label-fade-out),
+    transparent var(--chart-label-end)
+  );
+}
+
+/*
+ * The surfaces the time axis scrolls. `will-change` is the whole point of the
+ * split: it asks for a compositor layer up front, so the transform written
+ * sixty times a second by `applyScroll` never becomes a repaint. Black and
+ * transparent above are a mask's coverage rather than paint — the neutral the
+ * theme rules already allow — and nothing here is a colour.
+ */
+.temperature-chart__layer {
+  position: absolute;
   display: block;
+  will-change: transform;
 }
 
 .temperature-chart__grid {
@@ -4550,7 +4619,6 @@ input.z-axis__slider {
  */
 .temperature-chart__series {
   fill: none;
-  vector-effect: non-scaling-stroke;
   stroke-linecap: round;
   stroke-linejoin: round;
   stroke-width: 2;
@@ -4574,16 +4642,16 @@ input.z-axis__slider {
 
 /*
  * `:focus`, not only `:focus-visible`: the component blocks a click from
- * focusing this svg at all (see its `pointerdown`), so the only way here is
+ * focusing the chart at all (see its `pointerdown`), so the only way here is
  * the keyboard — but a bare `tabindex` element still gets a default browser
  * ring on plain `:focus` in some engines, and that native ring is what this
  * removes before the rule below draws the one this app actually uses.
  */
-.temperature-chart svg:focus {
+.temperature-chart:focus {
   outline: none;
 }
 
-.temperature-chart svg:focus-visible .temperature-chart__grid {
+.temperature-chart:focus-visible .temperature-chart__grid {
   stroke: var(--focus-ring);
 }
 

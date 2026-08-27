@@ -40,6 +40,26 @@ function series(overrides: Partial<TemperatureChartSeries> = {}): TemperatureCha
   }
 }
 
+/**
+ * The chart's own box. The drawing is split across three layers — a static one
+ * and two the time axis scrolls — and only this box stands still, so it is the
+ * one that carries the role, the focus and every pointer handler.
+ */
+function chartBox(wrapper: ReturnType<typeof mount>) {
+  return wrapper.get('.temperature-chart')
+}
+
+/**
+ * The shift the time axis is drawn with, read off the scrolled layer's own
+ * style. A CSS transform rather than an svg `transform` attribute, because
+ * only the CSS one reaches the compositor — which is the whole reason the
+ * scrolled parts are elements instead of groups.
+ */
+function axisShift(wrapper: ReturnType<typeof mount>): number {
+  const style = wrapper.get('.temperature-chart__plot > svg').attributes('style') ?? ''
+  return Number(/translate3d\(([-\d.]+)px/.exec(style)?.[1] ?? Number.NaN)
+}
+
 async function mountChart(props: Partial<InstanceType<typeof TemperatureChart>['$props']> = {}) {
   const wrapper = mount(TemperatureChart, {
     global: { plugins: [i18n] },
@@ -295,8 +315,8 @@ describe('TemperatureChart', () => {
    */
   it('reports the moment under the pointer, snapped to a sample it drew', async () => {
     const wrapper = await mountChart()
-    const svg = wrapper.get('svg')
-    const element = svg.element as SVGElement
+    const svg = chartBox(wrapper)
+    const element = svg.element as HTMLElement
     element.getBoundingClientRect = () =>
       ({ left: 0, width: chartWidth, top: 0, height: 144 }) as DOMRect
 
@@ -386,7 +406,7 @@ describe('TemperatureChart', () => {
   /* Arrow keys walk the samples, so this is not a pointer-only affordance. */
   it('lets the keyboard walk the samples and leave them again', async () => {
     const wrapper = await mountChart({ cursorEventtime: 30 })
-    const svg = wrapper.get('svg')
+    const svg = chartBox(wrapper)
     expect(svg.attributes('tabindex')).toBe('0')
 
     await svg.trigger('keydown', { key: 'ArrowLeft' })
@@ -408,7 +428,7 @@ describe('TemperatureChart', () => {
    */
   it('blocks a pointer press from focusing the chart', async () => {
     const wrapper = await mountChart()
-    const element = wrapper.get('svg').element
+    const element = chartBox(wrapper).element
     const notPrevented = element.dispatchEvent(
       new PointerEvent('pointerdown', { cancelable: true, bubbles: true }),
     )
@@ -457,6 +477,32 @@ describe('TemperatureChart', () => {
   })
 
   /*
+   * ADR 0004's third condition. The axis has to scroll on something the
+   * compositor can carry, and a `<g>` inside an svg is not: its transform is
+   * laid out and painted, so writing one sixty times a second repaints every
+   * trace, gridline and label with it — which is what made a dashboard
+   * carrying this card heavy to scroll on a phone. jsdom cannot see a layer,
+   * so what this pins is the structure that earns one: elements of their own,
+   * shifted by a CSS transform, inside wrappers that stand still and clip.
+   */
+  it('scrolls the time axis on layers of its own, not on groups inside one drawing', async () => {
+    const wrapper = await mountChart()
+    const layers = wrapper.findAll('.temperature-chart__layer')
+
+    expect(layers).toHaveLength(2)
+    expect(wrapper.find('.temperature-chart__plot > .temperature-chart__layer').exists()).toBe(true)
+    expect(
+      wrapper.find('.temperature-chart__label-band > .temperature-chart__layer').exists(),
+    ).toBe(true)
+    for (const layer of layers) {
+      expect(layer.element.tagName.toLowerCase()).toBe('svg')
+      // An svg `transform` attribute would be the painted kind.
+      expect(layer.attributes('transform')).toBeUndefined()
+      expect(layer.attributes('style')).toContain('translate3d')
+    }
+  })
+
+  /*
    * ADR 0004's scrolling time-axis exception. A sample landing must not move
    * the axis: the layout jumps forward by the interval and the shift grows by
    * exactly the same amount in the same tick, so the two cancel and the trace
@@ -465,10 +511,7 @@ describe('TemperatureChart', () => {
    */
   it('cancels a landing sample against the shift, so the axis never jumps', async () => {
     const wrapper = await mountChart({ windowSeconds: 60, latestEventtime: 59 })
-    const shift = () => {
-      const transform = wrapper.get('svg g[transform]').attributes('transform') ?? ''
-      return Number(/translate\(([-\d.]+)/.exec(transform)?.[1] ?? Number.NaN)
-    }
+    const shift = () => axisShift(wrapper)
     // Nothing has landed yet, so the edge sits on the newest sample.
     expect(shift()).toBeCloseTo(0, 3)
 
@@ -478,6 +521,103 @@ describe('TemperatureChart', () => {
     // One second of window against 60 seconds of it, over the plot's width.
     const plotWidth = chartWidth - 30 - 4
     expect(shift()).toBeCloseTo(plotWidth / 60, 1)
+  })
+
+  /*
+   * Two things the axis was made to do for the sake of the repaint, both of
+   * which the owner saw immediately — see ADR 0004. Skipping a sub-pixel
+   * write quantises antialiased travel into whole-pixel steps, which reads as
+   * stepping on a one-minute window; freezing the shift for the length of a
+   * scroll leaves the layout to jump forward on the next sample with nothing
+   * cancelling it, then snap back when the freeze lifts. So a sample landing
+   * mid-scroll has to cancel exactly as it does on a still page.
+   */
+  it('cancels a landing sample against the shift while the page scrolls too', async () => {
+    const wrapper = await mountChart({ windowSeconds: 60, latestEventtime: 59 })
+    const shift = () => axisShift(wrapper)
+    expect(shift()).toBeCloseTo(0, 3)
+
+    document.dispatchEvent(new Event('scroll'))
+    await wrapper.setProps({ latestEventtime: 60 })
+    await flushPromises()
+
+    // The same second of window the still-page case moves by, unthrottled.
+    expect(shift()).toBeCloseTo((chartWidth - 30 - 4) / 60, 1)
+  })
+
+  /*
+   * A backgrounded tab is frozen: the socket is dropped, no sample lands for
+   * however long the machine sat there, and the whole gap arrives at once when
+   * the tab comes back. Cancelling that sample the ordinary way makes the
+   * shift the length of the gap — half an hour of window pushed off the right
+   * edge — and the frame loop only works it off in real time, so the chart
+   * stays blank until it is remounted by navigating away and back. A gap
+   * wider than the window is not a sample landing; it is a new present, and
+   * the axis has to be placed at it rather than scrolled to it.
+   */
+  it('snaps to a sample that arrives after a gap instead of scrolling the gap off', async () => {
+    const wrapper = await mountChart({ windowSeconds: 60, latestEventtime: 59 })
+    const shift = () => axisShift(wrapper)
+    expect(shift()).toBeCloseTo(0, 3)
+
+    // Half an hour of frozen tab, then the feed resumes.
+    await wrapper.setProps({ latestEventtime: 59 + 1800 })
+    await flushPromises()
+
+    expect(shift()).toBeCloseTo(0, 3)
+  })
+
+  /*
+   * The same scroll must not be read as a scrub. Content sliding under a
+   * pointer that never moved still reports a move, so this used to re-read the
+   * past — and repaint every reading in the table with it — on each frame of
+   * the gesture.
+   */
+  it('ignores a pointer move that is the page scrolling under it', async () => {
+    const wrapper = await mountChart()
+    const element = chartBox(wrapper).element as HTMLElement
+    element.getBoundingClientRect = () =>
+      ({ left: 0, width: chartWidth, top: 0, height: 144 }) as DOMRect
+
+    document.dispatchEvent(new Event('scroll'))
+    element.dispatchEvent(
+      new MouseEvent('pointermove', { clientX: chartWidth - 20, bubbles: true }),
+    )
+    await flushPromises()
+
+    expect(wrapper.emitted('update:cursorEventtime')).toBeUndefined()
+  })
+
+  /*
+   * WebKit treats a prevented `pointerdown` as a cancelled gesture, which is
+   * one of the ways an element stops the page scrolling under a finger. Touch
+   * cannot draw the focus ring that prevention exists to suppress, so the
+   * press is left alone and `touch-action` decides what the gesture does.
+   */
+  it('leaves a touch press to the browser', async () => {
+    const wrapper = await mountChart()
+    const notPrevented = chartBox(wrapper).element.dispatchEvent(
+      new PointerEvent('pointerdown', { cancelable: true, bubbles: true, pointerType: 'touch' }),
+    )
+    expect(notPrevented).toBe(true)
+  })
+
+  /* A gesture the browser takes over for a scroll ends in a cancel, not a leave. */
+  it('drops the cursor when a pointer gesture is cancelled', async () => {
+    const wrapper = await mountChart()
+    const svg = chartBox(wrapper)
+    const element = svg.element as HTMLElement
+    element.getBoundingClientRect = () =>
+      ({ left: 0, width: chartWidth, top: 0, height: 144 }) as DOMRect
+
+    element.dispatchEvent(
+      new MouseEvent('pointermove', { clientX: chartWidth - 20, bubbles: true }),
+    )
+    await flushPromises()
+    expect(wrapper.emitted('update:cursorEventtime')!.at(-1)).not.toEqual([null])
+
+    await svg.trigger('pointercancel')
+    expect(wrapper.emitted('update:cursorEventtime')!.at(-1)).toEqual([null])
   })
 
   /*
