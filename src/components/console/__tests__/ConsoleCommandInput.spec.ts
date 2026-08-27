@@ -2,17 +2,32 @@ import { mount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
 
 import ConsoleCommandInput from '@/components/console/ConsoleCommandInput.vue'
+import type { MacroParameter } from '@/dashboard/macroParams'
 import { i18n } from '@/i18n'
 
-const commands = ['BED_MESH_CALIBRATE', 'SET_FAN_SPEED', 'SET_GCODE_OFFSET', 'G28']
+const commands = ['BED_MESH_CALIBRATE', 'SET_FAN_SPEED', 'SET_GCODE_OFFSET', 'G28', 'RUN_PA_TEST']
 
-function mountInput(history: string[] = []) {
+const runPaTestParams: MacroParameter[] = [
+  { name: 'NOZZLE', defaultValue: null },
+  { name: 'BED', defaultValue: '60' },
+]
+
+function mountInput(
+  history: string[] = [],
+  getMacroParams: (name: string) => MacroParameter[] = () => [],
+) {
   const wrapper = mount(ConsoleCommandInput, {
-    props: { history, commands },
+    props: { history, commands, getMacroParams },
     global: { plugins: [i18n] },
     attachTo: document.body,
   })
   return { wrapper, field: wrapper.get('textarea') }
+}
+
+/** Moves the caret to the end, the one place the ghost preview can show. */
+function caretToEnd(field: ReturnType<typeof mountInput>['field']): void {
+  const element = field.element as HTMLTextAreaElement
+  element.setSelectionRange(element.value.length, element.value.length)
 }
 
 describe('ConsoleCommandInput', () => {
@@ -165,6 +180,83 @@ describe('ConsoleCommandInput', () => {
     expect(send.attributes('disabled')).toBeDefined()
     // The label does not change with the state, per the one state model.
     expect(send.attributes('aria-label')).toBe('Send command')
+  })
+
+  it('previews the next unfilled macro parameter once a space follows the name', async () => {
+    const getMacroParams = (name: string) => (name === 'RUN_PA_TEST' ? runPaTestParams : [])
+    const { wrapper, field } = mountInput([], getMacroParams)
+    await field.setValue('RUN_PA_TEST ')
+    caretToEnd(field)
+    await field.trigger('keyup')
+
+    expect(wrapper.get('.console-prompt__ghost-suggestion').text()).toBe('NOZZLE=')
+  })
+
+  it('does not preview mid-word, before the macro name is finished', async () => {
+    const getMacroParams = (name: string) => (name === 'RUN_PA_TEST' ? runPaTestParams : [])
+    const { wrapper, field } = mountInput([], getMacroParams)
+    await field.setValue('RUN_PA_TEST')
+    caretToEnd(field)
+    await field.trigger('keyup')
+
+    expect(wrapper.find('.console-prompt__ghost').exists()).toBe(false)
+  })
+
+  it('hides the preview once every parameter already has a NAME= token', async () => {
+    const getMacroParams = (name: string) => (name === 'RUN_PA_TEST' ? runPaTestParams : [])
+    const { wrapper, field } = mountInput([], getMacroParams)
+    await field.setValue('RUN_PA_TEST NOZZLE=0.4 BED=60 ')
+    caretToEnd(field)
+    await field.trigger('keyup')
+
+    expect(wrapper.find('.console-prompt__ghost').exists()).toBe(false)
+  })
+
+  it('fills the suggested parameter on Right Arrow, without touching command completion', async () => {
+    const getMacroParams = (name: string) => (name === 'RUN_PA_TEST' ? runPaTestParams : [])
+    const { field } = mountInput([], getMacroParams)
+    const element = field.element as HTMLTextAreaElement
+    await field.setValue('RUN_PA_TEST ')
+    caretToEnd(field)
+    await field.trigger('keyup')
+
+    await field.trigger('keydown', { key: 'ArrowRight' })
+    expect(element.value).toBe('RUN_PA_TEST NOZZLE=')
+  })
+
+  it('cycles the preview with Tab and Shift+Tab without changing the draft', async () => {
+    // Command completion alone would strip the trailing space off a fragment
+    // that already names a whole command — this is what proves the preview
+    // claims Tab first, rather than only once nothing is left to fill.
+    const getMacroParams = (name: string) => (name === 'RUN_PA_TEST' ? runPaTestParams : [])
+    const { wrapper, field } = mountInput([], getMacroParams)
+    const element = field.element as HTMLTextAreaElement
+    await field.setValue('RUN_PA_TEST ')
+    caretToEnd(field)
+    await field.trigger('keyup')
+
+    await field.trigger('keydown', { key: 'Tab' })
+    expect(wrapper.get('.console-prompt__ghost-suggestion').text()).toBe('BED=')
+    expect(element.value).toBe('RUN_PA_TEST ')
+
+    await field.trigger('keydown', { key: 'Tab', shiftKey: true })
+    expect(wrapper.get('.console-prompt__ghost-suggestion').text()).toBe('NOZZLE=')
+  })
+
+  it('leaves a single candidate alone rather than cycling to itself', async () => {
+    // With nothing else to cycle to, Tab still counts as handled — it must
+    // not fall through to command-name completion.
+    const getMacroParams = (name: string) =>
+      name === 'RUN_PA_TEST' ? [runPaTestParams[0] as MacroParameter] : []
+    const { wrapper, field } = mountInput([], getMacroParams)
+    const element = field.element as HTMLTextAreaElement
+    await field.setValue('RUN_PA_TEST ')
+    caretToEnd(field)
+    await field.trigger('keyup')
+
+    await field.trigger('keydown', { key: 'Tab' })
+    expect(wrapper.get('.console-prompt__ghost-suggestion').text()).toBe('NOZZLE=')
+    expect(element.value).toBe('RUN_PA_TEST ')
   })
 
   it('sends again as soon as the printer has answered', async () => {

@@ -5,6 +5,8 @@
  * module owns what a line *means*.
  */
 
+import type { MacroParameter } from '@/dashboard/macroParams'
+
 /**
  * Klipper prefixes its output rather than tagging it, so the kind has to be read
  * back off the text. `command` is the only kind Alabaster assigns itself, when it
@@ -163,4 +165,37 @@ export function completeCommand(fragment: string, commands: readonly string[]): 
   // Only grow the input. Falling back to the fragment keeps a Tab press from
   // deleting characters the user deliberately typed in a different case.
   return { value: shared.length > needle.length ? shared : fragment, matches }
+}
+
+/** The word before the first space, which is where Klipper looks for a macro name. */
+export function commandNameFromLine(line: string): string {
+  return line.trim().split(/\s+/, 1)[0] ?? ''
+}
+
+/**
+ * Which of a macro's declared parameters have not appeared on this line yet, in
+ * the order the macro's body first references them. A parameter counts as
+ * present the moment its `NAME=` token appears anywhere on the line, however
+ * the value trails off — this answers "what could still be typed", not "is
+ * what's already there valid".
+ */
+export function unfilledMacroParams(
+  line: string,
+  params: readonly MacroParameter[],
+): MacroParameter[] {
+  if (params.length === 0) return []
+  const present = new Set(
+    [...line.matchAll(/([A-Za-z_][A-Za-z0-9_]*)=/g)].map((match) => (match[1] ?? '').toUpperCase()),
+  )
+  return params.filter((param) => !present.has(param.name))
+}
+
+/**
+ * Whether the caret sits where a new parameter's name could start. Only right
+ * after whitespace — never mid-word — so the preview cannot appear while a
+ * parameter name or value is still being typed and get mistaken for what's
+ * already there.
+ */
+export function atParamBoundary(line: string): boolean {
+  return /\s$/.test(line)
 }

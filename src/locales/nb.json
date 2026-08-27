@@ -1316,6 +1316,7 @@
     "empty": "Ingenting fra skriveren ennå.",
     "commandLabel": "G-kodekommando",
     "placeholder": "Send G-kode",
+    "paramSuggested": "Forslag: {name}. Trykk høyre piltast for å fylle den inn, eller Tab for en annen parameter.",
     "send": "Send kommando",
     "reuseCommand": "Legg kommandoen tilbake i feltet",
     "clear": "Tøm",

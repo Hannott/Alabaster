@@ -1,9 +1,15 @@
 <script setup lang="ts">
-import { computed, nextTick, ref } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import AppIcon from '@/components/AppIcon.vue'
-import { completeCommand } from '@/services/console/transcript'
+import type { MacroParameter } from '@/dashboard/macroParams'
+import {
+  atParamBoundary,
+  commandNameFromLine,
+  completeCommand,
+  unfilledMacroParams,
+} from '@/services/console/transcript'
 
 /**
  * The console's prompt, shared by the card and the page. It owns its draft and
@@ -22,6 +28,14 @@ const props = withDefaults(
     history?: readonly string[]
     /** Every command the machine knows, for Tab completion. */
     commands?: readonly string[]
+    /**
+     * Looks up what a macro can be called with, by name. A plain function
+     * rather than a precomputed table: the only macro whose parameters are
+     * ever needed is the one on the current line, and parsing every macro in
+     * `configfile.settings` on each keystroke would work through names that
+     * are never typed.
+     */
+    getMacroParams?: (macroName: string) => readonly MacroParameter[]
     disabled?: boolean
     /**
      * A command sent from here is still in flight. The field stays editable —
@@ -32,7 +46,13 @@ const props = withDefaults(
      */
     pending?: boolean
   }>(),
-  { history: () => [], commands: () => [], disabled: false, pending: false },
+  {
+    history: () => [],
+    commands: () => [],
+    getMacroParams: () => [],
+    disabled: false,
+    pending: false,
+  },
 )
 
 const emit = defineEmits<{ send: [command: string] }>()
@@ -53,6 +73,95 @@ const historyOffset = ref<number | null>(null)
  * the machine.
  */
 const completions = ref<string[]>([])
+/**
+ * Whether the caret sits at the very end of the draft. The ghost preview can
+ * only ever be drawn there — see `console-prompt__ghost`'s doc comment — so a
+ * click or an arrow key that moves the caret elsewhere has to hide it even
+ * though the text itself has not changed. Not derived from `draft` and the
+ * DOM together in a computed: `selectionStart` is not a reactive source, so
+ * nothing would tell Vue to re-read it. Synced on the events that can move the
+ * caret without changing the text; the accept action below covers the ones
+ * that do.
+ */
+const caretAtEnd = ref(true)
+/**
+ * Which unfilled parameter Tab has cycled to, as an offset into
+ * `unfilledParams` rather than a name — a name would go stale the instant a
+ * parameter is filled and drops out of that list. Reset whenever the draft
+ * changes: typing invalidates whatever was being browsed, and the set of
+ * parameters left to fill may itself have just changed.
+ */
+const paramCycleOffset = ref(0)
+
+const lastLine = computed(() => {
+  const lines = draft.value.split('\n')
+  return lines[lines.length - 1] ?? ''
+})
+const activeMacroParams = computed(() => {
+  const macroName = commandNameFromLine(lastLine.value)
+  return macroName ? props.getMacroParams(macroName) : []
+})
+const unfilledParams = computed(() => unfilledMacroParams(lastLine.value, activeMacroParams.value))
+/**
+ * The parameter the ghost text offers right now, or null when there is
+ * nothing to offer — no macro on this line, nothing left to fill, the caret
+ * mid-word rather than at a boundary, or not at the end of the draft at all.
+ * Both `onTab` and the template read this one computed rather than
+ * re-deriving it, so the key that accepts a suggestion and the text that
+ * shows it can never disagree about what is being offered.
+ */
+const suggestedParam = computed<MacroParameter | null>(() => {
+  if (!caretAtEnd.value || unfilledParams.value.length === 0) return null
+  if (!atParamBoundary(lastLine.value)) return null
+  const index = paramCycleOffset.value % unfilledParams.value.length
+  return unfilledParams.value[index] ?? null
+})
+
+watch(draft, () => {
+  paramCycleOffset.value = 0
+})
+
+function syncCaretState(): void {
+  const element = field.value
+  if (!element) return
+  caretAtEnd.value =
+    element.selectionStart === draft.value.length && element.selectionEnd === draft.value.length
+}
+
+function acceptSuggestion(): void {
+  const param = suggestedParam.value
+  if (!param) return
+  draft.value = `${draft.value}${param.name}=`
+  void nextTick(() => {
+    const position = draft.value.length
+    field.value?.setSelectionRange(position, position)
+    caretAtEnd.value = true
+  })
+}
+
+/**
+ * Steps the shown suggestion forward or backward, wrapping around. A no-op
+ * with at most one candidate — there is nowhere else to cycle to — so Tab
+ * with a single unfilled parameter still counts as "handled" rather than
+ * falling through to command completion below it.
+ */
+function cycleSuggestion(direction: 1 | -1): void {
+  const count = unfilledParams.value.length
+  if (count < 2) return
+  paramCycleOffset.value = (paramCycleOffset.value + direction + count) % count
+}
+
+/**
+ * Right Arrow completes the parameter currently on offer. Safe to claim
+ * unconditionally whenever a suggestion is showing: `suggestedParam` already
+ * requires the caret to be at the very end of the draft, which is exactly
+ * where a native Right Arrow press would do nothing anyway.
+ */
+function onArrowRight(event: KeyboardEvent): void {
+  if (!suggestedParam.value) return
+  event.preventDefault()
+  acceptSuggestion()
+}
 
 const maximumRows = 5
 const rows = computed(() => Math.min(draft.value.split('\n').length, maximumRows))
@@ -82,6 +191,7 @@ async function setDraft(command: string): Promise<void> {
   await nextTick()
   focus()
   field.value?.setSelectionRange(command.length, command.length)
+  caretAtEnd.value = true
 }
 
 /**
@@ -153,6 +263,18 @@ function onArrowDown(event: KeyboardEvent): void {
 }
 
 function onTab(event: KeyboardEvent): void {
+  // A parameter suggestion, when one is showing, takes Tab and Shift+Tab
+  // before command-name completion gets a look at either: Tab steps to the
+  // next candidate, Shift+Tab to the previous, and Right Arrow is what
+  // actually fills one in. Claimed unconditionally rather than only once
+  // `completeCommand` would otherwise trim the trailing space this feature
+  // depends on, off a fragment like "RUN_PA_TEST " that already names a real
+  // command — the same reasoning, applied before that edge case can occur.
+  if (suggestedParam.value) {
+    event.preventDefault()
+    cycleSuggestion(event.shiftKey ? -1 : 1)
+    return
+  }
   // Nothing to complete means Tab keeps its job of leaving the field, which is
   // the only way out for a keyboard user.
   if (draft.value.trim() === '' || props.commands.length === 0) return
@@ -192,22 +314,45 @@ defineExpose({ fill, focus })
     <form class="console-prompt__form" @submit.prevent="send">
       <label class="sr-only" for="console-command">{{ t('console.commandLabel') }}</label>
       <span class="console-prompt__marker" aria-hidden="true">&gt;</span>
-      <textarea
-        id="console-command"
-        ref="field"
-        v-model="draft"
-        class="field field--sm console-prompt__field"
-        :rows="rows"
-        :placeholder="t('console.placeholder')"
-        :disabled="disabled"
-        autocomplete="off"
-        autocapitalize="off"
-        spellcheck="false"
-        @keydown.enter="onEnter"
-        @keydown.up="onArrowUp"
-        @keydown.down="onArrowDown"
-        @keydown.tab="onTab"
-      ></textarea>
+      <div class="console-prompt__field-wrap">
+        <!--
+          Sits on top of the field rather than behind it: the invisible span
+          matching what's already typed has to occupy identical layout space so
+          the suggestion lands exactly where the caret is, and `color:
+          transparent` rather than `visibility: hidden` means it paints nothing
+          over the field's own text instead of reserving an opaque box. Only
+          ever correct while the caret is at the very end of the draft — see
+          `suggestedParam` — which is the one position this technique can place
+          text without measuring the caret in pixels.
+        -->
+        <div v-if="suggestedParam" class="console-prompt__ghost" aria-hidden="true">
+          <span class="console-prompt__ghost-typed">{{ draft }}</span
+          ><span class="console-prompt__ghost-suggestion">{{ suggestedParam.name }}=</span>
+        </div>
+        <textarea
+          id="console-command"
+          ref="field"
+          v-model="draft"
+          class="field field--sm console-prompt__field"
+          :rows="rows"
+          :placeholder="t('console.placeholder')"
+          :disabled="disabled"
+          autocomplete="off"
+          autocapitalize="off"
+          spellcheck="false"
+          @keydown.enter="onEnter"
+          @keydown.up="onArrowUp"
+          @keydown.down="onArrowDown"
+          @keydown.right="onArrowRight"
+          @keydown.tab="onTab"
+          @input="syncCaretState"
+          @click="syncCaretState"
+          @keyup="syncCaretState"
+        ></textarea>
+      </div>
+      <p class="sr-only" aria-live="polite">
+        {{ suggestedParam ? t('console.paramSuggested', { name: suggestedParam.name }) : '' }}
+      </p>
       <!--
         The shared pending treatment, not a bare disabled button: with the
         transport's deadline waived for a typed line, a mesh calibration or a

@@ -11,11 +11,13 @@ import ConsoleSettingsFields from '@/components/console/ConsoleSettingsFields.vu
 import ConsoleTranscript from '@/components/console/ConsoleTranscript.vue'
 import SurfaceSection from '@/components/dashboard/SurfaceSection.vue'
 import PageHeading from '@/components/PageHeading.vue'
+import { macroParamsFromSettings } from '@/dashboard/macroParams'
 import { useAvailability } from '@/composables/useAvailability'
 import { useConsoleSettings } from '@/composables/useConsoleSettings'
 import { filterConsoleEntries } from '@/services/console/transcript'
 import { useActionGuard } from '@/composables/useActionGuard'
 import { useConsoleStore } from '@/stores/console'
+import { usePrinterConfigStore } from '@/stores/printerConfig'
 import { usePrinterStore } from '@/stores/printer'
 
 /**
@@ -33,6 +35,7 @@ const { t } = useI18n({ useScope: 'global' })
 // command runner, which is where the dispatch actually happens.
 const gcodeConsole = useConsoleStore()
 const printer = usePrinterStore()
+const printerConfig = usePrinterConfigStore()
 /*
  * Both clears are page-level rather than module-local even though the card
  * reaches the transcript too: one action with one consequence must not answer to
@@ -63,6 +66,9 @@ const entries = computed(() =>
 const hiddenCount = computed(() => gcodeConsole.consoleEntries.length - entries.value.length)
 const inputOnTop = computed(() => settings.value.inputPosition === 'top')
 const commands = computed(() => gcodeConsole.gcodeHelp.map((entry) => entry.command))
+function getMacroParams(macroName: string) {
+  return macroParamsFromSettings(printerConfig.settings, macroName)
+}
 const hasTimelapse = computed(() =>
   gcodeConsole.gcodeHelp.some((entry) => entry.command.includes('TIMELAPSE')),
 )
@@ -183,6 +189,7 @@ function requestClearHistory(): void {
               ref="prompt"
               :history="gcodeConsole.commandHistory"
               :commands="commands"
+              :get-macro-params="getMacroParams"
               :disabled="!klipper.isAvailable.value"
               :pending="printer.pendingCommands.console"
               @send="gcodeConsole.sendConsoleCommand($event)"

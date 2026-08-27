@@ -1316,6 +1316,7 @@
     "empty": "Nothing from the printer yet.",
     "commandLabel": "G-code command",
     "placeholder": "Send G-code",
+    "paramSuggested": "Suggested next: {name}. Press the right arrow key to fill it in, or Tab for another parameter.",
     "send": "Send command",
     "reuseCommand": "Put this command back in the prompt",
     "clear": "Clear",

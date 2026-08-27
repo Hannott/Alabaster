@@ -20,6 +20,12 @@ you typed is itself the record that it was tried.
 - <kbd>Tab</kbd> completes against the commands your machine actually reports. If
   several match, it fills in as far as they agree and offers the rest to pick
   from — so `set` then <kbd>Tab</kbd> narrows without you typing the whole name.
+- Type a macro's name and a space, and Alabaster shows the next parameter it
+  takes, dimmed, right after the cursor — so you don't need to remember it or
+  look it up. Press <kbd>→</kbd> to fill it in and keep typing its value; when
+  a macro takes more than one parameter, <kbd>Tab</kbd> and
+  <kbd>Shift</kbd>+<kbd>Tab</kbd> step through the ones you haven't filled in
+  yet, in case you want to set them in a different order.
 - <kbd>Shift</kbd>+<kbd>Enter</kbd> adds a line, letting you send a short script
   in one go instead of one command at a time.
 - Click any command in the transcript to put it back in the prompt. Handy for a

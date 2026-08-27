@@ -1,13 +1,17 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  atParamBoundary,
   classifyResponse,
   cleanConsoleMessage,
+  commandNameFromLine,
   completeCommand,
   filterConsoleEntries,
   isFilteredEntry,
+  unfilledMacroParams,
   type ConsoleEntry,
 } from '@/services/console/transcript'
+import type { MacroParameter } from '@/dashboard/macroParams'
 
 function entry(raw: string, overrides: Partial<ConsoleEntry> = {}): ConsoleEntry {
   return {
@@ -121,5 +125,33 @@ describe('console transcript', () => {
     // Both candidates share exactly what was typed, so Tab must not shorten it
     // to the machine's casing and lose the user's characters.
     expect(completeCommand('SET_', ['SET_FAN_SPEED', 'SET_GCODE_OFFSET']).value).toBe('SET_')
+  })
+
+  it('reads the macro name as the word before the first space', () => {
+    expect(commandNameFromLine('RUN_PA_TEST')).toBe('RUN_PA_TEST')
+    expect(commandNameFromLine('RUN_PA_TEST NOZZLE=0.4')).toBe('RUN_PA_TEST')
+    expect(commandNameFromLine('  RUN_PA_TEST  ')).toBe('RUN_PA_TEST')
+    expect(commandNameFromLine('')).toBe('')
+  })
+
+  it('only reports a parameter unfilled until its NAME= token appears', () => {
+    const params: MacroParameter[] = [
+      { name: 'NOZZLE', defaultValue: null },
+      { name: 'BED', defaultValue: '60' },
+    ]
+    expect(unfilledMacroParams('RUN_PA_TEST ', params)).toEqual(params)
+    expect(unfilledMacroParams('RUN_PA_TEST NOZZLE=0.4 ', params)).toEqual([
+      { name: 'BED', defaultValue: '60' },
+    ])
+    // Case-insensitive: Klipper uppercases whatever case a parameter is typed in.
+    expect(unfilledMacroParams('RUN_PA_TEST nozzle=0.4 bed=60', params)).toEqual([])
+    expect(unfilledMacroParams('RUN_PA_TEST', [])).toEqual([])
+  })
+
+  it('only offers a suggestion right after whitespace, never mid-word', () => {
+    expect(atParamBoundary('RUN_PA_TEST ')).toBe(true)
+    expect(atParamBoundary('RUN_PA_TEST')).toBe(false)
+    expect(atParamBoundary('RUN_PA_TEST NOZZLE=0.4 ')).toBe(true)
+    expect(atParamBoundary('RUN_PA_TEST NOZ')).toBe(false)
   })
 })
