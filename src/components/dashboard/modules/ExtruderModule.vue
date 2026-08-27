@@ -490,117 +490,135 @@ const readoutUnit = computed(() =>
     />
 
     <!--
-      One row per macro, each carrying the field it commands: the length that
-      Retract and Extrude both run at (extrusion sign is what tells them apart)
-      on this row, feedrate on the one below. A row's own preset chips write
-      that row's field directly — the same `button--value` shape Movement's
-      jog-distance and Z-offset steps already use for "a value, not a verb" —
-      so a press queues a length or a speed the same way it always has,
-      without needing a place to type one first.
+      Two values above the two verbs they feed.
+
+      This was a field, its chip ladder and one macro button on a single line,
+      twice over. That row needs roughly 26rem before three legible controls
+      fit side by side, and a dashboard column is routinely narrower — where
+      the chips were the part that gave way, five of them dividing whatever
+      the field and the button had not already taken. It also asserted a
+      pairing that is not real: Retract and Extrude each read *both* numbers,
+      so standing one beside the length and the other beside the feedrate said
+      the length belonged to retraction and the speed to extrusion.
+
+      So the numbers stack above the actions instead — the arrangement Mainsail
+      settled on for the same four controls. Each field owns the chips
+      directly beneath it, which is what makes a ladder readable as that
+      field's shortcuts without a line connecting them, and the two buttons
+      share a row where neither is tied to a number. Chips stay `button--value`,
+      the shape Movement's jog-distance and Z-offset steps already use for "a
+      value, not a verb"; the two verbs take the card's ordinary button tier,
+      the same one the macro buttons below them use, now that they no longer
+      have to match a field's height across a row.
 
       Headed like firmware retraction and pressure advance below, because it
-      is now the same kind of thing they are: a named block the card draws or
-      does not. Unheaded it was the one block whose rows had to be identified
-      from their own field labels while every block under it announced
-      itself.
+      is the same kind of thing they are: a named block the card draws or does
+      not. Unheaded it was the one block whose rows had to be identified from
+      their own field labels while every block under it announced itself.
     -->
     <div v-if="showManualExtrusion" class="grid gap-2 manual-extrusion">
       <p class="text-xs font-black">{{ t('dashboard.extruder.manualTitle') }}</p>
-      <div class="grid gap-1 extruder-feed-rows">
-        <div class="extruder-feed-row">
-          <AppField
-            :model-value="length"
-            :label="t('dashboard.extruder.length')"
-            :unit="t('dashboard.extruder.millimetresUnit')"
-            :min="1"
-            :max="printerConfig.maxExtrudeDistance"
-            :step="1"
-            @commit="(value) => updateConfig({ length: value ?? 25 })"
-          />
-          <div
-            class="extruder-feed-row__presets"
-            role="group"
-            :aria-label="t('dashboard.extruder.lengthPresets')"
-          >
-            <button
-              v-for="preset in lengthPresets"
-              :key="`length-${preset}`"
-              type="button"
-              class="button button--sm button--value"
-              :aria-label="t('dashboard.extruder.setLength', { value: preset })"
-              @click="updateConfig({ length: preset })"
+      <div class="extruder-feed">
+        <div class="extruder-feed__values">
+          <div class="extruder-feed__value">
+            <AppField
+              :model-value="length"
+              :label="t('dashboard.extruder.length')"
+              :unit="t('dashboard.extruder.millimetresUnit')"
+              :min="1"
+              :max="printerConfig.maxExtrudeDistance"
+              :step="1"
+              @commit="(value) => updateConfig({ length: value ?? 25 })"
+            />
+            <div
+              class="extruder-feed__presets"
+              role="group"
+              :aria-label="t('dashboard.extruder.lengthPresets')"
             >
-              {{ preset }}
-            </button>
+              <button
+                v-for="preset in lengthPresets"
+                :key="`length-${preset}`"
+                type="button"
+                class="button button--sm button--value"
+                :aria-label="t('dashboard.extruder.setLength', { value: preset })"
+                @click="updateConfig({ length: preset })"
+              >
+                {{ preset }}
+              </button>
+            </div>
           </div>
+
+          <div class="extruder-feed__value">
+            <AppField
+              :model-value="feedrate"
+              :label="t('dashboard.extruder.feedrate')"
+              :unit="t('dashboard.extruder.millimetresPerSecondUnit')"
+              :min="1"
+              :max="60"
+              :step="1"
+              @commit="(value) => updateConfig({ feedrate: value ?? 5 })"
+            />
+            <div
+              class="extruder-feed__presets"
+              role="group"
+              :aria-label="t('dashboard.extruder.feedratePresets')"
+            >
+              <button
+                v-for="preset in feedratePresets"
+                :key="`feedrate-${preset}`"
+                type="button"
+                class="button button--sm button--value"
+                :aria-label="t('dashboard.extruder.setFeedrate', { value: preset })"
+                @click="updateConfig({ feedrate: preset })"
+              >
+                {{ preset }}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!--
+          What the two fields above actually mean once filament becomes bead: a
+          thin nozzle turns a short push of thick filament into a much longer,
+          thinner line. Absent without a known filament and nozzle diameter,
+          the same refusal `volumetricFlow` already takes elsewhere on this
+          card, rather than showing a number invented from an assumed 1.75 mm.
+
+          Between the values and the verbs, not after them: it is a caption on
+          the two fields, and reading it immediately before pressing Extrude is
+          what makes it a preview rather than a footnote.
+        -->
+        <p v-if="extrusionPreview" class="extruder-feed__note hint">
+          {{
+            t('dashboard.extruder.extrusionPreview', {
+              length: numberFormatter.format(extrusionPreview.beadLength),
+              flow: numberFormatter.format(extrusionPreview.flow),
+              nozzle: numberFormatter.format(extrusionPreview.nozzleDiameter),
+            })
+          }}
+        </p>
+
+        <div class="extruder-feed__actions">
           <button
             type="button"
-            class="button button--sm"
+            class="button"
             :disabled="!canManualExtrude || printer.pendingCommands.extrude"
             @click="printer.extrudeFilament(-length, feedrate)"
           >
-            <AppIcon name="up" class="size-4" aria-hidden="true" />
+            <AppIcon name="up" class="size-5 shrink-0" aria-hidden="true" />
             {{ t('dashboard.extruder.retract') }}
           </button>
-        </div>
-
-        <div class="extruder-feed-row">
-          <AppField
-            :model-value="feedrate"
-            :label="t('dashboard.extruder.feedrate')"
-            :unit="t('dashboard.extruder.millimetresPerSecondUnit')"
-            :min="1"
-            :max="60"
-            :step="1"
-            @commit="(value) => updateConfig({ feedrate: value ?? 5 })"
-          />
-          <div
-            class="extruder-feed-row__presets"
-            role="group"
-            :aria-label="t('dashboard.extruder.feedratePresets')"
-          >
-            <button
-              v-for="preset in feedratePresets"
-              :key="`feedrate-${preset}`"
-              type="button"
-              class="button button--sm button--value"
-              :aria-label="t('dashboard.extruder.setFeedrate', { value: preset })"
-              @click="updateConfig({ feedrate: preset })"
-            >
-              {{ preset }}
-            </button>
-          </div>
           <button
             type="button"
-            class="button button--sm button--primary"
+            class="button button--primary"
             :disabled="!canManualExtrude || printer.pendingCommands.extrude"
             @click="printer.extrudeFilament(length, feedrate)"
           >
-            <AppIcon name="down" class="size-4" aria-hidden="true" />
+            <AppIcon name="down" class="size-5 shrink-0" aria-hidden="true" />
             {{ t('dashboard.extruder.extrude') }}
           </button>
         </div>
       </div>
-      <!--
-        What the two fields above actually mean once filament becomes bead: a
-        thin nozzle turns a short push of thick filament into a much longer,
-        thinner line. Absent without a known filament and nozzle diameter, the
-        same refusal `volumetricFlow` already takes elsewhere on this card,
-        rather than showing a number invented from an assumed 1.75 mm.
-
-        Inside the block rather than after it, because it is a caption on
-        these two rows: left as a loose `space-y-4` sibling it sat nearer the
-        macro buttons than the fields it describes, reading as their heading.
-      -->
-      <p v-if="extrusionPreview" class="extrusion-preview hint">
-        {{
-          t('dashboard.extruder.extrusionPreview', {
-            length: numberFormatter.format(extrusionPreview.beadLength),
-            flow: numberFormatter.format(extrusionPreview.flow),
-            nozzle: numberFormatter.format(extrusionPreview.nozzleDiameter),
-          })
-        }}
-      </p>
     </div>
 
     <!--

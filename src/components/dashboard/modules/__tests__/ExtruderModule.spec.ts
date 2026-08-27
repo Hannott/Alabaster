@@ -72,7 +72,7 @@ describe('ExtruderModule', () => {
     await flushPromises()
 
     expect(wrapper.text()).toContain('Heat the hotend above 170°C to extrude')
-    const buttons = wrapper.findAll('.extruder-feed-row > button')
+    const buttons = wrapper.findAll('.extruder-feed__actions > button')
     expect(buttons).toHaveLength(2)
     expect(buttons.every((button) => button.attributes('disabled') !== undefined)).toBe(true)
     expect(extrude).not.toHaveBeenCalled()
@@ -90,7 +90,7 @@ describe('ExtruderModule', () => {
     await wrapper.get('.button--primary').trigger('click')
     expect(extrude).toHaveBeenLastCalledWith(25, 5)
 
-    await wrapper.findAll('.extruder-feed-row > button').at(0)?.trigger('click')
+    await wrapper.findAll('.extruder-feed__actions > button').at(0)?.trigger('click')
     expect(extrude).toHaveBeenLastCalledWith(-25, 5)
   })
 
@@ -151,7 +151,7 @@ describe('ExtruderModule', () => {
     spool.activeSpool = { id: 1, filament: { id: 1, diameter: 1.75 } } as never
     await flushPromises()
 
-    expect(wrapper.find('.extrusion-preview').exists()).toBe(false)
+    expect(wrapper.find('.extruder-feed__note').exists()).toBe(false)
   })
 
   it('disables extrusion and the macro buttons while a print is active', async () => {
@@ -170,7 +170,7 @@ describe('ExtruderModule', () => {
     // since the disabled buttons already say so.
     expect(wrapper.text()).toContain('Ready to extrude')
 
-    const buttons = wrapper.findAll('.extruder-feed-row > button')
+    const buttons = wrapper.findAll('.extruder-feed__actions > button')
     expect(buttons.every((button) => button.attributes('disabled') !== undefined)).toBe(true)
     await buttons[0]?.trigger('click')
     expect(extrude).not.toHaveBeenCalled()
@@ -382,7 +382,7 @@ describe('ExtruderModule', () => {
     // What the module is for survives; what a tuning session added does not.
     // The macro block goes entirely, invitation included — turning a section
     // off has to mean off, not "replaced by a prompt to configure it".
-    expect(wrapper.findAll('.extruder-feed-row > button')).toHaveLength(2)
+    expect(wrapper.findAll('.extruder-feed__actions > button')).toHaveLength(2)
     expect(wrapper.find('.macro-grid').exists()).toBe(false)
     expect(wrapper.text()).not.toContain('No macros chosen yet')
     expect(wrapper.find('form').exists()).toBe(false)
@@ -396,7 +396,7 @@ describe('ExtruderModule', () => {
     const on = mountModule()
     await flushPromises()
     expect(on.wrapper.get('.manual-extrusion p').text()).toBe('Manual extrusion')
-    expect(on.wrapper.findAll('.extruder-feed-row')).toHaveLength(2)
+    expect(on.wrapper.findAll('.extruder-feed__value')).toHaveLength(2)
 
     /*
      * Off is a real state, not merely a smaller one: a printer whose filament
@@ -409,8 +409,8 @@ describe('ExtruderModule', () => {
     off.printerConfig.settings = { extruder: { nozzle_diameter: 0.4 } }
     await flushPromises()
     expect(off.wrapper.find('.manual-extrusion').exists()).toBe(false)
-    expect(off.wrapper.findAll('.extruder-feed-row')).toHaveLength(0)
-    expect(off.wrapper.find('.extrusion-preview').exists()).toBe(false)
+    expect(off.wrapper.findAll('.extruder-feed__value')).toHaveLength(0)
+    expect(off.wrapper.find('.extruder-feed__note').exists()).toBe(false)
     // The extrusion factor is not part of the block, and stays.
     expect(off.wrapper.find('.app-slider').exists()).toBe(true)
   })

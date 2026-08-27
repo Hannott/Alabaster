@@ -5914,113 +5914,97 @@ input.z-axis__slider {
 }
 
 /*
- * The two feed rows read as one control cluster with the extrusion-factor
- * slider above them, not three unrelated card sections — `space-y-4`'s
- * default 1rem is the rhythm between sections and is too loose here.
- * `.grid.gap-1` between the rows matches the retraction and pressure-advance
- * grids' own `gap-y-1` — the same "a set of related fields" spacing rather
- * than the section rhythm — and this margin override is the documented way
- * to win against `space-y-4`'s zero-specificity `:where()` (see
- * `AppDashboardModule`'s own comment): a plain class needs no `!important`.
- */
-.extruder-feed-rows {
-  /* The rows answer their own width, not the viewport's: this card is as wide
-     as its dashboard column or the settings-surface dock, so a media query
-     tuned to one would be wrong for the other. */
-  container-type: inline-size;
-}
-
-/*
- * A caption on the feed rows, so it has to sit nearer them than the block's
- * own 0.5rem gap puts it — and nearer still, because `AppField` reserves
- * another 0.5rem below its box for the notched label rising over its top
- * border. Together that is 1rem of space measured from an edge the reader
- * cannot see; the negative start margin takes back both, leaving the caption
- * against the field's visible box.
+ * Manual extrusion: two values above the two verbs they feed.
  *
- * No bottom margin: this is the last child of a `gap`-spaced grid, and the
- * `.hint` default's 0.6rem would stack on top of that gap rather than
- * replace it.
+ * The block reads as one control cluster with the extrusion-factor slider
+ * above it, not several unrelated card sections — `space-y-4`'s default 1rem
+ * is the rhythm between sections and is too loose here. `.extruder-feed`'s
+ * own 0.75rem is what separates its three parts: the values, their caption,
+ * and the actions.
  */
-.extrusion-preview {
-  margin-block: -0.85rem 0;
-}
-
-/*
- * Extruder's length and feedrate rows: a field, its preset chips, then the
- * macro button the row commands.
- *
- * Three explicit tracks rather than a flex row that distributes what is left
- * over. The field is the value the row is *about*, not the row's filler, and
- * a `flex: 1 1 auto` field grew to several times the width its own two or
- * three digits need while the chips stayed pinned to their labels — the row
- * then read as one wide box with an afterthought beside it. The presets take
- * the `1fr`, so they are what absorbs a wider card, and both other tracks
- * hold a size that says what they are.
- *
- * `align-items: center` keeps every control at its own natural height.
- * Stretching them to `AppField`'s taller outer box was tried, and a button
- * that tall stopped reading as the same `.button` every other card uses.
- */
-.extruder-feed-row {
+.extruder-feed {
   display: grid;
-  align-items: center;
-  gap: 0.5rem;
-  grid-template-columns: minmax(0, 11rem) minmax(0, 1fr) minmax(0, 7rem);
+  gap: 0.75rem;
 }
 
 /*
- * The chips split their track evenly, so the set stays one even ladder at
- * every card width instead of five buttons sized to their own digit counts —
- * "1" and "50" are the same control and must not be two widths.
+ * A field and its chip ladder need roughly 10.5rem before the ladder stops
+ * being five buttons narrower than their own digits, so that is the floor
+ * `auto-fit` measures against: two columns wherever the card can hold two,
+ * one everywhere else. Sized this way rather than by container query because
+ * the number that matters is the column's, and the card is as wide as its
+ * dashboard column or the settings-surface dock — a breakpoint tuned to one
+ * is wrong for the other, and both are widths this module does not choose.
  */
-.extruder-feed-row__presets {
+.extruder-feed__values {
+  display: grid;
+  gap: 0.5rem 0.75rem;
+  grid-template-columns: repeat(auto-fit, minmax(min(10.5rem, 100%), 1fr));
+}
+
+/*
+ * A field and the chips that write it are one control, so they sit tighter
+ * than the 0.75rem between this block's parts — proximity is the whole reason
+ * a reader knows which ladder belongs to which number. `AppField` already
+ * reserves 0.5rem below its visible box for the notched label that rises over
+ * the border of whatever follows it, so the gap here is zero and the presets
+ * trim what is left: the space is measured from the box's visible edge, not
+ * from an envelope the reader cannot see.
+ */
+.extruder-feed__value {
+  display: grid;
+  gap: 0;
+}
+
+/*
+ * The chips split the ladder evenly, so the set reads as one scale at every
+ * card width instead of five buttons sized to their own digit counts — "1"
+ * and "50" are the same control and must not be two widths.
+ *
+ * `auto-fit` against a 1.5rem floor keeps all five on one line wherever they
+ * each clear WCAG 2.5.8's 24px minimum target, and drops one to a second line
+ * rather than taking the whole ladder below it. A dashboard column has no
+ * floor this module controls — three columns on a 390px viewport already puts
+ * the card near 150px, and nothing stops a fourth — so the ladder has to fail
+ * by wrapping rather than by shrinking into targets nobody can hit.
+ */
+.extruder-feed__presets {
   display: grid;
   align-items: center;
   gap: 0.3rem;
-  grid-auto-columns: minmax(0, 1fr);
-  grid-auto-flow: column;
+  margin-block-start: -0.15rem;
+  grid-template-columns: repeat(auto-fit, minmax(min(1.5rem, 100%), 1fr));
 }
 
 /*
- * A shared track rather than content-sized: "Retract" and "Extrude" are
- * coincidentally the same length today, but the two must still match if
- * either label is ever re-translated to a longer word.
+ * The caption belongs to the fields above it rather than to the buttons under
+ * it, so it closes most of the gap to the chip ladder and leaves the full
+ * 0.75rem before the actions. `.hint`'s own 0.1rem/0.6rem margins would stack
+ * on top of the grid gap rather than replace it, which is what the reset here
+ * is for.
  */
-.extruder-feed-row > .button {
-  min-width: 0;
+.extruder-feed__note {
+  margin-block: -0.4rem 0;
 }
 
 /*
- * Below roughly a 26rem card the three tracks cannot each hold a legible
- * control, and the chips are the part that degrades worst — five of them in
- * a track narrower than their own digits. The row becomes two lines instead:
- * field and button on the first, the full chip ladder under them, so no
- * control is squeezed and the card still never scrolls sideways.
+ * Both verbs read both fields, so they share a row as equals rather than each
+ * standing under the number it would then seem to own.
+ *
+ * The track floor is the widest single word a label can contain plus the
+ * icon and padding around it — not the widest whole label. `.button` never
+ * set `white-space`, so a label longer than its track wraps and the grid
+ * stretches its partner to match: Norwegian's "Trekk tilbake" takes two lines
+ * beside a one-line "Ekstruder" and both stay legible, where a floor sized to
+ * hold it on one line would have stacked the pair on every card narrower than
+ * 19rem and cost English the arrangement for nothing. What the floor does
+ * prevent is the case wrapping cannot help — a track narrower than the one
+ * unbreakable word in it, which overflows the button instead.
  */
-@container (max-width: 26rem) {
-  .extruder-feed-row {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 7rem);
-  }
-
-  .extruder-feed-row__presets {
-    order: 1;
-    grid-column: 1 / -1;
-  }
-}
-
-/*
- * A third tier, because a dashboard column is not bounded below by anything
- * this card controls: three columns on a 390px viewport puts this card at
- * about 150px, and there the two-track row above spends its whole width on
- * the 7rem button track and leaves the field measuring zero — a number field
- * with no room for its number. Everything goes full width and stacks
- * instead. Verified against that exact case rather than a guessed floor.
- */
-@container (max-width: 18rem) {
-  .extruder-feed-row {
-    grid-template-columns: minmax(0, 1fr);
-  }
+.extruder-feed__actions {
+  display: grid;
+  gap: 0.5rem;
+  grid-template-columns: repeat(auto-fit, minmax(min(6.5rem, 100%), 1fr));
 }
 
 /*
