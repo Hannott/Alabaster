@@ -1,29 +1,30 @@
 # Calibration
 
-Bed mesh, endstops, probe accuracy, filament sensors, and your tuning results,
-in one place.
+Calibration brings bed mesh, endstops, probe accuracy, filament sensors, and
+tuning results together in one place.
 
 ## Watching a mesh being probed
 
-The height map draws points **as they arrive**, so a probing run that is going
-wrong is visible while it runs rather than after it.
+The height map draws each point as it arrives. You can see a probing run go
+wrong while it is still running, not just after it finishes.
 
-The count updates as it goes: _Probing — 34 points so far_.
+The point count updates live: _Probing — 34 points so far_.
 
-::: info The shape settles as it goes
-Each point is plotted against the average of the run so far, so early points move
-as more arrive. It is provisional until the run finishes, and the page says so.
+::: info Point positions update as probing continues
+Each point is plotted against the average of the run so far, so early points
+can move as more points arrive. The mesh is provisional until the run
+finishes, and the page marks it as such.
 :::
 
-**Scanning probes** sweep the bed instead of touching each point, so there is no
-per-point report to follow. The page says that too, and fills the map in when the
-mesh completes — rather than showing you an empty grid and letting you wonder.
+Scanning probes sweep the bed instead of touching each point, so there is no
+per-point report during the scan. The page states this, and fills in the map
+once the mesh completes.
 
 ## Mesh profiles
 
-Every mesh saved on the printer, each carrying **the spread Klipper measured for
-it**. That is the point: you can compare profiles without loading each one onto
-the machine to find out what it says.
+Lists every mesh profile saved on the printer, each showing the spread
+Klipper measured for it. This lets you compare profiles without loading each
+one onto the printer to see what it contains.
 
 | Action           | Notes                                                                           |
 | ---------------- | ------------------------------------------------------------------------------- |
@@ -33,23 +34,25 @@ the machine to find out what it says.
 | Rename           | Klipper can only rename the loaded profile, so the page says so when it is not. |
 | Delete           | Asks first, and names the profile.                                              |
 
-A mesh that has only been calibrated is not saved. It is gone at the next
-restart, and the page tells you before that happens rather than after.
+A mesh that has only been calibrated is not saved. It is lost on the next
+restart, and the page warns you before that happens.
 
-The [Bed mesh dashboard module](/interface/modules#bed-mesh) carries the same map
-with the projections, render styles, colour scales, and warnings.
+See the [Bed mesh dashboard module](/interface/modules#bed-mesh) for the same
+map, plus projections, render styles, colour scales, and warnings.
 
 ## Manual probing
 
-When Klipper stops to ask where the bed is, **a prompt comes to you** — wherever
-you are in the interface, and whoever started the probe. `MANUAL_PROBE`,
-`Z_ENDSTOP_CALIBRATE`, `PROBE_CALIBRATE`, and your own macros around them all end
-in the same wait, and it does not matter whether the command came from a macro
-button here, the console, the printer's own screen, or another browser.
+When Klipper stops to ask where the bed is, a prompt appears wherever you are
+in the interface. This happens regardless of who started the probe.
+`MANUAL_PROBE`, `Z_ENDSTOP_CALIBRATE`, `PROBE_CALIBRATE`, and macros built
+around them all end in the same wait. It does not matter whether the command
+came from a macro button here, the console, the printer's own screen, or
+another browser.
 
-The height Klipper is holding is the number to watch. Beside it are **the two
-heights already tried**, below and above — the pair a bisection is closing in on,
-and empty until you have been somewhere in that direction.
+The height Klipper is holding is the number to watch. Beside it are the two
+heights already tried, one below and one above. This is the bracket a
+bisection closes in on. Each side stays empty until you have tried a height
+in that direction.
 
 | Control        | What it does                                                                  |
 | -------------- | ----------------------------------------------------------------------------- |
@@ -58,86 +61,89 @@ and empty until you have been somewhere in that direction.
 | Accept         | Ends the probe at this height and hands it back to whatever asked.            |
 | Abort          | Ends the probe without recording anything.                                    |
 
-**Every button says the distance it will move**, including the halving pair —
-whose number shrinks on its own as the bracket closes, so you can see how much
-room is left without working it out. Klipper's own notation for those two
-(`TESTZ Z=+`, and the `++` that goes the whole way) is still available in the
-console for anyone who wants it.
+Every button shows the distance it will move, including the halving pair.
+That number shrinks automatically as the bracket closes, so you can see how
+much room is left without working it out yourself. Klipper's own notation
+for these two moves (`TESTZ Z=+`, and `++` for the full distance) is still
+available in the console.
 
-The usual run is coarse steps down until the nozzle is close, then halving until
-a sheet of paper is just gripped.
+The usual run is coarse steps down until the nozzle is close, then halving
+until a sheet of paper is just gripped.
 
 ::: info Closing the prompt does not answer it
-Closing the window — or pressing `Escape` — leaves the probe exactly where it is.
-Only **Accept** and **Abort** end it, and while one is waiting the header carries
-a **Manual probe** control that brings the prompt straight back. So heating the
-nozzle first, or checking anything else in the interface, costs you nothing.
+Closing the window, or pressing `Escape`, leaves the probe exactly where it
+is. Only **Accept** and **Abort** end the probe. While a probe is waiting,
+the header shows a **Manual probe** control that brings the prompt back. You
+can heat the nozzle first, or check anything else in the interface, without
+losing your place.
 :::
 
-A halving press never moves more than 0.2 mm. That is Klipper's own limit rather
-than ours, and it means the pair cannot reach the bed however many times you press
-it. The step grid has no such limit, so that is where the care is needed.
+A halving press never moves more than 0.2 mm. This is Klipper's own limit,
+not Alabaster's, and it means the halving pair cannot reach the bed no
+matter how many times you press it. The step grid has no such limit, so use
+care there.
 
-Whatever asked for the height gets it: a probe offset, a Z endstop position, the
-rest of your macro. If it staged a config change, the header's
-[**Save new config**](/interface/configuration) gate says so and writes it.
+Whatever requested the height receives it: a probe offset, a Z endstop
+position, or the rest of your macro. If the result staged a config change,
+the header's [**Save new config**](/interface/configuration) control shows
+this and writes it.
 
 ### Bed screws are their own prompt
 
-`BED_SCREWS_ADJUST` is not a manual probe, even though it waits the same way: the
-printer drives the nozzle to each screw and stops. It gets its own prompt, with
-the screw's name, which round you are on, and Klipper's three answers — **Accept**,
-**Adjusted** and **Abort**. It follows every rule above, including the one about
-closing it: a **Bed screws** control appears in the header while a round is
-waiting. See [the Movement module](/interface/modules#bed-levelling).
+`BED_SCREWS_ADJUST` is not a manual probe, but it waits the same way: the
+printer drives the nozzle to each screw and stops. It has its own prompt,
+showing the screw's name, the current round, and Klipper's three answers:
+**Accept**, **Adjusted**, and **Abort**. It follows the same rules as manual
+probing, including closing the window: a **Bed screws** control appears in
+the header while a round is waiting. See
+[the Movement module](/interface/modules#bed-levelling) for more information.
 
 ## Endstops
 
-The live state of every endstop the printer reports: **Triggered**, **Open**, or
-**Unknown**.
+The live state of every endstop the printer reports: **Triggered**,
+**Open**, or **Unknown**.
 
-Klipper reports these only when asked, so Alabaster asks — every couple of seconds
-while the printer is idle. **Read now** asks immediately.
+Klipper reports endstop state only when asked. Alabaster asks every couple
+of seconds while the printer is idle. **Read now** asks immediately.
 
-Two things it will not do:
+Two behaviors to note:
 
-- **It stops while a print runs.** Querying endstops mid-print is not free, so the
-  readings are paused and labelled as not current.
-- **It does not throw away a good reading for a failed one.** If a read is
-  refused, the previous values stay on screen and the page says the last read
+- **Polling stops during a print.** Querying endstops mid-print is not free,
+  so readings pause and are labelled as not current.
+- **A failed read does not clear the last good reading.** If a read fails,
+  the previous values stay on screen, and the page states that the last read
   failed.
 
 Each reading carries the time it was taken.
 
 ## Probe accuracy
 
-Repeats one point ten times in place, and reports what the probe did:
-**maximum**, **minimum**, **range**, **average**, **median**, and **standard
-deviation**.
+Repeats one point ten times in place and reports the results: **maximum**,
+**minimum**, **range**, **average**, **median**, and **standard deviation**.
 
-This separates a probe that is noisy from a bed that is uneven — the two look
-identical on a mesh, and only one of them is fixed by probing more points. Run
-it before you trust a mesh you are about to argue with.
+This distinguishes a noisy probe from an uneven bed. The two look identical
+on a mesh, but only one is fixed by probing more points. Run this check
+before you rely on a mesh's readings.
 
-It appears only on a printer that has a probe. Where the probe's offset would
-carry it off the bed from where the toolhead is standing, the page says so and
-the control waits rather than failing mid-run.
+This section appears only on a printer with a probe. If the probe's offset
+would carry it off the bed from the toolhead's current position, the page
+states this and the control waits instead of failing mid-run.
 
 ## Runout sensors
 
-Every filament sensor the printer reports, as **Filament loaded** or **No
-filament**, with a sensor that is switched off marked **Disarmed**.
+Shows every filament sensor the printer reports, as **Filament loaded** or
+**No filament**. A sensor that is switched off is marked **Disarmed**.
 
-These are read live, so a sensor tripped while you are probing the bed shows up
-here without a refresh.
+These update live. A sensor tripped while you are probing the bed shows up
+here without a page refresh.
 
-It reports state and does not change it: arming and disarming a sensor is not
-offered here, so the **Disarmed** mark is what tells a genuine runout apart from
-a sensor that was never watching in the first place.
+This section reports sensor state without changing it. The **Disarmed**
+mark distinguishes a genuine runout from a sensor that was never active.
 
 ## Tuning results
 
-Your input-shaper output, read straight out of the printer's config folder.
+Shows your input shaper output, read directly from the printer's config
+folder.
 
 | Category           | What it shows                          |
 | ------------------ | -------------------------------------- |
@@ -149,11 +155,11 @@ Your input-shaper output, read straight out of the printer's config folder.
 
 Open any of them at full size.
 
-This is the difference between tuning results that live in a folder you have to
-remember the path to, and tuning results that are in the interface next to the
-mesh you were about to compare them with.
+Tuning results appear in the interface next to the mesh you are comparing
+them with, instead of in a folder you have to locate separately.
 
 ::: info Generated by Shake&Tune
-These graphs come from the Shake&Tune tooling. Alabaster reads what it wrote; it
-does not generate them. Without it installed, this section has nothing to show.
+These graphs come from the Shake&Tune tooling. Alabaster reads the files
+Shake&Tune writes; it does not generate them. If Shake&Tune is not
+installed, this section has nothing to show.
 :::

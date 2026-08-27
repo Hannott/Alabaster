@@ -1,12 +1,12 @@
 # Customizing the dashboard
 
-Choose **Customize** on the dashboard to start arranging. Choose **Done** when
-you have finished.
+Choose **Customize** on the dashboard to start arranging cards. Choose
+**Done** when you are finished.
 
 ## Moving and resizing
 
-Drag a card where you want it. Every drag action also has a button, so this works
-with a keyboard and on a touchscreen:
+Drag a card to move it. Every drag action also has a button, so moving and
+resizing works with a keyboard and on a touchscreen:
 
 | Action                 | What it does                                                |
 | ---------------------- | ----------------------------------------------------------- |
@@ -15,34 +15,35 @@ with a keyboard and on a touchscreen:
 | Hide                   | Takes it off this layout. It keeps its configuration.       |
 | Collapse               | Keeps it in place, showing only its header and one reading. |
 
-**Column widths** sets the shape of the grid: equal columns, one wide column, or
-one narrow one. Pick which column it applies to.
+**Column widths** sets the shape of the grid: equal columns, one wide column,
+or one narrow column. Choose which column it applies to.
 
-Hidden cards are listed under **Available modules**, ready to put back.
+Hidden cards are listed under **Available modules**, ready to add back.
 
 ## Three layouts, one configuration
 
-The **Layout profile** switch — Desktop, Tablet, Mobile — is the important part.
+The **Layout profile** switch has three options: Desktop, Tablet, and Mobile.
 
 Card order, column, width, visibility, and collapsed state are **stored per
-profile**. Three columns on the desktop, two on a tablet, one on a phone, each
-with its own arrangement.
+profile**. Desktop uses three columns, tablet uses two, and phone uses one,
+each with its own arrangement.
 
-A card's **configuration is shared** across all three. Set your temperature
-presets on the desktop and your phone has them. Choose macros once.
+A card's **configuration is shared** across all three profiles. Set your
+temperature presets on the desktop, and they appear on your phone too. Choose
+macros once.
 
 ::: tip Edit the profile you are using
-Switching the layout profile switches which arrangement you are editing, not the
-size of the window. Set up each one on the device you actually use it on, or
-switch profiles and edit them from anywhere.
+Switching the layout profile changes which arrangement you are editing. It
+does not change the size of the window. Set up each profile on the device you
+use it on, or switch profiles to edit any of them from any device.
 :::
 
-**Reset this layout** restores the current profile's arrangement without touching
-the other two.
+**Reset this layout** restores the current profile's arrangement. It does not
+change the other two profiles.
 
 ## Presets
 
-Three starting points, on the **Apply a preset** control:
+**Apply a preset** offers three starting points:
 
 | Preset   | Cards                                                                        |
 | -------- | ---------------------------------------------------------------------------- |
@@ -50,56 +51,59 @@ Three starting points, on the **Apply a preset** control:
 | Standard | Minimal plus Controls, Macros, Console, Activity                             |
 | Tuning   | Print, Temperatures, Movement, Controls, Macros, Extruder, Bed mesh, Console |
 
-A preset changes visibility only. Nothing you configured on a card is discarded,
-so you can try one and go back.
+A preset changes visibility only. It does not discard any card's
+configuration, so you can try a preset and switch back.
 
 ## More than one of the same card
 
-**Macros** and **Camera** can each appear as many times as you like. Every copy
-is its own card with its own name and its own configuration.
+**Macros** and **Camera** can each appear more than once. Each copy is its
+own card, with its own name and its own configuration.
 
 The usual **Macros** arrangement is one card per job:
 
 - **Preparation** — home, level, load filament. Shown while idle.
-- **Mid-print** — pause at layer, purge, adjust. Shown while printing and paused.
+- **Mid-print** — pause at layer, purge, adjust. Shown while printing and
+  paused.
 - **Calibration** — PID tuning, test prints, resonance runs.
 
-Each macro button can carry a colour from the Okabe-Ito palette, and each group
+Each macro button can have a colour from the Okabe-Ito palette. Each group
 can be set to appear only while the printer is idle, paused, or printing.
 
-The usual **Camera** arrangement is one card per subject — "the printer" tiled
-from two angles, "the filament path" on its own — rather than every camera
-stacked on one card. A camera already claimed by one card is not offered to
-another, so nothing streams twice.
+The usual **Camera** arrangement is one card per subject: for example, "the
+printer" tiled from two angles, and "the filament path" on its own, rather
+than every camera stacked on one card. A camera already assigned to one card
+is not offered to another, so no camera streams twice.
 
-Use **Add another card** on the card's own controls, and **Remove this card** to
-take one away.
+Use **Add another card**, in the card's own controls, to add a copy. Use
+**Remove this card** to remove one.
 
 ## Configuring a card
 
-Two ways in, and they lead to the same settings:
+There are two ways to open a card's settings, and both lead to the same
+settings:
 
-- **The gear** in the card header opens quick settings in place — the handful of
+- **The gear** in the card header opens quick settings in place: a handful of
   switches that change what the card shows.
-- **Ctrl+click the gear**, or choose **All settings**, opens the full pane with
-  the live card docked beside it. Change a step size and watch the buttons change
-  under it.
+- **Ctrl+click the gear**, or choose **All settings**, to open the full pane
+  with the live card docked beside it. Change a step size and see the buttons
+  update under it.
 
-Settings you use often can be promoted onto the card. Settings you set once can
-be pushed back into the full pane. The quick layer is yours to choose.
+Settings you use often can be promoted onto the card. Settings you set once
+can be moved back into the full pane. You choose what appears in the quick
+layer.
 
 ## What is remembered, and where
 
-Everything is stored in your browser, keyed to the **printer's identity** rather
-than its address.
+Everything is stored in your browser, keyed to the **printer's identity**
+rather than its network address.
 
-So a printer reached at `printer.local`, at an IP address, and through a tunnel
-is one printer with one dashboard — not three empty ones.
+So a printer reached at `printer.local`, at an IP address, and through a
+tunnel is one printer with one dashboard, not three separate ones.
 
 Two consequences:
 
-- **Another browser or device starts fresh.** Each keeps its own layouts. When
-  adding a second printer you can copy an existing printer's dashboard to skip
-  the setup.
+- **Another browser or device starts fresh.** Each one keeps its own
+  layouts. When you add a second printer, you can copy an existing printer's
+  dashboard to skip setup.
 - **Removing a printer does not delete its dashboard.** Add it back and the
   arrangement returns.

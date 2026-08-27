@@ -42,8 +42,8 @@ changes.
 
 ::: warning It talks to a real printer
 The development service is usually pointed at a real machine. Heaters heat and
-motors move. Verify with reads and the interface's own state where you can, and
-be deliberate about mutating G-code.
+motors move. Verify with reads and the interface's own state where you can.
+Be deliberate about any mutating G-code you send.
 :::
 
 ## The documentation site
@@ -92,9 +92,9 @@ mounting anything.
 ## Where the rules live
 
 Alabaster keeps its own internal architecture decision records and design
-contracts — not published here, and not part of this repository's public
-checkout. They are binding on every change: code and documents are not
-allowed to disagree.
+contracts. They are not published here and are not part of this repository's
+public checkout. They are binding on every change: code and documents must
+agree.
 
-[Contributing](/contributing) covers what areas they govern and how to ask
+See [Contributing](/contributing) for which areas they govern and how to ask
 before designing a change that touches one.

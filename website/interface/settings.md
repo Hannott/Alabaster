@@ -1,110 +1,114 @@
 # Settings
 
-Ten categories, chosen from a rail that stays put while you scroll. Pick one
-and only that card is shown; **Show all settings** brings the rest back.
+Settings holds the options for connecting to your printer and configuring
+Alabaster, organized into ten categories chosen from a rail that stays visible
+while you scroll. Select a category to show only that card, or select **Show
+all settings** to show every card again.
 
-Your choice is remembered, so leaving the page and coming back does not reset it.
+Alabaster remembers your last choice, so it stays selected when you leave the
+page and come back.
 
 ## Printer service
 
-The Moonraker connection for the printer you are on.
+This card manages the Moonraker connection for the printer you are on.
 
-Enter a hostname, an HTTP address, or a complete WebSocket address — the
-`/websocket` path is added when it is missing — and choose **Save and connect**.
+Enter a hostname, an HTTP address, or a complete WebSocket address, then select
+**Save and connect**. Alabaster adds the `/websocket` path if it is missing.
 
-The status reads Disconnected, Connecting, Starting session, Connected, or
-Reconnecting. Failures say which failure it is: nothing answered, or something
-answered and refused you.
+The status shows one of: Disconnected, Connecting, Starting session,
+Connected, or Reconnecting. If the connection fails, the status names the
+failure: no response, or a response that refused the connection.
 
-[Connecting to Moonraker](/guide/connecting) covers the addresses and the CORS
-setup.
+See [Connecting to Moonraker](/guide/connecting) for the address formats and
+the CORS setup.
 
 ## Printers
 
-Every printer you have saved, and which one is live.
+This card lists every printer you have saved and shows which one is active.
 
-Add one with its address and an optional name. When adding, you can **copy the
-dashboard from a printer you already set up** — layout, modules, and their
-configuration — which is worth doing for a second machine of the same model.
+Add a printer with its address and an optional name. When adding a printer,
+you can select **copy the dashboard from a printer you already set up** to
+copy its layout, modules, and module configuration. This is useful for a
+second machine of the same model.
 
-Rename or remove any of them. Removing does not delete what you configured: add
-the printer back and its dashboard returns.
+Rename or remove any saved printer. Removing a printer does not delete its
+configuration: add the printer back and its dashboard returns.
 
-[Several printers](/guide/printers) has the whole picture, including why settings
-follow a printer's identity rather than its address.
+See [Several printers](/guide/printers) for more information, including why
+settings follow a printer's identity rather than its address.
 
 ## Cameras
 
-Every camera the printer knows about. These live in Moonraker's own webcam
-database, not in Alabaster — so Mainsail or Fluidd running on the same printer
-sees whatever you add or change here, and a camera either of them already added
-shows up the moment you open this card.
+This card lists every camera the printer knows about. Cameras live in
+Moonraker's own webcam database, not in Alabaster. Mainsail or Fluidd running
+on the same printer sees any camera you add or change here, and a camera
+either of them added appears here as soon as you open this card.
 
-**Add a camera** with a name, its stream, and how it draws: rotation, flip,
-target frame rate, and a crosshair with its own colour and size — the fields
-offered follow the streaming service you chose, so you are never shown a
-control that would do nothing. A live preview sits beside the form the whole
-time you are setting one up.
+Select **Add a camera** to add one. Set its name, its stream, and how it
+draws: rotation, flip, target frame rate, and a crosshair with its own colour
+and size. The fields shown depend on the streaming service you choose, so you
+only see controls that apply. A live preview appears beside the form while you
+set it up.
 
-Toggle a camera **on or off** straight from its row — the switch every Camera
-card respects, without opening the form. A camera declared directly in
-`moonraker.conf` is shown but not editable: Moonraker refuses to change one, so
-there is no save button here that would work.
+Toggle a camera on or off from its row. Every Camera dashboard module respects
+this switch. A camera declared directly in `moonraker.conf` is shown but not
+editable, because Moonraker does not allow changing it.
 
-Which cameras a _card_ shows, and in what arrangement, is a separate choice made
-on the card's own settings — see [Camera](/interface/modules#camera).
+Which cameras a dashboard card shows, and in what arrangement, is set
+separately in the card's own settings. See
+[Camera](/interface/modules#camera).
 
 ## Users
 
-Only appears when the printer you are on actually requires a login. Most
-printers never configure this, so most people will never see this category —
-Alabaster otherwise treats your network as trusted, and there is nothing here
-to hide it behind.
+This category appears only when the printer you are on requires a login. Most
+printers do not configure this, so most people will not see it. Without a
+login configured, Alabaster treats your network as trusted.
 
-If your printer does require one, log in with a username and password.
-Alabaster remembers the session on this device, so this is normally only
-needed once.
+If your printer requires a login, log in with a username and password.
+Alabaster remembers the session on this device, so you normally only need to
+log in once.
 
 Once logged in, you can:
 
 - **Change your password.**
-- **Add another user.** This logs _this device_ in as the account you just
-  created — the same way signing up anywhere else does. Log back in as
-  yourself afterward if you meant to keep managing the printer.
-- **Remove another user's account**, though not your own — Moonraker requires
-  a different logged-in account to do that.
-- **See, copy, and regenerate the API key**, for other Moonraker clients — a
-  mobile app, a script — that cannot log in interactively.
+- **Add another user.** This logs this device in as the account you just
+  created, the same way signing up anywhere else does. Log back in as
+  yourself afterward if you want to keep managing the printer as your own
+  account.
+- **Remove another user's account.** You cannot remove your own account;
+  Moonraker requires a different logged-in account to do that.
+- **See, copy, and regenerate the API key.** Other Moonraker clients, such as
+  a mobile app or a script, use this key to connect without logging in
+  interactively.
 
-[Connecting to Moonraker](/guide/connecting#logging-in) covers how a printer
-comes to require this in the first place, and how it differs from the
-CORS trust you set up for a printer on another host.
+See [Connecting to Moonraker](/guide/connecting#logging-in) for how a printer
+comes to require a login, and how this differs from the CORS trust you set up
+for a printer on another host.
 
 ## Language and format
 
-**Interface language** — English and Norwegian Bokmål today. Also available from
-the header, wherever you are.
+**Interface language** — English and Norwegian Bokmål. You can also change
+the language from the header, on any page.
 
-Time and date format are **separate from language**, because the clock your
-locale implies is not always the clock you want:
+Time and date format are set separately from language:
 
 | Setting | Options                               |
 | ------- | ------------------------------------- |
 | Time    | Match language, 24-hour, or 12-hour   |
 | Date    | Match language, or ISO (`YYYY-MM-DD`) |
 
-Both show a live example, and both apply everywhere Alabaster prints a time —
-timestamps, file dates, history, and the console.
+Both settings show a live example. Both apply everywhere Alabaster displays a
+time: timestamps, file dates, history, and the console.
 
 ## Appearance
 
 **Mode** — Light, Dark, or System. Independent of the theme pack.
 
-**Theme pack** — the semantic colour mapping used throughout. Alabaster ships
-today, with complete light and dark modes. Registered packs appear here
-automatically. See [Theming](/theming).
+**Theme pack** — the semantic colour mapping used throughout the interface.
+The built-in pack has complete light and dark modes. Registered packs appear
+here automatically. See [Theming](/theming).
 
-**Typeface** — five, applied everywhere Alabaster renders text:
+**Typeface** — five typefaces, used everywhere Alabaster renders text:
 
 | Typeface        |                                                                  |
 | --------------- | ---------------------------------------------------------------- |
@@ -114,48 +118,48 @@ automatically. See [Theming](/theming).
 | Public Sans     | The proportional option.                                         |
 | OpenDyslexic    | Dyslexia-friendly, and an explicit choice rather than a default. |
 
-Each option in the picker is rendered in its own typeface, so you are choosing by
-looking at it rather than by name.
+Each option in the picker renders in its own typeface, so you choose by how it
+looks, not by its name.
 
-**Text weight** — Light through Bold. A workshop screen read from two metres and
-a phone at arm's length are not the same problem.
+**Text weight** — Light through Bold. Use a heavier weight for a screen viewed
+from a distance, and a lighter weight for a screen viewed up close.
 
-**Console typeface and weight** are chosen separately, and can be set to match
-the interface. They apply to the console transcript, its prompt, and its command
-history, on both the dashboard card and the Console page.
+**Console typeface and weight** are set separately, and can be set to match
+the interface. They apply to the console transcript, its prompt, and its
+command history, on both the dashboard card and the Console page.
 
 ## Display
 
-**Keep the screen awake while this tab is open.** For a shop-floor screen or a
-tablet watching a print.
+**Keep the screen awake while this tab is open.** Use this for a shop-floor
+screen or a tablet monitoring a print.
 
-Two limits, both stated on the page rather than left to be discovered:
+This setting has two limits:
 
-- It only holds **while the tab is in front**. Switching away or letting the
-  screen lock releases it until you come back. No web API can do otherwise.
-- It needs a **secure context**, so it is unavailable over a plain LAN address.
+- It only holds while the tab is in front. Switching to another tab or
+  letting the screen lock releases it until you return. No web API can hold
+  the screen awake while a tab is in the background.
+- It needs a secure context, so it is unavailable over a plain LAN address.
   It works at `localhost`, or when Alabaster is served over HTTPS.
 
 ## Editor
 
-**Indent width** — 2, 4, or 8 spaces — for the
-[configuration editor](/interface/configuration): what <kbd>Tab</kbd> inserts,
-and how far a new line is carried in when it continues a property such as a
-macro's G-code.
+**Indent width** — 2, 4, or 8 spaces. This sets what <kbd>Tab</kbd> inserts in
+the [configuration editor](/interface/configuration), and how far a new line
+indents when it continues a property such as a macro's G-code.
 
-It inserts spaces rather than a tab character, so a file you edit here reads at
-the same width wherever it is opened next. Indentation already in a file is left
-exactly as it is — tabs included, though they are displayed at this width too.
+The editor inserts spaces, not a tab character, so a file you edit here reads
+at the same width wherever it is opened next. Indentation already in a file is
+left as it is, including tabs, though tabs are displayed at this width too.
 
 ## Confirmations
 
-Every confirmation dialog in Alabaster, in one place, grouped by area — Power,
-Interrupting an active print, Bed mesh, Console, Configuration, History,
-Machine, Cameras, Printers, Accounts, G-code viewer, Timelapse, and Backup and
-sync.
+This card lists every confirmation dialog in Alabaster, grouped by area:
+Power, Interrupting an active print, Bed mesh, Console, Configuration,
+History, Machine, Cameras, Printers, Accounts, G-code viewer, Timelapse, and
+Backup and sync.
 
-Checking a box skips that one dialog from now on. Thirty-two of them, and
-this is all of them:
+Check a box to skip that dialog from now on. There are thirty-two
+confirmations in total:
 
 - Emergency stop, reboot host, shut down host
 - Restart Klipper, firmware restart, clear the job queue, exclude an object
@@ -174,65 +178,66 @@ this is all of them:
 - Delete a timelapse video
 - Import settings, reset settings, forget synced data
 
-**Interrupting an active print** carries a switch for the whole group, because
-the decision behind those four is one decision — do I want to be asked before
-something ends the job I am running — rather than four. They ask only while a
-job is loaded; with nothing running, each is an ordinary action and goes ahead
-without a word.
+**Interrupting an active print** has one switch for the whole group, because
+the four dialogs it covers share one decision: whether to be asked before
+something ends the running job. These dialogs appear only while a job is
+loaded. With nothing running, each action goes ahead without a prompt.
 
-One switch on this page runs the other way, and sits in its own section for that
-reason: **Ask before starting a print while a maintenance interval is overdue**
-adds a prompt rather than removing one, and is off until you turn it on. It
-interrupts starting a print, so it needed an explicit yes rather than shipping on
-for everyone.
+One switch on this page works the other way and has its own section: **Ask
+before starting a print while a maintenance interval is overdue** adds a
+prompt instead of removing one, and is off by default. Because it interrupts
+starting a print, it requires an explicit opt-in rather than being on by
+default.
 
-**Skip all confirmation dialogs** overrides the lot. When it is on, the individual
-settings say plainly that they are being overridden rather than appearing to have
-stopped working.
+**Skip all confirmation dialogs** overrides every setting on this card. When
+it is on, each individual setting shows that it is being overridden, instead
+of silently appearing to stop working.
 
-::: info These are about you, not a printer
-Confirmation settings are shared across every printer. So is your language, time
-format, theme, and typeface. Dashboards, presets, macros, and maintenance
-intervals are per printer.
+::: info Shared across all printers
+Confirmation settings apply to you, not to a printer. The same is true for
+your language, time format, theme, and typeface. Dashboards, presets, macros,
+and maintenance intervals are set per printer.
 :::
 
 ## Backup and sync
 
-Save every setting above, and this printer's dashboard layout, to a file —
-restore from one, or reset everything back to how Alabaster starts out.
+This card saves every setting above, plus this printer's dashboard layout, to
+a file. You can restore from that file, or reset everything to how Alabaster
+starts out.
 
 - **Export** writes a file you can keep or carry to another device.
 - **Import** replaces your current theme, language, format, confirmation, and
-  dashboard-layout settings with whatever the file contains. It asks first, and
-  a file it cannot read as an Alabaster backup is said so rather than silently
-  ignored.
-- **Reset to defaults** returns the same set to their starting values. The
-  printers you have added, and any logins, are untouched.
+  dashboard-layout settings with the contents of a file. It asks for
+  confirmation first. If the file is not a valid Alabaster backup, Alabaster
+  tells you so.
+- **Reset to defaults** returns the same settings to their starting values.
+  Printers you have added, and any logins, are not affected.
 
 ### Sync to this printer
 
-**Sync settings and layout to this printer** keeps that same set in the
-printer's own Moonraker database, so it follows you back here from another
-browser or another device.
+**Sync settings and layout to this printer** stores the same settings in the
+printer's own Moonraker database, so they follow you back to this printer
+from another browser or device.
 
-It is **off by default and enabled per printer** — turning it on for the machine
-in the workshop does not turn it on for the one in the office. The card shows
-when it last synced, or that it has not yet, and **Sync now** pushes on demand.
+This setting is off by default and enabled per printer. Turning it on for one
+printer does not turn it on for another. The card shows when it last synced,
+or that it has not yet synced, and **Sync now** syncs on demand.
 
-Where the printer requires a login, each account gets its own synced copy, so
-two people sharing a printer do not overwrite each other's setup.
+If the printer requires a login, each account gets its own synced copy, so
+two people sharing a printer do not overwrite each other's settings.
 
-**Forget synced data** removes what is stored in that printer's database.
-Nothing in your browser changes — this clears the printer's copy, not yours.
+**Forget synced data** removes the settings stored in that printer's
+database. It does not change anything in your browser; it clears only the
+printer's copy.
 
 ## Where preferences are stored
 
-In your browser's local storage, on the device you are using. With sync off —
-which is how it starts — nothing is written to the printer, and another browser
-or another device starts fresh.
+Alabaster stores preferences in your browser's local storage, on the device
+you are using. Sync is off by default, so nothing is written to the printer,
+and another browser or device starts with default settings.
 
-Some things stay browser-local even with sync on, because carrying them to
-another screen would be wrong rather than helpful:
+Some settings stay browser-local even with sync on, because they apply to
+this device only:
 
 - **The printer list itself.** See
   [Several printers](/guide/printers#where-it-is-all-stored).

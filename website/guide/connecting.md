@@ -5,11 +5,12 @@ nothing to start.
 
 ## Where it looks by default
 
-`/websocket` on the same origin as the page. That is what a printer's own Pi
-serves, so a same-origin install connects with no configuration at all.
+Alabaster looks for `/websocket` on the same origin as the page. A printer's
+own Raspberry Pi serves the page from that origin, so a same-origin install
+connects with no configuration.
 
-Served from a separate host, that default finds nothing. Adding a printer is the
-first thing you do.
+A separate host does not serve Moonraker at that origin. Add the printer's
+address to connect.
 
 ## Setting the address
 
@@ -21,15 +22,16 @@ Open **Settings → Printer service** and enter the address. Three forms work:
 | `http://192.168.1.42:7125`          | `ws://192.168.1.42:7125/websocket`  |
 | `ws://printer.local:7125/websocket` | exactly that                        |
 
-The `/websocket` path is added when it is missing. Choose **Save and connect**.
+Alabaster adds the `/websocket` path when it is missing. Click **Save and
+connect**.
 
-The address is saved in this browser. Other browsers, and other devices, keep
-their own.
+The address is saved in this browser only. Other browsers, and other
+devices, keep their own.
 
 ## Letting your browser reach Moonraker
 
-Cross-origin — which means any printer that did not serve the page — needs your
-browser's address in that printer's `moonraker.conf`:
+A cross-origin connection is any printer that did not serve the page itself.
+It needs your browser's address in that printer's `moonraker.conf`:
 
 ```ini
 [authorization]
@@ -37,32 +39,37 @@ cors_domains:
     http://alabaster.local
 ```
 
-Restart Moonraker after changing it. [Installation](/guide/installation#allow-the-browser-to-reach-moonraker)
-has the fuller example.
+Restart Moonraker after changing it. See
+[Installation](/guide/installation#allow-the-browser-to-reach-moonraker) for
+a fuller example.
 
-Alabaster tells the two failures apart where it can:
+Alabaster reports two different connection failures:
 
-- **"Moonraker could not be reached"** — nothing answered. Wrong address, wrong
-  port, or the printer is off.
-- **"Something answered, but refused the connection"** — a server is there and
-  turned you away. Almost always a missing `cors_domains` entry.
+- **"Moonraker could not be reached"**: nothing answered. Check the address,
+  the port, and whether the printer is on.
+- **"Something answered, but refused the connection"**: a server responded
+  and turned the connection away. This is almost always a missing
+  `cors_domains` entry.
 
-It only ever moves from the first message to the second, never the other way, and
-only for a printer this browser has never successfully reached. A reconnect blip
-after a restart is never reported as a permissions problem.
+Alabaster only moves from the first message to the second, never the other
+way, and only for a printer this browser has never successfully reached. A
+reconnect after a restart is never reported as a permissions problem.
 
 ## Logging in
 
-Separate from the trust above, and rarer: a printer can require an actual
-username and password, configured with `force_logins` in the same
-`[authorization]` block. Most printers never turn this on — `cors_domains` and
-`trusted_clients` are about which browsers Moonraker will talk to at all, not
-about who is allowed to act once connected, and one has nothing to do with the
-other.
+A printer can also require a username and password. This is separate from
+the trust settings above, and less common. It is configured with
+`force_logins` in the same `[authorization]` block. Most printers do not turn
+this on.
 
-If your printer does require a login, Settings grows a **Users** category —
-otherwise it stays hidden. [Settings → Users](/interface/settings#users) covers
-logging in, changing your password, and managing other accounts.
+`cors_domains` and `trusted_clients` control which browsers Moonraker will
+talk to at all. They do not control who is allowed to act once connected.
+The two settings are independent of each other.
+
+If your printer requires a login, Settings shows a **Users** category.
+Otherwise it stays hidden. See
+[Settings → Users](/interface/settings#users) for logging in, changing your
+password, and managing other accounts.
 
 ## What happens after connecting
 
@@ -70,43 +77,45 @@ In order:
 
 1. Alabaster identifies itself to Moonraker.
 2. It reads `server.info` to find out which components and file roots exist.
-3. It follows Klipper's lifecycle notifications, and polls while Klipper is still
-   starting.
+3. It follows Klipper's lifecycle notifications, and polls while Klipper is
+   still starting.
 4. It subscribes to the printer objects the open screens need.
 
-Navigation reflects step 2. Destinations that need something your Moonraker does
-not have are not shown at all — Timelapse without the timelapse component,
-History without the history component, Configuration without a `config_path`.
+Navigation reflects step 2. Alabaster hides destinations that need something
+your Moonraker does not have: Timelapse without the timelapse component,
+History without the history component, Configuration without a
+`config_path`.
 
-Step 4 is what fills the dashboard: every heater, temperature sensor, temperature
-fan, controllable fan, output pin, macro, motion limit, and the bed mesh, all
-discovered from the printer rather than configured by you.
+Step 4 fills the dashboard: every heater, temperature sensor, temperature
+fan, controllable fan, output pin, macro, motion limit, and the bed mesh.
+Alabaster discovers all of these from the printer; you do not configure them.
 
 ## Losing and regaining the connection
 
-The connection status lives in the header, and it is the only global one. Modules
-do not each grow their own status panel.
+The connection status is shown in the header. This is the only global status
+indicator. Modules do not each show their own status panel.
 
-While a service is away:
+While a service is unavailable:
 
 - **The page stays exactly as it is.** No reload, no route change, no empty
   frame.
-- **Values stay on screen, dimmed**, and are labelled as last-known rather than
-  current.
+- **Values stay on screen, dimmed**, and are labelled as last-known rather
+  than current.
 - **Fresh data crossfades back in** when subscriptions are rebuilt.
 
-Reconnecting re-reads server state and recreates every subscription without
-touching what you were doing.
+Reconnecting re-reads server state and recreates every subscription. It does
+not touch what you were doing.
 
-::: warning Interrupted commands are not replayed
-A command that was in flight when the connection dropped fails visibly. Alabaster
-will not send it again on your behalf — a retried heater target or a retried
-print start is not a safe guess. You are told, and you retry it yourself.
+::: warning Interrupted Commands Are Not Replayed
+A command that was in flight when the connection dropped fails visibly.
+Alabaster does not send it again on your behalf. A retried heater target or a
+retried print start is not a safe guess. Alabaster tells you it failed, and
+you retry it yourself.
 :::
 
 ## Restarting things on purpose
 
-The power menu in the header restarts what you ask it to, and the page survives
+The power menu in the header restarts what you ask it to. The page survives
 all of it:
 
 | Action            | What it restarts                                                    |
@@ -117,5 +126,5 @@ all of it:
 | Reboot host       | The whole computer. Asks first.                                     |
 | Shut down host    | Powers it off. Asks first, and warns you will need physical access. |
 
-Any device power switches Moonraker knows about appear in the same menu, and are
-locked while a print is running.
+Any device power switches Moonraker knows about appear in the same menu. They
+are locked while a print is running.

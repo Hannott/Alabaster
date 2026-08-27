@@ -16,9 +16,9 @@
 | <kbd>↑</kbd> / <kbd>↓</kbd>       | Walk back and forward through commands you have sent        |
 | <kbd>Tab</kbd>                    | Complete against the commands your machine actually reports |
 
-Tab completion fills in as far as the candidates agree and offers the rest to
-pick from. With nothing to complete, <kbd>Tab</kbd> keeps its usual job of
-leaving the field.
+Tab completion fills in as far as the candidates agree, then offers the rest
+to pick from. If there is nothing to complete, <kbd>Tab</kbd> keeps its usual
+job of leaving the field.
 
 Command history is kept in your browser and survives a reload.
 
@@ -59,9 +59,9 @@ With the pointer:
 | <kbd>Ctrl</kbd>+<kbd>S</kbd>                                | Save this file                                       |
 | <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>S</kbd>                 | Save this file and restart the firmware              |
 
-The mouse's back and forward buttons do the same as the arrow shortcuts above.
-Open the shortcuts icon in the editor toolbar, or press <kbd>Ctrl</kbd>+<kbd>?</kbd>,
-for this same list without leaving the page.
+The mouse's back and forward buttons do the same as the arrow shortcuts
+above. To see this same list without leaving the page, open the shortcuts
+icon in the editor toolbar, or press <kbd>Ctrl</kbd>+<kbd>?</kbd>.
 
 ## Dashboard
 
@@ -70,9 +70,9 @@ for this same list without leaving the page.
 | Click the gear on a card       | Quick settings, in place                               |
 | <kbd>Ctrl</kbd>+click the gear | The full settings pane, with the card docked beside it |
 
-Everything that can be done by dragging a card can also be done with buttons —
-move earlier or later, change column, hide, collapse. Dragging is the fast path,
-not the only one.
+Everything that can be done by dragging a card can also be done with
+buttons: move it earlier or later, change its column, hide it, or collapse
+it. Dragging is a faster path, not the only one.
 
 ## Temperature chart
 
@@ -83,9 +83,9 @@ Focus the chart on the Temperatures card and:
 | <kbd>←</kbd> / <kbd>→</kbd> | Step back and forward one recorded sample |
 | <kbd>Esc</kbd>              | Stop reading the past and return to now   |
 
-The readings in the list above the chart follow the moment you are pointing at.
-Target boxes never do — they always hold the setpoint the printer is on right
-now.
+The readings in the list above the chart follow the point in time you are
+pointing at. Target boxes do not follow it — they always show the setpoint
+the printer is on right now.
 
 ## Bed plan
 
@@ -95,6 +95,7 @@ now.
 | <kbd>Enter</kbd>                                    | Send the nozzle there — the same as **Go** |
 | <kbd>Esc</kbd>                                      | Clear the target without moving anything   |
 
-A double-click on the plan does what <kbd>Enter</kbd> does. A single press only
-aims: this is the one control that can order a move right across the bed, and
-over a printed part that is a crash.
+A double-click on the plan does the same as <kbd>Enter</kbd>. A single click
+only aims and does not move anything. This is the one control that can send
+the nozzle all the way across the bed in one move, and doing that over a
+printed part causes a crash.

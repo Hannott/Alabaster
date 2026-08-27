@@ -1,28 +1,29 @@
 # Timelapse
 
-The videos your printer rendered, watchable here.
+Timelapse shows the videos your printer has rendered, and lets you play,
+download, or delete them.
 
-Requires the timelapse component installed on Moonraker. Without it the page is
-not shown at all.
+It requires the timelapse component installed on Moonraker. Without it, the
+page is not shown.
 
 ## Watching and keeping
 
-The list holds every rendered video, with its date and size. Select one to play
-it in place.
+The list shows every rendered video, with its date and size. Select a video to
+play it in place.
 
 - **Download** saves it to the device you are using.
-- **Delete** removes it from the printer. It asks first and names the file.
+- **Delete** removes it from the printer. It asks for confirmation first and
+  names the file.
 - **Refresh** re-reads the folder.
 
-A print that has finished but not rendered yet is not here. The page says a
-timelapse appears once rendering completes, rather than looking broken while it
-works.
+A print that has finished but not rendered yet does not appear in the list.
+The page shows a message that the timelapse will appear once rendering
+completes.
 
 ## While it is recording
 
-Timelapse fires a macro on every layer, which fills the console with noise you
-did not ask for.
+Timelapse runs a macro on every layer. This adds messages to the console.
 
-The console's **Hide timelapse commands** filter takes them out, and it only
-appears when you have timelapse installed. See
-[Console filters](/interface/console#filtering-output).
+The console's **Hide timelapse commands** filter removes these messages. This
+filter only appears when timelapse is installed. See
+[Console filters](/interface/console#filtering-output) for more information.

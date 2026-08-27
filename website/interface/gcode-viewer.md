@@ -1,130 +1,131 @@
 # G-code Viewer
 
-See what a sliced file will actually print, and watch a running job build itself
-up bead by bead — following the real toolhead along the real path, not a dot
-sliding between telemetry samples.
+The G-code Viewer shows exactly what a sliced file will print. It also tracks
+a running print live, building the model bead by bead by following the
+actual toolhead path, not an interpolated position between telemetry
+updates.
 
-Large files are the point rather than the exception. A hundred-megabyte print
-starts drawing about a quarter of a second in and keeps filling in while the rest
-downloads and parses, so you can orbit and inspect a model long before it has
-finished loading.
+The viewer is built for large files. A 100 MB file starts rendering in about
+a quarter of a second and keeps filling in while the rest of the file
+downloads and parses. You can orbit and inspect the model before it finishes
+loading.
 
 ## Opening a file
 
-The **Load G-code** card lists what is on the printer, newest first, and filters
-as you type — useful once a library has more files than a dropdown can show. Pick
-one and choose **Load**.
+The **Load G-code** card lists the files on the printer, newest first. Type
+to filter the list. Select a file and choose **Load**.
 
-Two shortcuts save you finding a file twice:
+Two shortcuts save you a search:
 
-- **Load current print** jumps straight to the job that is running.
-- **Open local file** reads a file off this device without uploading it. Nothing
-  is sent to the printer, so this works for checking a slice before you commit
-  to it.
+- **Load current print**: Jumps to the file for the job currently printing.
+- **Open local file**: Loads a file from this device without uploading it to
+  the printer. Use it to check a slice before committing to it.
 
-A file over about 150 MB asks before it loads, because rendering one costs real
-memory on the device you are sitting at. Files above 4 GB are declined outright.
+A file over about 150 MB asks for confirmation before loading, since
+rendering it uses significant memory on your device. Files above 4 GB are
+rejected.
 
 ## Following a live print
 
-With **Follow live toolhead** on, the viewer tracks the job Klipper is printing
-from — and it does so by walking the actual moves in the file rather than by
-guessing between position reports. Corners stay corners; the marker does not cut
-across a curve because two samples happened to land either side of it.
+**Follow live toolhead** tracks the job Klipper is currently printing. It
+follows the actual moves in the file instead of interpolating between
+position reports, so corners stay sharp and the marker never cuts across a
+curve.
 
-What you see on the active layer is the truth as Klipper reported it: geometry
-ahead of the print is **not drawn at all** rather than dimmed, so the frontier is
-exactly where printing has got to. Finished layers below take the printed colour.
+Geometry ahead of the current print position is not drawn. Only what has
+actually printed is shown, so the model's edge always matches real progress.
+Finished layers show in the printed colour.
 
-This requires that the file loaded here is the file being printed — the viewer
-checks that itself, and quietly falls back to plain position tracking if it
-cannot be sure, or if anything about the job stops adding up. Following trails
-the printer by a couple of seconds on purpose: that delay is what buys enough
-known path to draw continuously without inventing motion the printer has not
-been told to make yet.
+This feature requires that the loaded file matches the file being printed.
+The viewer checks this automatically and falls back to plain position
+tracking if it cannot confirm a match, or if the job data becomes
+inconsistent. Following the toolhead trails the actual printer position by a
+couple of seconds; this delay provides enough known path ahead to draw the
+motion continuously.
 
-Reduced-motion settings turn the continuous path off in favour of discrete
-position updates.
+Reduced-motion settings replace the continuous path with discrete position
+updates.
 
 ## Inspecting the toolpath
 
-**Colour** answers different questions about the same file:
+**Colour** changes how moves are coloured:
 
-- **Single** is one colour for everything — the calmest read of a shape.
-- **Feature** colours each move by what it is for: external and inner
-  perimeters, infill, solid infill, bridges, support, skirt and brim. The legend
-  lists only what the file actually contains. Slicers name these differently and
-  a file from an unsupported one shows its moves as unclassified rather than
-  pretending to know.
-- **Feed rate** shades from slow to fast across the speeds this file uses for
-  extrusion, which is how you find where a slicer decided to crawl.
+- **Single**: One colour for the whole model.
+- **Feature**: Colours each move by its type — external and inner
+  perimeters, infill, solid infill, bridges, support, skirt, and brim. The
+  legend lists only the types present in the file. A file from an
+  unrecognized slicer shows its moves as unclassified.
+- **Feed rate**: Shades moves from slow to fast based on the extrusion
+  speeds in the file. Use it to find where the slicer reduced speed.
 
-**Highlight seams** marks where extrusion paths begin and end — where a wall's
-start and stop meet, and where you would look for a visible scar on the print.
+**Highlight seams** marks where each extrusion path starts and stops — the
+points where a seam can appear on the print.
 
 ## Layers and cross-sections
 
-The **Visible layer** slider is the top of what you see. **Lowest visible layer**
-is the bottom of it, so raising it cuts a horizontal slice out of the middle of a
-print: set both near the same value to inspect one layer, or lift the floor to
-look at the inside of a solid object.
+The **Visible layer** slider sets the top layer shown. **Lowest visible
+layer** sets the bottom layer shown. Raising the lowest layer cuts a
+horizontal slice out of the middle of the print. Set both sliders to the
+same value to inspect a single layer, or raise the lowest layer to see
+inside a solid object.
 
-**Show travel moves** draws the non-printing moves between beads, which is how
-you spot a slicer stringing across a surface it should have avoided.
+**Show travel moves** draws the non-printing moves between extrusions. Use
+it to spot stringing across the model's surface.
 
 ## Moving the view
 
-Drag with the left button to turn the model, the right or middle button to slide
-it, and the wheel to zoom. Zooming closes in on whatever is under the pointer,
-and turning happens around the surface you are looking at rather than a fixed
-point in space — so inspecting a detail does not send it swinging out of frame.
+Drag with the left mouse button to rotate the model. Drag with the right or
+middle button to pan. Use the scroll wheel to zoom. Zooming centers on the
+point under the pointer. Rotation pivots around the point you are looking
+at, so a detail stays in view while you inspect it.
 
-Double-click, or press <kbd>0</kbd>, to frame the whole model again. Arrow keys
-pan, <kbd>Shift</kbd> with them turns, and <kbd>+</kbd> and <kbd>-</kbd> zoom.
+Double-click, or press <kbd>0</kbd>, to reset the view to the full model.
+Arrow keys pan the view. <kbd>Shift</kbd> with the arrow keys rotates it.
+<kbd>+</kbd> and <kbd>-</kbd> zoom.
 
-On a touchscreen, one finger orbits the same way a left-drag does. Add a
-second finger and it switches to panning and pinch-zooming, the same
-two-finger gesture the bed mesh map uses.
+On a touchscreen, one finger orbits the model, the same as a left-button
+drag. Two fingers switch to panning and pinch-zoom, the same gesture used on
+the bed mesh map.
 
 The chips in the corner of the view zoom, reset the framing, and save a
-screenshot of exactly what is on screen. The gear beside them holds two
-preferences worth knowing about:
+screenshot of the current view. The gear icon opens two settings:
 
-- **Rotation pivot** decides whether turning happens around the centre of the
+- **Rotation pivot**: Sets whether rotation happens around the centre of the
   view or the point under the pointer.
-- **Snap to centre** slides whatever you grabbed to the middle as you start to
-  turn it, which some people find steadier and others find distracting.
+- **Snap to centre**: Moves the point you grabbed to the centre of the view
+  as you start rotating.
 
 ## Replaying a file
 
-**Start simulation** plays the file through from the beginning at the speeds it
-asks for, at up to 20×, with a scrubber to jump anywhere. It needs no printer:
-this is for reading a slice, checking where a long print spends its time, or
-finding the moment something goes wrong before you commit filament to it.
+**Start simulation** plays the file from the beginning at the speeds
+specified in the file, at up to 20×, with a scrubber to jump to any point.
+Simulation works without a printer connected. Use it to read a slice, check
+where a long print spends its time, or find a problem before printing it.
 
-Choosing a colour mode while simulating inverts how progress reads — printed
-geometry keeps its feature or speed colour and the rest fades to a shell — so
-the distinction you turned on survives the playback.
+During simulation, the selected colour mode still applies: printed geometry
+keeps its feature or feed-rate colour, and the rest of the model shows as an
+outline shell.
 
-## Keeping it smooth
+## Rendering quality
 
-**Rendering quality** defaults to **Auto**, which measures how fast frames are
-actually taking on this device and adjusts how much detail it draws to keep the
-view responsive. It gives up geometry detail first, then sharpness, and never
-changes what the model means: the layer a print is actively building always draws
-at full precision no matter how far out you are zoomed.
+**Rendering quality** defaults to **Auto**. Auto measures the actual frame
+time on your device and adjusts the level of detail to keep the view
+responsive. It reduces geometry detail first, then sharpness. The active
+layer of a running print always renders at full precision, regardless of
+zoom level.
 
-**Quality** pins the highest detail, which is what you want for a screenshot.
-**Performance** starts frugal and works up, and additionally squares off the
-extrusions instead of rounding them. That is worth knowing for two reasons: it
-roughly doubles the frame rate when you are orbiting close in on a large model,
-and because square extrusions have no curvature to catch the light, a
-zoomed-out model looks calmer and more solid rather than grainy. On a phone or a
-Raspberry Pi's own browser, Auto or Performance is the difference between a
-usable view and a stalled one.
+**Quality** renders at the highest detail level. Use it for screenshots.
+**Performance** starts at the lowest detail level and increases it as the
+device allows. Performance also renders extrusions as squares instead of
+rounded shapes. This roughly doubles the frame rate when orbiting close to a
+large model, and gives a zoomed-out model a calmer, more solid look, since
+square extrusions have no curved surface to catch light. On a phone or a
+Raspberry Pi's browser, use Auto or Performance mode to keep the view
+responsive.
 
 ## Narrow screens
 
-Below roughly 55 rem the controls stack above the view and the page scrolls as
-one. The viewer is reachable from the overflow menu rather than the bottom bar —
-it is a heavy page that earns a deliberate visit rather than a permanent slot.
+Below roughly 55 rem, the controls stack above the view and the page
+scrolls as a single column. The viewer is available from the overflow menu
+instead of the bottom bar, since it uses more device resources than a page
+suited to a permanent slot.

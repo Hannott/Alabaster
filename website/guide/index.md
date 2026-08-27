@@ -1,10 +1,11 @@
 # Introduction
 
-Alabaster is a web interface for Klipper. It runs in your browser, talks to
-Moonraker, and needs nothing installed on the machine you are sitting at.
+Alabaster is a web interface for Klipper 3D printers. It runs in your
+browser, connects to Moonraker, and needs nothing installed on the device you
+use to view it.
 
-It is a static site. There is no Alabaster process running on your printer, no
-database, and no account. Point it at Moonraker and it works.
+It is a static site. No Alabaster process runs on your printer, there is no
+database, and there is no account. Point it at Moonraker and it works.
 
 ## What you can do with it
 
@@ -24,21 +25,23 @@ database, and no account. Point it at Moonraker and it works.
 
 ## How it behaves
 
-Three things are true of every screen in Alabaster, and they are worth knowing
-before anything else.
+Alabaster follows three rules on every screen.
 
-**It never reloads itself.** Restart Klipper, restart Moonraker, restart the
-firmware — the page stays exactly where it is. Values that have gone stale dim in
-place and crossfade back when fresh data arrives. You do not lose your scroll
-position, your open file, or your half-typed command.
+**It doesn't reload for a restart.** Restarting Klipper, Moonraker, or the
+firmware does not move the page. Values that go stale dim in place and
+crossfade back when fresh data arrives. You keep your scroll position, your
+open file, and your half-typed command.
 
-**It tells you when something failed.** A command interrupted by a disconnect is
-never quietly replayed when the connection returns. You are told, and you decide
-whether to send it again.
+Updating Alabaster itself is the one exception: closing the update transcript
+afterward reloads the page once, to load the new version.
 
-**It discovers your printer.** Every heater, temperature sensor, fan, output pin,
-and macro comes from what your machine actually reports. Pages that need a
-Moonraker component you do not have installed do not appear at all.
+**It tells you when something failed.** A command interrupted by a disconnect
+does not resend automatically when the connection returns. You are told, and
+you decide whether to send it again.
+
+**It discovers your printer.** Every heater, temperature sensor, fan, output
+pin, and macro comes from what your machine reports. A page that needs a
+Moonraker component you do not have installed does not appear.
 
 ## Requirements
 
@@ -50,15 +53,9 @@ Moonraker component you do not have installed do not appear at all.
 
 ## Where to go next
 
-- [What makes it different](/guide/highlights) — the features worth switching for.
-- [Installation](/guide/installation) — getting it onto a Raspberry Pi or a
-  separate host.
-- [Connecting to Moonraker](/guide/connecting) — pointing it at a printer.
-- [Project status](/guide/status) — an accurate account of what runs today.
-
-::: info This project is young
-Alabaster is early. It is used daily against real printers, and the one-line
-installer fetches a published release, but the version numbers are still low and
-some paths have only been walked on one machine. [Project
-status](/guide/status) says exactly where things stand.
-:::
+- [What makes it different](/guide/highlights): the features that set
+  Alabaster apart.
+- [Installation](/guide/installation): how to install it on a Raspberry Pi or
+  a separate host.
+- [Connecting to Moonraker](/guide/connecting): how to point it at a printer.
+- [Project status](/guide/status): what runs today.

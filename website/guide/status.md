@@ -1,10 +1,11 @@
 # Project status
 
-Alabaster is early, and it is released. Versioned builds are published from
-tags, and it is used daily against real printers — including from a published
-release, installed the documented way.
+Alabaster is an early-stage project, and it is fully released. Versioned
+builds are published from tags. It runs daily against real printers,
+including a published release installed the documented way.
 
-This page is the accurate account. It is kept current with the code.
+This page states the current, accurate status of the project. It is kept
+current with the code.
 
 ## Pages
 
@@ -23,22 +24,24 @@ This page is the accurate account. It is kept current with the code.
 
 ## Dashboard modules
 
-All fifteen are shipped: Print, Camera, Temperatures, Movement, Controls,
-Machine, Macros, Extruder, Spool, Sensors, Bed mesh, Job queue, Console,
-Activity, and Maintenance.
+All fifteen modules are shipped: Print, Camera, Temperatures, Movement,
+Controls, Machine, Macros, Extruder, Spool, Sensors, Bed mesh, Job queue,
+Console, Activity, and Maintenance.
 
-Spool needs Moonraker's Spoolman component and Sensors needs its generic
-sensor component; each hides itself without its own. Camera and Macros can
-each appear more than once, one card per subject or group.
+Spool needs Moonraker's Spoolman component. Sensors needs its generic sensor
+component. A module hides itself when the printer does not have the
+component it needs. Camera and Macros can each appear more than once, with
+one card per subject or group.
 
 ## Languages and appearance
 
-- **Languages** — English and Norwegian Bokmål. A new language is a translation
-  file, not a code change.
-- **Theme packs** — one, Alabaster, with independent light and dark modes. A
-  second is one CSS file and a registry line.
-- **Typefaces** — five, including OpenDyslexic, with a separate choice for the
-  console and a text-weight setting.
+- **Languages** — English and Norwegian Bokmål. Adding a language only takes a
+  translation file, not a code change.
+- **Theme packs** — One pack, Alabaster, with independent light and dark modes.
+  Adding a second pack only takes one CSS file and a registry line.
+- **Typefaces** — Five typefaces, including OpenDyslexic. The console can use
+  a separate typeface from the rest of the interface, and text weight is
+  adjustable.
 
 ## Installation and releases
 
@@ -54,35 +57,36 @@ Built, published, and proven on real hardware.
 | Run on 64-bit Raspberry Pi OS from a published release                 | Done. Installed with the one-line installer and running on a real printer.                                                      |
 | Tested on 32-bit Raspberry Pi OS                                       | **Not done.**                                                                                                                   |
 
-That last row is the remaining gap, and it is narrower than it was. The whole
-flow — download, checksum, install, run — has been through a published release
-onto a real 64-bit printer. What is left is the 32-bit case, which nobody has
-exercised on hardware; the scripts are verified there only against a simulated
-Klipper layout, covering clean install, re-install, conflict detection, and
-uninstall.
+The 32-bit row is the remaining gap. The full flow — download, checksum,
+install, run — has been tested through a published release on a real 64-bit
+printer. The 32-bit case has not been tested on real hardware. There, the
+scripts are verified only against a simulated Klipper layout, covering clean
+install, re-install, conflict detection, and uninstall.
 
-The one-line install in [Installation](/guide/installation) works today and
+The one-line installer, described in [Installation](/guide/installation),
 fetches the latest published release.
 
 ## Macro pack
 
-`alabaster.cfg` ships and is offered by the installer. It provides the pause,
-resume, cancel, layer-pause, and filament macros described in
-[Macros](/guide/macros).
+`alabaster.cfg` ships with Alabaster, and the installer offers to add it. It
+provides the pause, resume, cancel, layer-pause, and filament macros described
+in [Macros](/guide/macros).
 
-It is optional by design: the controls that need it hide themselves on a printer
-that does not have it, so nothing regresses for someone who declines.
+The macro pack is optional. Controls that need it hide themselves on a
+printer that does not have it, so nothing breaks for a printer without the
+pack.
 
 ## Known gaps
 
-- **The printer list does not sync.** Settings and dashboard layout now do, when
-  you turn sync on for a printer. The list of printers itself stays in the
-  browser by design — it is the answer to which databases can be reached, so it
-  cannot live in one of them.
+- **The printer list does not sync.** Settings and dashboard layout sync when
+  you turn sync on for a printer. The printer list itself stays in the
+  browser by design: it identifies which databases can be reached, so it
+  cannot be stored inside one of them.
 
 ## Following along
 
 Development happens on the `develop` branch. `main` carries releases and this
 documentation site.
 
-[Contributing](/contributing) covers the setup and the rules that are enforced.
+See [Contributing](/contributing) for the setup and the rules that are
+enforced.
