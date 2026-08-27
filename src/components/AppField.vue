@@ -441,11 +441,25 @@ function resetToConfigured(): void {
         /><span class="app-field__label-text">{{ label }}</span></span
       >
       <span v-if="unit && unitAlign === 'start'" class="app-field__unit">{{ unit }}</span>
+      <!--
+        `:type` is bound before `:value` on purpose, and the two must not be
+        swapped back. Vue patches an element's props in the order they are
+        written here, so with `:value` first a field switching from `number`
+        to `text` is handed its new text while it is still a number input —
+        which silently blanks it, permanently, because the rejected value is
+        what the type change then carries over. That is the whole em-dash
+        placeholder gone the moment a reading stops being available:
+        `MovementModule`'s X/Y/Z boxes blank rather than dash the instant an
+        axis reads as unhomed, and Chromium logs "cannot be parsed, or is out
+        of range" once per box on the way. jsdom does not sanitise a number
+        input's value, so no mounted test can catch this — `AppField.spec.ts`
+        pins the order in the source instead.
+      -->
       <input
+        :type="type"
         :value="draft"
         class="app-field__input"
         :class="`app-field__input--${alignment}`"
-        :type="type"
         :min="min"
         :max="max"
         :step="step"

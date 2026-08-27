@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+
 import { mount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
 
@@ -425,6 +428,27 @@ describe('AppField', () => {
     // The notch is still the visible name, and now the accessible one too.
     expect(wrapper.get('.app-field__label').text()).toBe('Retract speed')
     expect(wrapper.get('input').attributes('aria-label')).toBe('Retract speed')
+  })
+
+  /*
+   * Vue patches an element's props in the order the template writes them, so
+   * a field switching from `number` to `text` — `MovementModule`'s X/Y/Z
+   * boxes, the moment an axis stops reading as homed — gets its em dash while
+   * the input is still numeric if `:value` comes first. Chromium refuses the
+   * text, keeps the empty string, and carries that emptiness through the type
+   * change, so the placeholder never appears and the box simply goes blank.
+   *
+   * Pinned against the source because it cannot be pinned against a mounted
+   * component: jsdom does not implement a number input's value sanitisation,
+   * so both orders render the dash there and only a browser can tell them
+   * apart.
+   */
+  it('sets an input its type before its value, so a dash can replace a number', () => {
+    const source = readFileSync(join(process.cwd(), 'src', 'components', 'AppField.vue'), 'utf8')
+    const input = /<input\b[\s\S]*?\/>/u.exec(source)?.[0] ?? ''
+
+    expect(input).toContain(':type="type"')
+    expect(input.indexOf(':type="type"')).toBeLessThan(input.indexOf(':value="draft"'))
   })
 
   it('keeps an editable field label-wrapped and in the tab sequence', () => {
