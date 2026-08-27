@@ -311,7 +311,18 @@ defineExpose({ fill, focus })
         </button>
       </li>
     </ul>
-    <form class="console-prompt__form" @submit.prevent="send">
+    <!--
+      The row count reaches CSS as a custom property because two controls have
+      to agree on one height: the field's own box, and the square send button
+      beside it. See `--console-prompt-size` in main.css for why one expression
+      states both rather than the button matching a height the browser worked
+      out for the textarea.
+    -->
+    <form
+      class="console-prompt__form"
+      :style="{ '--console-prompt-rows': rows }"
+      @submit.prevent="send"
+    >
       <label class="sr-only" for="console-command">{{ t('console.commandLabel') }}</label>
       <span class="console-prompt__marker" aria-hidden="true">&gt;</span>
       <div class="console-prompt__field-wrap">
@@ -362,7 +373,7 @@ defineExpose({ fill, focus })
       -->
       <button
         type="submit"
-        class="button button--primary button--sm button--icon"
+        class="button button--primary button--sm button--icon console-prompt__send"
         :disabled="!canSend"
         :data-pending="pending ? 'true' : undefined"
         :aria-busy="pending || undefined"
