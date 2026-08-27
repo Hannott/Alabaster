@@ -1555,8 +1555,17 @@ input[type='number']::-webkit-inner-spin-button {
  * supposed to have.
  */
 .app-main {
+  /*
+   * The header's own height, published rather than repeated, because anything
+   * inside a page that pins itself against the page shell's scrolling has to
+   * cap its height against this same number — see `.history-job-detail`. A
+   * pinned element capped against a stale copy of it is an element whose
+   * bottom cannot be scrolled to, which is silent: it looks fine until the
+   * content is long enough to need the part that is now unreachable.
+   */
+  --app-header-block-size: 5rem;
   display: flex;
-  height: calc(100dvh - 5rem);
+  height: calc(100dvh - var(--app-header-block-size));
   min-height: 36rem;
   flex-direction: column;
   overflow: hidden;
@@ -10628,7 +10637,18 @@ body.machine-editor-fullscreen-open {
     flex: 1 0 100%;
   }
 
+  /*
+   * `height: auto` here, but the page shell inside it still ends up being the
+   * scroll region — `.app-content`'s own `min-height: 100dvh` is what gives
+   * this flex item a definite height to hand down. So the published header
+   * height has to follow the wrap above: two rows rather than one, measured at
+   * 104 px against the 80 px of the unwrapped header. Anything pinned inside a
+   * page caps itself against this, and a stale value there is a pinned box
+   * hanging past the fold — so update it in the same change that adds or
+   * removes a header row.
+   */
   .app-main {
+    --app-header-block-size: 6.5rem;
     height: auto;
     min-height: 0;
     flex: 1 1 auto;
@@ -10999,6 +11019,39 @@ body.machine-editor-fullscreen-open {
   color: var(--status-caution-text);
 }
 
+/*
+ * Pinned, because the list it belongs to is as long as the user has pressed
+ * "Load older jobs" — so the pane holding the chosen job's figures and its
+ * three actions used to scroll away while the rows it was describing kept
+ * going. Sticky against `.standard-page`'s own scrolling, the same mechanism
+ * `.settings-rail` and `.calibration-rail` use. It needs no z-index and no
+ * backdrop, unlike those two: the panes sit side by side and never overlap.
+ *
+ * **The offset cancels the page shell's top padding**, which is why it is
+ * negative. A sticky offset is measured from the scroll container's content
+ * edge — inside its own padding — so a bare `1rem` here is 1rem *plus* a page
+ * inset that grows with the viewport: measured at 41.6 px on a 1280 px-wide
+ * window, which reads as stopping short of the top rather than at it. Both
+ * rails carry a negative offset for exactly this reason.
+ *
+ * **The height cap is what makes the pin safe rather than a trap.** A pinned
+ * box taller than the scrollport stops moving with its own bottom still below
+ * the fold, and no amount of scrolling brings it back — which for this pane is
+ * the Remove button. Measured: a job with a filename long enough to wrap plus
+ * three auxiliary readings is 618 px against a 640 px scrollport on a 720p
+ * laptop, so this is the real case and not a precaution. Capping hands the
+ * overflow to `overflow-y` above, which was already declared here and had
+ * simply never had a constraint to act on. `2rem` is the 1rem above the pane
+ * and the 1rem left below it.
+ *
+ * The cap reads the header's height from `.app-main` rather than restating it,
+ * because that number is not one number: `.standard-page` is the scroll region
+ * at every width this pane exists at, but the header above it wraps to two
+ * rows below 64rem and the scrollport shrinks with it (measured 80 px and 720
+ * px against 104 px and 696 px, on the same 800 px-tall window). A single
+ * `5rem` here was 8 px of this pane's own bottom border hanging past the fold
+ * on every window between 40rem and 64rem wide.
+ */
 .history-job-detail {
   display: flex;
   inline-size: clamp(16rem, 24vw, 20rem);
@@ -11006,6 +11059,9 @@ body.machine-editor-fullscreen-open {
   min-height: 0;
   flex-direction: column;
   gap: 0.65rem;
+  position: sticky;
+  inset-block-start: calc(1rem - var(--page-shell-pad-top, 0rem));
+  max-block-size: calc(100dvh - var(--app-header-block-size, 0rem) - 2rem);
   overflow-y: auto;
   border: 1px solid var(--border-subtle);
   border-radius: 0.75rem;
@@ -11072,9 +11128,18 @@ body.machine-editor-fullscreen-open {
     display: none;
   }
 
+  /*
+   * Nothing to pin against here: the pane replaces the list rather than
+   * standing beside it, so it is the only thing in the workspace and has no
+   * range to stay put over. The cap goes with the pin, and has to: on a phone
+   * it would be the one thing turning a pane the page could simply scroll into
+   * a pane with its own scrollbar inside a page that also scrolls.
+   */
   .history-job-detail {
     inline-size: auto;
     flex: 1 1 auto;
+    position: static;
+    max-block-size: none;
   }
 }
 

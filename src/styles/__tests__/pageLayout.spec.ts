@@ -24,6 +24,21 @@ function source(path: string): string {
   return readFileSync(join(sourceRoot, path), 'utf8')
 }
 
+/**
+ * The declarations of one rule, by selector — for a contract that is about what
+ * a rule says rather than about where it sits. Composing regexes out of a
+ * selector prefix and an escaped declaration was the first attempt and it
+ * silently matched nothing: one lost backslash turns `\s` into a literal `s`
+ * inside a string, and the assertion passes as a regex that can never match.
+ * Reads the first occurrence, so a media-query override is sliced separately by
+ * its caller.
+ */
+function ruleBody(selector: string): string {
+  const open = styles.indexOf(`${selector} {`)
+  expect(open).toBeGreaterThan(-1)
+  return styles.slice(open, styles.indexOf('}', open))
+}
+
 describe('page layout contract', () => {
   it('keeps every routed view on one of the two documented page shells', () => {
     const standardViews = [
@@ -126,6 +141,44 @@ describe('page layout contract', () => {
     )
     expect(styles).toMatch(/\.history-jobs\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\)/s)
     expect(styles).toMatch(/\.history-outcome-table\s*\{[^}]*overflow-x:\s*auto/s)
+  })
+
+  /*
+   * The History contract's pinned detail pane. The pin itself is cheap to get
+   * right; the two things that rot are the cap and the reset, and both fail
+   * quietly — a stale cap hangs the pane's bottom past the fold and takes the
+   * Remove button with it, and a missing reset gives a phone a scrollbar inside
+   * a page that already scrolls.
+   */
+  it('pins the History detail pane against the page shell and caps it to the scrollport', () => {
+    const pane = ruleBody('.history-job-detail')
+
+    expect(pane).toContain('position: sticky')
+    // Cancelling the shell's top padding, as every sticky child of a page shell
+    // does — a bare offset pins a padding-width below the visible top.
+    expect(pane).toContain('inset-block-start: calc(1rem - var(--page-shell-pad-top, 0rem))')
+    // Read from `.app-main`, never restated here: the header wraps below 64rem
+    // and the scrollport shrinks with it.
+    expect(pane).toContain(
+      'max-block-size: calc(100dvh - var(--app-header-block-size, 0rem) - 2rem)',
+    )
+    // The cap is only reachable because this was already declared.
+    expect(pane).toContain('overflow-y: auto')
+
+    // The wrapped header publishes its own height, or the cap above is 24px too
+    // generous on every window between 40rem and 64rem wide.
+    expect(styles).toMatch(
+      /@media \(max-width: 63\.999rem\)[\s\S]*?\.app-main\s*\{[^}]*--app-header-block-size:\s*6\.5rem/,
+    )
+
+    // Stacked below 40rem the pane replaces the list, so both come off.
+    const stacked = styles.slice(styles.indexOf('@media (max-width: 40rem)'))
+    const stackedPane = stacked.slice(
+      stacked.indexOf('.history-job-detail {'),
+      stacked.indexOf('}', stacked.indexOf('.history-job-detail {')),
+    )
+    expect(stackedPane).toContain('position: static')
+    expect(stackedPane).toContain('max-block-size: none')
   })
 
   /*
@@ -325,7 +378,19 @@ describe('page layout contract', () => {
 
     expect(app).toContain('class="app-main w-full"')
     expect(app).not.toContain('max-w-[100rem]')
-    expect(styles).toMatch(/\.app-main\s*{[^}]*height:\s*calc\(100dvh - 5rem\)/s)
+    /*
+     * The header's height is a variable rather than a literal `5rem`, because
+     * anything pinned inside a page caps itself against the same number and a
+     * second copy of it drifts silently — see the History contract's pinned
+     * detail pane. So this asserts the canvas is still exactly the viewport
+     * less the header, *and* that the variable it reads is actually defined:
+     * a mistyped custom property resolves to nothing and `calc` would take the
+     * whole viewport, which is the failure the original literal was guarding.
+     */
+    expect(styles).toMatch(
+      /\.app-main\s*{[^}]*height:\s*calc\(100dvh - var\(--app-header-block-size\)\)/s,
+    )
+    expect(styles).toMatch(/\.app-main\s*{[^}]*--app-header-block-size:\s*5rem/s)
     expect(styles).toMatch(/\.app-main\s*{[^}]*overflow:\s*hidden/s)
     /*
      * The stage takes whatever the column leaves rather than a literal 100% of
