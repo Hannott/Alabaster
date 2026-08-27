@@ -49,6 +49,15 @@ import ModuleSettingsPanel from '@/components/dashboard/ModuleSettingsPanel.vue'
  * shell root's was and any `@container` breakpoint tuned against the old
  * markup still resolves against the same width.
  *
+ * The root carries `data-module-body` so a host outside the dashboard can
+ * cancel that padding without naming the utility class that applies it. A
+ * module hosted directly in a `page-card` — the Calibration page's stages —
+ * sits inside padding the card already supplies, and two nested paddings read
+ * as a card inside a card. The attribute is the hook for that, deliberately
+ * module-agnostic: it says "this is a module body", which is true of every
+ * module and specific to none, so it does not reintroduce the per-module
+ * coupling this shell's root exists to keep out.
+ *
  * `inset` is the one shape that opts out of both the padding and the
  * automatic spacing: `Print` and `Console` carry their own padding per
  * section and, in Console's case, want *no* gap at all between two sections
@@ -68,7 +77,7 @@ const { t } = useI18n({ useScope: 'global' })
 </script>
 
 <template>
-  <div :class="inset ? undefined : 'p-4'">
+  <div data-module-body :class="inset ? undefined : 'p-4'">
     <ModuleSettingsPanel
       :open="open"
       :title="t('dashboard.surface.quickLayerTitle')"

@@ -6569,6 +6569,43 @@ input.z-axis__slider {
   align-items: stretch;
 }
 
+/*
+ * The same console on a shell that has bounded nothing above it — the
+ * Calibration bench, inside a `standard-page`. `height: 100%` there resolves
+ * against a grid item with no definite height of its own, which is how a
+ * console that states its height in lines ends up collapsed to its toolbar and
+ * prompt. The transcript is the definite thing in this arrangement (see
+ * `ConsolePanel`'s `fill`, and `--console-lines`), so the panel takes its height
+ * from its content instead of the other way round.
+ */
+.console-workspace--sized {
+  height: auto;
+  /*
+   * Top-aligned, so the console keeps the height the reader asked for.
+   * `align-items: stretch` is right on the page, where the shell has bounded
+   * both panels to the same viewport and each owns its own scrolling inside it.
+   * Here it made the shorter panel grow to the taller, and on this shell the
+   * console is nearly always the shorter one: it states its height in lines
+   * while the settings aside is as tall as its rows. The console has nothing to
+   * spend that height on — its transcript is a stated size and its prompt is
+   * one field — so all of it landed as dead space inside the panel's border,
+   * below a prompt that had not moved. Which reads as the prompt ballooning the
+   * moment the settings opened, because the thing that actually changed size
+   * was the box around it.
+   */
+  align-items: start;
+}
+
+/*
+ * And the aside stays inside the viewport rather than running past the fold —
+ * the same ceiling the narrow-width block already gives it. Its body owns
+ * `overflow-y: auto` already, so this makes the rows scroll rather than the
+ * page grow by the full length of the settings list.
+ */
+.console-workspace--sized .console-aside {
+  max-block-size: 60vh;
+}
+
 .console-main {
   display: flex;
   min-width: 0;
@@ -6722,6 +6759,32 @@ input.z-axis__slider {
     flex: 1 1 22rem;
   }
 
+  /*
+   * Not the sized console, which states its own height in lines and is already
+   * definite: a `22rem` floor there would stretch a transcript the reader asked
+   * to be five lines tall, and `flex: 1 1` would hand it a basis it does not
+   * need. Only the pane-filling one has a height to be pinned.
+   */
+  .console-workspace--sized {
+    overflow-y: visible;
+    /*
+     * Back to `stretch`. Stacked, the cross axis is horizontal, so the desktop
+     * rule's `align-items: start` sizes both panels to their content width
+     * instead of the column's — and the height problem it exists to solve
+     * cannot happen here, because a column flex has no shorter sibling to
+     * stretch. It looked correct only by accident: a transcript full of long
+     * G-code lines has a max-content width past the viewport, so `fit-content`
+     * clamped to the full column anyway. An empty console, or one holding a few
+     * short lines, would have shrunk to the width of its own text.
+     */
+    align-items: stretch;
+  }
+
+  .console-workspace--sized .console-main {
+    min-height: 0;
+    flex: 0 0 auto;
+  }
+
   .console-aside {
     width: auto;
     max-height: 60vh;
@@ -6792,6 +6855,58 @@ input.z-axis__slider {
   display: flex;
   align-items: flex-end;
   gap: 0.5rem;
+  /*
+   * The prompt's height, stated once for the two controls that have to agree on
+   * it: the field's own box and the square send button beside it.
+   *
+   * Stating it is the point. The obvious arrangement — let the textarea size
+   * itself from its `rows` attribute, give the button `align-self: stretch` and
+   * `aspect-ratio: 1` — gets the height exactly right and the width wrong,
+   * because a flex container resolves every item's main size before the line's
+   * cross size. The button's width is therefore settled while its height is
+   * still unknown, and an aspect ratio cannot reach back to change it: the
+   * button came out the field's height and 32px wide, a sliver.
+   *
+   * Predicting the textarea's natural height in CSS instead would drift — the
+   * browser rounds line boxes, and measured against this formula the two
+   * disagreed by up to 1.5px depending on the row count. So neither control
+   * inherits a height here: both are given this one, and being equal is a
+   * property of the arithmetic rather than something to keep re-checking.
+   *
+   * `--console-prompt-rows` comes from the component, which already computes it
+   * to drive the `rows` attribute. The font size is the token rather than a
+   * literal, because the user can scale the interface's type and a hard-coded
+   * line height would stop matching the field the moment they did.
+   */
+  --console-prompt-rows: 1;
+  --console-prompt-line: calc(1.5 * var(--control-field-sm-size));
+  --console-prompt-size: calc(var(--console-prompt-rows) * var(--console-prompt-line) + 1rem + 2px);
+}
+
+/*
+ * The send button squares itself against the field beside it instead of taking
+ * the button scale's own `sm` box.
+ *
+ * Two facts make this the exception rather than a new height on the scale. The
+ * field is a `textarea` that grows a row at a time up to five, so there is no
+ * single height for a button beside it to have been given; and the scale's
+ * `sm` square is 32px against a one-row field's 37px, so the pair did not line
+ * up even at rest — a 5px step nothing on the row explains.
+ *
+ * `align-self: stretch` takes the height the field sets, and `aspect-ratio: 1`
+ * turns that into the width, which is what keeps it square through every row
+ * the field grows to rather than only at rest. `inline-size: auto` is required
+ * Both dimensions come from `--console-prompt-size`, so the button is square by
+ * construction and equal to the field by construction — see that property's own
+ * comment for why it is stated rather than inherited from either control.
+ *
+ * The selector carries `.button--icon` to outrank `.button--icon.button--sm`,
+ * which states an explicit 2rem width; a single class beside a two-class rule
+ * loses the cascade and leaves the width exactly where it was.
+ */
+.button--icon.console-prompt__send {
+  block-size: var(--console-prompt-size);
+  inline-size: var(--console-prompt-size);
 }
 
 .console-prompt__marker {
@@ -6819,6 +6934,14 @@ input.z-axis__slider {
  */
 .console-prompt__field {
   width: 100%;
+  /*
+   * The same stated height the send button takes, rather than whatever the
+   * `rows` attribute works out to. The attribute stays — it is the semantic row
+   * count and the fallback if this rule ever fails to load — but the box the
+   * reader sees is this one, so the two controls cannot come out a rounded
+   * pixel apart.
+   */
+  block-size: var(--console-prompt-size);
   padding-block: 0.5rem;
   font-family: var(--console-font-family);
   font-weight: var(--console-font-weight);
@@ -11406,71 +11529,164 @@ body.machine-editor-fullscreen-open {
  * page card and adds only the two lists' own shapes.
  */
 /*
- * The page's own arrangement of those cards. A flex row rather than a grid: the
- * side column is a handful of panels stacked to whatever height they need, the
- * map is the primary column beside it, and the profile list joins the same
- * row when there is width to spare — and flex, unlike a grid with fixed
- * tracks, still fills the row sensibly on a printer with no bed mesh at all,
- * when the side column is the only thing here. `standard-page` already fills
- * the canvas; this is what finally gives that width somewhere to go, in place
- * of the 64rem `page-column` prose measure this content never belonged in.
+ * The bench: a rail naming the calibration jobs, and one canvas for the
+ * selected one.
+ *
+ * This replaced a wrapping flex row whose three items each carried their own
+ * `flex-basis`, and that is the failure worth recording. Every panel the page
+ * owned was mounted at once, so the row's contents changed with the printer —
+ * and with `flex-wrap`, what lands beside what is an outcome of arithmetic
+ * across all of them rather than a decision. A machine with a probe and no
+ * levelling wrapped differently from one with both; the profile list either
+ * joined the map's row or stranded itself in a mostly-empty full-width row
+ * beneath it, depending on a few dozen pixels of viewport. Cards appeared to
+ * move for no reason the reader could see, because the reason was not about
+ * them.
+ *
+ * A stage renders one small, fixed set of cards, so its arrangement can be
+ * stated instead of computed: an explicit grid per stage, below.
+ *
+ * The rail's own measure is Settings' — see `.settings-rail`, which this
+ * mirrors down to the `<select>` swap and the negative sticky offset, because
+ * two rails in one application that behave differently is one rail too many.
  */
-.calibration-grid {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: start;
-  gap: 1rem;
-}
-
-/*
- * Capped, not left to fill whatever `flex-grow` hands it. The stage below is
- * a fixed 3:2 box whose block-size is capped at `min(60vh, 34rem)` — on a
- * short viewport that ceiling is real, but past roughly 907px tall it is the
- * 34rem figure, worth about 51rem of width at that ratio. A wide desktop
- * monitor's flex-basis routinely exceeds that once the side column and
- * profiles both fit beside it, and stretching this card past what its own
- * capped-height content can use only wastes the width the other two need —
- * a printer at 2560x1440 read as a wide map with a dead margin on its right
- * and the profile list stranded in a full-width row of its own below, which
- * is exactly the failure `calibration-grid__profiles` below now fixes on the
- * other side of the same measurement.
- */
-.calibration-grid__main {
-  flex: 2 1 32rem;
-  max-inline-size: 56rem;
-  min-width: 0;
-}
-
-.calibration-grid__side {
-  flex: 1 1 20rem;
-  min-width: 18rem;
+.calibration-bench {
   display: grid;
+  grid-template-columns: 13rem minmax(0, 1fr);
+  gap: 1.5rem;
+}
+
+.calibration-rail {
+  display: flex;
+  flex-direction: column;
+  align-self: start;
+  gap: 0.15rem;
+  position: sticky;
+  top: calc(-1 * var(--page-shell-pad-top, 0rem));
+  z-index: 1;
+  padding-block: 0.5rem;
+  background: var(--surface-canvas);
+}
+
+/* Hidden above the mobile breakpoint; see `.settings-rail-select`'s own note. */
+.calibration-rail-select {
+  display: none;
+}
+
+/*
+ * `minmax(0, 1fr)` on the one column, for the same reason `.settings-content`
+ * carries it: a card holding one long unbreakable string — a Klipper object
+ * name, a console line — otherwise widens the track past the canvas and every
+ * other card on the page inherits that width.
+ */
+.calibration-bench__canvas {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 1rem;
+  /*
+   * Stages answer their own width, not the viewport's. The canvas is what the
+   * rail, the collapsible desktop sidebar and the page padding leave over, and
+   * a media query tuned to one arrangement of those is wrong for the others.
+   */
+  container-type: inline-size;
+  container-name: calibration-canvas;
+}
+
+.calibration-stage {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+@container calibration-canvas (min-width: 52rem) {
+  /*
+   * The working card leads and its readings sit beside it: movement beside
+   * endstops, heater calibration beside the temperature chart, the extruder
+   * beside its filament sensors. Two stated tracks, so the pair never reorders
+   * itself the way the wrapping row it replaced did.
+   */
+  .calibration-stage--split {
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  }
+
+  /*
+   * Unless this printer has only the one card. Both cards on a split stage are
+   * capability-gated, so a machine with no filament sensors, or one whose only
+   * heater is bang-bang, brings a single card to a two-track grid — and leaving
+   * the second track empty stranded that card at three-fifths width with a
+   * third of the canvas void beside it. Which is precisely the "cards sit in
+   * strange places" reading the whole bench exists to remove: the reason for
+   * the gap was invisible, because it was about a card that was not there.
+   * One card takes the canvas.
+   */
+  .calibration-stage--split:has(> :last-child:nth-child(1)) {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 /*
- * Sized like the side column rather than forced to its own full-width row:
- * on a desktop wide enough that the map (now capped above), the side column,
- * and this can all fit in one row, flex-wrap puts them there — profiles
- * beside the map instead of a mostly-empty row underneath it. On a narrower
- * viewport where it wraps alone, `flex-grow: 1` stretches it to the row's
- * full width automatically, which is the same "full width when alone" result
- * the old fixed `flex: 1 1 100%` gave unconditionally.
+ * The bed stage is map-led rather than a row of peers. The map is the artifact
+ * and takes the first track, capped: its own stage is a fixed 3:2 box whose
+ * block-size stops at `min(60vh, 34rem)`, worth about 51rem of width at that
+ * ratio, so a track any wider than that only buys dead margin inside the card.
+ * Probe accuracy — the question of whether the map is worth trusting at all —
+ * and the saved profiles fall into the second track, which absorbs whatever
+ * width is left over instead of leaving it beside the map.
+ *
+ * Gated on the map actually being there, and the two beside it are *placed by
+ * auto-flow* rather than pinned to a row each. Both matter for the same reason:
+ * all three cards are capability-gated, and pinning a card to a cell is a
+ * promise about a grid its neighbours might not be in. A mesh-only printer has
+ * no probe card, and a `grid-row: 2` on the profile list left an empty cell
+ * above it; a probe-only printer has no map at all, and pinning the probe card
+ * to the second track stranded it in the right half of an otherwise empty
+ * canvas. Auto-flow fills the first free cell instead, and the stage carries
+ * `--split` underneath this so a machine without the map falls back to that
+ * shape — including its single-card case.
  */
-.calibration-grid__profiles {
-  flex: 1 1 26rem;
-  min-width: 0;
+@container calibration-canvas (min-width: 68rem) {
+  .calibration-stage--bed:has(> .calibration-stage__map) {
+    grid-template-columns: minmax(0, 56rem) minmax(18rem, 1fr);
+    grid-template-rows: auto auto;
+  }
+
+  .calibration-stage--bed > .calibration-stage__map {
+    grid-column: 1;
+    grid-row: 1 / span 2;
+  }
+}
+
+@media (max-width: 47.999rem) {
+  .calibration-bench {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .calibration-rail-button {
+    display: none;
+  }
+
+  .calibration-rail-select {
+    display: block;
+  }
 }
 
 /*
- * The map at a size worth orbiting. The card's stage is a fixed 3:2 box sized by
- * its container, so the page only has to give it more container — capped against
- * the viewport so the profile list below stays reachable without scrolling past a
- * full screen of bed.
+ * A hosted dashboard module renders its own card shell inside a `page-card`
+ * that already has padding, and two nested paddings read as a card inside a
+ * card. Cancelling the inner one here — against the shell's own
+ * `data-module-body` hook rather than against the utility class that applies it
+ * — keeps the module unchanged and leaves the page card's padding rhythm as the
+ * one that shows. An `inset` module (Console, Print) has no inner padding to
+ * cancel, so this is a no-op for it.
  */
-.calibration-map {
+.calibration-panel__module {
   display: grid;
   gap: 0.75rem;
+}
+
+.calibration-panel__module > [data-module-body] {
+  padding: 0;
 }
 
 .calibration-map__running {
@@ -11482,7 +11698,14 @@ body.machine-editor-fullscreen-open {
   color: var(--status-available);
 }
 
-.calibration-map .mesh-stage {
+/*
+ * The map at a size worth orbiting, capped so the cards beside and below it
+ * stay reachable without scrolling past a full screen of bed. The card's stage
+ * is a fixed 3:2 box sized by its container, so this ceiling on its height is
+ * also what makes the 56rem cap on its grid track the right number — see
+ * `.calibration-stage--bed`.
+ */
+.calibration-stage__map .mesh-stage {
   max-block-size: min(60vh, 34rem);
 }
 

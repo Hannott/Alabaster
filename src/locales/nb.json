@@ -77,6 +77,17 @@
   },
   "calibration": {
     "title": "Kalibrering",
+    "stagesLabel": "Kalibreringsoppgaver",
+    "stages": {
+      "axes": "Akser og ramme",
+      "bed": "Bed og probe",
+      "heaters": "Varmeelement",
+      "resonance": "Resonans",
+      "extrusion": "Ekstrudering"
+    },
+    "axes": {
+      "movementTitle": "Nullpunkt og nivellering"
+    },
     "map": {
       "title": "Høydekart",
       "probing": "Prober — {count} punkter så langt",
@@ -161,6 +172,13 @@
         "axesMap": "Akse-kart",
         "staticFrequency": "Statisk frekvens"
       }
+    },
+    "heaters": {
+      "title": "Varmemodeller",
+      "hint": "Tar flere minutter. De nye konstantene klargjøres, de skrives ikke."
+    },
+    "console": {
+      "toggle": "Konsoll"
     }
   },
   "history": {

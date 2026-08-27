@@ -77,6 +77,17 @@
   },
   "calibration": {
     "title": "Calibration",
+    "stagesLabel": "Calibration jobs",
+    "stages": {
+      "axes": "Axes & frame",
+      "bed": "Bed & probe",
+      "heaters": "Heaters",
+      "resonance": "Resonance",
+      "extrusion": "Extrusion"
+    },
+    "axes": {
+      "movementTitle": "Homing & levelling"
+    },
     "map": {
       "title": "Height map",
       "probing": "Probing — {count} points so far",
@@ -161,6 +172,13 @@
         "axesMap": "Axes map",
         "staticFrequency": "Static frequency"
       }
+    },
+    "heaters": {
+      "title": "Heater models",
+      "hint": "Takes several minutes. The new constants are staged, not written."
+    },
+    "console": {
+      "toggle": "Console"
     }
   },
   "history": {

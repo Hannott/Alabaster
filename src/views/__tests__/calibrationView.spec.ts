@@ -1,6 +1,7 @@
 import { createPinia, setActivePinia, type Pinia } from 'pinia'
 import { enableAutoUnmount, flushPromises, mount } from '@vue/test-utils'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { createMemoryHistory, createRouter, type Router } from 'vue-router'
 
 import { i18n } from '@/i18n'
 import { useAvailabilityStore } from '@/stores/availability'
@@ -11,7 +12,10 @@ import { useMacrosStore } from '@/stores/macros'
 import { useMoonrakerStore } from '@/stores/moonraker'
 import { usePrinterStore } from '@/stores/printer'
 import { useShakeTuneStore, type ShakeTuneResult } from '@/stores/shakeTune'
+import HeaterCalibrationPanel from '@/components/calibration/HeaterCalibrationPanel.vue'
 import BedMeshModule from '@/components/dashboard/modules/BedMeshModule.vue'
+import ConsolePanel from '@/components/console/ConsolePanel.vue'
+import MovementModule from '@/components/dashboard/modules/MovementModule.vue'
 import CalibrationView from '@/views/CalibrationView.vue'
 
 enableAutoUnmount(afterEach)
@@ -52,13 +56,185 @@ beforeEach(() => {
   vi.spyOn(moonraker, 'rpcCall').mockResolvedValue({ x: 'TRIGGERED', y: 'open' } as never)
 })
 
-async function mountView() {
-  const view = mount(CalibrationView, { global: { plugins: [i18n, pinia] } })
+function testRouter(): Router {
+  return createRouter({
+    history: createMemoryHistory(),
+    routes: [
+      { path: '/', name: 'overview', component: { template: '<div />' } },
+      { path: '/calibration', name: 'calibration', component: { template: '<div />' } },
+      { path: '/console', name: 'console', component: { template: '<div />' } },
+    ],
+  })
+}
+
+/**
+ * Mounts the page and, when asked, selects a stage the way a reader does —
+ * by clicking its rail entry. There is no URL to mount straight onto: the stage
+ * is component state on purpose, because `App.vue` keys the routed component on
+ * `route.fullPath` and a query change would remount the page under the docked
+ * console. Passing nothing is what somebody arriving from the sidebar gets.
+ */
+async function mountView(stage?: string) {
+  const router = testRouter()
+  await router.push('/calibration')
+  const view = mount(CalibrationView, { global: { plugins: [i18n, pinia, router] } })
   await flushPromises()
+  if (stage) {
+    const label = i18n.global.t(`calibration.stages.${stage}`)
+    const entry = view.findAll('.calibration-rail-button').find((b) => b.text() === label)
+    if (!entry) throw new Error(`the rail offers no "${label}" stage on this machine`)
+    await entry.trigger('click')
+    await flushPromises()
+  }
   return view
 }
 
+/** The rail's own entries, which are what the page offers this machine. */
+function railLabels(view: Awaited<ReturnType<typeof mountView>>): string[] {
+  return view.findAll('.calibration-rail-button').map((button) => button.text())
+}
+
 describe('Calibration view', () => {
+  /**
+   * The rail is the page's answer to "what is this destination for". The page
+   * heading may not carry a standing description — `interface-standards.md`
+   * forbids one — so what tells a first-time visitor is the list of jobs itself,
+   * and it has to be this machine's jobs rather than a menu of everything
+   * Klipper can do.
+   */
+  it('names the calibration jobs this machine can actually do', async () => {
+    const printerConfig = await import('@/stores/printerConfig')
+    const config = printerConfig.usePrinterConfigStore(pinia)
+    vi.spyOn(config, 'hasBedMesh', 'get').mockReturnValue(true)
+    vi.spyOn(config, 'hasSection').mockImplementation((name: string) => name === 'extruder')
+
+    const view = await mountView()
+
+    expect(railLabels(view)).toEqual(['Axes & frame', 'Bed & probe', 'Extrusion'])
+  })
+
+  /**
+   * The stage lives in the route query, so a link into the tuning graphs is a
+   * link somebody can keep — and `replace` rather than `push`, so stepping
+   * through five stages of one sitting leaves no trail for the back button to
+   * walk out of.
+   */
+  it('shows only the selected stage and marks its rail entry current', async () => {
+    const printerConfig = await import('@/stores/printerConfig')
+    vi.spyOn(printerConfig.usePrinterConfigStore(pinia), 'hasBedMesh', 'get').mockReturnValue(true)
+
+    const view = await mountView('bed')
+
+    const current = view
+      .findAll('.calibration-rail-button')
+      .filter((button) => button.attributes('aria-current') === 'true')
+    expect(current).toHaveLength(1)
+    expect(current[0]!.text()).toBe('Bed & probe')
+    expect(view.text()).toContain('Bed mesh profiles')
+    expect(view.text()).not.toContain('Endstops')
+  })
+
+  /**
+   * A stage whose hardware disappears mid-sitting — a Shake&Tune uninstall, a
+   * config reload without `[bed_mesh]` — falls back rather than leaving the
+   * canvas empty under a rail entry that no longer exists.
+   */
+  it('falls back when the selected stage stops being available', async () => {
+    const printerConfig = await import('@/stores/printerConfig')
+    const config = printerConfig.usePrinterConfigStore(pinia)
+    // The real reactive source, not a mocked getter: `hasBedMesh` is derived
+    // from `configfile.settings`, and only moving that actually re-runs the
+    // stage list the way a config reload does.
+    config.settings = { bed_mesh: { mesh_min: [10, 10] } } as never
+
+    const view = await mountView('bed')
+    expect(view.text()).toContain('Bed mesh profiles')
+
+    config.settings = {} as never
+    await flushPromises()
+
+    expect(railLabels(view)).toEqual(['Axes & frame'])
+    expect(view.text()).toContain('Endstops')
+    expect(view.text()).not.toContain('Bed mesh profiles')
+  })
+
+  /**
+   * The whole reason the console is on this page: Klipper answers
+   * `SCREWS_TILT_CALCULATE`, `PROBE_ACCURACY` and a PID run as console text and
+   * nothing else, so without it every command here sends the reader to another
+   * route to find out what happened.
+   */
+  it('docks a real console on the page, and lets the heading put it away', async () => {
+    const view = await mountView()
+
+    expect(view.findComponent(ConsolePanel).exists()).toBe(true)
+
+    const toggle = view.get('.page-heading button')
+    expect(toggle.attributes('aria-pressed')).toBe('true')
+    await toggle.trigger('click')
+
+    expect(view.findComponent(ConsolePanel).exists()).toBe(false)
+    expect(view.get('.page-heading button').attributes('aria-pressed')).toBe('false')
+  })
+
+  /**
+   * The Console route's own console, not the dashboard card — which is what
+   * decides whose filters and whose prompt position the reader gets. The card
+   * reads one dashboard instance's configuration; the page and this bench share
+   * `useConsoleSettings`, so a filter set up on either holds on the other.
+   */
+  it('reuses the console page panel, with the command browser and its settings', async () => {
+    const view = await mountView()
+
+    const console_ = view.getComponent(ConsolePanel)
+    // Not `fill`: this page has bounded nothing, so the console states its own
+    // height in lines rather than taking a pane's.
+    expect(console_.props('fill')).toBeFalsy()
+    expect(console_.find('.console-workspace--sized').exists()).toBe(true)
+
+    // The toolbar the card never had: the machine's command list, and the same
+    // settings the Console page edits.
+    const browse = console_
+      .findAll('.console-toolbar__actions button')
+      .find((button) => button.text().includes('Browse commands'))
+    expect(browse).toBeDefined()
+    await browse?.trigger('click')
+    expect(console_.find('.console-aside').exists()).toBe(true)
+  })
+
+  /**
+   * Hosting the module rather than reimplementing its controls is what puts
+   * levelling, the screw-turn table and the Z offset on this page without a
+   * second copy of the commands behind them — and jogging is not incidental:
+   * `PROBE_ACCURACY` on the next stage probes wherever the toolhead sits, so
+   * its own warning used to be advice with no control on the page to act on.
+   */
+  it('hosts the movement module itself on the axes stage', async () => {
+    const view = await mountView()
+
+    expect(view.findComponent(MovementModule).exists()).toBe(true)
+    expect(view.text()).toContain('Homing & levelling')
+  })
+
+  /**
+   * A heater calibration used to be reachable only from behind the Temperatures
+   * card's gear, on another route — which is exactly what sent somebody to the
+   * Dashboard in the middle of their own calibration sitting.
+   */
+  it('offers heater calibration on its own stage, from the shared panel', async () => {
+    const telemetry = await import('@/stores/telemetry')
+    const printerConfig = await import('@/stores/printerConfig')
+    vi.spyOn(telemetry.useTelemetryStore(pinia), 'sensors', 'get').mockReturnValue([
+      { objectName: 'extruder', name: 'extruder', isSettable: true, target: 200 },
+    ] as never)
+    vi.spyOn(printerConfig.usePrinterConfigStore(pinia), 'controlKindFor').mockReturnValue('pid')
+
+    const view = await mountView('heaters')
+
+    expect(railLabels(view)).toContain('Heaters')
+    expect(view.findComponent(HeaterCalibrationPanel).exists()).toBe(true)
+  })
+
   it('reports each endstop with a word, not a colour alone', async () => {
     const view = await mountView()
 
@@ -91,9 +267,27 @@ describe('Calibration view', () => {
     expect(notice.text()).toContain('paused while a print runs')
   })
 
-  it('hides the mesh panel on a printer with no bed mesh configured', async () => {
+  /**
+   * The gate moved up a level: a printer that can neither mesh, probe, nor level
+   * has no bed job at all, so the rail never offers the stage rather than
+   * offering one whose cards are all absent. A stage nobody can act on reads as
+   * a broken page; a rail entry fewer reads as a machine without that hardware.
+   */
+  it('offers no bed stage at all on a printer that cannot mesh, probe or level', async () => {
     const view = await mountView()
 
+    expect(railLabels(view)).toEqual(['Axes & frame'])
+    expect(view.text()).not.toContain('Bed mesh profiles')
+  })
+
+  it('hides the mesh panel on a probe-only printer, which still has a bed stage', async () => {
+    const printerConfig = await import('@/stores/printerConfig')
+    vi.spyOn(printerConfig.usePrinterConfigStore(pinia), 'hasProbe', 'get').mockReturnValue(true)
+
+    const view = await mountView('bed')
+
+    expect(railLabels(view)).toContain('Bed & probe')
+    expect(view.text()).toContain('Probe accuracy')
     expect(view.text()).not.toContain('Bed mesh profiles')
   })
 
@@ -110,7 +304,7 @@ describe('Calibration view', () => {
     vi.spyOn(printerConfig.usePrinterConfigStore(pinia), 'hasBedMesh', 'get').mockReturnValue(true)
     const loadProfile = vi.spyOn(usePrinterStore(pinia), 'loadBedMeshProfile')
 
-    const view = await mountView()
+    const view = await mountView('bed')
 
     const profiles = view.findAll('.calibration-profile')
     expect(profiles.map((profile) => profile.text())).toEqual([
@@ -134,9 +328,9 @@ describe('Calibration view', () => {
     const printerConfig = await import('@/stores/printerConfig')
     vi.spyOn(printerConfig.usePrinterConfigStore(pinia), 'hasBedMesh', 'get').mockReturnValue(true)
 
-    const view = await mountView()
+    const view = await mountView('bed')
 
-    const map = view.find('.calibration-map')
+    const map = view.find('.calibration-stage__map')
     expect(map.exists()).toBe(true)
     // The module component itself, not a copy of its markup. Its stage appears
     // once a mesh is loaded; what matters here is which component draws it.
@@ -146,7 +340,7 @@ describe('Calibration view', () => {
   it('shows no map at all on a printer without a bed mesh', async () => {
     const view = await mountView()
 
-    expect(view.find('.calibration-map').exists()).toBe(false)
+    expect(view.find('.calibration-stage__map').exists()).toBe(false)
   })
 
   /**
@@ -158,7 +352,7 @@ describe('Calibration view', () => {
     const printerConfig = await import('@/stores/printerConfig')
     vi.spyOn(printerConfig.usePrinterConfigStore(pinia), 'hasBedMesh', 'get').mockReturnValue(true)
 
-    const view = await mountView()
+    const view = await mountView('bed')
 
     expect(view.findComponent(BedMeshModule).props('liveProbing')).toBe(true)
   })
@@ -173,7 +367,7 @@ describe('Calibration view', () => {
     const printerConfig = await import('@/stores/printerConfig')
     vi.spyOn(printerConfig.usePrinterConfigStore(pinia), 'hasBedMesh', 'get').mockReturnValue(true)
 
-    const view = await mountView()
+    const view = await mountView('bed')
 
     expect(view.findComponent(BedMeshModule).props('forceProbeLabels')).toBe(true)
   })
@@ -181,7 +375,7 @@ describe('Calibration view', () => {
   it('counts the points as they arrive and calls the shape provisional', async () => {
     const printerConfig = await import('@/stores/printerConfig')
     vi.spyOn(printerConfig.usePrinterConfigStore(pinia), 'hasBedMesh', 'get').mockReturnValue(true)
-    const view = await mountView()
+    const view = await mountView('bed')
 
     const gcodeConsole = useConsoleStore(pinia)
     gcodeConsole.consoleEntries = [
@@ -215,7 +409,7 @@ describe('Calibration view', () => {
     vi.spyOn(config, 'hasBedMesh', 'get').mockReturnValue(true)
     vi.spyOn(config, 'hasSection').mockImplementation((name: string) => name === 'beacon')
 
-    const view = await mountView()
+    const view = await mountView('bed')
 
     expect(view.text()).toContain('scanning probe')
     expect(view.find('.calibration-map__running').exists()).toBe(false)
@@ -230,7 +424,7 @@ describe('Calibration view', () => {
   it('opens the viewer during a first calibration, once points exist', async () => {
     const printerConfig = await import('@/stores/printerConfig')
     vi.spyOn(printerConfig.usePrinterConfigStore(pinia), 'hasBedMesh', 'get').mockReturnValue(true)
-    const view = await mountView()
+    const view = await mountView('bed')
     const gcodeConsole = useConsoleStore(pinia)
 
     // No mesh has ever been saved, so nothing is drawn yet.
@@ -269,7 +463,7 @@ describe('Calibration view', () => {
       profiles: ['default'],
     } as never)
 
-    const view = await mountView()
+    const view = await mountView('bed')
     const saveButton = view
       .findAll('.calibration-panel__actions button')
       .find((button) => button.text().includes('Save loaded mesh'))
@@ -295,7 +489,7 @@ describe('Calibration view', () => {
       .spyOn(usePrinterStore(pinia), 'saveBedMeshProfile')
       .mockResolvedValue(true)
 
-    const view = await mountView()
+    const view = await mountView('bed')
     const saveButton = view
       .findAll('.calibration-panel__actions button')
       .find((button) => button.text().includes('Save loaded mesh'))
@@ -317,7 +511,7 @@ describe('Calibration view', () => {
     vi.spyOn(printerConfig.usePrinterConfigStore(pinia), 'hasBedMesh', 'get').mockReturnValue(true)
     usePrinterStore(pinia).printStats.state = 'printing'
 
-    const view = await mountView()
+    const view = await mountView('bed')
 
     const calibrate = view
       .findAll('.calibration-panel__actions button')
@@ -332,7 +526,14 @@ describe('Calibration view', () => {
    * image preview does.
    */
   it('opens a tuning thumbnail in a lightbox instead of linking to the file', async () => {
-    const view = await mountView()
+    // Shake&Tune installed, so the resonance stage exists to be asked for. The
+    // results themselves land after mount, because the panel's own `start()`
+    // refreshes the directory as it mounts and would clear anything seeded
+    // before it.
+    vi.spyOn(useMacrosStore(pinia), 'hasMacro').mockImplementation(
+      (name: string) => name === 'COMPARE_BELTS_RESPONSES',
+    )
+    const view = await mountView('resonance')
 
     const result: ShakeTuneResult = {
       name: 'belts_20260810_090000_x.png',
@@ -366,9 +567,9 @@ describe('Calibration view', () => {
   it('gives the mesh viewer a settings gear', async () => {
     const printerConfig = await import('@/stores/printerConfig')
     vi.spyOn(printerConfig.usePrinterConfigStore(pinia), 'hasBedMesh', 'get').mockReturnValue(true)
-    const view = await mountView()
+    const view = await mountView('bed')
 
-    const gear = view.get('.calibration-map button[aria-pressed]')
+    const gear = view.get('.calibration-stage__map button[aria-pressed]')
     expect(gear.attributes('aria-pressed')).toBe('false')
     await gear.trigger('click')
     expect(gear.attributes('aria-pressed')).toBe('true')
@@ -391,7 +592,7 @@ describe('Calibration view', () => {
         [0.1, 0.2],
       ],
     } as never)
-    const view = await mountView()
+    const view = await mountView('bed')
 
     expect(view.text()).toContain('2D view')
 
@@ -410,9 +611,9 @@ describe('Calibration view', () => {
   it('never offers to open a settings surface this page has nowhere to put', async () => {
     const printerConfig = await import('@/stores/printerConfig')
     vi.spyOn(printerConfig.usePrinterConfigStore(pinia), 'hasBedMesh', 'get').mockReturnValue(true)
-    const view = await mountView()
+    const view = await mountView('bed')
 
-    await view.get('.calibration-map button[aria-pressed]').trigger('click')
+    await view.get('.calibration-stage__map button[aria-pressed]').trigger('click')
 
     expect(view.find('.module-settings__link').exists()).toBe(false)
   })
@@ -421,7 +622,7 @@ describe('Calibration view', () => {
     const printerConfig = await import('@/stores/printerConfig')
     vi.spyOn(printerConfig.usePrinterConfigStore(pinia), 'hasProbe', 'get').mockReturnValue(true)
     const probeAccuracy = vi.spyOn(usePrinterStore(pinia), 'probeAccuracy').mockResolvedValue(true)
-    const view = await mountView()
+    const view = await mountView('bed')
 
     const run = view
       .findAll('.calibration-panel__header button')
@@ -464,7 +665,7 @@ describe('Calibration view', () => {
     printer.motion.position = [190, 100, 5]
     const probeAccuracy = vi.spyOn(printer, 'probeAccuracy').mockResolvedValue(true)
 
-    const view = await mountView()
+    const view = await mountView('bed')
 
     expect(view.text()).toContain("The probe's offset would carry it outside the bed")
     const run = view
@@ -487,7 +688,7 @@ describe('Calibration view', () => {
     // The same offset, but from the middle of the bed — well within range.
     printer.motion.position = [100, 100, 5]
 
-    const view = await mountView()
+    const view = await mountView('bed')
 
     expect(view.text()).not.toContain("The probe's offset would carry it outside the bed")
     const run = view
@@ -496,8 +697,11 @@ describe('Calibration view', () => {
     expect(run?.attributes('disabled')).toBeUndefined()
   })
 
-  it('hides the probe accuracy panel on a printer with no probe configured', async () => {
-    const view = await mountView()
+  it('hides the probe accuracy panel on a mesh-only printer', async () => {
+    const printerConfig = await import('@/stores/printerConfig')
+    vi.spyOn(printerConfig.usePrinterConfigStore(pinia), 'hasBedMesh', 'get').mockReturnValue(true)
+
+    const view = await mountView('bed')
 
     expect(view.text()).not.toContain('Probe accuracy')
   })
@@ -530,7 +734,7 @@ describe('Calibration view', () => {
     runoutSensors.useRunoutSensorsStore(pinia).start()
     await flushPromises()
 
-    const view = await mountView()
+    const view = await mountView('extrusion')
     snapshotHandler?.({
       eventtime: 1,
       status: { 'filament_switch_sensor runout': { enabled: true, filament_detected: true } },
@@ -542,9 +746,10 @@ describe('Calibration view', () => {
     expect(row.text()).toContain('Filament loaded')
   })
 
-  it('hides the runout sensor panel on a printer with none configured', async () => {
+  it('offers no extrusion stage on a printer with neither an extruder nor sensors', async () => {
     const view = await mountView()
 
+    expect(railLabels(view)).not.toContain('Extrusion')
     expect(view.text()).not.toContain('Runout sensors')
   })
 
@@ -552,16 +757,17 @@ describe('Calibration view', () => {
     vi.spyOn(useMacrosStore(pinia), 'hasMacro').mockImplementation(
       (name: string) => name === 'AXES_SHAPER_CALIBRATION',
     )
-    const view = await mountView()
+    const view = await mountView('resonance')
 
     expect(view.text()).toContain('Tuning results')
     expect(view.text()).toContain('Input shaper')
     expect(view.text()).toContain('Nothing recorded for this test yet.')
   })
 
-  it('hides the tuning panel entirely on a printer with neither results nor Shake&Tune installed', async () => {
+  it('offers no resonance stage with neither results, an accelerometer, nor Shake&Tune', async () => {
     const view = await mountView()
 
+    expect(railLabels(view)).not.toContain('Resonance')
     expect(view.text()).not.toContain('Tuning results')
   })
 
@@ -579,7 +785,7 @@ describe('Calibration view', () => {
       .spyOn(usePrinterStore(pinia), 'measureAxesNoise')
       .mockResolvedValue(true)
 
-    const view = await mountView()
+    const view = await mountView('resonance')
 
     const check = view
       .findAll('.calibration-tuning-noise button')
@@ -606,7 +812,7 @@ describe('Calibration view', () => {
   it('hides the noise check on a printer with no resonance testing configured', async () => {
     vi.spyOn(useMacrosStore(pinia), 'hasMacro').mockReturnValue(true)
 
-    const view = await mountView()
+    const view = await mountView('resonance')
 
     expect(view.text()).not.toContain('Check accelerometer noise')
   })
@@ -633,7 +839,7 @@ describe('Calibration view', () => {
           resolveRpc = () => resolve('ok' as never)
         }) as never,
     )
-    const view = await mountView()
+    const view = await mountView('resonance')
 
     const run = view
       .findAll('.calibration-tuning-group__header button')
@@ -662,7 +868,7 @@ describe('Calibration view', () => {
     vi.spyOn(useMacrosStore(pinia), 'hasMacro').mockImplementation(
       (name: string) => name === 'COMPARE_BELTS_RESPONSES',
     )
-    const view = await mountView()
+    const view = await mountView('resonance')
 
     const beltsGroup = view
       .findAll('.calibration-tuning-group')
@@ -678,7 +884,7 @@ describe('Calibration view', () => {
     vi.spyOn(useMacrosStore(pinia), 'hasMacro').mockImplementation(
       (name: string) => name === 'COMPARE_BELTS_RESPONSES',
     )
-    const view = await mountView()
+    const view = await mountView('resonance')
 
     expect(view.text()).toContain('Belts comparison')
   })
@@ -690,7 +896,7 @@ describe('Calibration view', () => {
    */
   it('never offers to run the static frequency tool', async () => {
     vi.spyOn(useMacrosStore(pinia), 'hasMacro').mockReturnValue(true)
-    const view = await mountView()
+    const view = await mountView('resonance')
 
     const staticFrequencyGroup = view
       .findAll('.calibration-tuning-group')

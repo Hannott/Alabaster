@@ -2,10 +2,9 @@
 import { computed, nextTick, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import FilamentCatalogueDialog from '@/components/FilamentCatalogueDialog.vue'
-import PromptDialog from '@/components/PromptDialog.vue'
 import AppIcon from '@/components/AppIcon.vue'
+import HeaterCalibrationPanel from '@/components/calibration/HeaterCalibrationPanel.vue'
 import SurfaceSection from '@/components/dashboard/SurfaceSection.vue'
 import TemperaturesChartSettingsFields from '@/components/dashboard/modules/TemperaturesChartSettingsFields.vue'
 import {
@@ -24,9 +23,6 @@ import {
   readPresetDrafts,
   type TemperaturePresetDraft,
 } from '@/dashboard/temperaturePresets'
-import { useActionGuard } from '@/composables/useActionGuard'
-import { useConsoleStore } from '@/stores/console'
-import { usePrinterStore } from '@/stores/printer'
 import { usePrinterConfigStore } from '@/stores/printerConfig'
 import { useServerCapabilitiesStore } from '@/stores/serverCapabilities'
 import { useSpoolStore } from '@/stores/spool'
@@ -40,30 +36,21 @@ import { useTelemetryStore, type SensorReading } from '@/stores/telemetry'
  * procedure with a transcript, which never belonged in a panel that covers the
  * temperatures it is heating. The chart's own settings live in
  * `TemperaturesChartSettingsFields`, shared with the card's quick layer.
+ *
+ * The calibration is no longer only reachable from here. Its rows, guard and
+ * transcript are `HeaterCalibrationPanel`, which the Calibration page's heaters
+ * stage renders too — behind a card gear is a defensible home for a rare
+ * procedure, but it is not a findable one for somebody who opened Calibration
+ * to calibrate a printer.
  */
-
-/** A default calibration target for a heater that has never had one set. */
-const defaultCalibrationTarget = 200
 
 const { t } = useI18n({ useScope: 'global' })
 const telemetry = useTelemetryStore()
-const printer = usePrinterStore()
-// The calibration transcript is read off the console store's raw lines.
-const gcodeConsole = useConsoleStore()
 const printerConfig = usePrinterConfigStore()
 const serverCapabilities = useServerCapabilitiesStore()
 const spool = useSpoolStore()
 const { config, updateConfig } = useDashboardModule('temperatures')
 
-// Calibration is a rare, physical action, so its whole flow lives behind one
-// "currently calibrating" sensor rather than per-row state.
-const calibratingObjectName = ref<string | null>(null)
-const calibrationKind = ref<'pid' | 'mpc'>('pid')
-const calibrationPromptOpen = ref(false)
-const calibrationConfirmOpen = ref(false)
-const calibrationTargetDraft = ref(defaultCalibrationTarget)
-const calibrationTranscriptStart = ref(0)
-const calibrationSucceeded = ref<boolean | null>(null)
 const skipCalibrationWarning = computed(() =>
   configBoolean(config.value, 'skipCalibrationWarning', false),
 )
@@ -76,22 +63,17 @@ const chartSeries = computed(() => {
   return telemetry.sensors.filter((sensor) => configured.includes(sensor.objectName))
 })
 
-const calibratableSensors = computed(() =>
-  telemetry.sensors.filter(
-    (sensor) => sensor.isSettable && calibrationKindFor(sensor.objectName) !== null,
+/**
+ * Whether the section has anything to offer. The rows themselves are the
+ * panel's business; this only decides whether the section exists, which is a
+ * question about this pane's own layout.
+ */
+const hasCalibratableHeater = computed(() =>
+  telemetry.sensors.some(
+    (sensor) =>
+      sensor.isSettable &&
+      ['pid', 'mpc'].includes(printerConfig.controlKindFor(sensor.objectName) ?? ''),
   ),
-)
-const calibratingSensorLabel = computed(() => {
-  const reading = telemetry.readings[calibratingObjectName.value ?? '']
-  return reading ? sensorLabel(reading, t) : ''
-})
-const calibrationTranscript = computed(() =>
-  gcodeConsole.consoleLines.slice(calibrationTranscriptStart.value),
-)
-const showCalibrationPanel = computed(
-  () =>
-    calibratingObjectName.value !== null &&
-    (printer.pendingCommands.calibrateHeater || calibrationSucceeded.value !== null),
 )
 
 function label(sensor: SensorReading): string {
@@ -108,17 +90,6 @@ function label(sensor: SensorReading): string {
 function limitFor(objectName: string): number {
   return Math.round(printerConfig.limitsFor(objectName).maximum)
 }
-
-/**
- * Calibration is refused while a job is loaded, not merely while one is moving.
- * `PID_CALIBRATE` and `MPC_CALIBRATE` drive the heater through their own
- * heat-up cycle for minutes, which ends a paused print as surely as it ruins a
- * running one — and the section's own hint and confirmation both said "do not
- * start this while printing" while the button stayed enabled in exactly that
- * state, which is advice you can only read where it already applies. Same line
- * and same reason as `MovementModule`'s `hasJobLoaded`.
- */
-const hasJobLoaded = computed(() => printer.hasActivePrint)
 
 /**
  * The rows being edited, held here rather than read back out of the card's
@@ -240,79 +211,6 @@ function toggleSeries(objectName: string): void {
     ? current.filter((entry) => entry !== objectName)
     : [...current, objectName]
   updateConfig({ chartSeries: next })
-}
-
-/**
- * A `watermark` (bang-bang) heater has no PID/MPC constants to calibrate, so
- * only these two control schemes ever offer the action.
- */
-function calibrationKindFor(objectName: string): 'pid' | 'mpc' | null {
-  const kind = printerConfig.controlKindFor(objectName)
-  return kind === 'pid' || kind === 'mpc' ? kind : null
-}
-
-function isCalibrating(objectName: string): boolean {
-  return calibratingObjectName.value === objectName && printer.pendingCommands.calibrateHeater
-}
-
-function openCalibrationPrompt(sensor: SensorReading): void {
-  const kind = calibrationKindFor(sensor.objectName)
-  if (!kind) return
-  calibratingObjectName.value = sensor.objectName
-  calibrationKind.value = kind
-  calibrationSucceeded.value = null
-  calibrationTargetDraft.value =
-    sensor.target !== null && sensor.target > 0
-      ? Math.round(sensor.target)
-      : defaultCalibrationTarget
-  calibrationPromptOpen.value = true
-}
-
-function validateCalibrationTarget(value: string): string | undefined {
-  const parsed = Number(value)
-  if (!Number.isFinite(parsed) || parsed <= 0) {
-    return t('dashboard.temperature.calibrateInvalid')
-  }
-  const reading = telemetry.readings[calibratingObjectName.value ?? '']
-  const max = reading ? limitFor(reading.objectName) : 999
-  if (parsed > max) return t('dashboard.temperature.calibrateTooHigh', { max })
-  return undefined
-}
-
-/*
- * PID and MPC calibration drives the heater through a deliberate overshoot
- * cycle and writes a new model, so it is terminal in the sense the ladder
- * means: it is refused outright while a job is loaded, and with its
- * confirmation switched off there is nothing between one click and a heater
- * cycling on a machine the reader may have walked away from.
- */
-const calibrationGuard = useActionGuard({
-  tier: 'terminal',
-  emphasis: 'neutral',
-  moduleFlag: skipCalibrationWarning,
-})
-
-function confirmCalibrationTarget(value: string): void {
-  calibrationTargetDraft.value = Number(value)
-  calibrationPromptOpen.value = false
-  calibrationGuard.request(
-    () => void startCalibration(),
-    () => (calibrationConfirmOpen.value = true),
-  )
-}
-
-async function startCalibration(): Promise<void> {
-  calibrationConfirmOpen.value = false
-  const objectName = calibratingObjectName.value
-  if (!objectName) return
-  // Only the lines the calibration itself produces belong in its transcript —
-  // never whatever else happened to be in the shared console buffer already.
-  calibrationTranscriptStart.value = gcodeConsole.consoleLines.length
-  calibrationSucceeded.value = await printer.calibrateHeater(
-    calibrationKind.value,
-    objectName,
-    calibrationTargetDraft.value,
-  )
 }
 </script>
 
@@ -451,62 +349,19 @@ async function startCalibration(): Promise<void> {
   />
 
   <SurfaceSection
-    v-if="calibratableSensors.length > 0"
+    v-if="hasCalibratableHeater"
     :title="t('dashboard.temperature.calibrationTitle')"
     :hint="t('dashboard.temperature.calibrationHint')"
     divided
   >
-    <div
-      v-for="sensor in calibratableSensors"
-      :key="`calibrate-${sensor.objectName}`"
-      class="temperature-calibrate-row"
-    >
-      <span class="min-w-0 truncate">{{ label(sensor) }}</span>
-      <button
-        type="button"
-        class="button button--sm"
-        :class="calibrationGuard.variant.value"
-        v-bind="calibrationGuard.bind.value"
-        :data-pending="isCalibrating(sensor.objectName) ? 'true' : undefined"
-        :aria-busy="isCalibrating(sensor.objectName) || undefined"
-        :disabled="printer.pendingCommands.calibrateHeater || hasJobLoaded"
-        :title="hasJobLoaded ? t('dashboard.temperature.calibrateBlocked') : undefined"
-        @click="openCalibrationPrompt(sensor)"
-      >
-        {{
-          calibrationKindFor(sensor.objectName) === 'mpc'
-            ? t('dashboard.temperature.calibrateMpc')
-            : t('dashboard.temperature.calibratePid')
-        }}
-      </button>
-    </div>
-
-    <div v-if="showCalibrationPanel" class="mt-2">
-      <ol
-        class="console-output selectable"
-        role="log"
-        tabindex="0"
-        :aria-label="t('dashboard.temperature.calibrationOutputLabel')"
-      >
-        <li v-if="calibrationTranscript.length === 0" class="text-muted">
-          {{ t('dashboard.temperature.calibrationRunning') }}
-        </li>
-        <li v-for="(line, index) in calibrationTranscript" :key="index">{{ line }}</li>
-      </ol>
-      <p v-if="calibrationSucceeded === false" class="mt-2 text-alert-inline" role="alert">
-        {{ t('dashboard.commandFailed') }}
-      </p>
-      <!--
-        A statement, not an action. The calibration has staged a new heater model
-        and nothing has written it yet — but writing the config is one
-        printer-wide fact, offered once from the header rather than by whichever
-        surface staged it, so this says what happened and names where to make it
-        permanent.
-      -->
-      <p v-if="calibrationSucceeded === true" class="hint mt-2">
-        {{ t('dashboard.temperature.calibrationStaged') }}
-      </p>
-    </div>
+    <!--
+      The rows, the guard ladder and the transcript all live in
+      `HeaterCalibrationPanel`, shared with the Calibration page's heaters
+      stage. This pane keeps the section around it, because a chart height and
+      a heater model are both "Temperatures' full configuration" — but the
+      procedure itself is no longer only reachable from behind this card's gear.
+    -->
+    <HeaterCalibrationPanel :skip-warning="skipCalibrationWarning" />
   </SurfaceSection>
 
   <SurfaceSection :title="t('dashboard.temperature.confirmationsTitle')" divided>
@@ -521,30 +376,4 @@ async function startCalibration(): Promise<void> {
       </label>
     </div>
   </SurfaceSection>
-
-  <PromptDialog
-    :open="calibrationPromptOpen"
-    :title="t('dashboard.temperature.calibratePromptTitle', { heater: calibratingSensorLabel })"
-    :description="t('dashboard.temperature.calibratePromptDescription')"
-    :label="t('dashboard.temperature.calibratePromptLabel')"
-    :initial-value="String(calibrationTargetDraft)"
-    :confirm-label="t('dashboard.temperature.calibrateConfirmAction')"
-    :validate="validateCalibrationTarget"
-    @confirm="confirmCalibrationTarget"
-    @cancel="calibrationPromptOpen = false"
-  />
-  <ConfirmDialog
-    :open="calibrationConfirmOpen"
-    :title="t('dashboard.temperature.calibrateConfirmTitle', { heater: calibratingSensorLabel })"
-    :description="
-      t('dashboard.temperature.calibrateConfirmDescription', {
-        heater: calibratingSensorLabel,
-        target: calibrationTargetDraft,
-        unit: t('dashboard.temperatureUnit'),
-      })
-    "
-    :confirm-label="t('dashboard.temperature.calibrateConfirmAction')"
-    @confirm="startCalibration"
-    @cancel="calibrationConfirmOpen = false"
-  />
 </template>

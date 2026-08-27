@@ -1,7 +1,45 @@
 # Calibration
 
-Calibration brings bed mesh, endstops, probe accuracy, filament sensors, and
-tuning results together in one place.
+Calibration is where you calibrate a printer, start to finish, without leaving
+the page. Each job brings its own controls, its own readings, and the console
+output Klipper answers with.
+
+## The jobs
+
+A rail lists the calibration jobs, in the order the physical dependencies run.
+Picking one gives it the page.
+
+| Job              | What it covers                                                                                            |
+| ---------------- | --------------------------------------------------------------------------------------------------------- |
+| **Axes & frame** | Homing, jogging, parking, the levelling procedure your printer has, screw turns, Z offset, endstop states |
+| **Bed & probe**  | The height map, probe accuracy, saved mesh profiles                                                       |
+| **Heaters**      | PID or MPC calibration per heater, with the temperature chart beside it                                   |
+| **Resonance**    | Accelerometer noise, and the Shake&Tune graphs                                                            |
+| **Extrusion**    | Pressure advance, retraction, extrude and retract, filament sensor states                                 |
+
+A job your printer cannot do is not listed. A machine with no probe has no
+**Bed & probe** entry; a machine whose only heater is bang-bang has no
+**Heaters** entry. **Axes & frame** is always there, because endstops exist on
+any machine with steppers.
+
+## The console
+
+A console sits below the job you are working on, so the lines Klipper answers
+with arrive where you started the command.
+
+It is the [Console page](/interface/console)'s console, not a smaller version of
+it: the same transcript, the same command history, the same filters, and the
+same command browser. A filter or a prompt position set in either place holds in
+both. Its height follows the **Visible lines** setting in its own settings
+panel.
+
+**Console** in the page heading puts it away and brings it back.
+
+::: info Config changes are still written from the header
+A calibration stages a change rather than writing it. The header's
+[**Save new config**](/interface/configuration) control appears when something
+is waiting, says what would be written, and writes it.
+:::
 
 ## Watching a mesh being probed
 
@@ -98,6 +136,35 @@ probing, including closing the window: a **Bed screws** control appears in
 the header while a round is waiting. See
 [the Movement module](/interface/modules#bed-levelling) for more information.
 
+## Homing and levelling
+
+**Axes & frame** carries the movement controls: home one axis or all of them,
+jog, park, run whichever levelling procedure your printer is configured for
+(`QUAD_GANTRY_LEVEL`, `Z_TILT_ADJUST`, `SCREWS_TILT_CALCULATE`,
+`BED_SCREWS_ADJUST`, `DELTA_CALIBRATE`), read the screw turns Klipper answers
+with, and set the Z offset.
+
+These are the same controls as the
+[Movement dashboard module](/interface/modules#movement), sharing its settings —
+a jog step or park position changed in either place holds in both.
+
+Jogging matters here for a specific reason: **probe accuracy** probes wherever
+the toolhead currently sits. Positioning the toolhead first is part of that
+check, and it happens on the same page.
+
+## Heater models
+
+**Heaters** runs `PID_CALIBRATE` or `MPC_CALIBRATE` per heater, whichever the
+heater is configured for. The temperature chart sits beside it, because the run
+drives the heater through its own heat-up cycle for several minutes and the
+climb curve is how you see it behaving.
+
+A bang-bang (`watermark`) heater has no constants to fit, so it is not offered.
+Calibration is refused while a job is loaded, not only while one is printing: the
+heat-up cycle ends a paused print as surely as it ruins a running one.
+
+The result is staged, not written. Save it from the header.
+
 ## Endstops
 
 The live state of every endstop the printer reports: **Triggered**,
@@ -129,6 +196,13 @@ This section appears only on a printer with a probe. If the probe's offset
 would carry it off the bed from the toolhead's current position, the page
 states this and the control waits instead of failing mid-run.
 
+## Extrusion
+
+**Extrusion** carries pressure advance and its smoothing time, the retraction
+figures, and the extrude and retract controls a pressure-advance check needs to
+push filament through. Same controls and same settings as the
+[Extruder dashboard module](/interface/modules#extruder).
+
 ## Runout sensors
 
 Shows every filament sensor the printer reports, as **Filament loaded** or
@@ -155,8 +229,9 @@ folder.
 
 Open any of them at full size.
 
-Tuning results appear in the interface next to the mesh you are comparing
-them with, instead of in a folder you have to locate separately.
+Tuning results appear in the interface, on the same destination as the mesh and
+the belts you are comparing them against, instead of in a folder you have to
+locate separately.
 
 ::: info Generated by Shake&Tune
 These graphs come from the Shake&Tune tooling. Alabaster reads the files
