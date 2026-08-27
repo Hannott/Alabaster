@@ -631,6 +631,11 @@ option {
  * anywhere. The four value-field selectors share the border defined for
  * `.field` in the rule below but are not `.field` themselves, so they are
  * named again here rather than inheriting a ring they were never given.
+ * `.jog-pivot` is the same case: a bespoke shape (outlier 2 in
+ * button-system.md) rather than a `.button`, but it carries the same real 1px
+ * border every other member of this list does, so it was left showing the
+ * browser's own default ring — measured as an unrelated amber, against every
+ * other control's blue `--focus-ring` — until it was added here.
  */
 .button:focus-visible,
 .field:focus-visible,
@@ -641,7 +646,8 @@ input[type='checkbox']:focus-visible,
 input[type='radio']:focus-visible,
 .header-status:focus-visible,
 .app-select__panel:focus-visible,
-.update-console:focus-visible {
+.update-console:focus-visible,
+.jog-pivot:focus-visible {
   outline: none;
   border-color: var(--focus-ring);
 }
