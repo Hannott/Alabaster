@@ -429,27 +429,125 @@ describe('history store', () => {
     })
   })
 
-  it('reloads when Moonraker says the history changed', async () => {
-    const moonraker = useMoonrakerStore()
-    const rpcCall = mockRpc([job()])
-    const handlers: Array<() => void> = []
-    vi.spyOn(moonraker, 'onNotification').mockImplementation(((
-      name: string,
-      handler: () => void,
-    ) => {
-      if (name === 'notify_history_changed') handlers.push(handler)
-      return () => undefined
-    }) as never)
-    const history = useHistoryStore()
+  /**
+   * The window refetch this used to trigger is the expensive read on the whole
+   * surface — 263 KB and 125 ms against a real printer's 90-day period — and
+   * the notification carries the job that changed, so none of these assertions
+   * are about a nicety. `jobs` keeping its extra pages is the same fact from
+   * the user's side: pressing "Load more" four times and then starting a print
+   * must not put the list back to page one.
+   */
+  describe('applying a history-changed notification', () => {
+    function startWithNotifications() {
+      const moonraker = useMoonrakerStore()
+      const handlers: Array<(notification: unknown) => void> = []
+      vi.spyOn(moonraker, 'onNotification').mockImplementation(((
+        name: string,
+        handler: (notification: unknown) => void,
+      ) => {
+        if (name === 'notify_history_changed') handlers.push(handler)
+        return () => undefined
+      }) as never)
+      return { handlers }
+    }
 
-    history.start()
-    const callsAfterStart = rpcCall.mock.calls.length
-    expect(handlers).toHaveLength(1)
+    function changed(action: string, payloadJob: unknown) {
+      return {
+        jsonrpc: '2.0',
+        method: 'notify_history_changed',
+        params: [{ action, job: payloadJob }],
+      }
+    }
 
-    handlers[0]!()
-    await Promise.resolve()
+    it('adds the job it was sent without re-reading the list or the window', async () => {
+      const rpcCall = mockRpc([job()])
+      const { handlers } = startWithNotifications()
+      const history = useHistoryStore()
 
-    expect(rpcCall.mock.calls.length).toBeGreaterThan(callsAfterStart)
-    history.stop()
+      history.start()
+      await Promise.resolve()
+      await Promise.resolve()
+      rpcCall.mockClear()
+
+      handlers[0]!(changed('added', job({ job_id: '000002', filename: 'prints/next.gcode' })))
+      await Promise.resolve()
+
+      const methods = rpcCall.mock.calls.map((call) => call[0])
+      expect(methods).not.toContain('server.history.list')
+      expect(methods).toContain('server.history.totals')
+      expect(history.jobs.map((entry) => entry.id)).toEqual(['000002', '000001'])
+      expect(history.windowJobs.map((entry) => entry.id)).toEqual(['000002', '000001'])
+      history.stop()
+    })
+
+    it('replaces the record in place when the same job finishes', async () => {
+      mockRpc([job()])
+      const { handlers } = startWithNotifications()
+      const history = useHistoryStore()
+
+      history.start()
+      await Promise.resolve()
+      await Promise.resolve()
+
+      handlers[0]!(
+        changed('added', job({ job_id: '000002', status: 'in_progress', end_time: null })),
+      )
+      await Promise.resolve()
+      expect(history.jobs[0]).toMatchObject({ id: '000002', outcome: 'unknown' })
+
+      handlers[0]!(changed('finished', job({ job_id: '000002', status: 'completed' })))
+      await Promise.resolve()
+
+      expect(history.jobs).toHaveLength(2)
+      expect(history.jobs[0]).toMatchObject({ id: '000002', outcome: 'completed' })
+      history.stop()
+    })
+
+    /**
+     * The list offset `loadMore` passes is `jobs.length`, so an inserted job
+     * has to leave that equal to the number of records the server holds ahead
+     * of the next page — otherwise the next page arrives one job short or one
+     * job duplicated.
+     */
+    it('keeps loadMore asking for the right offset after an insertion', async () => {
+      const firstPage = Array.from({ length: historyPageSize }, (_unused, index) =>
+        job({ job_id: `page1-${index}` }),
+      )
+      const rpcCall = mockRpc(firstPage, historyPageSize)
+      const { handlers } = startWithNotifications()
+      const history = useHistoryStore()
+
+      history.start()
+      await Promise.resolve()
+      await Promise.resolve()
+      expect(history.hasMore).toBe(true)
+
+      handlers[0]!(changed('added', job({ job_id: 'fresh' })))
+      await Promise.resolve()
+      rpcCall.mockClear()
+
+      await history.loadMore()
+
+      const listCall = rpcCall.mock.calls.find((call) => call[0] === 'server.history.list')
+      expect(listCall?.[1]).toMatchObject({ start: historyPageSize + 1 })
+      history.stop()
+    })
+
+    it('falls back to re-reading both when the payload is not a job change', async () => {
+      const rpcCall = mockRpc([job()])
+      const { handlers } = startWithNotifications()
+      const history = useHistoryStore()
+
+      history.start()
+      await Promise.resolve()
+      await Promise.resolve()
+      rpcCall.mockClear()
+
+      handlers[0]!(changed('rearranged', null))
+      await Promise.resolve()
+
+      expect(rpcCall.mock.calls.map((call) => call[0])).toContain('server.history.list')
+      history.stop()
+    })
   })
 })

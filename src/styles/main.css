@@ -10924,6 +10924,26 @@ body.machine-editor-fullscreen-open {
   gap: 0.65rem;
   min-height: 2.75rem;
   padding: 0.4rem 0.65rem;
+  /*
+   * "Load more" has no ceiling, so this list is the one place in the product
+   * whose element count is set by how long the user keeps pressing a button.
+   * A thousand rows is 51 000 px of layout and paint for the forty rows on
+   * screen; skipping the rest is what keeps scrolling and every re-render flat
+   * as the list grows.
+   *
+   * The intrinsic size is stated rather than guessed, because a wrong one
+   * moves the scrollbar as rows come into view: the name never wraps
+   * (`.history-job__name` is `nowrap`), so every row is exactly `min-height`
+   * tall, and `contain-intrinsic-block-size` measures the content box — hence
+   * `min-height` minus this rule's own block padding, written as the
+   * subtraction so that changing either number keeps them in step. Getting
+   * that wrong is not subtle but it is silent: assuming the border-box height
+   * here added the padding twice and stretched a thousand rows by 13 px each.
+   * `auto` then lets the browser keep each row's real measured size once it
+   * has rendered it, so nothing moves afterwards either.
+   */
+  content-visibility: auto;
+  contain-intrinsic-block-size: auto calc(2.75rem - 0.8rem);
 }
 
 .history-job:hover:not(:disabled) {

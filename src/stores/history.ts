@@ -3,6 +3,7 @@ import { computed, ref, watch, type WatchStopHandle } from 'vue'
 
 import { historyPeriods, periodSince, type HistoryPeriod } from '@/features/history/statistics'
 import type {
+  JsonRpcNotification,
   MoonrakerHistoryAuxiliaryData,
   MoonrakerHistoryAuxiliaryTotal,
   MoonrakerHistoryJob,
@@ -209,6 +210,45 @@ function readTotals(
   }
 }
 
+/**
+ * The job `notify_history_changed` is about, when it is about one this store
+ * can apply directly. Moonraker sends `{action, job}`: `added` when a print
+ * starts and `finished` when it ends, both carrying the same record shape
+ * `server.history.list` returns. Anything else — an unknown action, a missing
+ * job, a record with no id — returns `null`, and the caller re-reads the
+ * server instead of guessing.
+ */
+function readHistoryChange(
+  notification: JsonRpcNotification,
+): { action: 'added' | 'finished'; job: HistoryJob } | null {
+  const payload = notification?.params?.[0]
+  if (!isRecord(payload)) return null
+  const action = payload.action
+  if (action !== 'added' && action !== 'finished') return null
+  if (!isRecord(payload.job)) return null
+  const job = readJob(payload.job as unknown as MoonrakerHistoryJob)
+  return job.id === '' ? null : { action, job }
+}
+
+/**
+ * Replaces the record with this id, or puts the job at the front.
+ *
+ * Front is right for a job Moonraker has just added: both arrays are
+ * descending by time and a newly started print is the newest record that
+ * exists, so prepending keeps the order and keeps `jobs.length` equal to the
+ * number of records the server holds ahead of the next page — which is what
+ * `loadMore` passes as its `start` offset. A `finished` notification arrives
+ * for a job `added` already put there, so it lands on the replace path and the
+ * length does not move.
+ */
+function upsertJob(list: readonly HistoryJob[], job: HistoryJob): HistoryJob[] {
+  const index = list.findIndex((entry) => entry.id === job.id)
+  if (index < 0) return [job, ...list]
+  const next = [...list]
+  next[index] = job
+  return next
+}
+
 const periodStorageKey = 'alabaster.history.period.v1'
 const defaultPeriod: HistoryPeriod = '90d'
 
@@ -356,6 +396,22 @@ export const useHistoryStore = defineStore('history', () => {
   }
 
   /**
+   * The lifetime counters on their own. Small, and the only part of this store
+   * that cannot be derived from a job record — `longestJob` and `longestPrint`
+   * are aggregates over history the client never holds all of.
+   */
+  async function refreshTotals(): Promise<void> {
+    if (!availability.isMoonrakerConnected) return
+    try {
+      const totalsResult = await moonraker.rpcCall('server.history.totals')
+      totals.value = readTotals(totalsResult?.job_totals, totalsResult?.auxiliary_totals)
+    } catch {
+      // Leaves the last known totals in place: a counter one print behind is
+      // worth more than a card that has gone blank.
+    }
+  }
+
+  /**
    * Removes one job from the history. Deliberately not offered for "all": the
    * totals are the only record of a printer's working life, and one mis-aimed
    * click should not be able to end it.
@@ -381,6 +437,35 @@ export const useHistoryStore = defineStore('history', () => {
       failed.value = true
       return false
     }
+  }
+
+  /**
+   * Applies the notification rather than re-reading the server for it.
+   *
+   * Re-reading meant two requests per print event, one of them the entire
+   * statistics window — measured against a real printer at 270 jobs, 263 KB
+   * and 125 ms for a 90-day period, and proportionally worse for a farm
+   * printer on "all time". It also replaced `jobs` with a fresh first page,
+   * which threw away every extra page the user had pressed "Load more" for and
+   * re-rendered the whole list, twice per print. None of that bought anything:
+   * the notification carries the changed job itself.
+   *
+   * Lifetime totals are still re-read, because they are aggregates only the
+   * server can recompute — the same reason `deleteJob` re-reads them — and
+   * they are two hundred bytes rather than a window. A payload this cannot
+   * read falls back to the full pair of reads, so an unexpected Moonraker
+   * shape degrades to the old behaviour instead of to a stale page.
+   */
+  function handleHistoryChanged(notification: JsonRpcNotification): void {
+    const change = readHistoryChange(notification)
+    if (!change) {
+      void refresh()
+      void refreshWindow()
+      return
+    }
+    jobs.value = upsertJob(jobs.value, change.job)
+    windowJobs.value = upsertJob(windowJobs.value, change.job)
+    void refreshTotals()
   }
 
   /** Another printer's job log misattributes every print on it; it goes too. */
@@ -414,10 +499,10 @@ export const useHistoryStore = defineStore('history', () => {
     // the notification that says so — for the job list and for the statistics
     // window both.
     try {
-      stopHistoryNotifications = moonraker.onNotification('notify_history_changed', () => {
-        void refresh()
-        void refreshWindow()
-      })
+      stopHistoryNotifications = moonraker.onNotification(
+        'notify_history_changed',
+        handleHistoryChanged,
+      )
     } catch {
       stopHistoryNotifications = null
     }

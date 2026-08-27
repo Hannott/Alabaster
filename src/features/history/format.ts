@@ -7,6 +7,8 @@
  * once rather than drifting out of sync one caller at a time.
  */
 
+import { numberFormat } from '@/utils/intl'
+
 type Translate = (key: string, params?: Record<string, unknown>) => string
 
 export function formatHistoryDuration(seconds: number, t: Translate): string {
@@ -21,6 +23,6 @@ export function formatHistoryDuration(seconds: number, t: Translate): string {
 
 export function formatHistoryFilament(millimetres: number, t: Translate, locale: string): string {
   if (!Number.isFinite(millimetres) || millimetres <= 0) return t('history.noValue')
-  const formatter = new Intl.NumberFormat(locale, { maximumFractionDigits: 1 })
+  const formatter = numberFormat(locale, { maximumFractionDigits: 1 })
   return t('history.filamentValue', { value: formatter.format(millimetres / 1000) })
 }

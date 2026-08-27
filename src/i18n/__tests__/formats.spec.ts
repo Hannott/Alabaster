@@ -65,6 +65,27 @@ describe('formats', () => {
     expect(createDateTimeFormatter('en-US').format(referenceDate)).toContain('15:45')
   })
 
+  /**
+   * The formatters behind these are memoized (`src/utils/intl.ts`), so the one
+   * way that could go wrong is a cache key that does not carry the mode: the
+   * second read would then hand back the first mode's formatter. Switching
+   * modes inside a single session and formatting the same locale twice is the
+   * test that catches it.
+   */
+  it('follows a mode changed after a value has already been formatted', async () => {
+    const { createTimeFormatter, createDateFormatter, useDateTimeFormatMode } =
+      await import('@/i18n/formats')
+    const mode = useDateTimeFormatMode()
+
+    expect(createTimeFormatter('en-GB').format(referenceDate)).toBe('15:45')
+    mode.setTimeMode('h12')
+    expect(createTimeFormatter('en-GB').format(referenceDate)).toContain('3:45')
+
+    expect(createDateFormatter('en-GB').format(referenceDate)).toBe('5 Jan 2026')
+    mode.setDateMode('iso')
+    expect(createDateFormatter('en-GB').format(referenceDate)).toBe('2026-01-05')
+  })
+
   it('persists both modes across a reload', async () => {
     const first = await import('@/i18n/formats')
     first.useDateTimeFormatMode().setTimeMode('h12')

@@ -5,10 +5,12 @@ import { useI18n } from 'vue-i18n'
 import AppIcon from '@/components/AppIcon.vue'
 import AvailabilityRegion from '@/components/AvailabilityRegion.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
+import HistoryJobRow from '@/components/history/HistoryJobRow.vue'
 import HistoryTrendChart from '@/components/history/HistoryTrendChart.vue'
 import PageHeading from '@/components/PageHeading.vue'
 import { useAvailability } from '@/composables/useAvailability'
 import { formatHistoryDuration, formatHistoryFilament } from '@/features/history/format'
+import { historyOutcomeIcon } from '@/features/history/outcome'
 import {
   historyPeriods,
   historyTrend,
@@ -131,19 +133,6 @@ function outcomeShareLabel(entry: OutcomeBreakdown): string {
   return percentFormatter.value.format(outcomeMeasureValue(entry, measure.value) / total)
 }
 
-function outcomeIcon(outcome: OutcomeBreakdown['outcome']): 'check' | 'close' | 'help' | 'warning' {
-  switch (outcome) {
-    case 'completed':
-      return 'check'
-    case 'cancelled':
-      return 'close'
-    case 'unknown':
-      return 'help'
-    default:
-      return 'warning'
-  }
-}
-
 /**
  * States its own population rather than letting a bare number imply one: "90
  * days" and "all time" both need to say what they cover, since neither is
@@ -162,19 +151,27 @@ const periodJobCountLabel = computed(() => {
  * ...]` section that declared it, which may no longer exist. A total whose
  * declaration is gone still degrades to its own field name rather than
  * disappearing or rendering `undefined`.
+ *
+ * Resolved once per total in a computed rather than per read in the template:
+ * matching a declaration is a scan of every declared field, and the template
+ * needed the description and the formatted value separately, so a function
+ * called from the markup ran that scan twice for every row on every render of
+ * the page.
  */
-function auxiliaryTotalLabel(total: HistoryAuxiliaryTotal): { description: string; units: string } {
-  const declaration = printerConfig.historyFields.find(
-    (field) => field.provider === total.provider && field.field === total.field,
-  )
-  return { description: declaration?.description ?? total.field, units: declaration?.units ?? '' }
-}
-
-function formatAuxiliaryTotal(total: HistoryAuxiliaryTotal): string {
-  const { units } = auxiliaryTotalLabel(total)
-  const value = numberFormatter.value.format(total.total)
-  return units ? `${value} ${units}` : value
-}
+const auxiliaryTotalRows = computed(() =>
+  history.totals.auxiliaryTotals.map((total: HistoryAuxiliaryTotal) => {
+    const declaration = printerConfig.historyFields.find(
+      (field) => field.provider === total.provider && field.field === total.field,
+    )
+    const units = declaration?.units ?? ''
+    const value = numberFormatter.value.format(total.total)
+    return {
+      key: `${total.provider}-${total.field}`,
+      description: declaration?.description ?? total.field,
+      value: units ? `${value} ${units}` : value,
+    }
+  }),
+)
 
 /**
  * Spool ids are the one auxiliary shape every printer with Alabaster's own
@@ -326,13 +323,9 @@ function requestReprint(job: HistoryJob): void {
               Only ever what a `[sensor ...]` section actually declared — a
               printer with none renders no extra rows at all.
             -->
-            <div
-              v-for="total in history.totals.auxiliaryTotals"
-              :key="`${total.provider}-${total.field}`"
-              class="history-total"
-            >
-              <dt>{{ auxiliaryTotalLabel(total).description }}</dt>
-              <dd>{{ formatAuxiliaryTotal(total) }}</dd>
+            <div v-for="total in auxiliaryTotalRows" :key="total.key" class="history-total">
+              <dt>{{ total.description }}</dt>
+              <dd>{{ total.value }}</dd>
             </div>
           </dl>
         </section>
@@ -403,7 +396,7 @@ function requestReprint(job: HistoryJob): void {
                     :class="`history-job__outcome--${entry.outcome}`"
                   >
                     <AppIcon
-                      :name="outcomeIcon(entry.outcome)"
+                      :name="historyOutcomeIcon(entry.outcome)"
                       class="size-3.5"
                       aria-hidden="true"
                     />
@@ -475,32 +468,11 @@ function requestReprint(job: HistoryJob): void {
             <div class="history-jobs-browser">
               <ul class="history-jobs">
                 <li v-for="job in history.jobs" :key="job.id">
-                  <button
-                    type="button"
-                    class="file-select history-job"
-                    :class="{ 'history-job--selected': job.id === selectedJob?.id }"
-                    :aria-current="job.id === selectedJob?.id ? 'true' : undefined"
-                    @click="selectJob(job)"
-                  >
-                    <!-- Word and shape, never the colour alone. -->
-                    <span
-                      class="history-job__outcome"
-                      :class="`history-job__outcome--${job.outcome}`"
-                    >
-                      <AppIcon
-                        :name="outcomeIcon(job.outcome)"
-                        class="size-3.5"
-                        aria-hidden="true"
-                      />
-                      {{ t(`history.outcome.${job.outcome}`) }}
-                    </span>
-                    <span class="history-job__name" :title="job.filename">{{
-                      shortName(job.filename)
-                    }}</span>
-                    <span class="history-job__when">{{
-                      formatWhen(job.endedAt ?? job.startedAt)
-                    }}</span>
-                  </button>
+                  <HistoryJobRow
+                    :job="job"
+                    :selected="job.id === selectedJob?.id"
+                    @select="selectJob(job)"
+                  />
                 </li>
               </ul>
 
@@ -551,7 +523,7 @@ function requestReprint(job: HistoryJob): void {
                 :class="`history-job__outcome--${selectedJob.outcome}`"
               >
                 <AppIcon
-                  :name="outcomeIcon(selectedJob.outcome)"
+                  :name="historyOutcomeIcon(selectedJob.outcome)"
                   class="size-3.5"
                   aria-hidden="true"
                 />

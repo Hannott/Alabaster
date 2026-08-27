@@ -1,5 +1,7 @@
 import { readonly, ref } from 'vue'
 
+import { dateTimeFormat } from '@/utils/intl'
+
 /** `auto` follows the active locale's own convention; the other two force a cycle regardless of locale. */
 export type TimeFormatMode = 'auto' | 'h23' | 'h12'
 
@@ -150,17 +152,17 @@ export function formatCustomToken(token: string, date: Date, locale: string): st
     case 'm':
       return `${date.getMonth() + 1}`
     case 'mmm':
-      return new Intl.DateTimeFormat(locale, { month: 'short' }).format(date)
+      return dateTimeFormat(locale, { month: 'short' }).format(date)
     case 'mmmm':
-      return new Intl.DateTimeFormat(locale, { month: 'long' }).format(date)
+      return dateTimeFormat(locale, { month: 'long' }).format(date)
     case 'dd':
       return `${date.getDate()}`.padStart(2, '0')
     case 'd':
       return `${date.getDate()}`
     case 'ddd':
-      return new Intl.DateTimeFormat(locale, { weekday: 'short' }).format(date)
+      return dateTimeFormat(locale, { weekday: 'short' }).format(date)
     case 'dddd':
-      return new Intl.DateTimeFormat(locale, { weekday: 'long' }).format(date)
+      return dateTimeFormat(locale, { weekday: 'long' }).format(date)
     default:
       return token
   }
@@ -268,9 +270,9 @@ function formatDate(
   customPattern: string,
 ): string {
   const date = new Date(value)
-  if (mode === 'auto') return new Intl.DateTimeFormat(appLocale, dateIntlOptions(opts)).format(date)
+  if (mode === 'auto') return dateTimeFormat(appLocale, dateIntlOptions(opts)).format(date)
   if (mode === 'browser') {
-    return new Intl.DateTimeFormat(browserLocale(), dateIntlOptions(opts)).format(date)
+    return dateTimeFormat(browserLocale(), dateIntlOptions(opts)).format(date)
   }
   if (mode === 'custom') return formatCustomPattern(customPattern, date, appLocale)
   return formatFixedPattern(date, mode, opts.style === 'short')
@@ -286,8 +288,14 @@ export interface DateFormatterLike {
   format(date: Date | number): string
 }
 
+/**
+ * The returned formatter is shared rather than freshly built — see
+ * `src/utils/intl.ts` for why, and note that this is safe only because an
+ * `Intl` formatter is immutable. The name stays `create` because what a caller
+ * gets back is unchanged: a formatter for the mode in force when it asked.
+ */
 export function createTimeFormatter(locale: string, opts: TimeOptions = {}): Intl.DateTimeFormat {
-  return new Intl.DateTimeFormat(locale, timeIntlOptions(timeMode.value, opts))
+  return dateTimeFormat(locale, timeIntlOptions(timeMode.value, opts))
 }
 
 export function createDateFormatter(locale: string, opts: DateOptions = {}): DateFormatterLike {
@@ -306,7 +314,7 @@ export function createDateTimeFormatter(locale: string, opts: DateOptions = {}):
 
 /** Renders what `mode` would look like right now, without touching the applied mode — the picker's own example column. */
 export function previewTimeFormat(mode: TimeFormatMode, locale: string, date: Date): string {
-  return new Intl.DateTimeFormat(locale, timeIntlOptions(mode, {})).format(date)
+  return dateTimeFormat(locale, timeIntlOptions(mode, {})).format(date)
 }
 
 /** Same as `previewTimeFormat`, for the date picker; `pattern` only matters when `mode` is `'custom'`. */

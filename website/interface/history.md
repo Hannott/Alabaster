@@ -66,6 +66,10 @@ The full list, newest first, with **Load older jobs** at the end. It pages on
 what was actually returned rather than a count, so nothing is skipped at a
 boundary.
 
+Pages you have loaded stay loaded. A print starting or finishing adds it to the
+top of the list you already have, so paging back through a long history is not
+undone by the printer finishing a job while you read.
+
 Each row shows its file, outcome, and when it ran. Click a job to see its
 duration and filament used, and the spool it came from, for jobs that used a
 Spoolman spool.

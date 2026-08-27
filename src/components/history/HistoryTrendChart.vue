@@ -143,17 +143,26 @@ const description = computed(() => {
  */
 const hoveredIndex = ref<number | null>(null)
 
-function bucketAriaLabel(index: number): string {
-  const bucket = props.buckets[index]
-  if (!bucket) return ''
-  const range = t('history.stats.trend.tooltipRange', {
-    start: dateFormatter.value.format(bucket.start * 1000),
-    end: dateFormatter.value.format((bucket.end - 1) * 1000),
-  })
-  const completed = t('history.stats.trend.tooltipCompleted')
-  const notCompleted = t('history.stats.trend.tooltipNotCompleted')
-  return `${range}: ${completed} ${rawValueLabel(bucket, 'completed')}, ${notCompleted} ${rawValueLabel(bucket, 'notCompleted')}`
-}
+/**
+ * Built once per bucket set rather than per hit target per render. Hovering a
+ * column changes `hoveredIndex`, which re-renders this component, and a label
+ * function called from the template would rebuild every bucket's sentence —
+ * two formatted values and a formatted date range each — on every one of those
+ * renders, for a string that only the focused target ever reads out. At the 500
+ * buckets `historyTrend`'s own backstop allows, that is the difference between
+ * a hover costing nothing and a hover costing the whole axis.
+ */
+const bucketLabels = computed(() =>
+  props.buckets.map((bucket) => {
+    const range = t('history.stats.trend.tooltipRange', {
+      start: dateFormatter.value.format(bucket.start * 1000),
+      end: dateFormatter.value.format((bucket.end - 1) * 1000),
+    })
+    const completed = t('history.stats.trend.tooltipCompleted')
+    const notCompleted = t('history.stats.trend.tooltipNotCompleted')
+    return `${range}: ${completed} ${rawValueLabel(bucket, 'completed')}, ${notCompleted} ${rawValueLabel(bucket, 'notCompleted')}`
+  }),
+)
 
 /** Formatted from the bucket's own stored units, never from the axis-scaled values, so rounding for display never compounds with rounding for the grid. */
 function rawValueLabel(bucket: HistoryBucket, kind: 'completed' | 'notCompleted'): string {
@@ -273,7 +282,7 @@ const tooltip = computed(() => {
           :height="plotHeight"
           tabindex="0"
           role="img"
-          :aria-label="bucketAriaLabel(index)"
+          :aria-label="bucketLabels[index]"
           @mouseenter="hoveredIndex = index"
           @mouseleave="hoveredIndex = null"
           @focus="hoveredIndex = index"
