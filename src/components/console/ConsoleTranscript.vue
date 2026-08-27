@@ -318,6 +318,12 @@ defineExpose({ scrollToNewest })
       // away from the prompt sitting right above it.
       'gcode-console--anchored': !newestFirst,
       'gcode-console--edge-released': edgeReleased,
+      // The far edge fades — the one the prompt is not sitting against. A
+      // bottom-fed transcript (the default) feeds new lines in at the bottom,
+      // so history runs off the top; newest-first flips both the feed and the
+      // fade to the bottom.
+      'gcode-console--fade-top': !newestFirst,
+      'gcode-console--fade-bottom': newestFirst,
     }"
     :style="lines === null ? undefined : { '--console-lines': lines }"
     role="log"

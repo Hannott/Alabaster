@@ -6441,6 +6441,38 @@ input.z-axis__slider {
 }
 
 /*
+ * The edge farthest from the prompt fades over about half a line, set from
+ * ConsoleTranscript.vue's own `newestFirst`, so a transcript with more history
+ * than fits reads as continuing past the box rather than ending in a hard-cut
+ * line. `mask-image` rather than a fading overlay element, so the fade needs
+ * no extra markup and tracks the transcript's own background — the panel or
+ * card behind it, per the two `.gcode-console { background: none }` rules
+ * above — instead of hard-coding a colour of its own that would drift the
+ * moment either surface's background changed.
+ *
+ * The gradient's own two stops are stated in the line-box unit so `compact`
+ * mode's shorter line keeps the same "about half a line" proportion rather
+ * than a fixed pixel band that reads as too tall once lines pack closer.
+ */
+.gcode-console--fade-top {
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    black calc(var(--console-line-box) * 0.5)
+  );
+  mask-image: linear-gradient(to bottom, transparent 0, black calc(var(--console-line-box) * 0.5));
+}
+
+.gcode-console--fade-bottom {
+  -webkit-mask-image: linear-gradient(
+    to top,
+    transparent 0,
+    black calc(var(--console-line-box) * 0.5)
+  );
+  mask-image: linear-gradient(to top, transparent 0, black calc(var(--console-line-box) * 0.5));
+}
+
+/*
  * Output fills from the bottom, the way a terminal does: the first line sits on
  * the floor of the box and each later one lands beneath its predecessor, pushing
  * the transcript up rather than growing downward into empty space.
@@ -6819,6 +6851,17 @@ input.z-axis__slider {
   display: flex;
   min-width: 0;
   flex-direction: column;
+}
+
+/*
+ * No fill of its own here either, for the same reason as the page's rule
+ * above: the card is the box the transcript runs full-bleed to, so its
+ * `--surface-raised` should show through rather than the transcript's own
+ * `--surface-soft` reading as a second, visibly different panel nested
+ * inside it.
+ */
+.console-module__body .gcode-console {
+  background: none;
 }
 
 .console-module__body--input-top {

@@ -27,11 +27,9 @@ import { usePrinterStore } from '@/stores/printer'
  * and the approximation it replaced is the reason this component exists: the
  * bench first hosted the *dashboard card* instead, which looked close enough and
  * was not. The card is a glance at the last few lines — it reads its filters
- * from one dashboard instance's configuration, it has no command browser, and
- * its transcript carries a `--surface-soft` fill because on a card it is one
- * inset panel among several rows. Standing alone on a page that fill reads as a
- * box inside a box, and the filters a reader set up on the Console page were
- * simply not the ones they got.
+ * from one dashboard instance's configuration and it has no command browser, and
+ * the filters a reader set up on the Console page were simply not the ones they
+ * got.
  *
  * Sharing this component instead settles all three at once: `useConsoleSettings`
  * is module-level state, so a filter, a timestamp preference or a prompt
