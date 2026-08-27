@@ -2515,9 +2515,28 @@ input[type='number']::-webkit-inner-spin-button {
  * The shell is first in DOM order, so it paints behind with no z-index, and
  * the card stretches the cell while it is here — which is why the shell needs
  * no height of its own until the card docks away.
+ *
+ * `height: auto` overrides the `height: 100%` every `.availability-region__content`
+ * otherwise carries, and a card cannot keep it. Here the region's own height is
+ * the column's, which is sized *from* this content — so `100%` is a percentage
+ * resolved against a parent that is itself waiting on this box. The browser
+ * settles that circle against the previously computed height and does not
+ * re-resolve it when something deep inside the card changes size, so a module
+ * that grows or shrinks on its own — the Temperatures chart's height setting is
+ * the case that found this — left the wrapper, and therefore the whole column,
+ * at the old height. The card looked frozen until an unrelated style
+ * invalidation (moving the pointer off it, which retriggers the `:hover`/`:has()`
+ * pair on `.dashboard-module`) forced a reflow, and then it jumped. Opening the
+ * settings layer always looked correct and hid this, because a
+ * `grid-template-rows` transition re-resolves the percentage on every frame.
+ *
+ * The two regions that genuinely fill their parent — `.machine-availability` and
+ * `.print-files-availability` — declare `height: 100%` themselves, so the base
+ * rule is not what serves them and dropping it here costs them nothing.
  */
 .dashboard-column__item > .availability-region__content {
   display: grid;
+  height: auto;
 }
 
 .dashboard-column__item > .availability-region__content > * {
