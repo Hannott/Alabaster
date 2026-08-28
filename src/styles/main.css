@@ -2822,6 +2822,7 @@ input[type='number']::-webkit-inner-spin-button {
   /* A sensor named in one long token still gets both lines rather than losing
      everything past the first. */
   overflow-wrap: break-word;
+  text-transform: capitalize;
 }
 
 .module-table__value {
@@ -3228,6 +3229,7 @@ input[type='number']::-webkit-inner-spin-button {
   font-weight: var(--font-weight);
   text-overflow: ellipsis;
   white-space: nowrap;
+  text-transform: capitalize;
 }
 
 .sensor-matrix__cell {
@@ -9265,6 +9267,7 @@ select {
 .machine-update-row__name {
   color: var(--text-primary);
   font-size: var(--text-row-name-size);
+  text-transform: capitalize;
 }
 
 .machine-update-row__version,
@@ -11969,6 +11972,7 @@ body.machine-editor-fullscreen-open {
   font-family: var(--font-mono);
   font-size: var(--text-mono-name-size);
   font-weight: var(--font-weight);
+  text-transform: capitalize;
 }
 
 .calibration-endstop__state {
@@ -12045,6 +12049,7 @@ body.machine-editor-fullscreen-open {
   font-family: var(--font-mono);
   font-size: var(--text-mono-name-size);
   font-weight: var(--font-weight);
+  text-transform: capitalize;
 }
 
 .calibration-sensor__state {

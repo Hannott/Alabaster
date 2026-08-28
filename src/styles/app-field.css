@@ -80,10 +80,21 @@
  * container, only on a block-level box, so the icon and the text each need
  * their own box for the icon to stay put while only the words clip.
  */
+/*
+ * Title Case comes from here, not from rewriting the source string, and it
+ * applies at every label position rather than only the notch. A label can come
+ * from `en.json`, but it can just as easily be a fan name, a pin name or a
+ * macro name read straight from the printer's own config, and none of those
+ * are Alabaster's to recase at the source — `exhaust` and `laser` are what
+ * Klipper reports. `AppOutputRow` and `AppSlider` have always done this; this
+ * component did not, and a fan speed that moved from a slider to a field
+ * quietly lost its capital.
+ */
 .app-field__label {
   display: inline-flex;
   align-items: center;
   gap: 0.25rem;
+  text-transform: capitalize;
 }
 
 .app-field__label-icon {
