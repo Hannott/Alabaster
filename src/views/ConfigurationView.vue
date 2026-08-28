@@ -180,13 +180,14 @@ let contentSearchTimer: ReturnType<typeof setTimeout> | null = null
  * image (a snapshot of the whole row, columns and all) in favour of the
  * `.machine-drag-ghost` pill rendered below, which needs a real element to
  * react to the current drop target — a native drag image is fixed at
- * dragstart and neither Chrome nor Safari redraws it afterwards. Created
- * once and preloaded eagerly rather than in onDragStart itself, since a
- * still-loading image has no pixels for the browser to snapshot as blank.
+ * dragstart and neither Chrome nor Safari redraws it afterwards. An
+ * unpainted canvas rather than an image asset: a canvas nobody has drawn to
+ * is fully transparent by definition, with no data URI to get subtly wrong
+ * and nothing to decode or preload before the first drag.
  */
-const dragGhostSuppressionImage = new Image()
-dragGhostSuppressionImage.src =
-  'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBTAA7'
+const dragGhostSuppressionImage = document.createElement('canvas')
+dragGhostSuppressionImage.width = 1
+dragGhostSuppressionImage.height = 1
 
 /** Debounced so content search runs once typing pauses, not once per keystroke. */
 function scheduleContentSearch(): void {
@@ -838,6 +839,7 @@ function onDragStart(event: DragEvent, entry: MachineFileEntry): void {
 }
 
 function onDragEnd(): void {
+  cancelPendingDropTargetClear()
   draggingEntry.value = null
   dropTargetKey.value = null
   dragGhostPosition.value = null
@@ -862,24 +864,73 @@ function canDropOn(entry: MachineFileEntry | 'parent'): boolean {
   return entry.kind === 'directory' && entry.permissions.includes('w')
 }
 
+/**
+ * Pending `dropTargetKey` clear, scheduled one frame out by onDragLeave and
+ * cancelled here so a row that is still the real target is never dropped for
+ * even a frame. dragenter/dragleave fire on every descendant boundary the
+ * pointer crosses — the same reason externalDragDepth exists below — so
+ * moving from a row's own background onto its filename or icon fires a
+ * genuine dragleave on the row before the following dragover (which bubbles
+ * up from that same descendant) re-affirms it. Clearing immediately on that
+ * dragleave read as the row blinking to "drop denied" at that boundary; this
+ * cancels the clear before it ever reaches dropTargetKey.
+ */
+let dropTargetClearFrame: number | null = null
+
+function cancelPendingDropTargetClear(): void {
+  if (dropTargetClearFrame === null) return
+  cancelAnimationFrame(dropTargetClearFrame)
+  dropTargetClearFrame = null
+}
+
+function activateDropTarget(entry: MachineFileEntry | 'parent'): void {
+  cancelPendingDropTargetClear()
+  dropTargetKey.value = entry === 'parent' ? 'parent' : entryKey(entry)
+}
+
+/**
+ * Bound to both dragenter and dragover on a row — identically, since both
+ * ask the same question ("can this land here right now?"). dragenter fires
+ * on whichever descendant the pointer newly lands on (a row's own filename
+ * or icon counts), and an unhandled dragenter leaves the browser's own drag
+ * cursor at "no drop" until something else prevents default; the bubbled
+ * dragover that follows was already prevented here, but that recovers this
+ * function's own dropTargetKey without necessarily recovering the browser's
+ * cursor, which is what was still flashing denied at that same boundary.
+ */
 function onDragOver(event: DragEvent, entry: MachineFileEntry | 'parent'): void {
   if (isExternalFileDrag(event)) {
     if (!canDropExternalOn(entry)) return
     event.preventDefault()
     if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy'
-    dropTargetKey.value = entry === 'parent' ? 'parent' : entryKey(entry)
+    activateDropTarget(entry)
     return
   }
   if (!canDropOn(entry)) return
   // Preventing default is what marks this element as a valid drop target.
   event.preventDefault()
   if (event.dataTransfer) event.dataTransfer.dropEffect = 'move'
-  dropTargetKey.value = entry === 'parent' ? 'parent' : entryKey(entry)
+  activateDropTarget(entry)
 }
 
-function onDragLeave(entry: MachineFileEntry | 'parent'): void {
+function onDragLeave(event: DragEvent, entry: MachineFileEntry | 'parent'): void {
   const key = entry === 'parent' ? 'parent' : entryKey(entry)
-  if (dropTargetKey.value === key) dropTargetKey.value = null
+  if (dropTargetKey.value !== key) return
+  // relatedTarget names the element the pointer is entering. When it is
+  // still inside this row — its filename, its icon — nothing has actually
+  // been left, and the row-level dragenter that follows never reaches this
+  // handler to say so, since dragleave and dragenter fire on separate
+  // elements. The animation-frame defer below is only a fallback for the
+  // rare case a browser reports no relatedTarget at all (leaving the window
+  // entirely, for instance).
+  const related = event.relatedTarget
+  const row = event.currentTarget
+  if (row instanceof Node && related instanceof Node && row.contains(related)) return
+  cancelPendingDropTargetClear()
+  dropTargetClearFrame = requestAnimationFrame(() => {
+    dropTargetClearFrame = null
+    if (dropTargetKey.value === key) dropTargetKey.value = null
+  })
 }
 
 async function onDrop(event: DragEvent, target: MachineFileEntry | 'parent'): Promise<void> {
@@ -891,6 +942,7 @@ async function onDrop(event: DragEvent, target: MachineFileEntry | 'parent'): Pr
     event.stopPropagation()
     const files = [...(event.dataTransfer?.files ?? [])]
     const allowed = canDropExternalOn(target)
+    cancelPendingDropTargetClear()
     dropTargetKey.value = null
     if (!allowed || files.length === 0) return
     const directory = target === 'parent' ? parentPath.value : entryPathOf(target)
@@ -1656,6 +1708,7 @@ onBeforeUnmount(() => {
   window.removeEventListener('keyup', updateLinkModifierState)
   window.removeEventListener('blur', clearLinkModifierState)
   window.removeEventListener('dragover', trackDragGhost)
+  cancelPendingDropTargetClear()
   document.body.classList.remove('machine-editor-fullscreen-open')
   if (explorerResizeTimer) clearTimeout(explorerResizeTimer)
   if (contentSearchTimer) clearTimeout(contentSearchTimer)
@@ -1987,8 +2040,9 @@ onBeforeUnmount(() => {
                 "
                 :data-drop-target="dropTargetKey === 'parent' ? 'true' : undefined"
                 @click="navigateTo(parentPath)"
+                @dragenter="onDragOver($event, 'parent')"
                 @dragover="onDragOver($event, 'parent')"
-                @dragleave="onDragLeave('parent')"
+                @dragleave="onDragLeave($event, 'parent')"
                 @drop="onDrop($event, 'parent')"
               >
                 <span class="machine-file-name">
@@ -2047,8 +2101,9 @@ onBeforeUnmount(() => {
                 @contextmenu.prevent="openContextMenu($event, entry)"
                 @dragstart="onDragStart($event, entry)"
                 @dragend="onDragEnd"
+                @dragenter="onDragOver($event, entry)"
                 @dragover="onDragOver($event, entry)"
-                @dragleave="onDragLeave(entry)"
+                @dragleave="onDragLeave($event, entry)"
                 @drop="onDrop($event, entry)"
               >
                 <span class="machine-file-name">
