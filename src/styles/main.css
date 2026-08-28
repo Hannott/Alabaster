@@ -2391,6 +2391,22 @@ input[type='number']::-webkit-inner-spin-button {
   grid-template-columns: var(--dashboard-column-template, repeat(3, minmax(0, 1fr)));
   gap: var(--dashboard-column-gap);
   /*
+   * `.standard-page` is a column flex container, so this box is a flex item
+   * whose cross axis is inline size. `margin-inline: auto` below is exactly
+   * the auto-margin case the flexbox spec carves out of stretch: an item with
+   * an auto margin on the cross axis is never stretched, full stop, so without
+   * an explicit `100%` here the grid falls back to shrink-to-fit — sized to
+   * its own content instead of the space it's given. Three dense desktop
+   * columns hide this (their content is usually wide enough that shrink-to-fit
+   * and full-width look the same), but mobile's single column shrink-wraps to
+   * whatever a card's own contents need, landing well short of the screen —
+   * the one dashboard layout this product never allows. `100%` plus the cap
+   * below is the standard responsive-container pair: it fills the flex item
+   * until the cap is reached, and only then does `margin-inline: auto` have
+   * leftover space to center into.
+   */
+  inline-size: 100%;
+  /*
    * The cap belongs to the grid, not to its tracks. Per-track maxima are handed
    * out equally by grid's own sizing once the window is narrower than their sum,
    * which flattens an XS-XL-XS row into three equal columns exactly where the
