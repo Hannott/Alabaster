@@ -740,6 +740,9 @@ const lastSyncedDisplay = computed(() => {
                 autocomplete="off"
                 autocapitalize="none"
                 spellcheck="false"
+                data-1p-ignore
+                data-lpignore="true"
+                data-bwignore
                 aria-describedby="moonraker-endpoint-hint connection-error"
                 :placeholder="t('connection.endpointPlaceholder')"
                 class="field field--block mt-5 font-mono"
@@ -850,6 +853,9 @@ const lastSyncedDisplay = computed(() => {
                 autocomplete="off"
                 autocapitalize="none"
                 spellcheck="false"
+                data-1p-ignore
+                data-lpignore="true"
+                data-bwignore
                 :placeholder="t('printers.addEndpointPlaceholder')"
                 aria-describedby="add-printer-error"
                 class="field field--sm field--block mt-2"
@@ -864,6 +870,9 @@ const lastSyncedDisplay = computed(() => {
                 type="text"
                 autocomplete="off"
                 maxlength="64"
+                data-1p-ignore
+                data-lpignore="true"
+                data-bwignore
                 :placeholder="t('printers.addNamePlaceholder')"
                 class="field field--sm field--block mt-2"
               />
@@ -1313,6 +1322,9 @@ const lastSyncedDisplay = computed(() => {
                     type="text"
                     autocomplete="off"
                     maxlength="64"
+                    data-1p-ignore
+                    data-lpignore="true"
+                    data-bwignore
                     class="field field--sm field--block mt-2 sm:max-w-sm"
                   />
                   <p class="mt-2 text-sm leading-6 text-muted">

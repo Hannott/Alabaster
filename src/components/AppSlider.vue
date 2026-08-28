@@ -281,6 +281,10 @@ function resetToConfigured(): void {
           :max="max"
           :step="step"
           :disabled="disabled"
+          autocomplete="off"
+          data-1p-ignore
+          data-lpignore="true"
+          data-bwignore
           @input="onEntryInput"
           @keydown.enter="onEntryEnter"
           @focus="onEntryFocus"

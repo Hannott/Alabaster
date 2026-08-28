@@ -419,6 +419,10 @@ function onDragEnd(): void {
         type="text"
         class="field"
         :placeholder="t('dashboard.modules.macros')"
+        autocomplete="off"
+        data-1p-ignore
+        data-lpignore="true"
+        data-bwignore
         @change="commitTitle"
       />
     </div>
@@ -453,6 +457,10 @@ function onDragEnd(): void {
         type="search"
         class="field field--on-soft macro-search"
         :placeholder="t('dashboard.macros.searchLabel')"
+        autocomplete="off"
+        data-1p-ignore
+        data-lpignore="true"
+        data-bwignore
       />
       <AppButton
         size="sm"
@@ -531,6 +539,10 @@ function onDragEnd(): void {
             class="field field--sm macro-row__divider-input"
             :value="row.label"
             :placeholder="t('dashboard.macros.dividerLabelField')"
+            autocomplete="off"
+            data-1p-ignore
+            data-lpignore="true"
+            data-bwignore
             @change="commitDividerLabel(row.id, ($event.target as HTMLInputElement).value)"
           />
         </template>

@@ -42,6 +42,9 @@ const matches = computed(() => {
       class="field field--sm field--block console-browser__search"
       :placeholder="t('console.help.search')"
       autocomplete="off"
+      data-1p-ignore
+      data-lpignore="true"
+      data-bwignore
     />
 
     <p v-if="commands.length === 0" class="console-browser__note">

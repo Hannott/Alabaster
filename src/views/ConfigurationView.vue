@@ -1922,6 +1922,10 @@ onBeforeUnmount(() => {
                 v-model="search"
                 type="search"
                 :placeholder="t('configuration.files.search')"
+                autocomplete="off"
+                data-1p-ignore
+                data-lpignore="true"
+                data-bwignore
               />
             </label>
 

@@ -165,6 +165,10 @@ function move(uid: string, offset: number): void {
         type="text"
         class="field"
         :placeholder="t('dashboard.modules.camera')"
+        autocomplete="off"
+        data-1p-ignore
+        data-lpignore="true"
+        data-bwignore
         @change="commitTitle"
       />
     </div>

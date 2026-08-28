@@ -118,6 +118,10 @@ function submitDraft(): void {
           type="text"
           class="field"
           :placeholder="t('dashboard.maintenance.namePlaceholder')"
+          autocomplete="off"
+          data-1p-ignore
+          data-lpignore="true"
+          data-bwignore
         />
       </div>
       <div class="settings-row">
@@ -144,6 +148,10 @@ function submitDraft(): void {
           type="number"
           min="1"
           class="field field--sm"
+          autocomplete="off"
+          data-1p-ignore
+          data-lpignore="true"
+          data-bwignore
         />
       </div>
       <div class="maintenance-form__actions">

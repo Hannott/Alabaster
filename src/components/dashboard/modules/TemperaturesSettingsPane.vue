@@ -294,6 +294,10 @@ function toggleSeries(objectName: string): void {
           v-model="draft.name"
           class="field field--sm"
           :aria-label="t('dashboard.temperature.presetName')"
+          autocomplete="off"
+          data-1p-ignore
+          data-lpignore="true"
+          data-bwignore
           @change="commitPresets"
         />
         <input
@@ -303,6 +307,10 @@ function toggleSeries(objectName: string): void {
           min="0"
           :max="limitFor('extruder')"
           :aria-label="t('dashboard.temperature.presetHotend')"
+          autocomplete="off"
+          data-1p-ignore
+          data-lpignore="true"
+          data-bwignore
           @change="commitPresets"
         />
         <input
@@ -312,6 +320,10 @@ function toggleSeries(objectName: string): void {
           min="0"
           :max="limitFor('heater_bed')"
           :aria-label="t('dashboard.temperature.presetBed')"
+          autocomplete="off"
+          data-1p-ignore
+          data-lpignore="true"
+          data-bwignore
           @change="commitPresets"
         />
         <AppButton

@@ -330,6 +330,9 @@ async function runTest(): Promise<void> {
         class="field field--sm field--block mt-2"
         autocomplete="off"
         maxlength="64"
+        data-1p-ignore
+        data-lpignore="true"
+        data-bwignore
         :disabled="camera?.isReadOnly"
         :aria-invalid="nameError !== null"
       />
@@ -359,6 +362,9 @@ async function runTest(): Promise<void> {
         autocomplete="off"
         autocapitalize="none"
         spellcheck="false"
+        data-1p-ignore
+        data-lpignore="true"
+        data-bwignore
         :placeholder="t('cameras.streamUrlPlaceholder')"
         :disabled="camera?.isReadOnly"
       />
@@ -375,6 +381,9 @@ async function runTest(): Promise<void> {
         autocomplete="off"
         autocapitalize="none"
         spellcheck="false"
+        data-1p-ignore
+        data-lpignore="true"
+        data-bwignore
         :placeholder="t('cameras.snapshotUrlPlaceholder')"
         :disabled="camera?.isReadOnly"
       />
@@ -392,6 +401,9 @@ async function runTest(): Promise<void> {
           class="field field--sm mt-2"
           autocomplete="off"
           spellcheck="false"
+          data-1p-ignore
+          data-lpignore="true"
+          data-bwignore
           placeholder="16:9"
           :disabled="camera?.isReadOnly"
           :aria-invalid="aspectRatioError !== null"
@@ -413,6 +425,10 @@ async function runTest(): Promise<void> {
             min="1"
             max="60"
             class="field field--sm mt-2"
+            autocomplete="off"
+            data-1p-ignore
+            data-lpignore="true"
+            data-bwignore
             :disabled="camera?.isReadOnly"
           />
         </div>
@@ -427,6 +443,10 @@ async function runTest(): Promise<void> {
             min="1"
             max="60"
             class="field field--sm mt-2"
+            autocomplete="off"
+            data-1p-ignore
+            data-lpignore="true"
+            data-bwignore
             :disabled="camera?.isReadOnly"
           />
         </div>

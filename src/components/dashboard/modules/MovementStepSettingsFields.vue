@@ -231,6 +231,10 @@ const offsetPreview = computed(() =>
             :aria-label="
               t('dashboard.movement.stepValueLabel', { group: t(group.labelKey), index: index + 1 })
             "
+            autocomplete="off"
+            data-1p-ignore
+            data-lpignore="true"
+            data-bwignore
             @change="commitStepValue(group.key, index, ($event.target as HTMLInputElement).value)"
           />
           <AppButton

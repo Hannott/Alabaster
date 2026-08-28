@@ -129,6 +129,10 @@ onBeforeUnmount(() => {
               ? t('gcodeViewer.settings.nozzle.unknown')
               : String(machineNozzleDiameter)
           "
+          autocomplete="off"
+          data-1p-ignore
+          data-lpignore="true"
+          data-bwignore
           @input="handleNozzleInput"
         />
       </label>

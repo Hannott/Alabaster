@@ -111,6 +111,10 @@ function handleRename(event: Event): void {
         :value="title === defaultTitle ? '' : title"
         :placeholder="defaultTitle"
         :aria-label="t('dashboard.layout.rename', { module: defaultTitle })"
+        autocomplete="off"
+        data-1p-ignore
+        data-lpignore="true"
+        data-bwignore
         @change="handleRename"
       />
       <h2 v-else class="min-w-0 truncate text-card-title">

@@ -103,6 +103,10 @@ function onKeydown(event: KeyboardEvent): void {
             type="text"
             :placeholder="param.defaultValue ?? undefined"
             enterkeyhint="send"
+            autocomplete="off"
+            data-1p-ignore
+            data-lpignore="true"
+            data-bwignore
           />
         </div>
         <AppButton

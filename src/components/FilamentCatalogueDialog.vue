@@ -145,6 +145,9 @@ onBeforeUnmount(() => {
       class="field field--sm field--block mt-3"
       :placeholder="t('filamentCatalogue.searchLabel')"
       autocomplete="off"
+      data-1p-ignore
+      data-lpignore="true"
+      data-bwignore
     />
 
     <p v-if="query.trim() === ''" class="filament-catalogue-dialog__note">

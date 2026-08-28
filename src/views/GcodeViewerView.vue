@@ -1810,6 +1810,10 @@ onBeforeUnmount(() => {
                 class="field field--block"
                 :placeholder="t('gcodeViewer.files.searchPlaceholder', { count: fileMatchCount })"
                 :disabled="loading"
+                autocomplete="off"
+                data-1p-ignore
+                data-lpignore="true"
+                data-bwignore
               />
             </label>
             <label class="gcode-field" for="gcode-remote-file">

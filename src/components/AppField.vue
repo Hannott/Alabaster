@@ -469,6 +469,10 @@ function resetToConfigured(): void {
         :disabled="disabled"
         :tabindex="readonly ? -1 : undefined"
         :aria-label="accessibleName"
+        autocomplete="off"
+        data-1p-ignore
+        data-lpignore="true"
+        data-bwignore
         @input="onInput"
         @keydown.enter="onEnter"
         @focus="isFocused = true"
