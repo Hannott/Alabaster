@@ -1031,6 +1031,7 @@ onBeforeUnmount(() => {
                   v-if="rowAction(update) === 'check'"
                   class="machine-update-row__action"
                   variant="quiet"
+                  size="md"
                   :icon="machine.checkingUpdateId === update.id ? 'spinner' : 'refresh'"
                   :disabled="updatesDisabled"
                   :pending="rowIsPending(update)"

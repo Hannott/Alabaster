@@ -32,10 +32,12 @@ describe('AppButton', () => {
   })
 
   it('composes exactly the classes its props name, and nothing for the defaults', () => {
-    // `neutral` and `md` are the unmodified base and must not emit a class of
-    // their own; a `button--neutral` or `button--md` in the output would be a
-    // selector the stylesheet does not define.
-    expect(mount(AppButton, { props: { label: 'Go' } }).classes()).toEqual(['button'])
+    // `neutral` is the unmodified base and must not emit a class of its own; a
+    // `button--neutral` in the output would be a selector the stylesheet does
+    // not define. `md` stays the bare `.button` CSS shape, so the `sm` prop
+    // default -- a deliberate deviation from that shape -- still emits
+    // `button--sm` even though nothing was passed explicitly.
+    expect(mount(AppButton, { props: { label: 'Go' } }).classes()).toEqual(['button', 'button--sm'])
 
     const decorated = mount(AppButton, {
       props: {
@@ -95,7 +97,7 @@ describe('AppButton', () => {
   })
 
   it('sizes a leading icon from the control size rather than from the caller', () => {
-    const md = mount(AppButton, { props: { icon: 'close' } })
+    const md = mount(AppButton, { props: { icon: 'close', size: 'md' } })
     expect(md.find('svg').classes()).toContain('size-5')
 
     for (const size of ['sm', 'xs'] as const) {
