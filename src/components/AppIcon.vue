@@ -742,6 +742,31 @@ defineProps<{ name: AppIconName }>()
         d="M12.5 3.505h-7V12H4V2h9.56L20 8.44V12h-1.5V9.5h-4.75c-.69 0-1.25-.56-1.25-1.25zM17.44 8L14 4.56V8zM4 13.5h3.75c.69 0 1.25.56 1.25 1.25v3C9 18.44 8.44 19 7.75 19H5.5v3H4zm1.5 4h2V15h-2zm15-1.5v-1.25c0-.69-.56-1.25-1.25-1.25h-2.5c-.69 0-1.25.56-1.25 1.25v6c0 .69.56 1.25 1.25 1.25h2.5c.69 0 1.25-.56 1.25-1.25V17.5H18V19h1v1.5h-2V15h2v1zm-8.97-2.5L13 17.62V13.5h1.5V22h-1.53l-1.47-4.12V22H10v-8.5z"
       />
     </g>
+    <!--
+      Fluent System Icons' "document-print-28-regular" glyph (Microsoft,
+      MIT licensed), rescaled from its native 28x28 box to this file's 24x24
+      one. `printer.cfg` is the one config file every printer has and the
+      root Klipper actually loads, so the file tree's row for it earns its
+      own glyph rather than the generic `fileCode` every other `.cfg` gets —
+      see fileIcons.ts. The document sheet and its folded corner stay
+      `currentColor`, same as every other file glyph; the printer body and
+      its two paper slots carry `fill-accent` as the one detail that says
+      what this document is *for* — outlier 11 in button-system.md.
+    -->
+    <g
+      v-else-if="name === 'filePrinter'"
+      fill="currentColor"
+      stroke="none"
+      transform="scale(0.8571428571)"
+    >
+      <path
+        d="M6.4 2C5.07452 2 4 3.07452 4 4.4V13.2999C4.37503 13.1081 4.79989 13 5.25 13H5.5V4.4C5.5 3.90294 5.90294 3.5 6.4 3.5H14V10C14 11.1046 14.8954 12 16 12H22.5V23.6C22.5 24.0971 22.0971 24.5 21.6 24.5H14.0002C13.5824 24.814 13.0629 25 12.5 25V25.25C12.5 25.51 12.4639 25.7616 12.3965 26H21.6C22.9255 26 24 24.9255 24 23.6V11.5784C24 10.8491 23.7103 10.1496 23.1945 9.63388L16.2636 2.70294C15.8135 2.25286 15.2031 2 14.5665 2H6.4ZM21.9393 10.5H16C15.7239 10.5 15.5 10.2761 15.5 10V4.06066L21.9393 10.5Z"
+      />
+      <path
+        class="fill-accent"
+        d="M5.25 14C4.2835 14 3.5 14.7835 3.5 15.75V17H3C1.89543 17 1 17.8954 1 19V22.5C1 23.3284 1.67157 24 2.5 24H3.5V25.25C3.5 26.2165 4.2835 27 5.25 27H9.75C10.7165 27 11.5 26.2165 11.5 25.25V24H12.5C13.3284 24 14 23.3284 14 22.5V19C14 17.8954 13.1046 17 12 17H11.5V15.75C11.5 14.7835 10.7165 14 9.75 14H5.25ZM5 17V15.75C5 15.6119 5.11193 15.5 5.25 15.5H9.75C9.88807 15.5 10 15.6119 10 15.75V17H5ZM5 22.75C5 22.6119 5.11193 22.5 5.25 22.5H9.75C9.88807 22.5 10 22.6119 10 22.75V25.25C10 25.3881 9.88807 25.5 9.75 25.5H5.25C5.11193 25.5 5 25.3881 5 25.25V22.75Z"
+      />
+    </g>
     <!-- Griddy Icons' "file-text" glyph (MIT licensed) — generic and log files. -->
     <g v-else-if="name === 'fileText'" fill="currentColor" stroke="none">
       <path

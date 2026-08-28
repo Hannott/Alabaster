@@ -1,5 +1,8 @@
 export type MachineFileKind = 'text' | 'image' | 'html' | 'unsupported'
 
+/** Klipper's root configuration file — the one `[include]` bookkeeping and the file icon both key off. */
+export const PRIMARY_CONFIG = 'printer.cfg'
+
 const IMAGE_EXTENSIONS = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg', 'ico', 'avif'])
 
 const HTML_EXTENSIONS = new Set(['html', 'htm'])

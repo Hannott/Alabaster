@@ -1,7 +1,12 @@
 import { defineStore } from 'pinia'
 import { computed, ref, watch, type WatchStopHandle } from 'vue'
 
-import { classifyFileKind, isLargeFile, type MachineFileKind } from '@/features/machine/fileKind'
+import {
+  classifyFileKind,
+  isLargeFile,
+  PRIMARY_CONFIG,
+  type MachineFileKind,
+} from '@/features/machine/fileKind'
 import { withBaseHref } from '@/features/machine/htmlPreview'
 import {
   addConfigInclude,
@@ -81,8 +86,7 @@ function directoryEntries(result: MoonrakerDirectoryResult): MachineFileEntry[] 
   return [...directories.sort(byName), ...files.sort(byName)]
 }
 
-/** The config Klipper actually loads, and so the only file whose includes matter. */
-export const PRIMARY_CONFIG = 'printer.cfg'
+export { PRIMARY_CONFIG }
 
 function joinPath(...parts: string[]): string {
   return normalizeMoonrakerRelativePath(parts.filter(Boolean).join('/'))
