@@ -10,6 +10,14 @@ import { configBoolean } from '@/dashboard/context'
  */
 export const extruderCardDefaults = {
   /**
+   * On by default: the card drew this slider unconditionally before it became
+   * a toggle, so a printer that never customizes it must keep seeing it. It
+   * is a toggle at all for the reader who never touches the factor away from
+   * 100% and would rather give the row's height back to the manual extrusion
+   * block beneath it.
+   */
+  showExtrusionFactor: true,
+  /**
    * On by default, and the one block here whose absence leaves the card
    * unable to do the thing it is named for. It is a toggle at all for the
    * printer whose filament is only ever moved by a macro — a load/unload pack

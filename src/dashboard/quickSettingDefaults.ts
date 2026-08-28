@@ -41,15 +41,17 @@ export const macrosDefaultQuickKeys = ['hideMissing'] as const
 
 /**
  * Extruder: the optional sections. What the buttons command stays in the pane.
- * `showRetraction` joins them because it is the same kind of switch — a block of
- * the card on or off — and adding one costs a never-customized card nothing,
- * where removing one would have cost it a setting it already had.
+ * `showRetraction` and `showExtrusionFactor` join them because each is the
+ * same kind of switch — a block of the card on or off — and adding one costs
+ * a never-customized card nothing, where removing one would have cost it a
+ * setting it already had.
  */
 export const extruderDefaultQuickKeys = [
   'showManualExtrusion',
   'showLoadMacros',
   'showRetraction',
   'showPressureAdvance',
+  'showExtrusionFactor',
 ] as const
 
 /**

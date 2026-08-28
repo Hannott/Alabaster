@@ -16,11 +16,13 @@ import { useQuickSettings } from '@/dashboard/quickSettings'
  *
  * Extrude and retract are the module's job and are never optional; these two
  * sections are not. Load macros belong to a printer that has them and an owner
- * who uses them, and pressure advance is a tuning control that earns its space
+ * who uses them, pressure advance is a tuning control that earns its space
  * during a tuning session and loses it afterwards — which is why it defaults
- * off. Each switch's key and default live in `extruderCardSettings.ts`, read
- * here and by `ExtruderModule.vue` from the same place, so a row's checkbox
- * can never disagree with the card it controls.
+ * off — and the extrusion factor is a row someone who never strays from 100%
+ * would rather give back to the manual extrusion block beneath it. Each
+ * switch's key and default live in `extruderCardSettings.ts`, read here and
+ * by `ExtruderModule.vue` from the same place, so a row's checkbox can never
+ * disagree with the card it controls.
  */
 const props = defineProps<{ mode: 'pane' | 'quick' }>()
 
@@ -36,9 +38,29 @@ const showPressureAdvance = computed(() =>
   readExtruderCardSetting(config.value, 'showPressureAdvance'),
 )
 const showRetraction = computed(() => readExtruderCardSetting(config.value, 'showRetraction'))
+const showExtrusionFactor = computed(() =>
+  readExtruderCardSetting(config.value, 'showExtrusionFactor'),
+)
 </script>
 
 <template>
+  <div v-if="quick.visible('showExtrusionFactor')" class="settings-row">
+    <label class="check-row">
+      <input
+        type="checkbox"
+        :checked="showExtrusionFactor"
+        @change="updateConfig({ showExtrusionFactor: !showExtrusionFactor })"
+      />
+      <span>{{ t('dashboard.extruder.showExtrusionFactor') }}</span>
+    </label>
+    <QuickSettingToggle
+      v-if="mode === 'pane'"
+      :label="t('dashboard.extruder.showExtrusionFactor')"
+      :shown="quick.isQuick('showExtrusionFactor')"
+      @toggle="quick.setQuick('showExtrusionFactor', $event)"
+    />
+  </div>
+
   <div v-if="quick.visible('showManualExtrusion')" class="settings-row">
     <label class="check-row">
       <input

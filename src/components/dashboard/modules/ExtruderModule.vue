@@ -68,6 +68,9 @@ const showRetraction = computed(() => readExtruderCardSetting(config.value, 'sho
 const showManualExtrusion = computed(() =>
   readExtruderCardSetting(config.value, 'showManualExtrusion'),
 )
+const showExtrusionFactor = computed(() =>
+  readExtruderCardSetting(config.value, 'showExtrusionFactor'),
+)
 const length = computed(() => configNumber(config.value, 'length', 25))
 const feedrate = computed(() => configNumber(config.value, 'feedrate', 5))
 
@@ -476,6 +479,7 @@ const readoutUnit = computed(() =>
       valid factor and sending it would be a real command.
     -->
     <AppSlider
+      v-if="showExtrusionFactor"
       :label="t('dashboard.extruder.factor')"
       :model-value="extrusionFactor"
       :unit="t('dashboard.percentUnit')"

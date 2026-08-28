@@ -901,6 +901,7 @@
       "showManualExtrusion": "Show manual extrusion",
       "showLoadMacros": "Show macro buttons",
       "showPressureAdvance": "Show pressure advance",
+      "showExtrusionFactor": "Show extrusion factor",
       "manualTitle": "Manual extrusion",
       "length": "Filament Length",
       "feedrate": "Extrusion Feedrate",

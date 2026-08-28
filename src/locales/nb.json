@@ -901,6 +901,7 @@
       "showManualExtrusion": "Vis manuell ekstrudering",
       "showLoadMacros": "Vis makroknapper",
       "showPressureAdvance": "Vis pressure advance",
+      "showExtrusionFactor": "Vis ekstruderingsfaktor",
       "manualTitle": "Manuell ekstrudering",
       "length": "Filamentlengde",
       "feedrate": "Ekstruderingshastighet",

@@ -457,6 +457,12 @@ describe('ExtruderModule', () => {
     expect((slider.get('input[type="range"]').element as HTMLInputElement).value).toBe('80')
   })
 
+  it('drops the extrusion factor slider when the card configuration turns it off', async () => {
+    const { wrapper } = mountModule({ showExtrusionFactor: false })
+    await flushPromises()
+    expect(wrapper.find('.app-slider').exists()).toBe(false)
+  })
+
   it('shows the factor reset only once the machine differs from 100%', async () => {
     const { printer, wrapper } = mountModule()
     await flushPromises()
