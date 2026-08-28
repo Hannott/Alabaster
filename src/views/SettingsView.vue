@@ -38,6 +38,8 @@ import {
   defaultSettingsBundle,
 } from '@/settings/bundle'
 import { useActionGuard } from '@/composables/useActionGuard'
+import { configBoolean } from '@/dashboard/context'
+import type { DashboardModuleId } from '@/dashboard/layout'
 import { useAuthStore } from '@/stores/auth'
 import {
   type ConfirmationGroup as ConfirmationGroupId,
@@ -407,13 +409,10 @@ function requestRemoval(entry: PrinterEntry): void {
  *
  * One row per `ConfirmDialog` that has no dashboard module of its own to live
  * in, grouped by the surface it confirms on — see
- * `docs/design/dialog-system.md`. A dashboard module's confirmations (Print,
- * Movement, Temperatures, BedMesh) live in that module's own settings pane
- * instead, backed by its own config; this list and that one are deliberately
- * disjoint, not two homes for the same key. `confirmationKeys` is the source
- * of truth for which keys belong here, so one present in it but missing a row
- * below (or the reverse) is a mistake this page has no way to catch silently
- * forever — the registry test below does.
+ * `docs/design/dialog-system.md`. `confirmationKeys` is the source of truth
+ * for which keys belong here, so one present in it but missing a row below (or
+ * the reverse) is a mistake this page has no way to catch silently forever —
+ * the registry test below does.
  */
 interface ConfirmationGroup {
   titleKey: string
@@ -506,6 +505,88 @@ function isGroupSkipped(group: ConfirmationGroupId): boolean {
 
 function toggleGroup(group: ConfirmationGroupId): void {
   confirmations.setSkipGroup(group, !confirmations.skipByGroup[group])
+}
+
+/*
+ * --- Module guards, mirrored ---
+ *
+ * A dashboard module's own confirmations (Print, Movement, Temperatures,
+ * BedMesh) are backed by that module's own dashboard `config`, not by
+ * `confirmations.ts` — see `docs/design/dialog-system.md`'s "Module guards,
+ * mirrored on Settings". They still live in each module's own settings pane;
+ * this section renders a second checkbox for the same value so someone can
+ * see and change every guard in the app from one page, rather than opening a
+ * module's settings to find one. It reads and writes the same
+ * `dashboardLayout` instance `config` that module's own pane does — there is
+ * one value, shown twice, never a separate copy to drift from it.
+ *
+ * None of Print, Movement, Temperatures, or BedMesh supports more than one
+ * dashboard instance (`registry.ts` has no `supportsMultiple` on any of
+ * them), and `normalizeInstances` guarantees every registered module keeps
+ * exactly one instance even while absent from the dashboard itself — so
+ * "the" instance for a module id is never ambiguous here.
+ */
+interface ModuleGuardRow {
+  key: string
+  labelKey: string
+}
+
+interface ModuleGuardGroup {
+  moduleId: DashboardModuleId
+  titleKey: string
+  rows: readonly ModuleGuardRow[]
+}
+
+const moduleGuardGroups: readonly ModuleGuardGroup[] = [
+  {
+    moduleId: 'print',
+    titleKey: 'dashboard.modules.print',
+    rows: [
+      { key: 'skipStartWarning', labelKey: 'dashboard.print.skipStartWarning' },
+      { key: 'skipPauseWarning', labelKey: 'dashboard.print.skipPauseWarning' },
+      { key: 'skipCancelWarning', labelKey: 'dashboard.print.skipCancelWarning' },
+    ],
+  },
+  {
+    moduleId: 'movement',
+    titleKey: 'dashboard.modules.movement',
+    rows: [
+      { key: 'skipMotorsOffWarning', labelKey: 'dashboard.movement.skipMotorsOffWarning' },
+      { key: 'skipLevelingWarning', labelKey: 'dashboard.movement.skipLevelingWarning' },
+    ],
+  },
+  {
+    moduleId: 'temperatures',
+    titleKey: 'dashboard.modules.temperatures',
+    rows: [
+      { key: 'skipCalibrationWarning', labelKey: 'dashboard.temperature.skipCalibrationWarning' },
+    ],
+  },
+  {
+    moduleId: 'bedMesh',
+    titleKey: 'dashboard.modules.bedMesh',
+    rows: [
+      { key: 'skipDeleteProfileWarning', labelKey: 'dashboard.bedMesh.skipDeleteProfileWarning' },
+    ],
+  },
+]
+
+function moduleInstance(moduleId: DashboardModuleId) {
+  return layout.profile.instances.find((instance) => instance.moduleId === moduleId)
+}
+
+function isModuleGuardSkipped(moduleId: DashboardModuleId, key: string): boolean {
+  return confirmations.skipAll || configBoolean(moduleInstance(moduleId)?.config ?? {}, key, false)
+}
+
+function toggleModuleGuard(moduleId: DashboardModuleId, key: string): void {
+  const instance = moduleInstance(moduleId)
+  if (!instance) return
+  layout.updateConfig(instance.instanceId, { [key]: !configBoolean(instance.config, key, false) })
+}
+
+function moduleGuardTitle(): string | undefined {
+  return confirmations.skipAll ? t('confirmations.globalOverride') : undefined
 }
 
 /*
@@ -1479,6 +1560,43 @@ const lastSyncedDisplay = computed(() => {
                   @change="toggleConfirmation(key)"
                 />
                 <span>{{ t(`confirmations.items.${key}`) }}</span>
+              </label>
+            </div>
+
+            <!--
+              A second rendering of a value each module's own settings pane
+              already owns — see the "Module guards, mirrored" comment above
+              the script's `moduleGuardGroups`. Each module still gets its own
+              bordered block, matching the groups above, so the card's rhythm
+              does not change just because the source of these rows did.
+            -->
+            <div class="mt-5 border-t border-subtle pt-5">
+              <p class="text-field-label text-muted">
+                {{ t('confirmations.groups.moduleGuards') }}
+              </p>
+              <p class="mt-1 text-xs text-muted">
+                {{ t('confirmations.moduleGuardsDescription') }}
+              </p>
+            </div>
+            <div
+              v-for="group in moduleGuardGroups"
+              :key="group.moduleId"
+              class="mt-5 border-t border-subtle pt-5"
+            >
+              <p class="text-field-label text-muted">{{ t(group.titleKey) }}</p>
+              <label
+                v-for="row in group.rows"
+                :key="row.key"
+                class="check-row module-guard-item"
+                :title="moduleGuardTitle()"
+              >
+                <input
+                  type="checkbox"
+                  :checked="isModuleGuardSkipped(group.moduleId, row.key)"
+                  :disabled="confirmations.skipAll"
+                  @change="toggleModuleGuard(group.moduleId, row.key)"
+                />
+                <span>{{ t(row.labelKey) }}</span>
               </label>
             </div>
 

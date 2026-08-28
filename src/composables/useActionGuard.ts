@@ -9,9 +9,14 @@ import { type ConfirmationKey, useConfirmationsStore } from '@/stores/confirmati
  * - `reversible` — repeating or reversing the control restores the previous
  *   state, and nothing was consumed in between. No treatment at all.
  * - `disruptive` — it changes an active print's outcome, but the print survives
- *   and can be brought back. A caution hover, and no dialog: pause is the
- *   reference case, and a dialog in front of the thing you reach for while
- *   watching a print go wrong is worse than none.
+ *   and can be brought back. A caution hover, and no dialog — for a control
+ *   reached for constantly while watching a print go wrong, where a dialog in
+ *   front of it would be worse than none. Pause used to be this tier's
+ *   reference case; it moved to `terminal` because nothing brings a paused
+ *   print back on its own, so a misclick here is not actually free to reverse.
+ *   No control currently ships at this tier, but the ladder keeps the rung for
+ *   whatever next control fits its test: costs something, survives it, and is
+ *   reached for too often to interrupt.
  * - `terminal` — it ends the print, or makes the machine forget something it
  *   cannot recompute. A dialog, and the danger livery.
  */

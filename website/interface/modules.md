@@ -88,8 +88,9 @@ this.
   With it on, starting a print into an overdue interval asks for confirmation
   first, however you start it: Print again, a recent file, an upload, or a
   dropped file.
-- **Confirmations**: Confirmations for starting and cancelling can be
-  switched on or off from the card's own settings.
+- **Confirmations**: Confirmations for starting, pausing, and cancelling can
+  be switched on or off from the card's own settings, or from
+  [Settings → Confirmations](/interface/settings#confirmations).
 
 ## Camera
 

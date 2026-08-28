@@ -504,10 +504,12 @@
       "recentFailed": "The file list could not be read.",
       "confirmStart": "Start printing {filename}?",
       "confirmCancel": "This cannot be undone — the job stops where it is and cannot be resumed.",
+      "confirmPause": "The print stays loaded and can be resumed, but nothing brings it back on its own — it waits until someone does.",
       "closeRecent": "Close recent files",
       "startFile": "Start {filename}",
       "confirmStartTitle": "Start this print?",
       "confirmCancelTitle": "Cancel this print?",
+      "confirmPauseTitle": "Pause this print?",
       "layer": "Layer",
       "layerOf": "{current} of {total}",
       "height": "Height",
@@ -548,6 +550,7 @@
       "upload": "Upload",
       "confirmationsTitle": "Confirmations",
       "skipStartWarning": "Start a print without confirming",
+      "skipPauseWarning": "Pause a print without confirming",
       "skipCancelWarning": "Cancel a print without confirming",
       "excludeObject": "Exclude object",
       "pauseAtLayer": "Pause at a layer…",
@@ -2110,8 +2113,10 @@
       "gcodeViewer": "G-code viewer",
       "timelapse": "Timelapse",
       "maintenance": "Maintenance",
-      "backup": "Backup and sync"
+      "backup": "Backup and sync",
+      "moduleGuards": "Dashboard modules"
     },
+    "moduleGuardsDescription": "Each of these also lives in that module's own settings pane.",
     "items": {
       "emergencyStop": "Emergency stop",
       "rebootHost": "Reboot host",

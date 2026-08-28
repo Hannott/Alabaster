@@ -49,6 +49,7 @@ describe('PrintSettingsPane', () => {
 
   it.each([
     ['Start a print without confirming', 'skipStartWarning'],
+    ['Pause a print without confirming', 'skipPauseWarning'],
     ['Cancel a print without confirming', 'skipCancelWarning'],
   ])('offers to skip its own confirmation: %s', async (text, key) => {
     const { wrapper, config } = mountPane()

@@ -557,6 +557,41 @@ describe('PrintModule', () => {
     expect(labels).toContain('Keep printing')
   })
 
+  it('asks before pausing, since nothing brings a paused print back on its own', async () => {
+    const { printer, wrapper } = mountModule()
+    startPrinting(printer)
+    const pausePrint = vi.spyOn(printer, 'pausePrint').mockResolvedValue(true)
+    await flushPromises()
+
+    const pause = wrapper
+      .findAll('.print-actions__primary button')
+      .find((button) => button.text().includes('Pause'))
+    await pause?.trigger('click')
+
+    expect(pausePrint).not.toHaveBeenCalled()
+    const confirm = wrapper
+      .findAll('.confirm-dialog__actions button')
+      .find((button) => button.text() === 'Pause')
+    await confirm?.trigger('click')
+
+    expect(pausePrint).toHaveBeenCalledOnce()
+  })
+
+  it('pauses immediately once its own confirmation is switched off', async () => {
+    const { printer, wrapper } = mountModule({ config: { skipPauseWarning: true } })
+    startPrinting(printer)
+    const pausePrint = vi.spyOn(printer, 'pausePrint').mockResolvedValue(true)
+    await flushPromises()
+
+    const pause = wrapper
+      .findAll('.print-actions__primary button')
+      .find((button) => button.text().includes('Pause'))
+    await pause?.trigger('click')
+
+    expect(pausePrint).toHaveBeenCalledOnce()
+    expect(wrapper.find('.confirm-dialog[open]').exists()).toBe(false)
+  })
+
   it("quotes Klipper's own reason when a print fails, and never after one that did not", async () => {
     const { printer, wrapper } = mountModule()
     printer.printStats.state = 'error'

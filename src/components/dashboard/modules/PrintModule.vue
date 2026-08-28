@@ -112,6 +112,7 @@ const recentFileMetadata = ref<Record<string, MoonrakerGcodeMetadata | null>>({}
 /** The path waiting on an answer to the overdue-maintenance question, if any. */
 const maintenanceReminderFor = ref<string | null>(null)
 const confirmingCancel = ref(false)
+const confirmingPause = ref(false)
 const isExcludeObjectOpen = ref(false)
 const isPauseAtLayerOpen = ref(false)
 const uploadInput = ref<HTMLInputElement | null>(null)
@@ -186,6 +187,7 @@ async function requestPauseNextLayer(): Promise<void> {
 
 const skipStartWarning = computed(() => configBoolean(config.value, 'skipStartWarning', false))
 const skipCancelWarning = computed(() => configBoolean(config.value, 'skipCancelWarning', false))
+const skipPauseWarning = computed(() => configBoolean(config.value, 'skipPauseWarning', false))
 // Keys, defaults, and the estimate source's allow-list live in
 // `printCardSettings.ts`, shared with the settings fields and pane so the
 // three read every one of these the same way.
@@ -597,9 +599,18 @@ const startGuard = useActionGuard({
   moduleFlag: skipStartWarning,
 })
 
-/** Pause interrupts the print's outcome without ending it: tier 2, no dialog. */
+/*
+ * Pause interrupts the print's outcome without ending it, but the machine
+ * cannot resume it on its own — a misclick pauses a job unattended, sometimes
+ * for as long as it takes someone to notice. `neutral`, not the terminal
+ * default, because pausing costs nothing structurally: unlike Cancel, there is
+ * nothing here to escalate to danger livery over, only a control that either
+ * asks first or does not.
+ */
 const pauseGuard = useActionGuard({
-  tier: () => (printer.hasActivePrint ? 'disruptive' : 'reversible'),
+  tier: 'terminal',
+  emphasis: 'neutral',
+  moduleFlag: skipPauseWarning,
 })
 
 async function confirmCancel(): Promise<void> {
@@ -611,6 +622,18 @@ function requestCancel(): void {
   cancelGuard.request(
     () => void printer.cancelPrint(),
     () => (confirmingCancel.value = true),
+  )
+}
+
+async function confirmPause(): Promise<void> {
+  confirmingPause.value = false
+  await printer.pausePrint()
+}
+
+function requestPause(): void {
+  pauseGuard.request(
+    () => void printer.pausePrint(),
+    () => (confirmingPause.value = true),
   )
 }
 </script>
@@ -854,7 +877,7 @@ function requestCancel(): void {
                 icon="pause"
                 :label="t('dashboard.print.pause')"
                 :disabled="printer.pendingCommands.pause"
-                @click="printer.pausePrint"
+                @click="requestPause"
               />
               <AppButton
                 v-else
@@ -1137,6 +1160,14 @@ function requestCancel(): void {
     `cancel` label, where Pause and Resume beside it supply the context this
     dialog has to state outright.
   -->
+    <ConfirmDialog
+      :open="confirmingPause"
+      :title="t('dashboard.print.confirmPauseTitle')"
+      :description="t('dashboard.print.confirmPause')"
+      :confirm-label="t('dashboard.print.pause')"
+      @confirm="confirmPause"
+      @cancel="confirmingPause = false"
+    />
     <ConfirmDialog
       :open="confirmingCancel"
       :title="t('dashboard.print.confirmCancelTitle')"

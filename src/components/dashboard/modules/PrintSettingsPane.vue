@@ -52,6 +52,7 @@ function commitDrift(value: number | null): void {
 const preferredSource = computed(() => readPrintEstimateSource(config.value))
 
 const skipStartWarning = computed(() => configBoolean(config.value, 'skipStartWarning', false))
+const skipPauseWarning = computed(() => configBoolean(config.value, 'skipPauseWarning', false))
 const skipCancelWarning = computed(() => configBoolean(config.value, 'skipCancelWarning', false))
 </script>
 
@@ -159,6 +160,16 @@ const skipCancelWarning = computed(() => configBoolean(config.value, 'skipCancel
           @change="updateConfig({ skipStartWarning: !skipStartWarning })"
         />
         <span>{{ t('dashboard.print.skipStartWarning') }}</span>
+      </label>
+    </div>
+    <div class="settings-row">
+      <label class="check-row">
+        <input
+          type="checkbox"
+          :checked="skipPauseWarning"
+          @change="updateConfig({ skipPauseWarning: !skipPauseWarning })"
+        />
+        <span>{{ t('dashboard.print.skipPauseWarning') }}</span>
       </label>
     </div>
     <div class="settings-row">

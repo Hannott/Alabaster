@@ -504,10 +504,12 @@
       "recentFailed": "Fillisten kunne ikke leses.",
       "confirmStart": "Starte utskrift av {filename}?",
       "confirmCancel": "Dette kan ikke angres — jobben stopper der den er og kan ikke gjenopptas.",
+      "confirmPause": "Utskriften forblir lastet og kan gjenopptas, men ingenting starter den igjen av seg selv — den venter til noen gjør det.",
       "closeRecent": "Lukk nylige filer",
       "startFile": "Start {filename}",
       "confirmStartTitle": "Start denne utskriften?",
       "confirmCancelTitle": "Avbryt denne utskriften?",
+      "confirmPauseTitle": "Sette denne utskriften på pause?",
       "layer": "Lag",
       "layerOf": "{current} av {total}",
       "height": "Høyde",
@@ -548,6 +550,7 @@
       "upload": "Last opp",
       "confirmationsTitle": "Bekreftelser",
       "skipStartWarning": "Start en utskrift uten bekreftelse",
+      "skipPauseWarning": "Sett utskrift på pause uten bekreftelse",
       "skipCancelWarning": "Avbryt en utskrift uten bekreftelse",
       "excludeObject": "Ekskluder objekt",
       "pauseAtLayer": "Pause ved et lag…",
@@ -2110,8 +2113,10 @@
       "gcodeViewer": "G-kode-viser",
       "timelapse": "Tidsforløp",
       "maintenance": "Vedlikehold",
-      "backup": "Sikkerhetskopi og synkronisering"
+      "backup": "Sikkerhetskopi og synkronisering",
+      "moduleGuards": "Dashbord-moduler"
     },
+    "moduleGuardsDescription": "Hver av disse finnes også i modulens egne innstillinger.",
     "items": {
       "emergencyStop": "Nødstopp",
       "rebootHost": "Omstart av vert",

@@ -193,6 +193,12 @@ default.
 it is on, each individual setting shows that it is being overridden, instead
 of silently appearing to stop working.
 
+**Dashboard modules** lists every confirmation that belongs to a card instead
+— Print's start, pause, and cancel; Movement's motors off and bed leveling;
+Temperatures' heater calibration; Bed mesh's delete profile. Each of these
+also has its own checkbox on the card's own settings, right beside the action
+it guards; checking either box changes the same setting.
+
 ::: info Shared across all printers
 Confirmation settings apply to you, not to a printer. The same is true for
 your language, time format, theme, and typeface. Dashboards, presets, macros,

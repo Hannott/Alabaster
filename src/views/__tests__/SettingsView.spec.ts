@@ -580,6 +580,61 @@ describe('SettingsView — confirmations', () => {
     expect((stillOn.get('input').element as HTMLInputElement).checked).toBe(true)
     expect((stillOff.get('input').element as HTMLInputElement).checked).toBe(false)
   })
+
+  /*
+   * These mirror a value each module's own settings pane already owns — see
+   * `docs/design/dialog-system.md`'s "Module guards, mirrored on Settings".
+   * There is exactly one stored boolean behind each row; these tests exist to
+   * catch the one way that could stop being true, a Settings-page checkbox
+   * that writes its own copy instead of the module's real `config`.
+   */
+  it("reads a module guard's own dashboard config, and writes back to that same config", async () => {
+    const layout = useDashboardLayoutStore(pinia)
+    const wrapper = await mountView()
+
+    const row = wrapper
+      .findAll('.module-guard-item')
+      .find((candidate) => candidate.text().includes('Cancel a print without confirming'))!
+    expect((row.get('input').element as HTMLInputElement).checked).toBe(false)
+
+    await row.get('input').setValue(true)
+    await flushPromises()
+
+    const instance = layout.profile.instances.find((candidate) => candidate.moduleId === 'print')
+    expect(instance?.config.skipCancelWarning).toBe(true)
+  })
+
+  it('shows a module guard already on in its own settings pane, checked here too', async () => {
+    const layout = useDashboardLayoutStore(pinia)
+    const movementInstance = layout.profile.instances.find(
+      (candidate) => candidate.moduleId === 'movement',
+    )!
+    layout.updateConfig(movementInstance.instanceId, { skipMotorsOffWarning: true })
+
+    const wrapper = await mountView()
+    const row = wrapper
+      .findAll('.module-guard-item')
+      .find((candidate) => candidate.text().includes('Turn off motors without confirming'))!
+
+    expect((row.get('input').element as HTMLInputElement).checked).toBe(true)
+  })
+
+  it('checks and disables every module guard row too, once the global override is on', async () => {
+    const confirmations = useConfirmationsStore(pinia)
+    const wrapper = await mountView()
+
+    const row = wrapper
+      .findAll('.module-guard-item')
+      .find((candidate) => candidate.text().includes('Start a print without confirming'))!
+    expect((row.get('input').element as HTMLInputElement).checked).toBe(false)
+
+    confirmations.setSkipAll(true)
+    await flushPromises()
+
+    expect((row.get('input').element as HTMLInputElement).checked).toBe(true)
+    expect((row.get('input').element as HTMLInputElement).disabled).toBe(true)
+    expect(row.attributes('title')).toBe('Global setting override')
+  })
 })
 
 describe('SettingsView — formats', () => {
