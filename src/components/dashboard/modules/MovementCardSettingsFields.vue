@@ -42,8 +42,8 @@ const showBedPlanWhilePrinting = computed(() =>
 )
 const showParking = computed(() => readMovementCardSetting(config.value, 'showParking'))
 const showHomeXY = computed(() => readMovementCardSetting(config.value, 'showHomeXY'))
-const showBedScrewsCheck = computed(() =>
-  readMovementCardSetting(config.value, 'showBedScrewsCheck'),
+const showLevelBedShortcut = computed(() =>
+  readMovementCardSetting(config.value, 'showLevelBedShortcut'),
 )
 const showZOffset = computed(() => readMovementCardSetting(config.value, 'showZOffset'))
 const showSpeedFactor = computed(() => readMovementCardSetting(config.value, 'showSpeedFactor'))
@@ -125,20 +125,20 @@ const swapZDirection = computed(() => readMovementCardSetting(config.value, 'swa
     />
   </div>
 
-  <div v-if="quick.visible('showBedScrewsCheck')" class="settings-row">
+  <div v-if="quick.visible('showLevelBedShortcut')" class="settings-row">
     <label class="check-row">
       <input
         type="checkbox"
-        :checked="showBedScrewsCheck"
-        @change="updateConfig({ showBedScrewsCheck: !showBedScrewsCheck })"
+        :checked="showLevelBedShortcut"
+        @change="updateConfig({ showLevelBedShortcut: !showLevelBedShortcut })"
       />
-      <span>{{ t('dashboard.movement.showBedScrewsCheck') }}</span>
+      <span>{{ t('dashboard.movement.showLevelBedShortcut') }}</span>
     </label>
     <QuickSettingToggle
       v-if="mode === 'pane'"
-      :label="t('dashboard.movement.showBedScrewsCheck')"
-      :shown="quick.isQuick('showBedScrewsCheck')"
-      @toggle="quick.setQuick('showBedScrewsCheck', $event)"
+      :label="t('dashboard.movement.showLevelBedShortcut')"
+      :shown="quick.isQuick('showLevelBedShortcut')"
+      @toggle="quick.setQuick('showLevelBedShortcut', $event)"
     />
   </div>
 

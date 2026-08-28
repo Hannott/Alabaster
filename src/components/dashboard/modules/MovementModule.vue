@@ -204,18 +204,23 @@ const showBedPlanWhilePrinting = computed(() =>
   readMovementCardSetting(config.value, 'showBedPlanWhilePrinting'),
 )
 const showHomeXY = computed(() => readMovementCardSetting(config.value, 'showHomeXY'))
-const showBedScrewsCheck = computed(() =>
-  readMovementCardSetting(config.value, 'showBedScrewsCheck'),
+const showLevelBedShortcut = computed(() =>
+  readMovementCardSetting(config.value, 'showLevelBedShortcut'),
 )
 /**
- * The shortcut beside home-all is a second way to reach
- * `SCREWS_TILT_CALCULATE`, not a promise that this machine has it — a
- * printer with only `quad_gantry_level` gets nothing here even with the
- * setting on, same as the leveling row itself only ever lists what
- * `printerConfig` reports.
+ * The shortcut beside home-all always reads "Level bed" and always exists
+ * for a printer that reports any leveling method at all — it is a second way
+ * to reach whichever command `printerConfig` discovered, not a promise tied
+ * to one specific macro. `levelingMethods` is ordered by
+ * `levelingSections` in `printerConfig.ts`, so this is simply "the" method on
+ * the overwhelming majority of printers, which configure exactly one; the
+ * rare machine declaring more than one leveling section (mid-migration, or a
+ * config testing two schemes) gets a deterministic pick here and the rest
+ * still offered from the full-width row below, rather than the shortcut
+ * disappearing or picking a different macro on every reload.
  */
-const hasScrewsTiltMethod = computed(() =>
-  printerConfig.levelingMethods.includes('screwsTiltAdjust'),
+const primaryLevelingMethod = computed<LevelingMethod | null>(
+  () => printerConfig.levelingMethods[0] ?? null,
 )
 const skipMotorsOffWarning = computed(() =>
   configBoolean(config.value, 'skipMotorsOffWarning', false),
@@ -572,10 +577,20 @@ const hasParkRow = computed(() => showParking.value && parkPositions.value.lengt
  * once again down here. Off, this list is every method `printerConfig`
  * reports, exactly as before the shortcut existed.
  */
+/**
+ * Unconditional on the shortcut's own visibility: `primaryLevelingMethod` is
+ * always excluded here, whether or not the shortcut is currently drawn. A
+ * printer configuring exactly one leveling method — the ordinary case — gets
+ * an empty row once that method is its `primaryLevelingMethod`; turning
+ * `showLevelBedShortcut` off then hides the action outright rather than
+ * spilling it back into this row, which would otherwise offer the same
+ * command from two places depending on a setting neither button's label
+ * mentions. What is left here is only what a printer declares *beyond* its
+ * primary method — rare, but real enough (a config mid-migration between two
+ * leveling schemes) that it still needs somewhere to live.
+ */
 const levelingRowMethods = computed(() =>
-  showBedScrewsCheck.value && hasScrewsTiltMethod.value
-    ? printerConfig.levelingMethods.filter((method) => method !== 'screwsTiltAdjust')
-    : printerConfig.levelingMethods,
+  printerConfig.levelingMethods.filter((method) => method !== primaryLevelingMethod.value),
 )
 const hasLevelingRow = computed(() => levelingRowMethods.value.length > 0 && !hasJobLoaded.value)
 
@@ -655,6 +670,13 @@ function requestLeveling(method: LevelingMethod): void {
     () => void runLeveling(method),
     () => (pendingLeveling.value = method),
   )
+}
+
+/** The shortcut's own click target — `v-if` already keeps it off screen without a method to run. */
+function requestLevelingShortcut(): void {
+  const method = primaryLevelingMethod.value
+  if (!method) return
+  requestLeveling(method)
 }
 
 /**
@@ -936,27 +958,30 @@ function screwInstruction(screw: (typeof screwResults.value)[number]): string {
               :aria-label="t('dashboard.movement.machineActions')"
             >
               <!--
-              A shortcut to `SCREWS_TILT_CALCULATE`, beside home-all rather
-              than only in the full-width leveling row below — for a check run
-              often enough between prints that the row below is an extra
-              scroll every time. It replaces that row's own copy of the same
-              button rather than duplicating it — see `levelingRowMethods` —
-              and shares this guard and disabled condition exactly, since it
-              is the same action reached from a second place, not a second
-              action.
+              The ordinary way to reach leveling, beside home-all rather than
+              buried in the full-width row below. Always labelled "Level bed"
+              regardless of which command it actually runs, so the button
+              reads the same on every printer; the tooltip and aria-label
+              carry the real macro name via `primaryLevelingMethod`. Turning
+              this off (`showLevelBedShortcut`) hides the action outright — it
+              does not fall back into the row, which unconditionally excludes
+              `primaryLevelingMethod` regardless of whether this button is
+              drawn. See `levelingRowMethods`. Shares this guard and disabled
+              condition exactly, since it is the same action reached from a
+              second place, not a second action.
             -->
               <AppButton
-                v-if="showBedScrewsCheck && hasScrewsTiltMethod"
+                v-if="showLevelBedShortcut && primaryLevelingMethod"
                 size="sm"
                 :guard="levelingGuard"
                 :pending="printer.pendingCommands.leveling"
-                :label="t('dashboard.movement.screwsCheckShort')"
+                :label="t('dashboard.movement.levelBedShort')"
                 class="jog-leveling-shortcut"
                 :aria-busy="printer.pendingCommands.leveling || undefined"
                 :disabled="printer.pendingCommands.leveling || homing || !isFullyHomed"
-                :aria-label="t('dashboard.movement.leveling.screwsTiltAdjust')"
-                :title="t('dashboard.movement.leveling.screwsTiltAdjust')"
-                @click="requestLeveling('screwsTiltAdjust')"
+                :aria-label="t(`dashboard.movement.leveling.${primaryLevelingMethod}`)"
+                :title="t(`dashboard.movement.leveling.${primaryLevelingMethod}`)"
+                @click="requestLevelingShortcut"
               />
               <AppButton
                 size="xs"

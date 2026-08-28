@@ -199,7 +199,7 @@ describe('MovementModule', () => {
     const gated = () => [
       wrapper.findAll('.jog-matrix:not(.jog-matrix--machine)')[0]?.findAll('button').at(0),
       buttonNamed(wrapper, 'Park centre'),
-      buttonNamed(wrapper, 'Check bed screws'),
+      wrapper.find('.jog-leveling-shortcut'),
       // Every offset control issues MOVE=1, which Klipper refuses on an
       // unhomed axis — these used to be enabled and fail with a command error.
       wrapper.findAll('.trim__steps button').at(0),
@@ -225,7 +225,7 @@ describe('MovementModule', () => {
     const gated = [
       wrapper.findAll('.jog-matrix:not(.jog-matrix--machine)')[0]?.findAll('button').at(0), // X, already homed
       buttonNamed(wrapper, 'Park centre'),
-      buttonNamed(wrapper, 'Check bed screws'),
+      wrapper.find('.jog-leveling-shortcut'),
       wrapper.findAll('.trim__steps button').at(0),
     ]
     for (const control of gated) expect(control?.attributes('disabled')).toBeDefined()
@@ -253,7 +253,7 @@ describe('MovementModule', () => {
 
     expect(wrapper.findAll('.jog-matrix:not(.jog-matrix--machine)')).toHaveLength(0)
     expect(wrapper.find('.jog-matrix--machine').exists()).toBe(false)
-    expect(buttonNamed(wrapper, 'Check bed screws')).toBeUndefined()
+    expect(wrapper.find('.jog-leveling-shortcut').exists()).toBe(false)
 
     const parkCentre = buttonNamed(wrapper, 'Park centre')
     expect(parkCentre?.attributes('disabled')).toBeDefined()
@@ -268,42 +268,86 @@ describe('MovementModule', () => {
     await flushPromises()
     expect(wrapper.findAll('.jog-matrix:not(.jog-matrix--machine)')).toHaveLength(3)
     expect(wrapper.find('.jog-matrix--machine').exists()).toBe(true)
-    expect(buttonNamed(wrapper, 'Check bed screws')).toBeDefined()
+    expect(wrapper.find('.jog-leveling-shortcut').exists()).toBe(true)
     expect(buttonNamed(wrapper, 'Park centre')?.attributes('disabled')).toBeUndefined()
   })
 
   /**
-   * `showBedScrewsCheck` moves the button rather than duplicating it: the
+   * `showLevelBedShortcut` moves the button rather than duplicating it: the
    * same action reachable from two places would read as two different
    * actions to a screen reader, and a click on either has to run exactly the
-   * one command either way.
+   * one command either way. With more than one leveling section declared,
+   * `primaryLevelingMethod` picks by `levelingSections`' own canonical order
+   * (`quadGantryLevel` before `zTilt` before `screwsTiltAdjust`...), so
+   * `zTilt` is the one the shortcut takes here and `screwsTiltAdjust` is what
+   * is left in the row.
    */
-  it('replaces the leveling row\'s "Check bed screws" with the shortcut, rather than duplicating it', async () => {
+  it("replaces the leveling row's matching method with the shortcut, rather than duplicating it", async () => {
     const { printer, wrapper } = mountModule({
       leveling: ['screwsTiltAdjust', 'zTilt'],
-      config: { showBedScrewsCheck: true },
+      config: { showLevelBedShortcut: true },
     })
     readyToMove(printer)
     await flushPromises()
 
-    expect(buttonNamed(wrapper, 'Check bed screws')).toBeUndefined()
-    expect(buttonNamed(wrapper, 'Adjust Z tilt')).toBeDefined()
+    expect(buttonNamed(wrapper, 'Adjust Z tilt')).toBeUndefined()
+    expect(buttonNamed(wrapper, 'Check bed screws')).toBeDefined()
     const shortcut = wrapper.find('.jog-leveling-shortcut')
     expect(shortcut.exists()).toBe(true)
-    expect(shortcut.attributes('aria-label')).toBe('Check bed screws')
+    expect(shortcut.text()).toBe('Level bed')
+    expect(shortcut.attributes('aria-label')).toBe('Adjust Z tilt')
   })
 
-  /** A machine with no `[screws_tilt_adjust]` gets nothing extra, setting or not. */
-  it('offers no shortcut for a leveling method this printer does not report', async () => {
+  /**
+   * The shortcut is not tied to any one macro — it takes whichever leveling
+   * method this printer reports, always under the same "Level bed" label,
+   * with the real command name carried only in the tooltip/aria-label.
+   */
+  it('offers the shortcut for whichever leveling method this printer reports, not only screws-tilt', async () => {
     const { printer, wrapper } = mountModule({
-      leveling: ['zTilt'],
-      config: { showBedScrewsCheck: true },
+      leveling: ['quadGantryLevel'],
+      config: { showLevelBedShortcut: true },
+    })
+    readyToMove(printer)
+    await flushPromises()
+
+    const shortcut = wrapper.find('.jog-leveling-shortcut')
+    expect(shortcut.exists()).toBe(true)
+    expect(shortcut.text()).toBe('Level bed')
+    expect(shortcut.attributes('aria-label')).toBe('Level gantry')
+    // This printer's only method is now reached solely through the shortcut,
+    // so the full-width row underneath has nothing left to show.
+    expect(buttonNamed(wrapper, 'Level gantry')).toBeUndefined()
+  })
+
+  /** A machine with no leveling section at all gets nothing extra, setting or not. */
+  it('offers no shortcut for a printer that reports no leveling method', async () => {
+    const { printer, wrapper } = mountModule({
+      leveling: [],
+      config: { showLevelBedShortcut: true },
     })
     readyToMove(printer)
     await flushPromises()
 
     expect(wrapper.find('.jog-leveling-shortcut').exists()).toBe(false)
-    expect(buttonNamed(wrapper, 'Adjust Z tilt')).toBeDefined()
+  })
+
+  /**
+   * Unchecking the shortcut doesn't relocate its method into the row — it
+   * removes the action from the card entirely. The row only ever shows what
+   * a printer declares beyond `primaryLevelingMethod`, regardless of whether
+   * the shortcut itself is being drawn.
+   */
+  it('hides the leveling action entirely when the shortcut is turned off, rather than falling back to the row', async () => {
+    const { printer, wrapper } = mountModule({
+      leveling: ['screwsTiltAdjust'],
+      config: { showLevelBedShortcut: false },
+    })
+    readyToMove(printer)
+    await flushPromises()
+
+    expect(wrapper.find('.jog-leveling-shortcut').exists()).toBe(false)
+    expect(buttonNamed(wrapper, 'Check bed screws')).toBeUndefined()
   })
 
   it('shows a dash instead of a stale coordinate for an axis that is not homed', async () => {
@@ -575,7 +619,9 @@ describe('MovementModule', () => {
     await flushPromises()
 
     expect(buttonNamed(wrapper, 'Check bed screws')).toBeUndefined()
-    await buttonNamed(wrapper, 'Level gantry')?.trigger('click')
+    const shortcut = wrapper.get('.jog-leveling-shortcut')
+    expect(shortcut.attributes('aria-label')).toBe('Level gantry')
+    await shortcut.trigger('click')
     await flushPromises()
     expect(runLeveling).not.toHaveBeenCalled()
 
@@ -674,12 +720,12 @@ describe('MovementModule', () => {
     expect(pivot.attributes('aria-label')).toBe('X cannot be homed while a job is loaded')
 
     expect(wrapper.find('.jog-matrix--machine').exists()).toBe(false)
-    expect(buttonNamed(wrapper, 'Check bed screws')).toBeUndefined()
+    expect(wrapper.find('.jog-leveling-shortcut').exists()).toBe(false)
 
     printer.printStats.state = 'standby'
     await flushPromises()
     expect(wrapper.find('.jog-matrix--machine').exists()).toBe(true)
-    expect(buttonNamed(wrapper, 'Check bed screws')).toBeDefined()
+    expect(wrapper.find('.jog-leveling-shortcut').exists()).toBe(true)
     expect(wrapper.get('.jog-pivot:not(.jog-pivot--primary)').attributes('title')).toBeUndefined()
   })
 
@@ -740,10 +786,11 @@ describe('MovementModule', () => {
     printer.leveling.quadGantryApplied = false
     await flushPromises()
     expect(wrapper.find('.movement-actions__notice').exists()).toBe(true)
+    expect(wrapper.find('.jog-leveling-shortcut').exists()).toBe(true)
 
     printer.printStats.state = 'paused'
     await flushPromises()
-    expect(buttonNamed(wrapper, 'Level gantry')).toBeUndefined()
+    expect(wrapper.find('.jog-leveling-shortcut').exists()).toBe(false)
     expect(wrapper.find('.movement-actions__notice').exists()).toBe(false)
   })
 
@@ -784,7 +831,10 @@ describe('MovementModule', () => {
    */
   it('keeps the action row container for whichever of its three rows survives', async () => {
     const { printer, wrapper } = mountModule({
-      leveling: ['screwsTiltAdjust'],
+      // Two methods, so the row still has something once the shortcut claims
+      // `quadGantryLevel` as `primaryLevelingMethod` — a lone method would
+      // leave the row empty and defeat what this test is checking.
+      leveling: ['screwsTiltAdjust', 'quadGantryLevel'],
       config: { showParking: false },
     })
     readyToMove(printer)
@@ -828,7 +878,7 @@ describe('MovementModule', () => {
     readyToMove(printer)
     await flushPromises()
 
-    await buttonNamed(wrapper, 'Check bed screws')?.trigger('click')
+    await wrapper.get('.jog-leveling-shortcut').trigger('click')
     await flushPromises()
     await confirmOpenDialog(wrapper)
     await flushPromises()
@@ -873,7 +923,10 @@ describe('MovementModule', () => {
     await flushPromises()
     expect(wrapper.find('.screw-table').exists()).toBe(true)
 
-    await buttonNamed(wrapper, 'Adjust Z tilt')?.trigger('click')
+    // `zTilt` is `primaryLevelingMethod` here (it precedes `screwsTiltAdjust`
+    // in `levelingSections`), so it is reached through the shortcut rather
+    // than a row button of its own.
+    await wrapper.get('.jog-leveling-shortcut').trigger('click')
     await flushPromises()
     await confirmOpenDialog(wrapper)
     await flushPromises()
@@ -907,7 +960,7 @@ describe('MovementModule', () => {
     readyToMove(printer)
     await flushPromises()
 
-    await buttonNamed(wrapper, 'Check bed screws')?.trigger('click')
+    await wrapper.get('.jog-leveling-shortcut').trigger('click')
     await flushPromises()
     await confirmOpenDialog(wrapper)
     await flushPromises()

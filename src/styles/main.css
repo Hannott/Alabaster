@@ -3792,7 +3792,7 @@ input.z-axis__slider {
 }
 
 /*
- * The machine-actions row's own two side cells: `showBedScrewsCheck`'s own
+ * The machine-actions row's own two side cells: `showLevelBedShortcut`'s own
  * shortcut, optionally, in the first — there is no third pivot to balance
  * there, only the home-all pivot's own alignment column to keep in step with
  * the per-axis rows above it, so the cell is free for a second shortcut the

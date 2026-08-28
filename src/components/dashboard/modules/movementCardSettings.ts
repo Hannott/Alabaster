@@ -46,13 +46,25 @@ export const movementCardDefaults = {
    */
   showHomeXY: false,
   /**
-   * A shortcut to `SCREWS_TILT_CALCULATE` beside home-all, for a check run
-   * often enough between prints that the full-width leveling row below is an
-   * extra scroll every time. It replaces that row's own copy of the same
-   * button rather than duplicating it — see `levelingRowMethods` in
-   * `MovementModule.vue`. Defaults off for the same reason `showHomeXY` does.
+   * A shortcut beside home-all for whichever leveling command this printer
+   * actually reports — `SCREWS_TILT_CALCULATE`, `QUAD_GANTRY_LEVEL`,
+   * `Z_TILT_ADJUST`, whatever `primaryLevelingMethod` in `MovementModule.vue`
+   * resolves to — for a check run often enough between prints that a
+   * full-width row buried below the jog matrix was an extra scroll every
+   * time. Always labelled "Level bed" so the button reads the same across
+   * every printer; the tooltip names the actual macro.
+   *
+   * Defaults on, unlike the other switches on this card: this is the
+   * ordinary way to reach leveling now, not an extra someone opts into, so a
+   * fresh dashboard has to offer it without a trip to settings first.
+   * Unchecking it does not relocate the action to the row below —
+   * `levelingRowMethods` in `MovementModule.vue` excludes
+   * `primaryLevelingMethod` unconditionally, so turning this off removes the
+   * only leveling action a typical single-method printer has. The row is
+   * reserved for whatever a printer configures *beyond* its primary method, a
+   * case rare enough that it does not need a switch of its own.
    */
-  showBedScrewsCheck: false,
+  showLevelBedShortcut: true,
 } as const
 
 export type MovementCardSettingKey = keyof typeof movementCardDefaults
