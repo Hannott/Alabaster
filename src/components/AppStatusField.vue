@@ -20,7 +20,8 @@
  * `text` prop is what actually says what state this is, and every call site
  * must pass a label that says so on its own.
  */
-export type AppStatusFieldTone = 'neutral' | 'positive' | 'accent' | 'caution' | 'danger' | 'offline'
+export type AppStatusFieldTone =
+  'neutral' | 'positive' | 'accent' | 'caution' | 'danger' | 'offline'
 export type AppStatusFieldSize = 'md' | 'sm' | 'xs'
 
 withDefaults(

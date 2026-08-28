@@ -35,6 +35,8 @@ describe('AppStatusField', () => {
       attrs: { class: 'machine-update-status' },
     })
 
-    expect(wrapper.classes()).toEqual(expect.arrayContaining(['status-field', 'machine-update-status']))
+    expect(wrapper.classes()).toEqual(
+      expect.arrayContaining(['status-field', 'machine-update-status']),
+    )
   })
 })
