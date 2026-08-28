@@ -988,28 +988,14 @@ defineProps<{ name: AppIconName }>()
       d="M17.651 7.65a7.131 7.131 0 0 0-12.68 3.15M18.001 4v4h-4m-7.652 8.35a7.13 7.13 0 0 0 12.68-3.15M6 20v-4h4"
     />
     <!--
-      line-md's "loading-twotone-loop" glyph (MIT licensed): twelve dots evenly
-      spaced around the ring, flattened to their resting frame. Upstream fades
-      each dot's opacity in turn with its own `set`/`animate` pair, which sits
-      outside the application-wide `prefers-reduced-motion` rule, so the chase
-      becomes a staggered CSS `animation-delay` per dot instead (`.spinner-icon`
-      in main.css). See outlier 12 in button-system.md and ADR 0004's "Async
-      operations".
+      line-md's "loading-loop" glyph (MIT licensed): a single quarter-circle
+      arc. Upstream spins it with its own `animateTransform`, which sits
+      outside the application-wide `prefers-reduced-motion` rule, so the spin
+      is a CSS `animation: spinner-turn` on `.spinner-icon` instead (main.css),
+      the same substitution the cog above makes for its own SMIL. See outlier
+      12 in button-system.md and ADR 0004's spinning-icon-family exception.
     -->
-    <g v-else-if="name === 'spinner'" fill="currentColor" stroke="none">
-      <circle cx="12" cy="3.5" r="1.5" />
-      <circle cx="16.25" cy="4.64" r="1.5" />
-      <circle cx="19.36" cy="7.75" r="1.5" />
-      <circle cx="20.5" cy="12" r="1.5" />
-      <circle cx="19.36" cy="16.25" r="1.5" />
-      <circle cx="16.25" cy="19.36" r="1.5" />
-      <circle cx="12" cy="20.5" r="1.5" />
-      <circle cx="7.75" cy="19.36" r="1.5" />
-      <circle cx="4.64" cy="16.25" r="1.5" />
-      <circle cx="3.5" cy="12" r="1.5" />
-      <circle cx="4.64" cy="7.75" r="1.5" />
-      <circle cx="7.75" cy="4.64" r="1.5" />
-    </g>
+    <path v-else-if="name === 'spinner'" d="M12 3c4.97 0 9 4.03 9 9" />
     <g v-else-if="name === 'rename'">
       <path d="M4 18h6M7 15V5M4 5h6M14 7h6M14 12h5M14 17h6" />
     </g>

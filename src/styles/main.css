@@ -4101,71 +4101,30 @@ input.z-axis__slider {
 /*
  * The Machine page's "Check for updates" control (outlier 12 in
  * button-system.md) swaps its `refresh` glyph for this `spinner` one while
- * the all-sources check is running. Unlike the fan and the cog above, this
- * glyph never rotates — it is twelve dots, and line-md fades each one's
- * opacity in turn to read as a chase around the ring. That is opacity, not
- * `transform: rotate`, so it is not a fourth instance of the spinning-icon
- * family; it is the same "faint opacity pulse for longer-running work" ADR
- * 0004 already asks for, spread across twelve elements with a phase offset
- * instead of one control breathing in place. It therefore reuses
- * `--motion-duration-pending` rather than inventing a second wait-indicator
- * timing, and — like the cog — reads `data-pending` off the button that
- * already carries it for the breathe treatment, rather than a second,
- * independently-set flag that could drift from it.
+ * the all-sources check is running. Like the cog above, it is now a third
+ * instance of ADR 0004's spinning-icon-family exception: a decorative,
+ * `aria-hidden` glyph inside a control outlier 12 already left unlabeled,
+ * animating only a `transform`, and reading pending state off the
+ * `data-pending` the button already carries for the breathe treatment rather
+ * than a second, independently-set flag that could drift from it.
+ *
+ * The rate is upstream's own 1.5s rather than `--motion-duration-pending`:
+ * matching what `line-md:loading-loop` actually looks like was the reason for
+ * moving off the twelve-dot opacity chase this replaced, so slowing it to the
+ * shared pending timing would undo that.
  *
  * Reduced motion needs no override here for the same reason the fan and the
  * cog need none: this is a CSS animation, so the application-wide rule
  * collapses it to a single static frame.
  */
-.button[data-pending='true'] > .spinner-icon circle {
-  animation: spinner-dot-fade var(--motion-duration-pending) linear infinite;
+.button[data-pending='true'] > .spinner-icon {
+  transform-origin: 50% 50%;
+  animation: spinner-turn 1.5s linear infinite;
 }
 
-.button[data-pending='true'] > .spinner-icon circle:nth-child(1) {
-  animation-delay: calc(var(--motion-duration-pending) * 0 / 12);
-}
-.button[data-pending='true'] > .spinner-icon circle:nth-child(2) {
-  animation-delay: calc(var(--motion-duration-pending) * 1 / 12);
-}
-.button[data-pending='true'] > .spinner-icon circle:nth-child(3) {
-  animation-delay: calc(var(--motion-duration-pending) * 2 / 12);
-}
-.button[data-pending='true'] > .spinner-icon circle:nth-child(4) {
-  animation-delay: calc(var(--motion-duration-pending) * 3 / 12);
-}
-.button[data-pending='true'] > .spinner-icon circle:nth-child(5) {
-  animation-delay: calc(var(--motion-duration-pending) * 4 / 12);
-}
-.button[data-pending='true'] > .spinner-icon circle:nth-child(6) {
-  animation-delay: calc(var(--motion-duration-pending) * 5 / 12);
-}
-.button[data-pending='true'] > .spinner-icon circle:nth-child(7) {
-  animation-delay: calc(var(--motion-duration-pending) * 6 / 12);
-}
-.button[data-pending='true'] > .spinner-icon circle:nth-child(8) {
-  animation-delay: calc(var(--motion-duration-pending) * 7 / 12);
-}
-.button[data-pending='true'] > .spinner-icon circle:nth-child(9) {
-  animation-delay: calc(var(--motion-duration-pending) * 8 / 12);
-}
-.button[data-pending='true'] > .spinner-icon circle:nth-child(10) {
-  animation-delay: calc(var(--motion-duration-pending) * 9 / 12);
-}
-.button[data-pending='true'] > .spinner-icon circle:nth-child(11) {
-  animation-delay: calc(var(--motion-duration-pending) * 10 / 12);
-}
-.button[data-pending='true'] > .spinner-icon circle:nth-child(12) {
-  animation-delay: calc(var(--motion-duration-pending) * 11 / 12);
-}
-
-@keyframes spinner-dot-fade {
-  0%,
-  12.5% {
-    opacity: 1;
-  }
-  25%,
-  100% {
-    opacity: 0;
+@keyframes spinner-turn {
+  to {
+    transform: rotate(360deg);
   }
 }
 
