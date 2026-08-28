@@ -1856,53 +1856,11 @@ input[type='number']::-webkit-inner-spin-button {
   flex: 0 1 auto;
 }
 
-/*
- * A control marked `header-shortcut` duplicates something Settings already
- * owns, so it stands down below `sm` rather than compete with the machine's
- * own controls for the row's last space — see "The global header at narrow
- * widths" in docs/design/interface-standards.md. Matched through the action
- * row rather than on the class alone so the rule outweighs whatever `display`
- * the control itself carries; a bare `.header-shortcut` loses to
- * `.header-menu` on source order. The language menu and the light/dark
- * toggle, its first two instances, left the header entirely rather than
- * merely standing down here; the account link is the first control to
- * actually use the mark, but it sits interleaved between notifications and
- * power rather than in a group of its own, so it carries no
- * `.header-divider` — that mark is for setting a contiguous run of shortcuts
- * apart from the machine's own controls, which one interleaved icon is not.
- */
 .header-divider {
   inline-size: 1px;
   align-self: stretch;
   margin-block: 0.35rem;
   background: var(--border-subtle);
-}
-
-@media (max-width: 39.999rem) {
-  .header-actions > .header-shortcut {
-    display: none;
-  }
-
-  /*
-   * Immediate rather than faded, unlike the same mark's hand-off to the sidebar
-   * at 64rem: this breakpoint exists because the row does not fit, so the 180ms
-   * a discrete display transition would spend holding the mark on screen is
-   * 180ms of the very overflow the rule is here to prevent. Below `sm` the
-   * header keeps every remaining control — emergency stop, notices, power, and
-   * which printer is being looked at all act on the machine or report its
-   * state, and a phone standing beside the printer is exactly where they are
-   * wanted — so only the mark stands down, for the same reason the design
-   * intent gives for keeping product identity out of page headings: this is an
-   * appliance workspace, and on a 390 px screen the 3rem the mark and its gap
-   * occupy are worth more to the printer's own name, which would otherwise
-   * truncate even names as short as "Prusa MK4". The mark still identifies the
-   * application in the desktop sidebar, which is what it is there for.
-   * Immediate, per ADR 0004: responsive geometry is never animated.
-   */
-  .header-identity .mobile-brand {
-    display: none;
-    transition: none;
-  }
 }
 
 .header-menu {

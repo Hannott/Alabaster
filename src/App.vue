@@ -916,7 +916,7 @@ async function discardPendingConfig(): Promise<void> {
           <RouterLink
             v-if="showAccountLink"
             :to="{ name: 'settings' }"
-            class="button button--quiet button--icon header-shortcut"
+            class="button button--quiet button--icon header-icon"
             :aria-label="t('header.account.label')"
             :title="t('header.account.label')"
             @click="openAccountSettings"
