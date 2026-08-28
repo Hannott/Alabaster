@@ -276,7 +276,7 @@ export const dashboardModuleRegistry: readonly DashboardModuleDefinition[] = [
   {
     id: 'controls',
     titleKey: 'dashboard.modules.controls',
-    icon: 'controls',
+    icon: 'adjust',
     requires: 'klipper',
     component: markRaw(ControlsModule),
     hasSettings: true,

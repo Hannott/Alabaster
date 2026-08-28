@@ -2,6 +2,7 @@
 export type AppIconName =
   | 'activity'
   | 'add'
+  | 'adjust'
   | 'back'
   | 'bell'
   | 'bellAlertTwotone'
@@ -38,6 +39,7 @@ export type AppIconName =
   | 'fileJpg'
   | 'filePlus'
   | 'filePng'
+  | 'filePrinter'
   | 'fileSearch'
   | 'fileText'
   | 'fileUpload'
@@ -49,6 +51,7 @@ export type AppIconName =
   | 'forward'
   | 'fullscreen'
   | 'function'
+  | 'gears'
   | 'globe'
   | 'help'
   | 'hide'
@@ -399,6 +402,33 @@ defineProps<{ name: AppIconName }>()
         d="M8.74 6.38c0.4 -0.24 0.84 -0.44 1.29 -0.57c0 0 0.37 -2.81 0.4 -2.81c0 0 3.12 0 3.12 0c0.03 0.01 0.41 2.8 0.41 2.8c0.44 0.14 0.88 0.34 1.3 0.58"
       />
     </g>
+    <!--
+      Lineicons' "gears-3" glyph (Lineicons Free, MIT licensed) — two meshed
+      gears, one small and one large. The main sidebar rail uses this in place
+      of the single-cog `settings` glyph above, so the destination that opens
+      the whole Settings page reads as more than one thing to configure;
+      every other settings-toggle control (a module's gear, the console
+      panel, the G-code viewer) keeps the plain cog. Deliberately outside the
+      `.cog-icon` hook in main.css: that turn-while-active treatment is a
+      single cog rotating shut, and it does not read the same way on two
+      meshed gears, so this glyph stays a static frame in the rail.
+    -->
+    <g v-else-if="name === 'gears'" fill="currentColor" stroke="none">
+      <path
+        d="M4.253 5.397a1.492 1.492 0 0 0 2.23-1.288h1.5a1.492 1.492 0 0 0 2.231 1.288l.75 1.298c.417-.233.916-.387 1.424-.478q-.046-.135-.12-.264l-.759-1.313a1.49 1.49 0 0 0-2.025-.553A1.49 1.49 0 0 0 7.992 2.61H6.476c-.82 0-1.485.66-1.492 1.478a1.49 1.49 0 0 0-2.026.553L2.2 5.953c-.41.71-.17 1.616.534 2.031a1.49 1.49 0 0 0-.534 2.031l.758 1.313c.41.71 1.314.955 2.026.553c.006.618.388 1.147.928 1.368c-.003-.571.14-1.15.447-1.68l.068-.118a1.494 1.494 0 0 0-2.174-.88l-.75-1.299c.985-.576.985-2 0-2.576z"
+      />
+      <path d="M7.234 9.484a1.5 1.5 0 1 0 0-3a1.5 1.5 0 0 0 0 3" />
+      <path
+        fill-rule="evenodd"
+        d="M11.64 15.11a3.065 3.065 0 1 1 6.13 0a3.065 3.065 0 0 1-6.13 0m3.066-1.564a1.565 1.565 0 1 0 0 3.13a1.565 1.565 0 0 0 0-3.13"
+        clip-rule="evenodd"
+      />
+      <path
+        fill-rule="evenodd"
+        d="M7.658 17.903a1.833 1.833 0 0 1 .671-2.505a.333.333 0 0 0 0-.576a1.833 1.833 0 0 1-.67-2.504l1.106-1.916a1.833 1.833 0 0 1 2.503-.67a.332.332 0 0 0 .499-.288c0-1.012.82-1.833 1.832-1.833h2.213c1.013 0 1.833.821 1.833 1.833c0 .256.277.416.498.288a1.83 1.83 0 0 1 2.503.67l1.107 1.918a1.83 1.83 0 0 1-.67 2.502a.332.332 0 0 0 0 .576a1.833 1.833 0 0 1 .67 2.503l-1.105 1.916a1.833 1.833 0 0 1-2.504.671a.333.333 0 0 0-.5.288c0 1.013-.82 1.833-1.832 1.833H13.6a1.833 1.833 0 0 1-1.833-1.832a.333.333 0 0 0-.5-.288a1.833 1.833 0 0 1-2.503-.671zm1.421-1.206a.333.333 0 0 0-.122.456l1.106 1.915c.092.16.295.214.455.122c1.221-.705 2.749.176 2.749 1.587c0 .183.149.332.333.332h2.212a.333.333 0 0 0 .333-.333c0-1.41 1.527-2.292 2.749-1.587c.16.092.363.037.455-.122l1.106-1.916a.333.333 0 0 0-.122-.454c-1.221-.705-1.222-2.468 0-3.174a.33.33 0 0 0 .121-.453l-1.107-1.917a.33.33 0 0 0-.454-.122c-1.221.706-2.748-.177-2.748-1.587a.333.333 0 0 0-.333-.333H13.6a.33.33 0 0 0-.332.333c0 1.41-1.527 2.292-2.749 1.586a.333.333 0 0 0-.454.122l-1.106 1.916a.333.333 0 0 0 .122.455c1.222.705 1.22 2.47 0 3.174"
+        clip-rule="evenodd"
+      />
+    </g>
     <g v-else-if="name === 'more'">
       <circle cx="5" cy="12" r="1.1" fill="currentColor" stroke="none" />
       <circle cx="12" cy="12" r="1.1" fill="currentColor" stroke="none" />
@@ -511,6 +541,18 @@ defineProps<{ name: AppIconName }>()
       <circle cx="16" cy="6" r="2" />
       <circle cx="9" cy="12" r="2" />
       <circle cx="14" cy="18" r="2" />
+    </g>
+    <!--
+      Basil's "settings-adjust-solid" glyph (MIT licensed) — two slider tracks,
+      each carrying its own knob. The Outputs dashboard module's header uses
+      this now; its previous header glyph is the three-row `controls` icon
+      just above, which moved to the Calibration destination in the sidebar
+      rail rather than being redrawn.
+    -->
+    <g v-else-if="name === 'adjust'" fill="currentColor" stroke="none">
+      <path
+        d="M13.878 8.75H4a.75.75 0 0 1 0-1.5h9.878a2.251 2.251 0 0 1 4.244 0H20a.75.75 0 0 1 0 1.5h-1.878a2.251 2.251 0 0 1-4.244 0m6.122 8a.75.75 0 0 0 0-1.5h-9.878a2.251 2.251 0 0 0-4.244 0H4a.75.75 0 0 0 0 1.5h1.878a2.25 2.25 0 0 0 4.244 0z"
+      />
     </g>
     <!--
       A GPS-style crosshair — a circle, a centre dot, and four ticks standing

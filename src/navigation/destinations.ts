@@ -77,7 +77,7 @@ const destinations: readonly NavigationDestination[] = [
   {
     name: 'calibration',
     labelKey: 'navigation.calibration',
-    icon: 'mesh',
+    icon: 'controls',
     position: 30,
     mobile: 'overflow',
   },
@@ -136,7 +136,7 @@ const destinations: readonly NavigationDestination[] = [
   {
     name: 'settings',
     labelKey: 'navigation.settings',
-    icon: 'settings',
+    icon: 'gears',
     position: 100,
     mobile: 'overflow',
   },
