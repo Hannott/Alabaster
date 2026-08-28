@@ -662,7 +662,7 @@
       "homeXY": "Home X and Y axes",
       "homeXYShort": "XY",
       "showHomeXY": "Show a combined X/Y home button",
-      "screwsCheckShort": "Start bed level",
+      "screwsCheckShort": "Level bed",
       "showBedScrewsCheck": "Show bed level macro",
       "feedrateUnit": "mm/s",
       "feedrateLabel": "Toolhead speed",
