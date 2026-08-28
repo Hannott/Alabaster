@@ -261,6 +261,11 @@ function openAccountSettings(): void {
   setActiveCategory('users')
 }
 
+/** Jumps straight to the Printers category rather than leaving Settings on whatever it last showed. */
+function openPrinterSettings(): void {
+  setActiveCategory('printers')
+}
+
 /**
  * The rail renders every destination this machine can serve. The mobile bar
  * shows the few that earn a permanent cell at 390 px and the overflow menu holds
@@ -597,7 +602,12 @@ async function discardPendingConfig(): Promise<void> {
                   <RouterLink
                     :to="{ name: 'settings' }"
                     class="button button--quiet button--sm button--start button--block"
-                    @click="close"
+                    @click="
+                      () => {
+                        close()
+                        openPrinterSettings()
+                      }
+                    "
                   >
                     <AppIcon name="add" class="size-4" aria-hidden="true" />
                     {{ t('header.printers.manage') }}
