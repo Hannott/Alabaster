@@ -948,7 +948,7 @@ function requestPause(): void {
         -->
             <RouterLink
               :to="{ name: 'printFiles' }"
-              :class="lastPrintedFile ? 'button' : 'button button--sm button--primary'"
+              :class="lastPrintedFile ? 'button button--sm' : 'button button--sm button--primary'"
             >
               <AppIcon name="folder" class="size-5" aria-hidden="true" />
               {{ t('dashboard.print.chooseFile') }}
