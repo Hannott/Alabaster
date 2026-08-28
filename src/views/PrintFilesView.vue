@@ -3,6 +3,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
+import AppButton from '@/components/AppButton.vue'
 import AppIcon from '@/components/AppIcon.vue'
 import AvailabilityRegion from '@/components/AvailabilityRegion.vue'
 import FileDropOverlay from '@/components/FileDropOverlay.vue'
@@ -315,26 +316,23 @@ const {
               </p>
             </div>
             <div class="print-files-pane-actions">
-              <button
-                type="button"
-                class="button button--xs button--icon"
+              <AppButton
+                size="xs"
+                icon-only
+                icon="refresh"
                 :disabled="!moonrakerAvailability.isAvailable"
                 :aria-label="t('printFiles.actions.refresh')"
                 :title="t('printFiles.actions.refresh')"
                 @click="gcodeFiles.refreshDirectory"
-              >
-                <AppIcon name="refresh" class="size-4" aria-hidden="true" />
-              </button>
-              <button
-                type="button"
-                class="button button--xs"
+              />
+              <AppButton
+                size="xs"
+                :pending="gcodeFiles.isUploading"
+                icon="fileUpload"
+                :label="t('printFiles.actions.upload')"
                 :disabled="!moonrakerAvailability.isAvailable"
-                :data-pending="gcodeFiles.isUploading ? 'true' : undefined"
                 @click="openUploadPicker"
-              >
-                <AppIcon name="fileUpload" class="size-4" aria-hidden="true" />
-                {{ t('printFiles.actions.upload') }}
-              </button>
+              />
               <input
                 ref="uploadInput"
                 type="file"
@@ -347,25 +345,23 @@ const {
           </header>
 
           <nav class="print-files-breadcrumbs" :aria-label="t('printFiles.breadcrumbs')">
-            <button
-              type="button"
-              class="button button--quiet button--xs"
+            <AppButton
+              variant="quiet"
+              size="xs"
+              icon="folder"
+              :label="t('printFiles.root')"
               :disabled="gcodeFiles.currentPath === ''"
               @click="gcodeFiles.navigateTo('')"
-            >
-              <AppIcon name="folder" class="size-4" aria-hidden="true" />
-              {{ t('printFiles.root') }}
-            </button>
+            />
             <template v-for="crumb in gcodeFiles.breadcrumbs" :key="crumb.path">
               <span class="print-files-breadcrumbs__separator" aria-hidden="true">/</span>
-              <button
-                type="button"
-                class="button button--quiet button--xs"
+              <AppButton
+                variant="quiet"
+                size="xs"
+                :label="crumb.name"
                 :disabled="crumb.path === gcodeFiles.currentPath"
                 @click="gcodeFiles.navigateTo(crumb.path)"
-              >
-                {{ crumb.name }}
-              </button>
+              />
             </template>
           </nav>
 
@@ -453,15 +449,15 @@ const {
             <h2 class="min-w-0 break-words text-dialog-title">
               {{ gcodeFiles.selectedFile.name }}
             </h2>
-            <button
-              type="button"
-              class="button button--quiet button--xs button--icon"
+            <AppButton
+              variant="quiet"
+              size="xs"
+              icon-only
+              icon="close"
               :aria-label="t('printFiles.actions.closeDetail')"
               :title="t('printFiles.actions.closeDetail')"
               @click="gcodeFiles.clearSelection()"
-            >
-              <AppIcon name="close" class="size-4" aria-hidden="true" />
-            </button>
+            />
           </header>
 
           <img
@@ -612,42 +608,38 @@ const {
             hand-written file has none to correct until this runs once.
           -->
           <div v-if="gcodeFiles.isAnalysisReady" class="print-files-estimate">
-            <button
-              type="button"
-              class="button button--sm button--block"
+            <AppButton
+              size="sm"
+              block
+              :pending="gcodeFiles.isProcessingEstimate"
+              icon="refresh"
+              :label="t('printFiles.actions.getAccurateEstimate')"
               :disabled="gcodeFiles.isProcessingEstimate"
-              :data-pending="gcodeFiles.isProcessingEstimate ? 'true' : undefined"
               @click="gcodeFiles.processEstimate(gcodeFiles.selectedFile.path)"
-            >
-              <AppIcon name="refresh" class="size-4" aria-hidden="true" />
-              {{ t('printFiles.actions.getAccurateEstimate') }}
-            </button>
+            />
             <p v-if="gcodeFiles.processEstimateFailed" class="print-files-note" role="alert">
               {{ t('dashboard.commandFailed') }}
             </p>
           </div>
 
           <div class="print-files-detail__actions">
-            <button
-              type="button"
-              class="button button--primary button--block"
+            <AppButton
+              variant="primary"
+              block
+              :pending="printer.pendingCommands.startPrint"
+              icon="print"
+              :label="t('printFiles.actions.print')"
               :disabled="!canPrintSelected"
-              :data-pending="printer.pendingCommands.startPrint ? 'true' : undefined"
               @click="startSelectedPrint"
-            >
-              <AppIcon name="print" class="size-5" aria-hidden="true" />
-              {{ t('printFiles.actions.print') }}
-            </button>
-            <button
-              type="button"
-              class="button button--block"
+            />
+            <AppButton
+              block
+              :pending="jobQueue.pendingCommands.add"
+              icon="jobs"
+              :label="t('printFiles.actions.addToQueue')"
               :disabled="!canQueueSelected"
-              :data-pending="jobQueue.pendingCommands.add ? 'true' : undefined"
               @click="queueSelectedPrint"
-            >
-              <AppIcon name="jobs" class="size-5" aria-hidden="true" />
-              {{ t('printFiles.actions.addToQueue') }}
-            </button>
+            />
             <p v-if="printer.hasActivePrint" class="print-files-note">
               {{ t('printFiles.printBusy') }}
             </p>

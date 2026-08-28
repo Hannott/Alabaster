@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import AppIcon from '@/components/AppIcon.vue'
+import AppButton from '@/components/AppButton.vue'
 import { configStringList, useDashboardModule } from '@/dashboard/context'
 import { formatMacroLabel, useMacrosStore } from '@/stores/macros'
 
@@ -74,15 +74,15 @@ function remove(name: string): void {
       <span v-if="macro.isMissing" class="shrink-0 text-[0.68rem] font-bold text-muted">
         {{ t('dashboard.macros.missingShort') }}
       </span>
-      <button
-        type="button"
-        class="button button--quiet button--xs button--icon"
+      <AppButton
+        variant="quiet"
+        size="xs"
+        icon-only
+        icon="close"
         :title="t('dashboard.macros.remove', { macro: macro.label })"
         :aria-label="t('dashboard.macros.remove', { macro: macro.label })"
         @click="remove(macro.name)"
-      >
-        <AppIcon name="close" class="size-4" aria-hidden="true" />
-      </button>
+      />
     </li>
   </ul>
   <p v-else class="mt-2 text-xs text-muted">{{ t('dashboard.extruder.macrosNoneSelected') }}</p>
@@ -93,15 +93,15 @@ function remove(name: string): void {
   <ul v-if="available.length > 0" class="macro-picker__available mt-2 grid gap-1">
     <li v-for="macro in available" :key="macro.name" class="macro-row">
       <span class="macro-row__name text-mono-name">{{ macro.label }}</span>
-      <button
-        type="button"
-        class="button button--quiet button--xs button--icon"
+      <AppButton
+        variant="quiet"
+        size="xs"
+        icon-only
+        icon="add"
         :title="t('dashboard.macros.add', { macro: macro.label })"
         :aria-label="t('dashboard.macros.add', { macro: macro.label })"
         @click="add(macro.name)"
-      >
-        <AppIcon name="add" class="size-4" aria-hidden="true" />
-      </button>
+      />
     </li>
   </ul>
   <p v-else class="mt-2 text-xs text-muted">

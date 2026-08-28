@@ -2,7 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import AppIcon from '@/components/AppIcon.vue'
+import AppButton from '@/components/AppButton.vue'
 import AppSelect from '@/components/AppSelect.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import DisclosureReveal from '@/components/DisclosureReveal.vue'
@@ -601,16 +601,18 @@ const lastSyncedDisplay = computed(() => {
     <div class="settings-page">
       <div class="settings-body">
         <nav class="settings-rail" :aria-label="t('settings.categoriesLabel')">
-          <button
+          <AppButton
             v-for="category in categories"
             :key="category.id"
-            type="button"
-            class="button button--quiet button--sm button--start button--block settings-rail-button"
+            variant="quiet"
+            size="sm"
+            start
+            block
+            :label="t(category.labelKey)"
+            class="settings-rail-button"
             :aria-current="activeCategory === category.id ? 'true' : undefined"
             @click="setActiveCategory(category.id)"
-          >
-            {{ t(category.labelKey) }}
-          </button>
+          />
 
           <select
             :value="activeCategory"
@@ -674,19 +676,19 @@ const lastSyncedDisplay = computed(() => {
               </Transition>
 
               <div class="mt-5 flex flex-wrap gap-3">
-                <button type="submit" class="button button--primary">
-                  {{ t('connection.saveAndConnect') }}
-                </button>
-                <button
+                <AppButton
+                  variant="primary"
+                  :label="t('connection.saveAndConnect')"
+                  type="submit"
+                />
+                <AppButton
                   v-if="
                     moonraker.connectionPhase !== 'idle' && moonraker.connectionPhase !== 'stopped'
                   "
-                  type="button"
-                  class="button"
+                  size="sm"
+                  :label="t('connection.disconnect')"
                   @click="moonraker.disconnect"
-                >
-                  {{ t('connection.disconnect') }}
-                </button>
+                />
               </div>
             </form>
           </section>
@@ -725,30 +727,28 @@ const lastSyncedDisplay = computed(() => {
                 >
                   {{ t('printers.active') }}
                 </span>
-                <button
+                <AppButton
                   v-else
-                  type="button"
-                  class="button button--sm"
+                  size="sm"
+                  :label="t('printers.switch')"
                   @click="moonraker.selectPrinter(entry.id)"
-                >
-                  {{ t('printers.switch') }}
-                </button>
-                <button
-                  type="button"
-                  class="button button--quiet button--sm button--icon"
+                />
+                <AppButton
+                  variant="quiet"
+                  size="sm"
+                  icon-only
+                  icon="rename"
                   :aria-label="t('printers.rename', { name: printerDisplayLabel(entry) })"
                   @click="pendingRename = entry"
-                >
-                  <AppIcon name="rename" class="size-4" aria-hidden="true" />
-                </button>
-                <button
-                  type="button"
-                  class="button button--danger-quiet button--sm button--icon"
+                />
+                <AppButton
+                  variant="danger-quiet"
+                  size="sm"
+                  icon-only
+                  icon="trash"
                   :aria-label="t('printers.remove', { name: printerDisplayLabel(entry) })"
                   @click="requestRemoval(entry)"
-                >
-                  <AppIcon name="trash" class="size-4" aria-hidden="true" />
-                </button>
+                />
               </li>
             </ul>
 
@@ -831,9 +831,12 @@ const lastSyncedDisplay = computed(() => {
                 </div>
               </div>
 
-              <button type="submit" class="button button--primary mt-5">
-                {{ t('printers.addSubmit') }}
-              </button>
+              <AppButton
+                variant="primary"
+                :label="t('printers.addSubmit')"
+                class="mt-5"
+                type="submit"
+              />
             </form>
           </section>
 
@@ -893,15 +896,13 @@ const lastSyncedDisplay = computed(() => {
                   {{ t('users.session.notLoggedIn') }}
                 </p>
               </div>
-              <button
+              <AppButton
                 v-if="auth.currentUser"
-                type="button"
-                class="button button--sm"
+                size="sm"
+                :label="t('users.session.logout')"
                 :disabled="auth.pendingCommands.logout"
                 @click="submitLogout"
-              >
-                {{ t('users.session.logout') }}
-              </button>
+              />
             </div>
 
             <!--
@@ -973,13 +974,13 @@ const lastSyncedDisplay = computed(() => {
                 {{ auth.lastCommandErrorMessage || t('users.login.failed') }}
               </p>
 
-              <button
+              <AppButton
+                variant="primary"
+                :label="t('users.login.submit')"
+                class="mt-5"
                 type="submit"
-                class="button button--primary mt-5"
                 :disabled="auth.pendingCommands.login"
-              >
-                {{ t('users.login.submit') }}
-              </button>
+              />
             </form>
 
             <form
@@ -1019,13 +1020,13 @@ const lastSyncedDisplay = computed(() => {
                 {{ auth.lastCommandErrorMessage || t('users.changePassword.failed') }}
               </p>
 
-              <button
+              <AppButton
+                size="sm"
+                :label="t('users.changePassword.submit')"
+                class="mt-5"
                 type="submit"
-                class="button button--sm mt-5"
                 :disabled="auth.pendingCommands.changePassword"
-              >
-                {{ t('users.changePassword.submit') }}
-              </button>
+              />
             </form>
 
             <div class="mt-7 border-t border-subtle pt-7">
@@ -1044,14 +1045,14 @@ const lastSyncedDisplay = computed(() => {
                     <strong class="block truncate text-row-name">{{ user.username }}</strong>
                     <span class="block truncate text-xs text-muted">{{ user.source }}</span>
                   </span>
-                  <button
-                    type="button"
-                    class="button button--danger-quiet button--sm button--icon"
+                  <AppButton
+                    variant="danger-quiet"
+                    size="sm"
+                    icon-only
+                    icon="trash"
                     :aria-label="t('users.list.remove', { name: user.username })"
                     @click="requestUserDeletion(user)"
-                  >
-                    <AppIcon name="trash" class="size-4" aria-hidden="true" />
-                  </button>
+                  />
                 </li>
               </ul>
 
@@ -1091,13 +1092,13 @@ const lastSyncedDisplay = computed(() => {
                   {{ auth.lastCommandErrorMessage || t('users.add.failed') }}
                 </p>
 
-                <button
+                <AppButton
+                  size="sm"
+                  :label="t('users.add.submit')"
+                  class="mt-5"
                   type="submit"
-                  class="button button--sm mt-5"
                   :disabled="auth.pendingCommands.createUser"
-                >
-                  {{ t('users.add.submit') }}
-                </button>
+                />
               </form>
             </div>
 
@@ -1110,31 +1111,26 @@ const lastSyncedDisplay = computed(() => {
                 <code class="min-w-0 flex-1 truncate font-mono text-xs text-primary">
                   {{ auth.apiKey ?? t('users.apiKey.loading') }}
                 </code>
-                <button
-                  type="button"
-                  class="button button--quiet button--xs button--icon shrink-0"
+                <AppButton
+                  variant="quiet"
+                  size="xs"
+                  icon-only
+                  :icon="apiKeyCopied ? 'check' : 'duplicate'"
+                  class="shrink-0"
                   :disabled="!auth.apiKey"
                   :aria-label="apiKeyCopied ? t('users.apiKey.copied') : t('users.apiKey.copy')"
                   :title="apiKeyCopied ? t('users.apiKey.copied') : t('users.apiKey.copy')"
                   @click="copyApiKey()"
-                >
-                  <AppIcon
-                    :name="apiKeyCopied ? 'check' : 'duplicate'"
-                    class="size-4"
-                    aria-hidden="true"
-                  />
-                </button>
+                />
               </div>
-              <button
-                type="button"
-                class="button button--sm mt-3"
-                :class="regenerateApiKeyGuard.variant.value"
-                v-bind="regenerateApiKeyGuard.bind.value"
+              <AppButton
+                size="sm"
+                :guard="regenerateApiKeyGuard"
+                :label="t('users.apiKey.regenerate')"
+                class="mt-3"
                 :disabled="auth.pendingCommands.regenerateApiKey"
                 @click="requestApiKeyRegeneration()"
-              >
-                {{ t('users.apiKey.regenerate') }}
-              </button>
+              />
             </div>
           </section>
 
@@ -1523,14 +1519,18 @@ const lastSyncedDisplay = computed(() => {
             </p>
 
             <div class="mt-7 flex flex-wrap gap-3">
-              <button type="button" class="button button--sm" @click="exportSettings">
-                <AppIcon name="download" class="size-4" aria-hidden="true" />
-                {{ t('backup.export') }}
-              </button>
-              <button type="button" class="button button--sm" @click="openImportPicker">
-                <AppIcon name="fileUpload" class="size-4" aria-hidden="true" />
-                {{ t('backup.import') }}
-              </button>
+              <AppButton
+                size="sm"
+                icon="download"
+                :label="t('backup.export')"
+                @click="exportSettings"
+              />
+              <AppButton
+                size="sm"
+                icon="fileUpload"
+                :label="t('backup.import')"
+                @click="openImportPicker"
+              />
               <input
                 ref="importInput"
                 type="file"
@@ -1539,13 +1539,12 @@ const lastSyncedDisplay = computed(() => {
                 :aria-label="t('backup.import')"
                 @change="onImportChosen"
               />
-              <button
-                type="button"
-                class="button button--danger-quiet button--sm"
+              <AppButton
+                variant="danger-quiet"
+                size="sm"
+                :label="t('backup.reset')"
                 @click="requestReset"
-              >
-                {{ t('backup.reset') }}
-              </button>
+              />
             </div>
 
             <Transition name="status-change">
@@ -1587,22 +1586,19 @@ const lastSyncedDisplay = computed(() => {
               </p>
 
               <div v-if="settingsSync.isEnabled" class="mt-3 flex flex-wrap gap-3">
-                <button
-                  type="button"
-                  class="button button--sm"
+                <AppButton
+                  size="sm"
+                  :label="t('backup.sync.now')"
                   :disabled="!moonraker.isConnected || settingsSync.pendingCommands.push"
                   @click="settingsSync.push"
-                >
-                  {{ t('backup.sync.now') }}
-                </button>
-                <button
-                  type="button"
-                  class="button button--danger-quiet button--sm"
+                />
+                <AppButton
+                  variant="danger-quiet"
+                  size="sm"
+                  :label="t('backup.sync.forget')"
                   :disabled="!moonraker.isConnected"
                   @click="requestForget"
-                >
-                  {{ t('backup.sync.forget') }}
-                </button>
+                />
               </div>
             </div>
           </section>

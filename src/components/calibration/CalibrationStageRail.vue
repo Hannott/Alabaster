@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 
+import AppButton from '@/components/AppButton.vue'
 import type { CalibrationStageId } from '@/features/calibration/stages'
 
 /**
@@ -35,16 +36,19 @@ function onSelect(value: string): void {
 
 <template>
   <nav class="calibration-rail" :aria-label="t('calibration.stagesLabel')">
-    <button
+    <AppButton
       v-for="stage in props.stages"
       :key="stage"
-      type="button"
-      class="button button--quiet button--sm button--start button--block calibration-rail-button"
+      variant="quiet"
+      size="sm"
+      start
+      block
+      class="calibration-rail-button"
       :aria-current="props.active === stage ? 'true' : undefined"
       @click="emit('select', stage)"
     >
       {{ t(`calibration.stages.${stage}`) }}
-    </button>
+    </AppButton>
     <select
       class="field field--block calibration-rail-select"
       :aria-label="t('calibration.stagesLabel')"

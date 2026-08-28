@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import AppButton from '@/components/AppButton.vue'
 import AppIcon from '@/components/AppIcon.vue'
 import { useAvailability } from '@/composables/useAvailability'
 import { probeBedPosition } from '@/features/bedMesh/probeRun'
@@ -66,16 +67,14 @@ function formatProbeValue(value: number): string {
         <h2 class="calibration-panel__title">{{ t('calibration.probe.title') }}</h2>
         <p class="calibration-panel__hint">{{ t('calibration.probe.hint') }}</p>
       </div>
-      <button
-        type="button"
-        class="button button--xs"
+      <AppButton
+        size="xs"
+        :pending="printer.pendingCommands.probeAccuracy"
+        icon="play"
+        :label="t('calibration.probe.run')"
         :disabled="!canCommand || printer.pendingCommands.probeAccuracy || probeOutsideBed"
-        :data-pending="printer.pendingCommands.probeAccuracy ? 'true' : undefined"
         @click="printer.probeAccuracy()"
-      >
-        <AppIcon name="play" class="size-4" aria-hidden="true" />
-        {{ t('calibration.probe.run') }}
-      </button>
+      />
     </header>
 
     <p v-if="probeOutsideBed" class="calibration-notice" role="status">

@@ -119,10 +119,13 @@ describe('page layout contract', () => {
     )
     // The one recipe every page-heading action uses — see button-system.md's
     // migration map — so an action never arrives at a size or variant that
-    // does not fit the row's fixed height.
-    expect(heading, 'PageHeading action must use the canonical button recipe').toContain(
-      'class="button button--on-soft"',
-    )
+    // does not fit the row's fixed height. `md` `on-soft` and nothing else:
+    // the size and variant props must stay absent, since either one present
+    // is a route having chosen its own.
+    expect(heading, 'PageHeading action must be an AppButton').toMatch(/<AppButton\b/)
+    expect(heading, 'PageHeading action must be on-soft').toMatch(/(?:^|\s)on-soft(?:\s|$)/m)
+    expect(heading, 'PageHeading action must not choose a size').not.toMatch(/\bsize="/)
+    expect(heading, 'PageHeading action must not choose a variant').not.toMatch(/\bvariant="/)
   })
 
   it('reserves one fixed row height for the page heading, whether or not a route has an action', () => {

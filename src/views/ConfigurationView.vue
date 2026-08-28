@@ -2,6 +2,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import AppButton from '@/components/AppButton.vue'
 import AppIcon from '@/components/AppIcon.vue'
 import AvailabilityRegion from '@/components/AvailabilityRegion.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
@@ -1664,9 +1665,9 @@ onBeforeUnmount(() => {
               </p>
             </div>
             <div class="machine-pane-header-actions">
-              <button
-                type="button"
-                class="button button--xs button--icon"
+              <AppButton
+                size="xs"
+                icon-only
                 :disabled="!moonrakerAvailability.isAvailable"
                 :aria-label="t('configuration.actions.refresh')"
                 :title="t('configuration.actions.refresh')"
@@ -1680,30 +1681,26 @@ onBeforeUnmount(() => {
                   counters already make an overlapping click harmless.
                 -->
                 <AppIcon name="refresh" class="size-4" aria-hidden="true" />
-              </button>
-              <button
-                type="button"
-                class="button button--xs button--icon"
+              </AppButton>
+              <AppButton
+                size="xs"
+                icon="save"
                 :disabled="!canSaveAll"
-                :data-pending="
-                  machineFiles.isMutating && machineFiles.hasUnsavedFiles ? 'true' : undefined
-                "
+                :pending="machineFiles.isMutating && machineFiles.hasUnsavedFiles"
                 :aria-label="t('configuration.actions.saveAll')"
                 :title="t('configuration.actions.saveAll')"
                 @click="requestSaveAll"
-              >
-                <AppIcon name="save" class="size-4" aria-hidden="true" />
-              </button>
-              <button
-                type="button"
-                class="button button--danger-quiet button--xs button--icon"
+              />
+              <AppButton
+                variant="danger-quiet"
+                size="xs"
+                icon-only
+                icon="undo"
                 :disabled="!machineFiles.hasUnsavedFiles"
                 :aria-label="t('configuration.actions.discardAll')"
                 :title="t('configuration.actions.discardAll')"
                 @click="requestDiscardAll"
-              >
-                <AppIcon name="undo" class="size-4" aria-hidden="true" />
-              </button>
+              />
               <HeaderMenu :label="t('configuration.settings.open')" align="end">
                 <template #trigger>
                   <AppIcon name="settings" class="size-4" aria-hidden="true" />
@@ -1845,36 +1842,36 @@ onBeforeUnmount(() => {
             </label>
 
             <div class="machine-toolbar">
-              <button
-                type="button"
-                class="button button--sm button--icon button--on-soft"
+              <AppButton
+                size="sm"
+                icon-only
+                on-soft
+                icon="filePlus"
                 :disabled="!canMutate"
                 :aria-label="t('configuration.actions.newFile')"
                 :title="t('configuration.actions.newFile')"
                 @click="createFile"
-              >
-                <AppIcon name="filePlus" class="size-4" aria-hidden="true" />
-              </button>
-              <button
-                type="button"
-                class="button button--sm button--icon button--on-soft"
+              />
+              <AppButton
+                size="sm"
+                icon-only
+                on-soft
+                icon="folderPlus"
                 :disabled="!canMutate"
                 :aria-label="t('configuration.actions.newFolder')"
                 :title="t('configuration.actions.newFolder')"
                 @click="createDirectory"
-              >
-                <AppIcon name="folderPlus" class="size-4" aria-hidden="true" />
-              </button>
-              <button
-                type="button"
-                class="button button--sm button--icon button--on-soft"
+              />
+              <AppButton
+                size="sm"
+                icon-only
+                on-soft
+                icon="fileUpload"
                 :disabled="!canMutate"
                 :aria-label="t('configuration.actions.upload')"
                 :title="t('configuration.actions.upload')"
                 @click="selectUpload"
-              >
-                <AppIcon name="fileUpload" class="size-4" aria-hidden="true" />
-              </button>
+              />
               <input
                 ref="uploadInput"
                 class="sr-only"
@@ -2110,26 +2107,24 @@ onBeforeUnmount(() => {
                     role="group"
                     :aria-label="t('configuration.editor.history')"
                   >
-                    <button
-                      type="button"
-                      class="button button--icon button--xs"
+                    <AppButton
+                      icon-only
+                      size="xs"
+                      icon="back"
                       :disabled="!canNavigateFileHistoryBack"
                       :aria-label="t('configuration.editor.historyBack')"
                       :title="t('configuration.editor.historyBack')"
                       @click="navigateFileHistoryBack"
-                    >
-                      <AppIcon name="back" class="size-4" aria-hidden="true" />
-                    </button>
-                    <button
-                      type="button"
-                      class="button button--icon button--xs"
+                    />
+                    <AppButton
+                      icon-only
+                      size="xs"
+                      icon="forward"
                       :disabled="!canNavigateFileHistoryForward"
                       :aria-label="t('configuration.editor.historyForward')"
                       :title="t('configuration.editor.historyForward')"
                       @click="navigateFileHistoryForward"
-                    >
-                      <AppIcon name="forward" class="size-4" aria-hidden="true" />
-                    </button>
+                    />
                   </div>
                   <AppIcon
                     :name="fileIcon(machineFiles.currentFile.name)"
@@ -2157,9 +2152,8 @@ onBeforeUnmount(() => {
                   role="group"
                   :aria-label="t('configuration.editor.displayMode')"
                 >
-                  <button
-                    type="button"
-                    class="button button--sm"
+                  <AppButton
+                    size="sm"
                     :aria-pressed="editorDisplayMode === 'maximized'"
                     :aria-label="t('configuration.editor.maximized')"
                     :title="t('configuration.editor.maximized')"
@@ -2167,10 +2161,9 @@ onBeforeUnmount(() => {
                   >
                     <AppIcon name="expand" class="size-4" aria-hidden="true" />
                     <span>{{ t('configuration.editor.maximized') }}</span>
-                  </button>
-                  <button
-                    type="button"
-                    class="button button--sm"
+                  </AppButton>
+                  <AppButton
+                    size="sm"
                     :aria-pressed="editorDisplayMode === 'fullscreen'"
                     :aria-label="t('configuration.editor.fullscreen')"
                     :title="t('configuration.editor.fullscreen')"
@@ -2178,12 +2171,12 @@ onBeforeUnmount(() => {
                   >
                     <AppIcon name="fullscreen" class="size-4" aria-hidden="true" />
                     <span>{{ t('configuration.editor.fullscreen') }}</span>
-                  </button>
+                  </AppButton>
                 </div>
-                <button
+                <AppButton
                   v-if="!isCurrentFilePreview"
-                  type="button"
-                  class="button button--primary machine-editor-action"
+                  variant="primary"
+                  class="machine-editor-action"
                   :disabled="!canSave || !machineFiles.isDirty"
                   :aria-label="t('configuration.editor.save')"
                   :title="t('configuration.editor.save')"
@@ -2191,11 +2184,10 @@ onBeforeUnmount(() => {
                 >
                   <AppIcon name="save" class="size-5" aria-hidden="true" />
                   <span>{{ t('configuration.editor.save') }}</span>
-                </button>
-                <button
+                </AppButton>
+                <AppButton
                   v-if="!isCurrentFilePreview"
-                  type="button"
-                  class="button machine-editor-action"
+                  class="machine-editor-action"
                   :disabled="!canSave || !machineFiles.isDirty || !klipperAvailability.isAvailable"
                   :aria-label="t('configuration.editor.saveRestart')"
                   :title="t('configuration.editor.saveRestart')"
@@ -2203,11 +2195,11 @@ onBeforeUnmount(() => {
                 >
                   <AppIcon name="refresh" class="size-5" aria-hidden="true" />
                   <span>{{ t('configuration.editor.saveRestart') }}</span>
-                </button>
-                <button
+                </AppButton>
+                <AppButton
                   v-if="!isCurrentFilePreview"
-                  type="button"
-                  class="button button--danger-quiet machine-editor-action"
+                  variant="danger-quiet"
+                  class="machine-editor-action"
                   :disabled="!machineFiles.isDirty"
                   :aria-label="t('configuration.editor.discard')"
                   :title="t('configuration.editor.discard')"
@@ -2215,27 +2207,23 @@ onBeforeUnmount(() => {
                 >
                   <AppIcon name="undo" class="size-5" aria-hidden="true" />
                   <span>{{ t('configuration.editor.discard') }}</span>
-                </button>
-                <button
+                </AppButton>
+                <AppButton
                   v-if="!isCurrentFilePreview"
-                  type="button"
-                  class="button button--icon"
+                  icon-only
+                  icon="help"
                   aria-haspopup="dialog"
                   :aria-label="t('configuration.shortcuts.open')"
                   :title="t('configuration.shortcuts.open')"
                   @click="shortcutsOpen = true"
-                >
-                  <AppIcon name="help" class="size-5" aria-hidden="true" />
-                </button>
-                <button
-                  type="button"
-                  class="button button--icon"
+                />
+                <AppButton
+                  icon-only
+                  icon="close"
                   :aria-label="t('configuration.editor.close')"
                   :title="t('configuration.editor.close')"
                   @click="closeEditor"
-                >
-                  <AppIcon name="close" class="size-5" aria-hidden="true" />
-                </button>
+                />
               </div>
             </header>
 
@@ -2377,9 +2365,10 @@ onBeforeUnmount(() => {
                 :aria-label="t('configuration.structure.title')"
               >
                 <header>
-                  <button
-                    type="button"
-                    class="button button--quiet button--sm button--start"
+                  <AppButton
+                    variant="quiet"
+                    size="sm"
+                    start
                     :aria-expanded="structureExpanded"
                     aria-controls="machine-file-structure"
                     :aria-label="
@@ -2404,22 +2393,24 @@ onBeforeUnmount(() => {
                       aria-hidden="true"
                     />
                     <span>{{ t('configuration.structure.title') }}</span>
-                  </button>
+                  </AppButton>
                 </header>
                 <!-- Mounted on expand, not merely hidden: the outline is one
                      button per section, and a collapsed panel should not be
                      paying for a list nobody has asked to see. -->
                 <nav v-if="structureExpanded" id="machine-file-structure">
-                  <button
+                  <AppButton
                     v-for="section in fileStructure"
                     :key="`${section.line}:${section.name}`"
-                    type="button"
-                    class="button button--quiet button--sm button--start button--on-soft"
+                    variant="quiet"
+                    size="sm"
+                    start
+                    on-soft
                     @click="goToLine(section.line)"
                   >
                     <span>{{ section.name }}</span>
                     <span class="font-mono text-[0.65rem] text-muted">{{ section.line }}</span>
-                  </button>
+                  </AppButton>
                 </nav>
               </aside>
             </div>
@@ -2440,9 +2431,8 @@ onBeforeUnmount(() => {
               role="group"
               :aria-label="t('configuration.editor.displayMode')"
             >
-              <button
-                type="button"
-                class="button button--sm"
+              <AppButton
+                size="sm"
                 :aria-pressed="editorDisplayMode === 'maximized'"
                 :aria-label="t('configuration.editor.maximized')"
                 :title="t('configuration.editor.maximized')"
@@ -2450,10 +2440,9 @@ onBeforeUnmount(() => {
               >
                 <AppIcon name="expand" class="size-4" aria-hidden="true" />
                 <span>{{ t('configuration.editor.maximized') }}</span>
-              </button>
-              <button
-                type="button"
-                class="button button--sm"
+              </AppButton>
+              <AppButton
+                size="sm"
                 :aria-pressed="editorDisplayMode === 'fullscreen'"
                 :aria-label="t('configuration.editor.fullscreen')"
                 :title="t('configuration.editor.fullscreen')"
@@ -2461,7 +2450,7 @@ onBeforeUnmount(() => {
               >
                 <AppIcon name="fullscreen" class="size-4" aria-hidden="true" />
                 <span>{{ t('configuration.editor.fullscreen') }}</span>
-              </button>
+              </AppButton>
             </div>
           </div>
         </section>
@@ -2518,54 +2507,54 @@ onBeforeUnmount(() => {
       :label="t('configuration.contextMenu.label', { name: contextMenu.entry.name })"
       @close="closeContextMenu"
     >
-      <button
-        type="button"
-        class="button button--quiet button--sm button--start button--block"
+      <AppButton
+        variant="quiet"
+        size="sm"
+        start
+        block
+        icon="rename"
+        :label="t('configuration.contextMenu.rename')"
         :disabled="!isWritable(contextMenu.entry)"
         @click="renameEntry(contextMenu.entry)"
-      >
-        <AppIcon name="rename" class="size-4" aria-hidden="true" />
-        {{ t('configuration.contextMenu.rename') }}
-      </button>
-      <button
+      />
+      <AppButton
         v-if="contextMenu.entry.kind === 'file'"
-        type="button"
-        class="button button--quiet button--sm button--start button--block"
+        variant="quiet"
+        size="sm"
+        start
+        block
+        icon="download"
+        :label="t('configuration.contextMenu.download')"
         @click="downloadEntry(contextMenu.entry)"
-      >
-        <AppIcon name="download" class="size-4" aria-hidden="true" />
-        {{ t('configuration.contextMenu.download') }}
-      </button>
-      <button
+      />
+      <AppButton
         v-if="contextMenu.includable"
-        type="button"
-        class="button button--quiet button--sm button--start button--block"
-        :disabled="!canEditPrimaryConfig"
-        @click="toggleIncludeInPrinterConfig(contextMenu.entry, contextMenu.isIncluded)"
-      >
-        <AppIcon
-          :name="contextMenu.isIncluded ? 'close' : 'add'"
-          class="size-4"
-          aria-hidden="true"
-        />
-        {{
+        variant="quiet"
+        size="sm"
+        start
+        block
+        :icon="contextMenu.isIncluded ? 'close' : 'add'"
+        :label="
           t(
             contextMenu.isIncluded
               ? 'configuration.contextMenu.removeFromPrinterConfig'
               : 'configuration.contextMenu.addToPrinterConfig',
           )
-        }}
-      </button>
+        "
+        :disabled="!canEditPrimaryConfig"
+        @click="toggleIncludeInPrinterConfig(contextMenu.entry, contextMenu.isIncluded)"
+      />
       <p class="header-menu__divider" role="separator"></p>
-      <button
-        type="button"
-        class="button button--danger-quiet button--sm button--start button--block"
+      <AppButton
+        variant="danger-quiet"
+        size="sm"
+        start
+        block
+        icon="trash"
+        :label="t('configuration.contextMenu.delete')"
         :disabled="!isWritable(contextMenu.entry)"
         @click="requestDeleteEntry(contextMenu.entry)"
-      >
-        <AppIcon name="trash" class="size-4" aria-hidden="true" />
-        {{ t('configuration.contextMenu.delete') }}
-      </button>
+      />
     </FileContextMenu>
 
     <ConfirmDialog
@@ -2612,15 +2601,21 @@ onBeforeUnmount(() => {
         <span class="mt-1 block">{{ t('configuration.move.includeSave') }}</span>
       </p>
       <div class="machine-move-dialog__actions">
-        <button type="button" class="button button--primary" @click="confirmMoveWithInclude">
-          {{ t('configuration.move.includeConfirm') }}
-        </button>
-        <button type="button" class="button" @click="confirmMoveWithoutInclude">
-          {{ t('configuration.move.includeSkip') }}
-        </button>
-        <button type="button" class="button" @click="cancelPendingMove()">
-          {{ t('configuration.move.includeCancel') }}
-        </button>
+        <AppButton
+          variant="primary"
+          :label="t('configuration.move.includeConfirm')"
+          @click="confirmMoveWithInclude"
+        />
+        <AppButton
+          size="sm"
+          :label="t('configuration.move.includeSkip')"
+          @click="confirmMoveWithoutInclude"
+        />
+        <AppButton
+          size="sm"
+          :label="t('configuration.move.includeCancel')"
+          @click="cancelPendingMove()"
+        />
       </div>
     </dialog>
 

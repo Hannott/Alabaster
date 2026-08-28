@@ -20,7 +20,7 @@
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import AppIcon from '@/components/AppIcon.vue'
+import AppButton from '@/components/AppButton.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import CameraEditor from '@/components/settings/CameraEditor.vue'
 import type { Camera } from '@/features/camera/camera'
@@ -101,46 +101,42 @@ function serviceLabel(camera: Camera): string {
         <span v-if="camera.isReadOnly" class="text-xs text-muted">{{
           t('cameras.fromConfig')
         }}</span>
-        <button
+        <AppButton
           v-else
-          type="button"
-          class="button button--sm"
+          size="sm"
+          :label="camera.enabled ? t('cameras.on') : t('cameras.off')"
           :aria-pressed="camera.enabled"
           :disabled="webcams.pendingCommands.save"
           @click="toggleEnabled(camera)"
-        >
-          {{ camera.enabled ? t('cameras.on') : t('cameras.off') }}
-        </button>
-        <button
-          type="button"
-          class="button button--quiet button--sm button--icon"
+        />
+        <AppButton
+          variant="quiet"
+          size="sm"
+          icon-only
+          icon="edit"
           :aria-label="t('cameras.edit', { name: camera.name })"
           @click="editing = camera"
-        >
-          <AppIcon name="edit" class="size-4" aria-hidden="true" />
-        </button>
-        <button
-          type="button"
-          class="button button--danger-quiet button--sm button--icon"
+        />
+        <AppButton
+          variant="danger-quiet"
+          size="sm"
+          icon-only
+          icon="trash"
           :disabled="camera.isReadOnly"
           :aria-label="t('cameras.remove', { name: camera.name })"
           @click="requestRemoval(camera)"
-        >
-          <AppIcon name="trash" class="size-4" aria-hidden="true" />
-        </button>
+        />
       </li>
     </ul>
 
     <div class="mt-7 border-t border-subtle pt-7">
-      <button
+      <AppButton
         v-if="editing === null"
-        type="button"
-        class="button button--primary"
+        variant="primary"
+        icon="add"
+        :label="t('cameras.add')"
         @click="editing = 'new'"
-      >
-        <AppIcon name="add" class="size-5" aria-hidden="true" />
-        {{ t('cameras.add') }}
-      </button>
+      />
       <template v-else>
         <p class="text-group-title">
           {{

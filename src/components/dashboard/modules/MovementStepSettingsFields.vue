@@ -2,6 +2,7 @@
 import { computed, nextTick, reactive, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import AppButton from '@/components/AppButton.vue'
 import AppIcon from '@/components/AppIcon.vue'
 import QuickSettingToggle from '@/components/dashboard/QuickSettingToggle.vue'
 import {
@@ -232,9 +233,10 @@ const offsetPreview = computed(() =>
             "
             @change="commitStepValue(group.key, index, ($event.target as HTMLInputElement).value)"
           />
-          <button
-            type="button"
-            class="button button--quiet button--xs button--icon"
+          <AppButton
+            variant="quiet"
+            size="xs"
+            icon-only
             :disabled="drafts[group.key].length <= 1"
             :aria-label="
               t('dashboard.movement.stepRemoveLabel', {
@@ -251,16 +253,12 @@ const offsetPreview = computed(() =>
             @click="removeStepValue(group.key, index)"
           >
             <AppIcon name="close" class="size-4 shrink-0" aria-hidden="true" />
-          </button>
+          </AppButton>
         </div>
-        <button
-          type="button"
-          class="button button--quiet button--xs"
-          @click="addStepValue(group.key)"
-        >
+        <AppButton variant="quiet" size="xs" @click="addStepValue(group.key)">
           <AppIcon name="add" class="size-4 shrink-0" aria-hidden="true" />
           {{ t('dashboard.movement.stepAdd') }}
-        </button>
+        </AppButton>
       </div>
       <p v-if="group.key === 'offsetSteps'" class="surface-section__hint">
         {{ t('dashboard.movement.zOffsetUnitHint', { steps: offsetPreview }) }}
@@ -272,16 +270,15 @@ const offsetPreview = computed(() =>
     <span class="settings-row__label">{{ t('dashboard.movement.zOffsetUnitLabel') }}</span>
     <div class="flex items-center gap-2">
       <div class="segmented">
-        <button
+        <AppButton
           v-for="unit in zOffsetUnits"
           :key="`zOffsetUnit-${unit}`"
-          type="button"
-          class="button button--sm"
+          size="sm"
           :aria-pressed="offsetUnit === unit"
           @click="updateConfig({ zOffsetUnit: unit })"
         >
           {{ t(`dashboard.movement.zOffsetUnit.${unit}`) }}
-        </button>
+        </AppButton>
       </div>
       <QuickSettingToggle
         v-if="mode === 'pane'"

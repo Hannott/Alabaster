@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import AppButton from '@/components/AppButton.vue'
 import QuickSettingToggle from '@/components/dashboard/QuickSettingToggle.vue'
 import {
   chartHeightOptions,
@@ -72,16 +73,15 @@ const chartShowPower = computed(() => configBoolean(config.value, 'chartShowPowe
       <span class="settings-row__label">{{ t('dashboard.temperature.chartHeight') }}</span>
       <div class="flex items-center gap-2">
         <div class="segmented">
-          <button
+          <AppButton
             v-for="option in chartHeightOptions"
             :key="option"
-            type="button"
-            class="button button--sm"
+            size="sm"
             :aria-pressed="chartHeight === option"
             @click="updateConfig({ chartHeight: option })"
           >
             {{ t(`dashboard.temperature.chartHeightOption.${option}`) }}
-          </button>
+          </AppButton>
         </div>
         <QuickSettingToggle
           v-if="mode === 'pane'"
@@ -96,16 +96,16 @@ const chartShowPower = computed(() => configBoolean(config.value, 'chartShowPowe
       <span class="settings-row__label">{{ t('dashboard.temperature.chartWindow') }}</span>
       <div class="flex items-center gap-2">
         <div class="segmented">
-          <button
+          <AppButton
             v-for="option in chartWindowOptions"
             :key="option"
-            type="button"
-            class="button button--sm button--value"
+            size="sm"
+            mono
             :aria-pressed="chartWindowMinutes === option"
             @click="updateConfig({ chartWindowMinutes: option })"
           >
             {{ t('dashboard.temperature.chartWindowOption', { minutes: option }) }}
-          </button>
+          </AppButton>
         </div>
         <QuickSettingToggle
           v-if="mode === 'pane'"

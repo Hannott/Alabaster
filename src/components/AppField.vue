@@ -56,6 +56,7 @@
 import { computed, getCurrentInstance, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import AppButton from '@/components/AppButton.vue'
 import AppIcon, { type AppIconName } from '@/components/AppIcon.vue'
 
 const props = withDefaults(
@@ -493,24 +494,28 @@ function resetToConfigured(): void {
       pair in the product.
     -->
     <span v-if="steppers" class="app-field__steppers">
-      <button
-        type="button"
-        class="button button--quiet button--xs button--icon app-field__stepper"
+      <AppButton
+        variant="quiet"
+        size="xs"
+        icon-only
+        class="app-field__stepper"
         :disabled="disabled || readonly"
         :aria-label="t('field.increase', { field: label })"
         @click="stepBy(1)"
       >
         <AppIcon name="up" class="app-field__stepper-icon size-4" aria-hidden="true" />
-      </button>
-      <button
-        type="button"
-        class="button button--quiet button--xs button--icon app-field__stepper"
+      </AppButton>
+      <AppButton
+        variant="quiet"
+        size="xs"
+        icon-only
+        class="app-field__stepper"
         :disabled="disabled || readonly"
         :aria-label="t('field.decrease', { field: label })"
         @click="stepBy(-1)"
       >
         <AppIcon name="down" class="app-field__stepper-icon size-4" aria-hidden="true" />
-      </button>
+      </AppButton>
     </span>
     <span
       v-if="labelPos === 'back'"

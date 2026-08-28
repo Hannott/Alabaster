@@ -23,6 +23,7 @@
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import AppButton from '@/components/AppButton.vue'
 import AppIcon from '@/components/AppIcon.vue'
 import AppSelect from '@/components/AppSelect.vue'
 import AppSlider from '@/components/AppSlider.vue'
@@ -437,17 +438,17 @@ async function runTest(): Promise<void> {
       <div class="mt-4">
         <span class="block text-field-label text-muted">{{ t('cameras.rotation') }}</span>
         <div class="segmented mt-2">
-          <button
+          <AppButton
             v-for="option in cameraRotations"
             :key="option"
-            type="button"
-            class="button button--sm button--value"
+            size="sm"
+            mono
             :aria-pressed="draft.rotation === option"
             :disabled="camera?.isReadOnly"
             @click="draft.rotation = option"
           >
             {{ t('cameras.degrees', { degrees: option }) }}
-          </button>
+          </AppButton>
         </div>
       </div>
 
@@ -527,26 +528,21 @@ async function runTest(): Promise<void> {
       </div>
 
       <div class="mt-5 flex flex-wrap items-center gap-2">
-        <button
+        <AppButton
           v-if="!camera?.isReadOnly"
+          variant="primary"
+          :label="camera ? t('cameras.update') : t('cameras.create')"
           type="submit"
-          class="button button--primary"
           :disabled="!canSave || webcams.pendingCommands.save"
-        >
-          {{ camera ? t('cameras.update') : t('cameras.create') }}
-        </button>
-        <button type="button" class="button" @click="emit('close')">
-          {{ t('cameras.cancel') }}
-        </button>
-        <button
+        />
+        <AppButton size="sm" :label="t('cameras.cancel')" @click="emit('close')" />
+        <AppButton
           v-if="camera"
-          type="button"
-          class="button"
+          size="sm"
+          :label="t('cameras.test')"
           :disabled="webcams.pendingCommands.test"
           @click="runTest"
-        >
-          {{ t('cameras.test') }}
-        </button>
+        />
         <p v-if="testResult" class="camera-editor__test" role="status">
           <AppIcon
             :name="testResult === 'reachable' ? 'check' : 'warning'"

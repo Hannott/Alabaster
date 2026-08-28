@@ -2,6 +2,7 @@
 import { onBeforeUnmount, ref, useId, watch, type Component } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import AppButton from '@/components/AppButton.vue'
 import AppIcon, { type AppIconName } from '@/components/AppIcon.vue'
 import AvailabilityRegion from '@/components/AvailabilityRegion.vue'
 import DashboardModuleHost from '@/components/dashboard/DashboardModuleHost.vue'
@@ -101,15 +102,16 @@ onBeforeUnmount(() => {
           <h2 :id="titleId" class="min-w-0 truncate text-card-title">
             {{ t('dashboard.surface.title', { module: title }) }}
           </h2>
-          <button
-            type="button"
-            class="button button--quiet button--xs button--icon ms-auto"
+          <AppButton
+            variant="quiet"
+            size="xs"
+            icon-only
+            icon="close"
+            class="ms-auto"
             :aria-label="t('dashboard.surface.close')"
             :title="t('dashboard.surface.close')"
             @click="emit('close')"
-          >
-            <AppIcon name="close" class="size-4" aria-hidden="true" />
-          </button>
+          />
         </header>
         <div class="settings-surface__content">
           <DashboardModuleHost

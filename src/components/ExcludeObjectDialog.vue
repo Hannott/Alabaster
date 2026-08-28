@@ -14,7 +14,7 @@
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import AppIcon from '@/components/AppIcon.vue'
+import AppButton from '@/components/AppButton.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import { bedExtents, planPoint, type BedExtents } from '@/dashboard/bedPlan'
 import type { ExcludeObjectDefinition } from '@/stores/excludeObject'
@@ -106,14 +106,12 @@ onBeforeUnmount(() => {
   <dialog ref="dialog" class="exclude-object-dialog" @cancel.prevent="emit('close')">
     <header>
       <h2>{{ t('excludeObject.title') }}</h2>
-      <button
-        type="button"
-        class="button button--icon"
+      <AppButton
+        icon-only
+        icon="close"
         :aria-label="t('excludeObject.close')"
         @click="emit('close')"
-      >
-        <AppIcon name="close" class="size-5" aria-hidden="true" />
-      </button>
+      />
     </header>
     <p class="exclude-object-description">{{ t('excludeObject.description') }}</p>
 
@@ -140,25 +138,18 @@ onBeforeUnmount(() => {
             {{ t('excludeObject.printingNow') }}
           </span>
         </span>
-        <button
-          type="button"
-          class="button button--sm"
-          :class="excludeGuard.variant.value"
-          v-bind="excludeGuard.bind.value"
-          :disabled="markerState(object) === 'excluded' || printer.pendingCommands.excludeObject"
-          @click="requestExclude(object.name)"
-        >
-          <AppIcon
-            :name="markerState(object) === 'excluded' ? 'stop' : 'close'"
-            class="size-4"
-            aria-hidden="true"
-          />
-          {{
+        <AppButton
+          size="sm"
+          :guard="excludeGuard"
+          :icon="markerState(object) === 'excluded' ? 'stop' : 'close'"
+          :label="
             markerState(object) === 'excluded'
               ? t('excludeObject.excluded')
               : t('excludeObject.exclude')
-          }}
-        </button>
+          "
+          :disabled="markerState(object) === 'excluded' || printer.pendingCommands.excludeObject"
+          @click="requestExclude(object.name)"
+        />
       </li>
     </ul>
     <p v-if="objects.length === 0" class="exclude-object-empty">

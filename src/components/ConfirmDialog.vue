@@ -2,6 +2,8 @@
 import { onBeforeUnmount, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import AppButton from '@/components/AppButton.vue'
+
 const props = defineProps<{
   open: boolean
   title: string
@@ -73,17 +75,13 @@ onBeforeUnmount(() => {
       by how long its own label happens to be.
     -->
     <div class="confirm-dialog__actions">
-      <button
-        type="button"
-        class="button"
-        :class="tone === 'danger' ? 'button--danger' : 'button--primary'"
+      <AppButton
+        size="sm"
+        :variant="tone === 'danger' ? 'danger' : 'primary'"
+        :label="confirmLabel"
         @click="emit('confirm')"
-      >
-        {{ confirmLabel }}
-      </button>
-      <button type="button" class="button" @click="emit('cancel')">
-        {{ cancelLabel ?? t('dashboard.cancel') }}
-      </button>
+      />
+      <AppButton size="sm" :label="cancelLabel ?? t('dashboard.cancel')" @click="emit('cancel')" />
     </div>
   </dialog>
 </template>

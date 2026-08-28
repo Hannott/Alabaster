@@ -2,6 +2,7 @@
 import { onBeforeUnmount, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import AppButton from '@/components/AppButton.vue'
 import AppIcon from '@/components/AppIcon.vue'
 
 /*
@@ -76,14 +77,12 @@ function handleDialogClick(event: MouseEvent): void {
       <h2 id="editor-shortcuts-title" class="editor-shortcuts-dialog__title truncate">
         {{ t('configuration.shortcuts.title') }}
       </h2>
-      <button
-        type="button"
-        class="button button--icon"
+      <AppButton
+        icon-only
+        icon="close"
         :aria-label="t('configuration.shortcuts.close')"
         @click="emit('close')"
-      >
-        <AppIcon name="close" class="size-5" aria-hidden="true" />
-      </button>
+      />
     </header>
 
     <div class="editor-shortcuts-dialog__body">

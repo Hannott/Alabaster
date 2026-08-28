@@ -2,6 +2,7 @@
 import { computed, nextTick, onMounted, ref, type ComponentPublicInstance } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import AppButton from '@/components/AppButton.vue'
 import AppIcon from '@/components/AppIcon.vue'
 import SurfaceSection from '@/components/dashboard/SurfaceSection.vue'
 import {
@@ -377,11 +378,11 @@ function onDragEnd(): void {
 <template>
   <SurfaceSection :title="t('dashboard.macros.groupsTitle')">
     <div class="macro-groups">
-      <button
+      <AppButton
         v-for="group in groups"
         :key="group.instanceId"
-        type="button"
-        class="button button--sm"
+        size="sm"
+        :label="group.title"
         :aria-current="group.instanceId === instanceId"
         :title="
           group.instanceId === instanceId
@@ -389,13 +390,8 @@ function onDragEnd(): void {
             : t('dashboard.macros.switchToGroup', { group: group.title })
         "
         @click="selectGroup(group.instanceId)"
-      >
-        {{ group.title }}
-      </button>
-      <button type="button" class="button button--sm" @click="createCard">
-        <AppIcon name="add" class="size-4" aria-hidden="true" />
-        {{ t('dashboard.macros.addGroup') }}
-      </button>
+      />
+      <AppButton size="sm" icon="add" :label="t('dashboard.macros.addGroup')" @click="createCard" />
     </div>
   </SurfaceSection>
 
@@ -429,22 +425,18 @@ function onDragEnd(): void {
     <div class="settings-row">
       <span class="settings-row__label">{{ t('dashboard.macros.groupVisibilityTitle') }}</span>
       <div class="macro-visibility">
-        <button
+        <AppButton
           v-for="state in printStates"
           :key="state"
-          type="button"
-          class="button button--quiet button--xs button--icon"
+          variant="quiet"
+          size="xs"
+          icon-only
+          :icon="state === 'standby' ? 'moon' : state === 'paused' ? 'pause' : 'print'"
           :aria-pressed="groupVisibleFor(state)"
           :title="t(`dashboard.macros.visibility.${state}`)"
           :aria-label="t(`dashboard.macros.visibility.${state}`)"
           @click="toggleGroupVisibility(state)"
-        >
-          <AppIcon
-            :name="state === 'standby' ? 'moon' : state === 'paused' ? 'pause' : 'print'"
-            class="size-4"
-            aria-hidden="true"
-          />
-        </button>
+        />
       </div>
     </div>
     <MacrosCardSettingsFields mode="pane" />
@@ -462,16 +454,14 @@ function onDragEnd(): void {
         class="field field--on-soft macro-search"
         :placeholder="t('dashboard.macros.searchLabel')"
       />
-      <button
-        type="button"
-        class="button"
+      <AppButton
+        size="sm"
+        icon="refresh"
         :disabled="macros.isLoading"
         :title="t('dashboard.macros.refresh')"
         :aria-label="t('dashboard.macros.refresh')"
         @click="macros.refresh()"
-      >
-        <AppIcon name="refresh" class="size-5" aria-hidden="true" />
-      </button>
+      />
     </div>
 
     <p class="surface-section__subtitle">{{ t('dashboard.macros.selectedTitle') }}</p>
@@ -510,11 +500,13 @@ function onDragEnd(): void {
             {{ t('dashboard.macros.missingShort') }}
           </span>
           <div class="macro-visibility">
-            <button
+            <AppButton
               v-for="state in printStates"
               :key="state"
-              type="button"
-              class="button button--quiet button--xs button--icon"
+              variant="quiet"
+              size="xs"
+              icon-only
+              :icon="state === 'standby' ? 'moon' : state === 'paused' ? 'pause' : 'print'"
               :aria-pressed="row.visibility[state]"
               :title="t(`dashboard.macros.visibility.${state}`)"
               :aria-label="
@@ -524,13 +516,7 @@ function onDragEnd(): void {
                 })
               "
               @click="toggleMacroVisibility(row.name, state)"
-            >
-              <AppIcon
-                :name="state === 'standby' ? 'moon' : state === 'paused' ? 'pause' : 'print'"
-                class="size-4"
-                aria-hidden="true"
-              />
-            </button>
+            />
           </div>
         </template>
 
@@ -549,15 +535,15 @@ function onDragEnd(): void {
           />
         </template>
 
-        <button
-          type="button"
-          class="button button--danger-quiet button--xs button--icon"
+        <AppButton
+          variant="danger-quiet"
+          size="xs"
+          icon-only
+          icon="trash"
           :title="t('dashboard.macros.remove', { macro: row.accessibleLabel })"
           :aria-label="t('dashboard.macros.remove', { macro: row.accessibleLabel })"
           @click="deselect(row.entry)"
-        >
-          <AppIcon name="trash" class="size-4" aria-hidden="true" />
-        </button>
+        />
         <!--
           Not a shortcut layered beside the primary mechanism — the keyboard
           and touch path for it. Drag is the mouse's way to reorder a row;
@@ -565,26 +551,26 @@ function onDragEnd(): void {
           operable by either, so these quietly stay the accessible fallback.
         -->
         <div class="macro-row__reorder">
-          <button
-            type="button"
-            class="button button--quiet button--xs button--icon"
+          <AppButton
+            variant="quiet"
+            size="xs"
+            icon-only
+            icon="up"
             :disabled="index === 0"
             :title="t('dashboard.macros.moveEarlier', { macro: row.accessibleLabel })"
             :aria-label="t('dashboard.macros.moveEarlier', { macro: row.accessibleLabel })"
             @click="move(row.entry, -1)"
-          >
-            <AppIcon name="up" class="size-4" aria-hidden="true" />
-          </button>
-          <button
-            type="button"
-            class="button button--quiet button--xs button--icon"
+          />
+          <AppButton
+            variant="quiet"
+            size="xs"
+            icon-only
+            icon="down"
             :disabled="index === selectedRows.length - 1"
             :title="t('dashboard.macros.moveLater', { macro: row.accessibleLabel })"
             :aria-label="t('dashboard.macros.moveLater', { macro: row.accessibleLabel })"
             @click="move(row.entry, 1)"
-          >
-            <AppIcon name="down" class="size-4" aria-hidden="true" />
-          </button>
+          />
         </div>
       </li>
     </ul>
@@ -594,23 +580,25 @@ function onDragEnd(): void {
 
     <div class="macro-picker__available-header">
       <p class="surface-section__subtitle">{{ t('dashboard.macros.availableTitle') }}</p>
-      <button type="button" class="button button--sm" @click="addDivider">
-        <AppIcon name="add" class="size-4" aria-hidden="true" />
-        {{ t('dashboard.macros.addDivider') }}
-      </button>
+      <AppButton
+        size="sm"
+        icon="add"
+        :label="t('dashboard.macros.addDivider')"
+        @click="addDivider"
+      />
     </div>
     <ul v-if="availableMacros.length > 0" class="macro-picker__available mt-2 grid gap-1">
       <li v-for="macro in availableMacros" :key="macro.name" class="macro-row">
         <span class="macro-row__name text-mono-name">{{ macro.label }}</span>
-        <button
-          type="button"
-          class="button button--quiet button--xs button--icon"
+        <AppButton
+          variant="quiet"
+          size="xs"
+          icon-only
+          icon="add"
           :title="t('dashboard.macros.add', { macro: macro.label })"
           :aria-label="t('dashboard.macros.add', { macro: macro.label })"
           @click="select(macro.name)"
-        >
-          <AppIcon name="add" class="size-4" aria-hidden="true" />
-        </button>
+        />
       </li>
     </ul>
     <p v-if="availableMacros.length === 0" class="mt-2 text-xs text-muted">

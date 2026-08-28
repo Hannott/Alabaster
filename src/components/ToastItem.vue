@@ -2,7 +2,7 @@
 import { onBeforeUnmount, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import AppIcon from '@/components/AppIcon.vue'
+import AppButton from '@/components/AppButton.vue'
 import type { ToastEntry } from '@/stores/toasts'
 
 const props = defineProps<{ toast: ToastEntry }>()
@@ -24,14 +24,15 @@ onBeforeUnmount(() => {
 <template>
   <div class="toast" role="alert">
     <p class="toast__message">{{ toast.message }}</p>
-    <button
-      type="button"
-      class="button button--quiet button--xs button--icon toast__dismiss"
+    <AppButton
+      variant="quiet"
+      size="xs"
+      icon-only
+      icon="close"
+      class="toast__dismiss"
       :aria-label="t('toast.dismiss')"
       @click="emit('dismiss')"
-    >
-      <AppIcon name="close" class="size-4" aria-hidden="true" />
-    </button>
+    />
     <div
       class="toast__progress"
       :style="{ animationDuration: `${toast.durationMs}ms` }"

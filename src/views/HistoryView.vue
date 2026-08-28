@@ -2,6 +2,7 @@
 import { computed, onMounted, ref, useTemplateRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import AppButton from '@/components/AppButton.vue'
 import AppIcon from '@/components/AppIcon.vue'
 import AvailabilityRegion from '@/components/AvailabilityRegion.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
@@ -338,16 +339,16 @@ function requestReprint(job: HistoryJob): void {
           <div class="history-stats__control">
             <span class="history-stats__control-label">{{ t('history.stats.period.label') }}</span>
             <div class="segmented" role="group" :aria-label="t('history.stats.period.label')">
-              <button
+              <AppButton
                 v-for="option in periodOptions"
                 :key="option"
-                type="button"
-                class="button button--sm button--value"
+                size="sm"
+                mono
                 :aria-pressed="history.period === option"
                 @click="history.setPeriod(option)"
               >
                 {{ t(`history.stats.period.option.${option}`) }}
-              </button>
+              </AppButton>
             </div>
             <span class="history-stats__population">{{ periodJobCountLabel }}</span>
           </div>
@@ -368,16 +369,15 @@ function requestReprint(job: HistoryJob): void {
                 t('history.stats.measure.label')
               }}</span>
               <div class="segmented" role="group" :aria-label="t('history.stats.measure.label')">
-                <button
+                <AppButton
                   v-for="option in measureOptions"
                   :key="option"
-                  type="button"
-                  class="button button--sm"
+                  size="sm"
                   :aria-pressed="measure === option"
                   @click="measure = option"
                 >
                   {{ t(`history.stats.measure.${option}`) }}
-                </button>
+                </AppButton>
               </div>
             </div>
 
@@ -443,16 +443,14 @@ function requestReprint(job: HistoryJob): void {
         <section class="page-card history-panel" :aria-label="t('history.jobs.title')">
           <header class="calibration-panel__header">
             <h2 class="calibration-panel__title">{{ t('history.jobs.title') }}</h2>
-            <button
-              type="button"
-              class="button button--xs"
+            <AppButton
+              size="xs"
+              :pending="history.isLoading"
+              icon="refresh"
+              :label="t('history.jobs.refresh')"
               :disabled="!moonrakerAvailability.isAvailable"
-              :data-pending="history.isLoading ? 'true' : undefined"
               @click="history.refresh()"
-            >
-              <AppIcon name="refresh" class="size-4" aria-hidden="true" />
-              {{ t('history.jobs.refresh') }}
-            </button>
+            />
           </header>
 
           <p v-if="history.failed" class="calibration-notice" role="status">
@@ -477,24 +475,22 @@ function requestReprint(job: HistoryJob): void {
               </ul>
 
               <div v-if="history.hasMore" class="history-jobs__load-row">
-                <button
-                  type="button"
-                  class="button button--sm"
+                <AppButton
+                  size="sm"
+                  :pending="history.isLoading"
+                  :label="t('history.jobs.loadMore')"
                   :disabled="history.isLoading"
-                  :data-pending="history.isLoading ? 'true' : undefined"
                   @click="history.loadMore()"
-                >
-                  {{ t('history.jobs.loadMore') }}
-                </button>
-                <button
-                  type="button"
-                  class="button button--quiet button--sm button--icon"
+                />
+                <AppButton
+                  variant="quiet"
+                  size="sm"
+                  icon-only
+                  icon="up"
                   :aria-label="t('history.jobs.scrollToTop')"
                   :title="t('history.jobs.scrollToTop')"
                   @click="scrollToTop"
-                >
-                  <AppIcon name="up" class="size-4" aria-hidden="true" />
-                </button>
+                />
               </div>
             </div>
 
@@ -507,15 +503,15 @@ function requestReprint(job: HistoryJob): void {
                 <h3 class="min-w-0 break-words text-dialog-title">
                   {{ shortName(selectedJob.filename) }}
                 </h3>
-                <button
-                  type="button"
-                  class="button button--quiet button--xs button--icon"
+                <AppButton
+                  variant="quiet"
+                  size="xs"
+                  icon-only
+                  icon="close"
                   :aria-label="t('history.jobs.detail.close')"
                   :title="t('history.jobs.detail.close')"
                   @click="closeJobDetail"
-                >
-                  <AppIcon name="close" class="size-4" aria-hidden="true" />
-                </button>
+                />
               </header>
 
               <span
@@ -563,40 +559,32 @@ function requestReprint(job: HistoryJob): void {
               </ul>
 
               <div class="history-job-detail__actions">
-                <button
-                  type="button"
-                  class="button button--block"
-                  :class="reprintGuard.variant.value"
-                  v-bind="reprintGuard.bind.value"
+                <AppButton
+                  block
+                  :guard="reprintGuard"
+                  icon="print"
+                  :label="t('history.jobs.reprint')"
                   :disabled="!canReprint || !selectedJob.fileExists"
                   :title="selectedJob.fileExists ? undefined : t('history.jobs.fileGone')"
                   @click="requestReprint(selectedJob)"
-                >
-                  <AppIcon name="print" class="size-5" aria-hidden="true" />
-                  {{ t('history.jobs.reprint') }}
-                </button>
-                <button
-                  type="button"
-                  class="button button--block"
+                />
+                <AppButton
+                  block
+                  :pending="jobQueue.pendingCommands.add"
+                  icon="jobs"
+                  :label="t('history.jobs.detail.addToQueue')"
                   :disabled="!canQueueJob || !selectedJob.fileExists"
                   :title="selectedJob.fileExists ? undefined : t('history.jobs.fileGone')"
-                  :data-pending="jobQueue.pendingCommands.add ? 'true' : undefined"
                   @click="queueJob(selectedJob)"
-                >
-                  <AppIcon name="jobs" class="size-5" aria-hidden="true" />
-                  {{ t('history.jobs.detail.addToQueue') }}
-                </button>
-                <button
-                  type="button"
-                  class="button button--block"
-                  :class="deleteJobGuard.variant.value"
-                  v-bind="deleteJobGuard.bind.value"
+                />
+                <AppButton
+                  block
+                  :guard="deleteJobGuard"
+                  icon="trash"
+                  :label="t('history.jobs.delete')"
                   :disabled="!moonrakerAvailability.isAvailable"
                   @click="requestDelete(selectedJob)"
-                >
-                  <AppIcon name="trash" class="size-5" aria-hidden="true" />
-                  {{ t('history.jobs.delete') }}
-                </button>
+                />
               </div>
             </section>
           </div>

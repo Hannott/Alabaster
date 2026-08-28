@@ -2,6 +2,7 @@
 import { onBeforeUnmount, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import AppButton from '@/components/AppButton.vue'
 import AppIcon from '@/components/AppIcon.vue'
 
 /*
@@ -56,19 +57,23 @@ onBeforeUnmount(() => {
       </li>
     </ul>
     <div class="maintenance-reminder-dialog__actions">
-      <button
-        type="button"
-        class="button button--primary button--block"
+      <AppButton
+        variant="primary"
+        block
+        :label="t('dashboard.maintenance.reminderStartAnyway')"
         @click="emit('startAnyway')"
-      >
-        {{ t('dashboard.maintenance.reminderStartAnyway') }}
-      </button>
-      <button type="button" class="button button--block" @click="emit('openMaintenance')">
-        {{ t('dashboard.maintenance.reminderOpen') }}
-      </button>
-      <button type="button" class="button button--quiet button--block" @click="emit('notNow')">
-        {{ t('dashboard.maintenance.reminderNotNow') }}
-      </button>
+      />
+      <AppButton
+        block
+        :label="t('dashboard.maintenance.reminderOpen')"
+        @click="emit('openMaintenance')"
+      />
+      <AppButton
+        variant="quiet"
+        block
+        :label="t('dashboard.maintenance.reminderNotNow')"
+        @click="emit('notNow')"
+      />
     </div>
   </dialog>
 </template>

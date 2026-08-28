@@ -2,7 +2,7 @@
 import { computed, provide, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import AppIcon from '@/components/AppIcon.vue'
+import AppButton from '@/components/AppButton.vue'
 import { dashboardModuleContextKey } from '@/dashboard/context'
 import type { DashboardModuleId } from '@/dashboard/layout'
 import { dashboardModulesById } from '@/dashboard/registry'
@@ -101,17 +101,17 @@ provide(dashboardModuleContextKey, {
       </div>
       <div class="calibration-panel__actions">
         <slot name="actions"></slot>
-        <button
+        <AppButton
           v-if="hasSettings"
-          type="button"
-          class="button button--quiet button--xs button--icon"
+          variant="quiet"
+          size="xs"
+          icon-only
+          icon="settings"
           :aria-pressed="settingsOpen"
           :aria-label="t('dashboard.layout.settings', { module: heading })"
           :title="t('dashboard.layout.settingsTooltip', { module: heading })"
           @click="settingsOpen = !settingsOpen"
-        >
-          <AppIcon name="settings" class="size-4" aria-hidden="true" />
-        </button>
+        />
       </div>
     </header>
 

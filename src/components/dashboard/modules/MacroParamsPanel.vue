@@ -2,6 +2,7 @@
 import { computed, nextTick, ref, useId, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import AppButton from '@/components/AppButton.vue'
 import type { MacroParameter } from '@/dashboard/macroParams'
 
 /**
@@ -104,9 +105,13 @@ function onKeydown(event: KeyboardEvent): void {
             enterkeyhint="send"
           />
         </div>
-        <button type="submit" class="button button--primary button--block" :disabled="disabled">
-          {{ t('dashboard.macros.send') }}
-        </button>
+        <AppButton
+          variant="primary"
+          block
+          :label="t('dashboard.macros.send')"
+          type="submit"
+          :disabled="disabled"
+        />
       </form>
     </div>
   </Teleport>

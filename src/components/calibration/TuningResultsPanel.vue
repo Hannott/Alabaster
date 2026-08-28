@@ -2,7 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import AppIcon from '@/components/AppIcon.vue'
+import AppButton from '@/components/AppButton.vue'
 import ImageLightbox from '@/components/ImageLightbox.vue'
 import { useAvailability } from '@/composables/useAvailability'
 import { useAxesNoiseStore } from '@/stores/axesNoise'
@@ -115,16 +115,14 @@ const viewingResult = ref<ShakeTuneResult | null>(null)
         <h2 class="calibration-panel__title">{{ t('calibration.tuning.title') }}</h2>
         <p class="calibration-panel__hint">{{ t('calibration.tuning.hint') }}</p>
       </div>
-      <button
-        type="button"
-        class="button button--xs"
+      <AppButton
+        size="xs"
+        :pending="shakeTune.isLoading"
+        icon="refresh"
+        :label="t('calibration.tuning.refresh')"
         :disabled="!moonrakerAvailability.isAvailable || shakeTune.isLoading"
-        :data-pending="shakeTune.isLoading ? 'true' : undefined"
         @click="shakeTune.refresh()"
-      >
-        <AppIcon name="refresh" class="size-4" aria-hidden="true" />
-        {{ t('calibration.tuning.refresh') }}
-      </button>
+      />
     </header>
 
     <!--
@@ -136,16 +134,15 @@ const viewingResult = ref<ShakeTuneResult | null>(null)
     -->
     <div v-if="hasResonanceTester" class="calibration-tuning-noise">
       <p class="calibration-panel__hint">{{ t('calibration.tuning.noiseHint') }}</p>
-      <button
-        type="button"
-        class="button button--quiet button--xs"
+      <AppButton
+        variant="quiet"
+        size="xs"
+        :pending="printer.pendingCommands.measureAxesNoise"
+        icon="activity"
+        :label="t('calibration.tuning.checkNoise')"
         :disabled="!canCommand || printer.pendingCommands.measureAxesNoise"
-        :data-pending="printer.pendingCommands.measureAxesNoise ? 'true' : undefined"
         @click="printer.measureAxesNoise()"
-      >
-        <AppIcon name="activity" class="size-4" aria-hidden="true" />
-        {{ t('calibration.tuning.checkNoise') }}
-      </button>
+      />
       <ul v-if="axesNoise.hasReadings" class="calibration-noise-readings">
         <li v-for="reading in axesNoise.readings" :key="reading.chipAxis">
           {{
@@ -170,22 +167,21 @@ const viewingResult = ref<ShakeTuneResult | null>(null)
         <h3 class="calibration-tuning-group__title">
           {{ t(`calibration.tuning.category.${category}`) }}
         </h3>
-        <button
+        <AppButton
           v-if="canRunTuning(category)"
-          type="button"
-          class="button button--quiet button--xs"
+          variant="quiet"
+          size="xs"
+          :pending="isTuningRunning(category)"
+          icon="play"
+          :label="t('calibration.tuning.run')"
           :disabled="!canCommand || isTuningRunning(category)"
-          :data-pending="isTuningRunning(category) ? 'true' : undefined"
           :aria-label="
             t('calibration.tuning.runLabel', {
               category: t(`calibration.tuning.category.${category}`),
             })
           "
           @click="triggerTuning(category)"
-        >
-          <AppIcon name="play" class="size-4" aria-hidden="true" />
-          {{ t('calibration.tuning.run') }}
-        </button>
+        />
       </header>
       <ul v-if="shakeTune.resultsByCategory[category].length > 0" class="calibration-tuning-strip">
         <li v-for="result in shakeTune.resultsByCategory[category]" :key="result.path">

@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import AppButton from '@/components/AppButton.vue'
 import AppIcon from '@/components/AppIcon.vue'
 import UpdateCommitList from '@/components/UpdateCommitList.vue'
 import type { MachineUpdateItem } from '@/stores/machineSystem'
@@ -145,37 +146,30 @@ onBeforeUnmount(() => {
       last and quietest — the multi-choice layout the dialog system specifies.
     -->
     <div class="update-recovery-dialog__actions">
-      <button
+      <AppButton
         v-if="!isShowingDifferences"
-        type="button"
-        class="button button--block"
+        block
+        icon="fileSearch"
+        :label="t('machine.recovery.viewDifferences')"
         @click="isShowingDifferences = true"
-      >
-        <AppIcon name="fileSearch" class="size-5" aria-hidden="true" />
-        {{ t('machine.recovery.viewDifferences') }}
-      </button>
-      <button
+      />
+      <AppButton
         v-else
-        type="button"
-        class="button button--block"
+        block
+        icon="back"
+        :label="t('machine.recovery.back')"
         @click="isShowingDifferences = false"
-      >
-        <AppIcon name="back" class="size-5" aria-hidden="true" />
-        {{ t('machine.recovery.back') }}
-      </button>
-      <button
-        type="button"
-        class="button button--danger button--block"
+      />
+      <AppButton
+        variant="danger"
+        block
+        :pending="busy"
+        icon="undo"
+        :label="isReclone ? t('machine.recovery.reclone') : t('machine.recovery.resetBranch')"
         :disabled="busy || !update"
-        :data-pending="busy ? 'true' : undefined"
         @click="update && emit('reset', update.id)"
-      >
-        <AppIcon name="undo" class="size-5" aria-hidden="true" />
-        {{ isReclone ? t('machine.recovery.reclone') : t('machine.recovery.resetBranch') }}
-      </button>
-      <button type="button" class="button button--quiet button--block" @click="emit('close')">
-        {{ t('dashboard.cancel') }}
-      </button>
+      />
+      <AppButton variant="quiet" block :label="t('dashboard.cancel')" @click="emit('close')" />
     </div>
   </dialog>
 </template>

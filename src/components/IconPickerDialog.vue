@@ -2,7 +2,8 @@
 import { nextTick, onBeforeUnmount, ref, useId, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import AppIcon, { type AppIconName } from '@/components/AppIcon.vue'
+import AppButton from '@/components/AppButton.vue'
+import { type AppIconName } from '@/components/AppIcon.vue'
 
 /**
  * Picks one icon from a small, local, fixed catalogue — dialog-system.md's
@@ -39,8 +40,8 @@ const emit = defineEmits<{ select: [value: AppIconName | null]; cancel: [] }>()
 
 const { t } = useI18n({ useScope: 'global' })
 const dialog = ref<HTMLDialogElement | null>(null)
-const noneTile = ref<HTMLButtonElement | null>(null)
-const tiles = ref<(HTMLButtonElement | null)[]>([])
+const noneTile = ref<InstanceType<typeof AppButton> | null>(null)
+const tiles = ref<(InstanceType<typeof AppButton> | null)[]>([])
 const titleId = useId()
 
 function pick(name: AppIconName | null): void {
@@ -86,42 +87,37 @@ onBeforeUnmount(() => {
   >
     <header class="icon-picker-dialog__header">
       <h2 :id="titleId" class="text-dialog-title">{{ title }}</h2>
-      <button
-        type="button"
-        class="button button--icon"
+      <AppButton
+        icon-only
+        icon="close"
         :aria-label="t('iconPicker.close')"
         @click="emit('cancel')"
-      >
-        <AppIcon name="close" class="size-5" aria-hidden="true" />
-      </button>
+      />
     </header>
 
     <div class="icon-picker-dialog__grid">
-      <button
+      <AppButton
         v-if="allowNone"
         ref="noneTile"
-        type="button"
-        class="button button--icon"
+        icon-only
         :aria-pressed="selected === null"
         :title="t('iconPicker.none')"
         :aria-label="t('iconPicker.none')"
         @click="pick(null)"
       >
         <span class="icon-none-mark size-5" aria-hidden="true">–</span>
-      </button>
-      <button
+      </AppButton>
+      <AppButton
         v-for="(option, index) in options"
         :key="option.name"
-        :ref="(el) => (tiles[index] = el as HTMLButtonElement | null)"
-        type="button"
-        class="button button--icon"
+        :ref="(el) => (tiles[index] = el as InstanceType<typeof AppButton> | null)"
+        icon-only
+        :icon="option.name"
         :aria-pressed="option.name === selected"
         :title="option.label"
         :aria-label="option.label"
         @click="pick(option.name)"
-      >
-        <AppIcon :name="option.name" class="size-5" aria-hidden="true" />
-      </button>
+      />
     </div>
   </dialog>
 </template>

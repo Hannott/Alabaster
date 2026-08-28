@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import AppButton from '@/components/AppButton.vue'
 import AppIcon from '@/components/AppIcon.vue'
 import { navigationDestinations, type NavigationDestinationName } from '@/navigation/destinations'
 import type { PageShell } from '@/router/pages'
@@ -55,10 +56,12 @@ function reload(): void {
               {{ t('navigation.pageFailed.description') }}
             </p>
           </div>
-          <button type="button" class="button button--sm" @click="reload">
-            <AppIcon name="refresh" class="size-4" aria-hidden="true" />
-            {{ t('navigation.pageFailed.action') }}
-          </button>
+          <AppButton
+            size="sm"
+            icon="refresh"
+            :label="t('navigation.pageFailed.action')"
+            @click="reload"
+          />
         </div>
       </div>
     </template>

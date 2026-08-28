@@ -24,6 +24,7 @@ import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
+import AppButton from '@/components/AppButton.vue'
 import AppIcon from '@/components/AppIcon.vue'
 import DisclosureReveal from '@/components/DisclosureReveal.vue'
 import { useAvailability } from '@/composables/useAvailability'
@@ -69,17 +70,18 @@ function openLogs(): void {
     <div class="printer-fault__heading">
       <AppIcon name="warning" class="size-5 shrink-0 text-danger-text" aria-hidden="true" />
       <h2 class="printer-fault__title text-card-title">{{ t(messageKey) }}</h2>
-      <button
-        type="button"
-        class="button button--quiet button--sm button--icon shrink-0"
+      <AppButton
+        variant="quiet"
+        size="sm"
+        icon-only
+        :icon="isExpanded ? 'collapse' : 'expand'"
+        class="shrink-0"
         :aria-expanded="isExpanded"
         aria-controls="printer-fault-detail"
         :title="isExpanded ? t('printerFault.collapse') : t('printerFault.expand')"
         :aria-label="isExpanded ? t('printerFault.collapse') : t('printerFault.expand')"
         @click="isExpanded = !isExpanded"
-      >
-        <AppIcon :name="isExpanded ? 'collapse' : 'expand'" class="size-4" aria-hidden="true" />
-      </button>
+      />
     </div>
 
     <DisclosureReveal :open="isExpanded">
@@ -98,36 +100,37 @@ function openLogs(): void {
             gentler one: it recovers both faults this notice reports, and it is
             the command Klipper's own shutdown text tells the reader to use.
           -->
-          <button
-            type="button"
-            class="button button--primary button--sm"
+          <AppButton
+            variant="primary"
+            size="sm"
+            :pending="printer.pendingCommands.firmwareRestart"
+            icon="refresh"
+            :label="t('header.power.firmwareRestart')"
             :disabled="isRestartBlocked || printer.pendingCommands.firmwareRestart"
-            :data-pending="printer.pendingCommands.firmwareRestart ? 'true' : undefined"
             @click="printer.firmwareRestart()"
-          >
-            <AppIcon name="refresh" class="size-4" aria-hidden="true" />
-            {{ t('header.power.firmwareRestart') }}
-          </button>
-          <button
-            type="button"
-            class="button button--sm button--on-soft"
+          />
+          <AppButton
+            size="sm"
+            on-soft
+            :pending="printer.pendingCommands.restartKlipper"
+            icon="refresh"
+            :label="t('header.power.restartKlipper')"
             :disabled="isRestartBlocked || printer.pendingCommands.restartKlipper"
-            :data-pending="printer.pendingCommands.restartKlipper ? 'true' : undefined"
             @click="printer.restartKlipper()"
-          >
-            <AppIcon name="refresh" class="size-4" aria-hidden="true" />
-            {{ t('header.power.restartKlipper') }}
-          </button>
+          />
           <!--
             The logs are already a browsable root in Configuration, so this
             selects that root and goes there rather than adding a second way to
             reach the same files. A fault message names the cause; the log is
             where the lines leading up to it are.
           -->
-          <button type="button" class="button button--sm button--on-soft" @click="openLogs">
-            <AppIcon name="activity" class="size-4" aria-hidden="true" />
-            {{ t('printerFault.openLogs') }}
-          </button>
+          <AppButton
+            size="sm"
+            on-soft
+            icon="activity"
+            :label="t('printerFault.openLogs')"
+            @click="openLogs"
+          />
         </div>
       </div>
     </DisclosureReveal>

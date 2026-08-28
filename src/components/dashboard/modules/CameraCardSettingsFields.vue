@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import AppButton from '@/components/AppButton.vue'
 import QuickSettingToggle from '@/components/dashboard/QuickSettingToggle.vue'
 import {
   cameraArrangements,
@@ -58,16 +59,15 @@ const columnOptions = computed(() => {
     <span class="settings-row__label">{{ t('dashboard.camera.arrangement') }}</span>
     <div class="flex items-center gap-2">
       <div class="segmented">
-        <button
+        <AppButton
           v-for="option in cameraArrangements"
           :key="option"
-          type="button"
-          class="button button--sm"
+          size="sm"
           :aria-pressed="settings.arrangement === option"
           @click="updateConfig({ arrangement: option })"
         >
           {{ t(`dashboard.camera.arrangementOption.${option}`) }}
-        </button>
+        </AppButton>
       </div>
       <QuickSettingToggle
         v-if="mode === 'pane'"
@@ -85,16 +85,15 @@ const columnOptions = computed(() => {
     <span class="settings-row__label">{{ t('dashboard.camera.stacking') }}</span>
     <div class="flex items-center gap-2">
       <div class="segmented">
-        <button
+        <AppButton
           v-for="option in cameraStackings"
           :key="option"
-          type="button"
-          class="button button--sm"
+          size="sm"
           :aria-pressed="settings.stacking === option"
           @click="updateConfig({ stacking: option })"
         >
           {{ t(`dashboard.camera.stackingOption.${option}`) }}
-        </button>
+        </AppButton>
       </div>
       <QuickSettingToggle
         v-if="mode === 'pane'"
@@ -117,16 +116,15 @@ const columnOptions = computed(() => {
     <span class="settings-row__label">{{ t('dashboard.camera.columns') }}</span>
     <div class="flex items-center gap-2">
       <div class="segmented">
-        <button
+        <AppButton
           v-for="option in columnOptions"
           :key="option"
-          type="button"
-          class="button button--sm button--value"
+          size="sm"
+          mono
+          :label="option"
           :aria-pressed="settings.columns === option"
           @click="updateConfig({ columns: option })"
-        >
-          {{ option }}
-        </button>
+        />
       </div>
       <QuickSettingToggle
         v-if="mode === 'pane'"

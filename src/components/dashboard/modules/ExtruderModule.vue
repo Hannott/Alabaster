@@ -2,6 +2,7 @@
 import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import AppButton from '@/components/AppButton.vue'
 import AppField from '@/components/AppField.vue'
 import AppIcon from '@/components/AppIcon.vue'
 import AppSlider from '@/components/AppSlider.vue'
@@ -539,16 +540,15 @@ const readoutUnit = computed(() =>
               role="group"
               :aria-label="t('dashboard.extruder.lengthPresets')"
             >
-              <button
+              <AppButton
                 v-for="preset in lengthPresets"
                 :key="`length-${preset}`"
-                type="button"
-                class="button button--sm button--value"
+                size="sm"
+                mono
+                :label="preset"
                 :aria-label="t('dashboard.extruder.setLength', { value: preset })"
                 @click="updateConfig({ length: preset })"
-              >
-                {{ preset }}
-              </button>
+              />
             </div>
           </div>
 
@@ -567,16 +567,15 @@ const readoutUnit = computed(() =>
               role="group"
               :aria-label="t('dashboard.extruder.feedratePresets')"
             >
-              <button
+              <AppButton
                 v-for="preset in feedratePresets"
                 :key="`feedrate-${preset}`"
-                type="button"
-                class="button button--sm button--value"
+                size="sm"
+                mono
+                :label="preset"
                 :aria-label="t('dashboard.extruder.setFeedrate', { value: preset })"
                 @click="updateConfig({ feedrate: preset })"
-              >
-                {{ preset }}
-              </button>
+              />
             </div>
           </div>
         </div>
@@ -603,24 +602,21 @@ const readoutUnit = computed(() =>
         </p>
 
         <div class="extruder-feed__actions">
-          <button
-            type="button"
-            class="button"
+          <AppButton
+            size="sm"
             :disabled="!canManualExtrude || printer.pendingCommands.extrude"
+            icon="up"
+            :label="t('dashboard.extruder.retract')"
             @click="printer.extrudeFilament(-length, feedrate)"
-          >
-            <AppIcon name="up" class="size-5 shrink-0" aria-hidden="true" />
-            {{ t('dashboard.extruder.retract') }}
-          </button>
-          <button
-            type="button"
-            class="button button--primary"
+          />
+          <AppButton
+            size="sm"
+            variant="primary"
             :disabled="!canManualExtrude || printer.pendingCommands.extrude"
+            icon="down"
+            :label="t('dashboard.extruder.extrude')"
             @click="printer.extrudeFilament(length, feedrate)"
-          >
-            <AppIcon name="down" class="size-5 shrink-0" aria-hidden="true" />
-            {{ t('dashboard.extruder.extrude') }}
-          </button>
+          />
         </div>
       </div>
     </div>
@@ -635,11 +631,10 @@ const readoutUnit = computed(() =>
     -->
     <template v-if="showLoadMacros">
       <div v-if="macroButtons.length > 0" class="macro-grid">
-        <button
+        <AppButton
           v-for="macro in macroButtons"
           :key="macro.name"
-          type="button"
-          class="button button--value"
+          mono
           :class="{ 'macro-control__run--missing': macro.isMissing }"
           :disabled="macro.isMissing || macros.isRunning(macro.name) || printer.isPrinting"
           :title="
@@ -656,7 +651,7 @@ const readoutUnit = computed(() =>
             aria-hidden="true"
           />
           <span class="truncate">{{ macro.label }}</span>
-        </button>
+        </AppButton>
       </div>
       <div v-else class="grid gap-1">
         <p class="text-xs text-muted">{{ t('dashboard.extruder.macrosEmpty') }}</p>
@@ -770,9 +765,12 @@ const readoutUnit = computed(() =>
         />
       </div>
       <div class="flex flex-wrap items-center gap-2">
-        <button type="submit" class="button" :disabled="printer.pendingCommands.pressureAdvance">
-          {{ t('dashboard.extruder.applyAdvance') }}
-        </button>
+        <AppButton
+          size="sm"
+          :label="t('dashboard.extruder.applyAdvance')"
+          type="submit"
+          :disabled="printer.pendingCommands.pressureAdvance"
+        />
         <span class="text-[0.7rem] text-muted">{{ activeAdvanceLabel }}</span>
       </div>
     </form>

@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import AppButton from '@/components/AppButton.vue'
 import AppIcon from '@/components/AppIcon.vue'
 import AppSelect from '@/components/AppSelect.vue'
 import AppDashboardModule from '@/components/dashboard/AppDashboardModule.vue'
@@ -1277,24 +1278,20 @@ onBeforeUnmount(() => {
           :disabled="printer.pendingCommands.bedMesh || hasJobLoaded"
           @update:model-value="(value) => printer.loadBedMeshProfile(value)"
         />
-        <button
+        <AppButton
           v-if="bedMesh.isActive"
-          type="button"
-          class="button button--sm"
+          size="sm"
+          :icon="showSurface ? 'mesh' : 'viewer'"
+          :label="showSurface ? t('dashboard.bedMesh.view2d') : t('dashboard.bedMesh.view3d')"
           :title="t('dashboard.bedMesh.toggleView')"
           @click="toggleView()"
-        >
-          <AppIcon :name="showSurface ? 'mesh' : 'viewer'" class="size-4" aria-hidden="true" />
-          {{ showSurface ? t('dashboard.bedMesh.view2d') : t('dashboard.bedMesh.view3d') }}
-        </button>
-        <button
-          type="button"
-          class="button"
+        />
+        <AppButton
+          size="sm"
+          :label="t('dashboard.bedMesh.clear')"
           :disabled="printer.pendingCommands.bedMesh || !bedMesh.isActive || hasJobLoaded"
           @click="printer.clearBedMesh()"
-        >
-          {{ t('dashboard.bedMesh.clear') }}
-        </button>
+        />
       </div>
     </div>
 
@@ -1342,24 +1339,23 @@ onBeforeUnmount(() => {
           as well as through the shackle. Its name stays put while the state
           changes, which is what `aria-pressed` is for.
         -->
-        <button
-          type="button"
-          class="button button--sm button--icon mesh-stage__lock"
+        <AppButton
+          size="sm"
+          icon-only
+          :icon="locked ? 'lock' : 'unlock'"
+          class="mesh-stage__lock"
           :aria-pressed="locked"
           :aria-label="t('dashboard.bedMesh.lockView')"
           :title="t('dashboard.bedMesh.lockView')"
           @click="toggleLock()"
-        >
-          <AppIcon :name="locked ? 'lock' : 'unlock'" class="size-4" aria-hidden="true" />
-        </button>
-        <button
+        />
+        <AppButton
           v-if="!locked && (dragged || zoom !== 1 || panOffset.x !== 0 || panOffset.y !== 0)"
-          type="button"
-          class="button button--sm mesh-stage__reset"
+          size="sm"
+          :label="t('dashboard.bedMesh.resetView')"
+          class="mesh-stage__reset"
           @click="resetView()"
-        >
-          {{ t('dashboard.bedMesh.resetView') }}
-        </button>
+        />
       </div>
 
       <p class="mesh-readout" aria-live="polite">
@@ -1416,15 +1412,13 @@ onBeforeUnmount(() => {
 
     <div v-else class="grid gap-3">
       <p class="text-xs text-muted">{{ t('dashboard.bedMesh.empty') }}</p>
-      <button
-        type="button"
-        class="button"
+      <AppButton
+        size="sm"
         :disabled="printer.pendingCommands.bedMesh || hasJobLoaded"
+        icon="mesh"
+        :label="t('dashboard.bedMesh.calibrate')"
         @click="printer.calibrateBedMesh()"
-      >
-        <AppIcon name="mesh" class="size-5" aria-hidden="true" />
-        {{ t('dashboard.bedMesh.calibrate') }}
-      </button>
+      />
     </div>
   </AppDashboardModule>
 </template>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import AppIcon from '@/components/AppIcon.vue'
+import AppButton from '@/components/AppButton.vue'
 import type { AppIconName } from '@/components/AppIcon.vue'
 
 /**
@@ -27,17 +27,15 @@ defineProps<{
 <template>
   <header class="page-heading">
     <h1 class="page-heading__title">{{ title }}</h1>
-    <button
+    <AppButton
       v-if="action"
-      type="button"
-      class="button button--on-soft"
+      on-soft
+      :icon="action.icon"
+      :label="action.label"
       :aria-pressed="action.pressed"
       :disabled="action.disabled"
-      :data-pending="action.pending ? 'true' : undefined"
+      :pending="action.pending"
       @click="action.onClick"
-    >
-      <AppIcon :name="action.icon" class="size-5" aria-hidden="true" />
-      {{ action.label }}
-    </button>
+    />
   </header>
 </template>

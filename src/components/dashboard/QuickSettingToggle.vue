@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 
-import AppIcon from '@/components/AppIcon.vue'
+import AppButton from '@/components/AppButton.vue'
 
 /**
  * Marks one setting as reachable from the card's own gear-opened quick layer,
@@ -23,9 +23,11 @@ const { t } = useI18n({ useScope: 'global' })
 </script>
 
 <template>
-  <button
-    type="button"
-    class="button button--quiet button--xs button--icon"
+  <AppButton
+    variant="quiet"
+    size="xs"
+    icon-only
+    icon="pin"
     :aria-pressed="shown"
     :aria-label="
       shown
@@ -38,7 +40,5 @@ const { t } = useI18n({ useScope: 'global' })
         : t('dashboard.surface.quickToggleAdd', { setting: label })
     "
     @click="emit('toggle', !shown)"
-  >
-    <AppIcon name="pin" class="size-4" aria-hidden="true" />
-  </button>
+  />
 </template>

@@ -24,6 +24,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import AppButton from '@/components/AppButton.vue'
 import AppIcon from '@/components/AppIcon.vue'
 import { offsetMagnitude, signedOffsetStep } from '@/components/dashboard/modules/movementSteps'
 import { useAvailability } from '@/composables/useAvailability'
@@ -188,15 +189,14 @@ onBeforeUnmount(() => {
         would otherwise read as the way to call the whole thing off — which is
         Abort, below, and says so.
       -->
-      <button
-        type="button"
-        class="button button--quiet button--icon"
+      <AppButton
+        variant="quiet"
+        icon-only
+        icon="close"
         :aria-label="t('manualProbe.dismiss')"
         :title="t('manualProbe.dismissTitle')"
         @click="manualProbe.dismiss()"
-      >
-        <AppIcon name="close" class="size-5" aria-hidden="true" />
-      </button>
+      />
     </header>
 
     <!--
@@ -288,16 +288,15 @@ onBeforeUnmount(() => {
             :key="halve.direction"
             class="manual-probe-dialog__row"
           >
-            <button
-              type="button"
-              class="button button--value manual-probe-dialog__halve"
+            <AppButton
+              mono
+              :label="halve.face"
+              class="manual-probe-dialog__halve"
               :disabled="!canStep || halve.isSpent"
               :aria-label="halve.name"
               :title="halve.name"
               @click="printer.testZ(halve.step)"
-            >
-              {{ halve.face }}
-            </button>
+            />
           </div>
         </div>
         <p class="text-hint text-muted">{{ t('manualProbe.bisectHint') }}</p>
@@ -307,32 +306,30 @@ onBeforeUnmount(() => {
         <p class="text-field-label text-muted">{{ t('manualProbe.stepsTitle') }}</p>
         <div class="manual-probe-dialog__ladder">
           <div class="manual-probe-dialog__row">
-            <button
+            <AppButton
               v-for="step in stepLadder"
               :key="`probe-plus-${step}`"
-              type="button"
-              class="button button--sm button--value"
+              size="sm"
+              mono
+              :label="signedOffsetStep(step, 'millimetre')"
               :disabled="!canStep"
               :aria-label="stepLabel(step)"
               :title="stepLabel(step)"
               @click="printer.testZ(step)"
-            >
-              {{ signedOffsetStep(step, 'millimetre') }}
-            </button>
+            />
           </div>
           <div class="manual-probe-dialog__row">
-            <button
+            <AppButton
               v-for="step in stepLadder"
               :key="`probe-minus-${step}`"
-              type="button"
-              class="button button--sm button--value"
+              size="sm"
+              mono
+              :label="signedOffsetStep(-step, 'millimetre')"
               :disabled="!canStep"
               :aria-label="stepLabel(-step)"
               :title="stepLabel(-step)"
               @click="printer.testZ(-step)"
-            >
-              {{ signedOffsetStep(-step, 'millimetre') }}
-            </button>
+            />
           </div>
         </div>
       </div>
@@ -346,23 +343,19 @@ onBeforeUnmount(() => {
       since finishing the probe is what the dialog exists for.
     -->
     <div class="confirm-dialog__actions">
-      <button
-        type="button"
-        class="button button--primary"
+      <AppButton
+        variant="primary"
+        :pending="printer.pendingCommands.manualProbeFinish"
+        :label="t('manualProbe.accept')"
         :disabled="!canFinish"
-        :data-pending="printer.pendingCommands.manualProbeFinish ? 'true' : undefined"
         @click="printer.acceptManualProbe()"
-      >
-        {{ t('manualProbe.accept') }}
-      </button>
-      <button
-        type="button"
-        class="button button--danger"
+      />
+      <AppButton
+        variant="danger"
+        :label="t('manualProbe.abort')"
         :disabled="!canFinish"
         @click="printer.abortManualProbe()"
-      >
-        {{ t('manualProbe.abort') }}
-      </button>
+      />
     </div>
   </dialog>
 </template>

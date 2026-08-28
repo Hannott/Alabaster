@@ -2,7 +2,7 @@
 import { onBeforeUnmount, ref, useId, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import AppIcon from '@/components/AppIcon.vue'
+import AppButton from '@/components/AppButton.vue'
 import type { SpoolmanExternalFilament } from '@/services/moonraker'
 import { useSpoolStore } from '@/stores/spool'
 
@@ -126,14 +126,12 @@ onBeforeUnmount(() => {
   >
     <header class="filament-catalogue-dialog__header">
       <h2 :id="titleId" class="text-dialog-title">{{ t('filamentCatalogue.title') }}</h2>
-      <button
-        type="button"
-        class="button button--icon"
+      <AppButton
+        icon-only
+        icon="close"
         :aria-label="t('filamentCatalogue.close')"
         @click="emit('cancel')"
-      >
-        <AppIcon name="close" class="size-5" aria-hidden="true" />
-      </button>
+      />
     </header>
 
     <label class="sr-only" for="filament-catalogue-search">{{
@@ -163,9 +161,11 @@ onBeforeUnmount(() => {
     </p>
     <ul v-else class="filament-catalogue-dialog__list">
       <li v-for="entry in results" :key="entry.id">
-        <button
-          type="button"
-          class="button button--quiet button--start button--block filament-catalogue-dialog__row"
+        <AppButton
+          variant="quiet"
+          start
+          block
+          class="filament-catalogue-dialog__row"
           :aria-label="
             t('filamentCatalogue.selectAria', { filament: `${entry.manufacturer} ${entry.name}` })
           "
@@ -187,7 +187,7 @@ onBeforeUnmount(() => {
           <span v-if="entry.bed_temp" class="filament-catalogue-dialog__temp">
             {{ t('filamentCatalogue.celsius', { value: entry.bed_temp }) }}
           </span>
-        </button>
+        </AppButton>
       </li>
     </ul>
   </dialog>

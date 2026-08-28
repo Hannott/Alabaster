@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import AppButton from '@/components/AppButton.vue'
 import AppIcon from '@/components/AppIcon.vue'
 import MacroParamsPanel from '@/components/dashboard/modules/MacroParamsPanel.vue'
 import type { MacroParameter } from '@/dashboard/macroParams'
@@ -31,7 +32,9 @@ const props = defineProps<{
 const emit = defineEmits<{ run: [params?: Record<string, string>] }>()
 
 const { t } = useI18n({ useScope: 'global' })
-const caret = ref<HTMLButtonElement | null>(null)
+/** An `AppButton` instance; `caretEl` is the element the panel is measured from. */
+const caret = ref<InstanceType<typeof AppButton> | null>(null)
+const caretEl = computed(() => caret.value?.el ?? null)
 const panel = ref<{ x: number; y: number; target: HTMLElement } | null>(null)
 
 // A missing macro's parameters describe a body the printer no longer has, so
@@ -53,13 +56,13 @@ const accentStyle = computed(() =>
 )
 
 function openPanel(): void {
-  const rect = caret.value?.getBoundingClientRect()
+  const rect = caretEl.value?.getBoundingClientRect()
   if (!rect) return
   // The settings surface is a native `<dialog>`, which paints in the browser's
   // top layer ahead of any body-teleported sibling regardless of z-index —
   // teleporting into that dialog when the card is docked inside one is what
   // keeps the panel above it instead of hidden behind its backdrop.
-  const target = caret.value?.closest<HTMLElement>('dialog[open]') ?? document.body
+  const target = caretEl.value?.closest<HTMLElement>('dialog[open]') ?? document.body
   panel.value = { x: rect.left, y: rect.bottom + 4, target }
 }
 
@@ -76,17 +79,17 @@ function send(values: Record<string, string>): void {
 
 <template>
   <div class="macro-control" :style="accentStyle">
-    <button
-      type="button"
-      class="button button--value macro-control__run"
+    <AppButton
+      mono
+      class="macro-control__run"
       :class="{
         'macro-control__run--split': hasParams,
         'macro-control__run--missing': isMissing,
         'macro-control__run--accent': hasAccent,
       }"
-      :data-pending="isRunning ? 'true' : undefined"
+      :pending="isRunning"
       :aria-busy="isRunning || undefined"
-      :disabled="isMissing || isRunning || disabled"
+      :disabled="isMissing || disabled"
       :title="runTitle"
       :aria-label="runTitle"
       @click="emit('run')"
@@ -94,23 +97,20 @@ function send(values: Record<string, string>): void {
       <AppIcon v-if="isMissing" name="emergency" class="size-5 shrink-0" aria-hidden="true" />
       <span v-else-if="hasAccent" class="macro-control__accent-dot" aria-hidden="true"></span>
       <span class="truncate">{{ label }}</span>
-    </button>
-    <button
+    </AppButton>
+    <AppButton
       v-if="hasParams"
       ref="caret"
-      type="button"
-      class="button macro-control__params"
+      class="macro-control__params"
       :class="{ 'macro-control__params--accent': hasAccent }"
-      :data-pending="isRunning ? 'true' : undefined"
-      :disabled="isRunning"
+      icon="down"
+      :pending="isRunning"
       aria-haspopup="dialog"
       :aria-expanded="panel !== null"
       :title="t('dashboard.macros.openParams', { macro: label })"
       :aria-label="t('dashboard.macros.openParams', { macro: label })"
       @click="panel ? closePanel() : openPanel()"
-    >
-      <AppIcon name="down" class="size-5" aria-hidden="true" />
-    </button>
+    />
     <MacroParamsPanel
       v-if="panel"
       :x="panel.x"

@@ -20,6 +20,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import AppButton from '@/components/AppButton.vue'
 import AppIcon from '@/components/AppIcon.vue'
 import { useAvailability } from '@/composables/useAvailability'
 import { useBedScrewsStore } from '@/stores/bedScrews'
@@ -135,15 +136,14 @@ onBeforeUnmount(() => {
         otherwise read as the way to call the whole thing off — which is Abort,
         below, and says so.
       -->
-      <button
-        type="button"
-        class="button button--quiet button--icon"
+      <AppButton
+        variant="quiet"
+        icon-only
+        icon="close"
         :aria-label="t('bedScrews.dismiss')"
         :title="t('bedScrews.dismissTitle')"
         @click="bedScrews.dismiss()"
-      >
-        <AppIcon name="close" class="size-5" aria-hidden="true" />
-      </button>
+      />
     </header>
 
     <div class="bed-screws-dialog__body">
@@ -207,33 +207,28 @@ onBeforeUnmount(() => {
       half-adjusted.
     -->
     <div class="confirm-dialog__actions">
-      <button
-        type="button"
-        class="button button--primary"
+      <AppButton
+        variant="primary"
+        :pending="printer.pendingCommands.bedScrews"
+        :label="t('bedScrews.accept')"
         :disabled="!canAnswer"
-        :data-pending="printer.pendingCommands.bedScrews ? 'true' : undefined"
         :title="t('bedScrews.acceptTitle')"
         @click="printer.answerBedScrew('accept')"
-      >
-        {{ t('bedScrews.accept') }}
-      </button>
-      <button
-        type="button"
-        class="button"
+      />
+      <AppButton
+        size="sm"
+        :label="t('bedScrews.adjusted')"
         :disabled="!canAnswer"
         :title="t('bedScrews.adjustedTitle')"
         @click="printer.answerBedScrew('adjusted')"
-      >
-        {{ t('bedScrews.adjusted') }}
-      </button>
-      <button
-        type="button"
-        class="button button--danger"
+      />
+      <AppButton
+        size="sm"
+        variant="danger"
+        :label="t('bedScrews.abort')"
         :disabled="!canAnswer"
         @click="printer.answerBedScrew('abort')"
-      >
-        {{ t('bedScrews.abort') }}
-      </button>
+      />
     </div>
   </dialog>
 </template>

@@ -19,6 +19,7 @@
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import AppButton from '@/components/AppButton.vue'
 import AppIcon from '@/components/AppIcon.vue'
 import CameraTile from '@/components/camera/CameraTile.vue'
 import AppDashboardModule from '@/components/dashboard/AppDashboardModule.vue'
@@ -140,16 +141,15 @@ const emptyIcon = computed(() => {
 
     <div v-if="cameras.length > 0" class="camera-stage">
       <div v-if="isTabbed" class="camera-tabs">
-        <button
+        <AppButton
           v-for="camera in cameras"
           :key="camera.uid"
-          type="button"
-          class="button button--on-strong button--sm"
+          on-strong
+          size="sm"
+          :label="camera.name"
           :aria-current="camera.uid === selectedUid"
           @click="selectedUid = camera.uid"
-        >
-          {{ camera.name }}
-        </button>
+        />
       </div>
 
       <!--
@@ -198,15 +198,14 @@ const emptyIcon = computed(() => {
         <p class="mt-1 max-w-xs text-center text-xs leading-5 text-muted">
           {{ t(`dashboard.camera.emptyHint.${emptyReason}`) }}
         </p>
-        <button
+        <AppButton
           v-if="webcams.failed"
-          type="button"
-          class="button button--on-strong mt-4"
+          on-strong
+          :label="t('dashboard.camera.retry')"
+          class="mt-4"
           :disabled="webcams.isLoading"
           @click="webcams.refresh()"
-        >
-          {{ t('dashboard.camera.retry') }}
-        </button>
+        />
       </div>
     </div>
   </AppDashboardModule>

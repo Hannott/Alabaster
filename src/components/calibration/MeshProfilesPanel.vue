@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import AppIcon from '@/components/AppIcon.vue'
+import AppButton from '@/components/AppButton.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import PromptDialog from '@/components/PromptDialog.vue'
 import { useActionGuard } from '@/composables/useActionGuard'
@@ -84,25 +84,21 @@ function validateMeshName(value: string, except?: string): string | undefined {
         <p class="calibration-panel__hint">{{ t('calibration.mesh.hint') }}</p>
       </div>
       <div class="calibration-panel__actions">
-        <button
-          type="button"
-          class="button button--xs"
+        <AppButton
+          size="xs"
+          :pending="printer.pendingCommands.bedMesh"
+          icon="mesh"
+          :label="t('calibration.mesh.calibrate')"
           :disabled="!canCommand"
-          :data-pending="printer.pendingCommands.bedMesh ? 'true' : undefined"
           @click="printer.calibrateBedMesh()"
-        >
-          <AppIcon name="mesh" class="size-4" aria-hidden="true" />
-          {{ t('calibration.mesh.calibrate') }}
-        </button>
-        <button
-          type="button"
-          class="button button--xs"
+        />
+        <AppButton
+          size="xs"
+          icon="save"
+          :label="t('calibration.mesh.save')"
           :disabled="!canCommand || !bedMesh.isActive"
           @click="savingMesh = true"
-        >
-          <AppIcon name="save" class="size-4" aria-hidden="true" />
-          {{ t('calibration.mesh.save') }}
-        </button>
+        />
       </div>
     </header>
 
@@ -130,33 +126,28 @@ function validateMeshName(value: string, except?: string): string | undefined {
           {{ t('calibration.mesh.spread', { value: formatHeight(profile.range) }) }}
         </span>
         <span class="calibration-profile__actions">
-          <button
-            type="button"
-            class="button button--quiet button--xs"
+          <AppButton
+            variant="quiet"
+            size="xs"
+            :label="t('calibration.mesh.load')"
             :disabled="!canCommand || profile.isActive"
             @click="printer.loadBedMeshProfile(profile.name)"
-          >
-            {{ t('calibration.mesh.load') }}
-          </button>
-          <button
-            type="button"
-            class="button button--quiet button--xs"
+          />
+          <AppButton
+            variant="quiet"
+            size="xs"
+            :label="t('calibration.mesh.rename')"
             :disabled="!canCommand || !profile.isActive"
             :title="t('calibration.mesh.renameHint')"
             @click="renamingProfile = profile.name"
-          >
-            {{ t('calibration.mesh.rename') }}
-          </button>
-          <button
-            type="button"
-            class="button button--xs"
-            :class="deleteProfileGuard.variant.value"
-            v-bind="deleteProfileGuard.bind.value"
+          />
+          <AppButton
+            size="xs"
+            :guard="deleteProfileGuard"
+            :label="t('calibration.mesh.delete')"
             :disabled="!canCommand"
             @click="requestDelete(profile.name)"
-          >
-            {{ t('calibration.mesh.delete') }}
-          </button>
+          />
         </span>
       </li>
     </ul>

@@ -3,6 +3,7 @@ import { computed, nextTick, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 
+import AppButton from '@/components/AppButton.vue'
 import AppIcon from '@/components/AppIcon.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import DisclosureReveal from '@/components/DisclosureReveal.vue'
@@ -847,89 +848,75 @@ function requestCancel(): void {
         <div class="print-actions">
           <template v-if="printer.hasActivePrint">
             <div class="print-actions__primary">
-              <button
+              <AppButton
                 v-if="printer.isPrinting"
-                type="button"
-                class="button button--primary"
-                v-bind="pauseGuard.bind.value"
+                :guard="pauseGuard"
+                icon="pause"
+                :label="t('dashboard.print.pause')"
                 :disabled="printer.pendingCommands.pause"
                 @click="printer.pausePrint"
-              >
-                <AppIcon name="pause" class="size-5" aria-hidden="true" />
-                {{ t('dashboard.print.pause') }}
-              </button>
-              <button
+              />
+              <AppButton
                 v-else
-                type="button"
-                class="button button--primary"
+                variant="primary"
+                icon="play"
+                :label="t('dashboard.print.resume')"
                 :disabled="printer.pendingCommands.resume"
                 @click="printer.resumePrint"
-              >
-                <AppIcon name="play" class="size-5" aria-hidden="true" />
-                {{ t('dashboard.print.resume') }}
-              </button>
-              <button
-                type="button"
-                class="button"
-                :class="cancelGuard.variant.value"
-                v-bind="cancelGuard.bind.value"
+              />
+              <AppButton
+                size="sm"
+                :guard="cancelGuard"
                 :disabled="printer.pendingCommands.cancel"
+                icon="stop"
+                :label="t('dashboard.print.cancel')"
                 @click="requestCancel"
-              >
-                <AppIcon name="stop" class="size-5" aria-hidden="true" />
-                {{ t('dashboard.print.cancel') }}
-              </button>
+              />
             </div>
             <div
               v-if="canExcludeObjects || canPauseAtLayer || canPauseNextLayer"
               class="print-actions__secondary"
             >
-              <button
+              <AppButton
                 v-if="canExcludeObjects"
-                type="button"
-                class="button button--quiet button--icon"
+                variant="quiet"
+                icon-only
+                icon="excludeObject"
                 :aria-label="t('dashboard.print.excludeObject')"
                 :title="t('dashboard.print.excludeObject')"
                 @click="isExcludeObjectOpen = true"
-              >
-                <AppIcon name="excludeObject" class="size-5" aria-hidden="true" />
-              </button>
-              <button
+              />
+              <AppButton
                 v-if="canPauseAtLayer"
-                type="button"
-                class="button button--quiet button--icon"
+                variant="quiet"
+                icon-only
+                icon="layers"
                 :aria-label="t('dashboard.print.pauseAtLayer')"
                 :title="t('dashboard.print.pauseAtLayer')"
                 @click="isPauseAtLayerOpen = true"
-              >
-                <AppIcon name="layers" class="size-5" aria-hidden="true" />
-              </button>
-              <button
+              />
+              <AppButton
                 v-if="canPauseNextLayer"
-                type="button"
-                class="button button--quiet button--icon"
+                variant="quiet"
+                icon-only
+                icon="layerNext"
                 :disabled="macros.isRunning('SET_PAUSE_NEXT_LAYER')"
                 :aria-label="t('dashboard.print.pauseNextLayer')"
                 :title="t('dashboard.print.pauseNextLayer')"
                 @click="requestPauseNextLayer"
-              >
-                <AppIcon name="layerNext" class="size-5" aria-hidden="true" />
-              </button>
+              />
             </div>
           </template>
           <div v-else class="print-actions__idle">
-            <button
+            <AppButton
               v-if="lastPrintedFile"
-              type="button"
-              class="button"
-              :class="startGuard.variant.value"
-              v-bind="startGuard.bind.value"
+              size="sm"
+              :guard="startGuard"
               :disabled="printer.pendingCommands.startPrint || printer.pendingCommands.files"
+              icon="play"
+              :label="t('dashboard.print.printAgain')"
               @click="requestStart(lastPrintedFile)"
-            >
-              <AppIcon name="play" class="size-5" aria-hidden="true" />
-              {{ t('dashboard.print.printAgain') }}
-            </button>
+            />
             <!--
           Print files, not the File Explorer: choosing what to print is a
           different workspace from editing what the machine loads, and this link
@@ -938,21 +925,19 @@ function requestCancel(): void {
         -->
             <RouterLink
               :to="{ name: 'printFiles' }"
-              :class="lastPrintedFile ? 'button' : 'button button--primary'"
+              :class="lastPrintedFile ? 'button' : 'button button--sm button--primary'"
             >
               <AppIcon name="folder" class="size-5" aria-hidden="true" />
               {{ t('dashboard.print.chooseFile') }}
             </RouterLink>
-            <button
-              type="button"
-              class="button"
+            <AppButton
+              size="sm"
+              :pending="printer.pendingCommands.uploadFile"
               :disabled="printer.pendingCommands.uploadFile"
-              :data-pending="printer.pendingCommands.uploadFile ? 'true' : undefined"
+              icon="fileUpload"
+              :label="t('dashboard.print.upload')"
               @click="uploadInput?.click()"
-            >
-              <AppIcon name="fileUpload" class="size-5" aria-hidden="true" />
-              {{ t('dashboard.print.upload') }}
-            </button>
+            />
             <input
               ref="uploadInput"
               class="sr-only"
@@ -962,17 +947,15 @@ function requestCancel(): void {
               aria-hidden="true"
               @change="handleUploadSelected"
             />
-            <button
+            <AppButton
               v-if="lastPrintedFile"
-              type="button"
-              class="button"
+              size="sm"
               :disabled="printer.pendingCommands.clearPrint"
               :title="t('dashboard.print.clearTitle')"
-              @click="printer.clearPrintStats"
-            >
-              <AppIcon name="refresh" class="size-5" aria-hidden="true" />
-              {{ t('dashboard.print.clear') }}
-            </button>
+              icon="refresh"
+              :label="t('dashboard.print.clear')"
+              @click="() => printer.clearPrintStats()"
+            />
             <!--
           Offered whether or not there is a job to reprint. It used to be
           hidden as soon as the printer had printed anything, which left the
@@ -981,17 +964,15 @@ function requestCancel(): void {
           the opposite of what the documentation promises. Five controls wrap
           onto a second row on a narrow card, which this footer already does.
         -->
-            <button
-              type="button"
-              class="button"
+            <AppButton
+              size="sm"
               :disabled="printer.pendingCommands.files"
               :aria-expanded="showRecentFiles"
               aria-controls="print-recent-files"
+              icon="activity"
+              :label="t('dashboard.print.recent')"
               @click="toggleRecentFiles"
-            >
-              <AppIcon name="activity" class="size-5" aria-hidden="true" />
-              {{ t('dashboard.print.recent') }}
-            </button>
+            />
           </div>
         </div>
       </div>
@@ -1004,15 +985,13 @@ function requestCancel(): void {
     >
       <div class="flex items-center justify-between gap-3">
         <p class="text-xs font-black">{{ t('dashboard.print.recent') }}</p>
-        <button
-          type="button"
-          class="button button--icon"
+        <AppButton
+          icon-only
+          icon="close"
           :aria-label="t('dashboard.print.closeRecent')"
           :title="t('dashboard.print.closeRecent')"
           @click="showRecentFiles = false"
-        >
-          <AppIcon name="close" class="size-5" aria-hidden="true" />
-        </button>
+        />
       </div>
       <ul class="mt-3 grid gap-1">
         <li v-for="(file, index) in recentFiles" :key="file.path" class="min-w-0">
@@ -1027,18 +1006,15 @@ function requestCancel(): void {
             >
               <span class="min-w-0 truncate text-row-name">{{ filename(file.path) }}</span>
             </button>
-            <button
-              type="button"
-              class="button button--sm"
-              :class="startGuard.variant.value"
-              v-bind="startGuard.bind.value"
+            <AppButton
+              size="sm"
+              :guard="startGuard"
+              icon="play"
+              :label="t('dashboard.print.start')"
               :disabled="printer.pendingCommands.startPrint"
               :aria-label="t('dashboard.print.startFile', { filename: filename(file.path) })"
               @click="requestStart(file.path)"
-            >
-              <AppIcon name="play" class="size-4" aria-hidden="true" />
-              {{ t('dashboard.print.start') }}
-            </button>
+            />
           </div>
           <DisclosureReveal :open="expandedRecentFile === file.path">
             <div :id="`print-recent-file-details-${index}`" class="pt-2">
@@ -1121,24 +1097,22 @@ function requestCancel(): void {
       </p>
 
       <div class="mt-3 flex flex-wrap gap-2">
-        <button
-          type="button"
-          class="button button--primary button--sm"
+        <AppButton
+          variant="primary"
+          size="sm"
+          icon="play"
+          :label="t('dashboard.print.startNow')"
           :disabled="jobQueue.pendingCommands.start"
           @click="jobQueue.startQueue()"
-        >
-          <AppIcon name="play" class="size-4" aria-hidden="true" />
-          {{ t('dashboard.print.startNow') }}
-        </button>
-        <button
-          type="button"
-          class="button button--danger-quiet button--sm"
+        />
+        <AppButton
+          variant="danger-quiet"
+          size="sm"
+          icon="close"
+          :label="t('dashboard.print.removeFromQueue')"
           :disabled="jobQueue.pendingCommands.remove"
           @click="removeUpNext"
-        >
-          <AppIcon name="close" class="size-4" aria-hidden="true" />
-          {{ t('dashboard.print.removeFromQueue') }}
-        </button>
+        />
       </div>
     </div>
 

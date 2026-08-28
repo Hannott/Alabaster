@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import AppButton from '@/components/AppButton.vue'
 import AppIcon from '@/components/AppIcon.vue'
 import { useAvailability } from '@/composables/useAvailability'
 import { createTimeFormatter } from '@/i18n/formats'
@@ -26,16 +27,14 @@ const timeFormatter = computed(() => createTimeFormatter(locale.value))
         <h2 class="calibration-panel__title">{{ t('calibration.endstops.title') }}</h2>
         <p class="calibration-panel__hint">{{ t('calibration.endstops.hint') }}</p>
       </div>
-      <button
-        type="button"
-        class="button button--xs"
+      <AppButton
+        size="xs"
+        :pending="endstops.isLoading"
+        icon="refresh"
+        :label="t('calibration.endstops.refresh')"
         :disabled="!klipperAvailability.isAvailable || endstops.isLoading"
-        :data-pending="endstops.isLoading ? 'true' : undefined"
         @click="endstops.refresh()"
-      >
-        <AppIcon name="refresh" class="size-4" aria-hidden="true" />
-        {{ t('calibration.endstops.refresh') }}
-      </button>
+      />
     </header>
 
     <!--

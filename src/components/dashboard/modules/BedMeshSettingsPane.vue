@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import AppIcon from '@/components/AppIcon.vue'
+import AppButton from '@/components/AppButton.vue'
 import AppSlider from '@/components/AppSlider.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import PromptDialog from '@/components/PromptDialog.vue'
@@ -132,9 +132,11 @@ function validateName(value: string, except?: string): string | undefined {
     </p>
 
     <div v-for="profile in bedMesh.profileSummaries" :key="profile.name" class="mesh-profile-row">
-      <button
-        type="button"
-        class="button button--quiet button--sm button--start button--block"
+      <AppButton
+        variant="quiet"
+        size="sm"
+        start
+        block
         :disabled="isBusy || profile.isActive || printer.hasActivePrint"
         :aria-current="profile.isActive ? 'true' : undefined"
         @click="printer.loadBedMeshProfile(profile.name)"
@@ -146,7 +148,7 @@ function validateName(value: string, except?: string): string | undefined {
         >
           {{ t('dashboard.bedMesh.activeProfile') }}
         </span>
-      </button>
+      </AppButton>
       <span
         class="text-value"
         :title="
@@ -158,52 +160,42 @@ function validateName(value: string, except?: string): string | undefined {
       >
         {{ deviationFormatter.format(profile.range) }}
       </span>
-      <button
-        type="button"
-        class="button button--quiet button--xs button--icon"
+      <AppButton
+        variant="quiet"
+        size="xs"
+        icon-only
+        icon="rename"
         :disabled="isBusy || !profile.isActive"
         :title="t('dashboard.bedMesh.renameProfile', { name: profile.name })"
         :aria-label="t('dashboard.bedMesh.renameProfile', { name: profile.name })"
         @click="renaming = profile.name"
-      >
-        <AppIcon name="rename" class="size-4" aria-hidden="true" />
-      </button>
-      <button
-        type="button"
-        class="button button--xs button--icon"
-        :class="
-          confirmations.skipAll || skipDeleteProfileWarning
-            ? 'button--danger'
-            : 'button--danger-quiet'
-        "
+      />
+      <AppButton
+        size="xs"
+        :variant="confirmations.skipAll || skipDeleteProfileWarning ? 'danger' : 'danger-quiet'"
+        icon="trash"
         :disabled="isBusy"
         :title="t('dashboard.bedMesh.deleteProfile', { name: profile.name })"
         :aria-label="t('dashboard.bedMesh.deleteProfile', { name: profile.name })"
         @click="requestDelete(profile.name)"
-      >
-        <AppIcon name="trash" class="size-4" aria-hidden="true" />
-      </button>
+      />
     </div>
 
     <div class="mt-2 flex flex-wrap gap-2">
-      <button
-        type="button"
-        class="button button--sm"
+      <AppButton
+        size="sm"
+        icon="save"
+        :label="t('dashboard.bedMesh.saveProfile')"
         :disabled="isBusy || !bedMesh.isActive"
         @click="saving = true"
-      >
-        <AppIcon name="save" class="size-4" aria-hidden="true" />
-        {{ t('dashboard.bedMesh.saveProfile') }}
-      </button>
-      <button
-        type="button"
-        class="button button--sm"
+      />
+      <AppButton
+        size="sm"
+        icon="mesh"
+        :label="t('dashboard.bedMesh.calibrate')"
         :disabled="isBusy || printer.hasActivePrint"
         @click="printer.calibrateBedMesh()"
-      >
-        <AppIcon name="mesh" class="size-4" aria-hidden="true" />
-        {{ t('dashboard.bedMesh.calibrate') }}
-      </button>
+      />
     </div>
     <p class="mt-2 text-xs text-muted">{{ t('dashboard.bedMesh.saveProfileHint') }}</p>
   </SurfaceSection>

@@ -2,6 +2,7 @@
 import { reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import AppButton from '@/components/AppButton.vue'
 import AppIcon from '@/components/AppIcon.vue'
 
 const props = defineProps<{ src: string; alt: string }>()
@@ -149,31 +150,31 @@ watch(
       role="group"
       :aria-label="t('imageViewer.zoomGroupLabel')"
     >
-      <button
-        type="button"
-        class="button button--icon button--sm button--on-strong"
+      <AppButton
+        icon-only
+        size="sm"
+        on-strong
+        icon="zoomOut"
         :aria-label="t('imageViewer.zoomOut')"
         :title="t('imageViewer.zoomOut')"
         @click="zoomBy(1 / ZOOM_STEP)"
-      >
-        <AppIcon name="zoomOut" class="size-4" aria-hidden="true" />
-      </button>
-      <button
-        type="button"
-        class="button button--sm button--quiet button--on-strong"
+      />
+      <AppButton
+        size="sm"
+        variant="quiet"
+        on-strong
+        :label="t('imageViewer.reset')"
         @click="applyFitView"
-      >
-        {{ t('imageViewer.reset') }}
-      </button>
-      <button
-        type="button"
-        class="button button--icon button--sm button--on-strong"
+      />
+      <AppButton
+        icon-only
+        size="sm"
+        on-strong
+        icon="zoomIn"
         :aria-label="t('imageViewer.zoomIn')"
         :title="t('imageViewer.zoomIn')"
         @click="zoomBy(ZOOM_STEP)"
-      >
-        <AppIcon name="zoomIn" class="size-4" aria-hidden="true" />
-      </button>
+      />
     </div>
   </div>
 </template>

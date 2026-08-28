@@ -22,6 +22,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import AppButton from '@/components/AppButton.vue'
 import AppIcon from '@/components/AppIcon.vue'
 import CameraCrosshair from '@/components/camera/CameraCrosshair.vue'
 import {
@@ -413,26 +414,28 @@ async function toggleFullscreen(): Promise<void> {
     </span>
 
     <div v-if="!compact" class="camera-tile__actions">
-      <button
+      <AppButton
         v-if="canCapture"
-        type="button"
-        class="button button--on-strong button--quiet button--sm button--icon"
+        on-strong
+        variant="quiet"
+        size="sm"
+        icon-only
+        icon="snapshot"
         :disabled="isCapturing"
         :aria-label="t('cameras.capture', { name: camera.name })"
         :title="t('cameras.capture', { name: camera.name })"
         @click="captureStill"
-      >
-        <AppIcon name="snapshot" class="size-4" aria-hidden="true" />
-      </button>
-      <button
-        type="button"
-        class="button button--on-strong button--quiet button--sm button--icon"
+      />
+      <AppButton
+        on-strong
+        variant="quiet"
+        size="sm"
+        icon-only
+        icon="fullscreen"
         :aria-label="t('cameras.fullscreen', { name: camera.name })"
         :title="t('cameras.fullscreen', { name: camera.name })"
         @click="toggleFullscreen"
-      >
-        <AppIcon name="fullscreen" class="size-4" aria-hidden="true" />
-      </button>
+      />
     </div>
   </div>
 </template>

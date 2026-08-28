@@ -2,6 +2,7 @@
 import { provide, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import AppButton from '@/components/AppButton.vue'
 import AppIcon, { type AppIconName } from '@/components/AppIcon.vue'
 import DisclosureReveal from '@/components/DisclosureReveal.vue'
 import {
@@ -127,31 +128,33 @@ function handleRename(event: Event): void {
           <slot name="meta"></slot>
         </div>
         <div class="dashboard-module__quick-controls">
-          <button
+          <AppButton
             v-if="headerAction"
-            type="button"
-            class="button button--quiet button--xs button--icon"
+            variant="quiet"
+            size="xs"
+            icon-only
+            :icon="headerAction.icon"
             :disabled="headerAction.disabled"
             :aria-label="headerAction.label"
             :title="headerAction.label"
             @click="headerAction.onClick()"
-          >
-            <AppIcon :name="headerAction.icon" class="size-4" aria-hidden="true" />
-          </button>
-          <button
+          />
+          <AppButton
             v-if="hasSettings && !docked && !collapsed"
-            type="button"
-            class="button button--quiet button--xs button--icon"
+            variant="quiet"
+            size="xs"
+            icon-only
+            icon="settings"
             :aria-pressed="settingsOpen"
             :aria-label="t('dashboard.layout.settings', { module: title })"
             :title="t('dashboard.layout.settingsTooltip', { module: title })"
             @click="handleSettingsClick"
-          >
-            <AppIcon name="settings" class="size-4" aria-hidden="true" />
-          </button>
-          <button
-            type="button"
-            class="button button--quiet button--xs button--icon"
+          />
+          <AppButton
+            variant="quiet"
+            size="xs"
+            icon-only
+            :icon="collapsed ? 'down' : 'up'"
             :aria-expanded="!collapsed"
             :aria-label="
               collapsed
@@ -164,9 +167,7 @@ function handleRename(event: Event): void {
                 : t('dashboard.layout.collapse', { module: title })
             "
             @click="emit('toggleCollapse', instanceId)"
-          >
-            <AppIcon :name="collapsed ? 'down' : 'up'" class="size-4" aria-hidden="true" />
-          </button>
+          />
         </div>
       </template>
 
@@ -186,75 +187,75 @@ function handleRename(event: Event): void {
         >
           <AppIcon name="drag" class="size-4" aria-hidden="true" />
         </span>
-        <button
-          type="button"
-          class="button button--quiet button--xs button--icon"
+        <AppButton
+          variant="quiet"
+          size="xs"
+          icon-only
+          icon="up"
           :aria-label="t('dashboard.layout.moveEarlier', { module: title })"
           :title="t('dashboard.layout.moveEarlier', { module: title })"
           :disabled="isFirst"
           @click="emit('move', instanceId, -1)"
-        >
-          <AppIcon name="up" class="size-4" aria-hidden="true" />
-        </button>
-        <button
-          type="button"
-          class="button button--quiet button--xs button--icon"
+        />
+        <AppButton
+          variant="quiet"
+          size="xs"
+          icon-only
+          icon="down"
           :aria-label="t('dashboard.layout.moveLater', { module: title })"
           :title="t('dashboard.layout.moveLater', { module: title })"
           :disabled="isLast"
           @click="emit('move', instanceId, 1)"
-        >
-          <AppIcon name="down" class="size-4" aria-hidden="true" />
-        </button>
-        <button
-          type="button"
-          class="button button--quiet button--xs button--icon"
+        />
+        <AppButton
+          variant="quiet"
+          size="xs"
+          icon-only
+          icon="left"
           :aria-label="t('dashboard.layout.moveToPreviousColumn', { module: title })"
           :title="t('dashboard.layout.moveToPreviousColumn', { module: title })"
           :disabled="!canMoveToPreviousColumn"
           @click="emit('moveColumn', instanceId, -1)"
-        >
-          <AppIcon name="left" class="size-4" aria-hidden="true" />
-        </button>
-        <button
-          type="button"
-          class="button button--quiet button--xs button--icon"
+        />
+        <AppButton
+          variant="quiet"
+          size="xs"
+          icon-only
+          icon="right"
           :aria-label="t('dashboard.layout.moveToNextColumn', { module: title })"
           :title="t('dashboard.layout.moveToNextColumn', { module: title })"
           :disabled="!canMoveToNextColumn"
           @click="emit('moveColumn', instanceId, 1)"
-        >
-          <AppIcon name="right" class="size-4" aria-hidden="true" />
-        </button>
-        <button
+        />
+        <AppButton
           v-if="canDuplicate"
-          type="button"
-          class="button button--quiet button--xs button--icon"
+          variant="quiet"
+          size="xs"
+          icon-only
+          icon="duplicate"
           :aria-label="t('dashboard.layout.duplicate', { module: defaultTitle })"
           :title="t('dashboard.layout.duplicate', { module: defaultTitle })"
           @click="emit('duplicate', instanceId)"
-        >
-          <AppIcon name="duplicate" class="size-4" aria-hidden="true" />
-        </button>
-        <button
-          type="button"
-          class="button button--quiet button--xs button--icon"
+        />
+        <AppButton
+          variant="quiet"
+          size="xs"
+          icon-only
+          icon="hide"
           :aria-label="t('dashboard.layout.hide', { module: title })"
           :title="t('dashboard.layout.hide', { module: title })"
           @click="emit('hide', instanceId)"
-        >
-          <AppIcon name="hide" class="size-4" aria-hidden="true" />
-        </button>
-        <button
+        />
+        <AppButton
           v-if="canRemove"
-          type="button"
-          class="button button--quiet button--xs button--icon"
+          variant="quiet"
+          size="xs"
+          icon-only
+          icon="close"
           :aria-label="t('dashboard.layout.remove', { module: title })"
           :title="t('dashboard.layout.remove', { module: title })"
           @click="emit('remove', instanceId)"
-        >
-          <AppIcon name="close" class="size-4" aria-hidden="true" />
-        </button>
+        />
       </div>
     </header>
     <!--

@@ -2,7 +2,7 @@
 import { onBeforeUnmount, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import AppIcon from '@/components/AppIcon.vue'
+import AppButton from '@/components/AppButton.vue'
 import ImageViewer from '@/components/ImageViewer.vue'
 
 const props = defineProps<{ open: boolean; src: string; alt: string }>()
@@ -50,14 +50,12 @@ function handleDialogClick(event: MouseEvent): void {
   >
     <header class="image-lightbox__header">
       <span class="image-lightbox__title truncate">{{ props.alt }}</span>
-      <button
-        type="button"
-        class="button button--icon"
+      <AppButton
+        icon-only
+        icon="close"
         :aria-label="t('imageViewer.close')"
         @click="emit('close')"
-      >
-        <AppIcon name="close" class="size-5" aria-hidden="true" />
-      </button>
+      />
     </header>
     <ImageViewer :src="props.src" :alt="props.alt" class="image-lightbox__viewer" />
   </dialog>

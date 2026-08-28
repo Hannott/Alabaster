@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import AppButton from '@/components/AppButton.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import PromptDialog from '@/components/PromptDialog.vue'
 import { sensorLabel } from '@/components/dashboard/modules/temperatureSensors'
@@ -180,23 +181,20 @@ async function startCalibration(): Promise<void> {
       class="temperature-calibrate-row"
     >
       <span class="min-w-0 truncate">{{ label(sensor) }}</span>
-      <button
-        type="button"
-        class="button button--sm"
-        :class="calibrationGuard.variant.value"
-        v-bind="calibrationGuard.bind.value"
-        :data-pending="isCalibrating(sensor.objectName) ? 'true' : undefined"
+      <AppButton
+        size="sm"
+        :guard="calibrationGuard"
+        :pending="isCalibrating(sensor.objectName)"
+        :label="
+          calibrationKindFor(sensor.objectName) === 'mpc'
+            ? t('dashboard.temperature.calibrateMpc')
+            : t('dashboard.temperature.calibratePid')
+        "
         :aria-busy="isCalibrating(sensor.objectName) || undefined"
         :disabled="printer.pendingCommands.calibrateHeater || hasJobLoaded"
         :title="hasJobLoaded ? t('dashboard.temperature.calibrateBlocked') : undefined"
         @click="openCalibrationPrompt(sensor)"
-      >
-        {{
-          calibrationKindFor(sensor.objectName) === 'mpc'
-            ? t('dashboard.temperature.calibrateMpc')
-            : t('dashboard.temperature.calibratePid')
-        }}
-      </button>
+      />
     </div>
 
     <div v-if="showCalibrationPanel" class="mt-2">

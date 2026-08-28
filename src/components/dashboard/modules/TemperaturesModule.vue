@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import AppButton from '@/components/AppButton.vue'
 import AppField from '@/components/AppField.vue'
 import AppIcon from '@/components/AppIcon.vue'
 import AppDashboardModule from '@/components/dashboard/AppDashboardModule.vue'
@@ -719,9 +720,10 @@ const hasJobLoaded = computed(() => printer.hasActivePrint)
 
           <div v-if="hasActiveTarget(sensor)" class="temperature-detail">
             <div class="temperature-controls">
-              <button
-                type="button"
-                class="button button--sm button--value"
+              <AppButton
+                size="sm"
+                mono
+                :label="signedNudge(-nudgeStep)"
                 :disabled="printer.pendingCommands.temperature"
                 :aria-label="
                   t('dashboard.temperature.targetAdjust', {
@@ -736,12 +738,11 @@ const hasJobLoaded = computed(() => printer.hasActivePrint)
                   })
                 "
                 @click="nudge(sensor, -nudgeStep)"
-              >
-                {{ signedNudge(-nudgeStep) }}
-              </button>
-              <button
-                type="button"
-                class="button button--sm button--value"
+              />
+              <AppButton
+                size="sm"
+                mono
+                :label="signedNudge(nudgeStep)"
                 :disabled="printer.pendingCommands.temperature"
                 :aria-label="
                   t('dashboard.temperature.targetAdjust', {
@@ -756,13 +757,13 @@ const hasJobLoaded = computed(() => printer.hasActivePrint)
                   })
                 "
                 @click="nudge(sensor, nudgeStep)"
-              >
-                {{ signedNudge(nudgeStep) }}
-              </button>
-              <button
+              />
+              <AppButton
                 v-if="hasQuickOff(sensor)"
-                type="button"
-                class="button button--quiet button--sm"
+                variant="quiet"
+                size="sm"
+                icon="power"
+                :label="t('dashboard.temperature.off')"
                 :disabled="printer.pendingCommands.temperature || hasJobLoaded"
                 :aria-label="
                   hasJobLoaded
@@ -775,10 +776,7 @@ const hasJobLoaded = computed(() => printer.hasActivePrint)
                     : t('dashboard.temperature.quickOff', { heater: sensorLabel(sensor) })
                 "
                 @click="quickOff(sensor)"
-              >
-                <AppIcon name="power" class="size-4" aria-hidden="true" />
-                {{ t('dashboard.temperature.off') }}
-              </button>
+              />
             </div>
             <span class="temperature-stat">
               <span class="temperature-stat__value"
@@ -806,20 +804,18 @@ const hasJobLoaded = computed(() => printer.hasActivePrint)
       </div>
 
       <div class="temperature-presets flex flex-wrap items-center gap-2">
-        <button
+        <AppButton
           v-for="(preset, index) in presets"
           :key="`${index}-${preset.name}`"
-          type="button"
-          class="button button--sm"
+          size="sm"
+          :label="preset.name"
           :disabled="printer.pendingCommands.temperature || hasJobLoaded"
           :title="hasJobLoaded ? t('dashboard.temperature.presetBlocked') : presetTitle(preset)"
           @click="applyPreset(preset)"
-        >
-          {{ preset.name }}
-        </button>
-        <button
-          type="button"
-          class="button button--sm ms-auto"
+        />
+        <AppButton
+          size="sm"
+          class="ms-auto"
           :disabled="printer.pendingCommands.temperature || !hasAnyActiveTarget || hasJobLoaded"
           :title="
             hasJobLoaded
@@ -832,7 +828,7 @@ const hasJobLoaded = computed(() => printer.hasActivePrint)
         >
           <AppIcon name="snowflake" class="size-4 text-data-sky" aria-hidden="true" />
           {{ t('dashboard.temperature.cooldown') }}
-        </button>
+        </AppButton>
       </div>
 
       <!--

@@ -2,6 +2,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import AppButton from '@/components/AppButton.vue'
 import AppIcon from '@/components/AppIcon.vue'
 import AppSlider from '@/components/AppSlider.vue'
 import AvailabilityRegion from '@/components/AvailabilityRegion.vue'
@@ -1827,30 +1828,30 @@ onBeforeUnmount(() => {
               </select>
             </label>
             <div class="mt-3 grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                class="button button--primary"
+              <AppButton
+                variant="primary"
+                icon="download"
+                :label="t('gcodeViewer.files.load')"
                 :disabled="!selectedRemoteFile || loading"
                 @click="loadSelectedRemoteFile"
-              >
-                <AppIcon name="download" class="size-5" aria-hidden="true" />
-                {{ t('gcodeViewer.files.load') }}
-              </button>
-              <button type="button" class="button" :disabled="loading" @click="refreshFiles">
-                <AppIcon name="refresh" class="size-5" aria-hidden="true" />
-                {{ t('gcodeViewer.files.refresh') }}
-              </button>
+              />
+              <AppButton
+                size="sm"
+                :disabled="loading"
+                icon="refresh"
+                :label="t('gcodeViewer.files.refresh')"
+                @click="refreshFiles"
+              />
             </div>
-            <button
+            <AppButton
               v-if="currentPrintFile"
-              type="button"
-              class="button button--block mt-2"
+              block
+              icon="print"
+              :label="t('gcodeViewer.files.loadCurrent')"
+              class="mt-2"
               :disabled="loading"
               @click="loadCurrentPrint"
-            >
-              <AppIcon name="print" class="size-5" aria-hidden="true" />
-              {{ t('gcodeViewer.files.loadCurrent') }}
-            </button>
+            />
           </AvailabilityRegion>
           <div class="gcode-file-divider">
             <span>{{ t('gcodeViewer.files.or') }}</span>
@@ -1862,15 +1863,13 @@ onBeforeUnmount(() => {
             accept=".gcode,.g,.gco,.nc,text/plain"
             @change="handleLocalFile"
           />
-          <button
-            type="button"
-            class="button button--block"
+          <AppButton
+            block
+            icon="fileText"
+            :label="t('gcodeViewer.files.openLocal')"
             :disabled="loading"
             @click="chooseLocalFile"
-          >
-            <AppIcon name="fileText" class="size-5" aria-hidden="true" />
-            {{ t('gcodeViewer.files.openLocal') }}
-          </button>
+          />
         </section>
 
         <section class="gcode-control-card">
@@ -1942,16 +1941,16 @@ onBeforeUnmount(() => {
         <section class="gcode-control-card">
           <h2>{{ t('gcodeViewer.color.title') }}</h2>
           <div class="segmented" role="group" :aria-label="t('gcodeViewer.color.title')">
-            <button
+            <AppButton
               v-for="mode in colorModes"
               :key="mode"
-              type="button"
-              class="button button--sm button--value"
+              size="sm"
+              mono
               :aria-pressed="colorMode === mode"
               @click="colorMode = mode"
             >
               {{ t(`gcodeViewer.color.modes.${mode}`) }}
-            </button>
+            </AppButton>
           </div>
           <p v-if="colorMode === 'feedrate'" class="gcode-quality-state">
             {{
@@ -1975,16 +1974,16 @@ onBeforeUnmount(() => {
           <h2>{{ t('gcodeViewer.quality.title') }}</h2>
           <p class="gcode-view-description">{{ t('gcodeViewer.quality.description') }}</p>
           <div class="segmented" role="group" :aria-label="t('gcodeViewer.quality.title')">
-            <button
+            <AppButton
               v-for="mode in qualityModes"
               :key="mode"
-              type="button"
-              class="button button--sm button--value"
+              size="sm"
+              mono
               :aria-pressed="qualityMode === mode"
               @click="setQualityMode(mode)"
             >
               {{ t(`gcodeViewer.quality.modes.${mode}`) }}
-            </button>
+            </AppButton>
           </div>
           <p v-if="qualityMode === 'auto'" class="gcode-quality-state">
             {{
@@ -2097,9 +2096,12 @@ onBeforeUnmount(() => {
               <div class="gcode-loading-track" aria-hidden="true">
                 <span v-if="loadPercent !== null" :style="{ width: `${loadPercent}%` }"></span>
               </div>
-              <button type="button" class="button button--sm button--on-strong" @click="cancelLoad">
-                {{ t('gcodeViewer.loading.cancel') }}
-              </button>
+              <AppButton
+                size="sm"
+                on-strong
+                :label="t('gcodeViewer.loading.cancel')"
+                @click="cancelLoad"
+              />
               <p class="gcode-loading-note">{{ t('gcodeViewer.loading.followGate') }}</p>
             </div>
 
@@ -2133,55 +2135,50 @@ onBeforeUnmount(() => {
               transparent canvas instead.
             -->
             <div class="gcode-viewer-chips" @pointerdown.stop>
-              <button
+              <AppButton
                 v-if="loaded"
-                type="button"
-                class="button button--on-strong button--icon"
+                on-strong
+                icon-only
+                icon="zoomOut"
                 :aria-label="t('gcodeViewer.view.zoomOut')"
                 :title="t('gcodeViewer.view.zoomOut')"
                 @click.stop="zoomBy(1 / 1.2)"
-              >
-                <AppIcon name="zoomOut" class="size-5" aria-hidden="true" />
-              </button>
-              <button
+              />
+              <AppButton
                 v-if="loaded"
-                type="button"
-                class="button button--on-strong button--icon"
+                on-strong
+                icon-only
+                icon="zoomIn"
                 :aria-label="t('gcodeViewer.view.zoomIn')"
                 :title="t('gcodeViewer.view.zoomIn')"
                 @click.stop="zoomBy(1.2)"
-              >
-                <AppIcon name="zoomIn" class="size-5" aria-hidden="true" />
-              </button>
-              <button
+              />
+              <AppButton
                 v-if="loaded"
-                type="button"
-                class="button button--on-strong button--icon"
+                on-strong
+                icon-only
+                icon="refresh"
                 :aria-label="t('gcodeViewer.view.reset')"
                 :title="t('gcodeViewer.view.reset')"
                 @click.stop="resetView"
-              >
-                <AppIcon name="refresh" class="size-5" aria-hidden="true" />
-              </button>
-              <button
+              />
+              <AppButton
                 v-if="loaded"
-                type="button"
-                class="button button--on-strong button--icon"
+                on-strong
+                icon-only
+                icon="snapshot"
                 :aria-label="t('gcodeViewer.view.screenshot')"
                 :title="t('gcodeViewer.view.screenshot')"
                 @click.stop="captureScreenshot"
-              >
-                <AppIcon name="snapshot" class="size-5" aria-hidden="true" />
-              </button>
-              <button
-                type="button"
-                class="button button--on-strong button--icon"
+              />
+              <AppButton
+                on-strong
+                icon-only
+                icon="settings"
                 :aria-label="t('gcodeViewer.settings.open')"
                 :title="t('gcodeViewer.settings.open')"
                 @click.stop="settingsOpen = true"
-              >
-                <AppIcon name="settings" class="size-5" aria-hidden="true" />
-              </button>
+              />
             </div>
           </div>
 
@@ -2221,18 +2218,16 @@ onBeforeUnmount(() => {
                 <h2>{{ t('gcodeViewer.simulation.title') }}</h2>
                 <p>{{ t('gcodeViewer.simulation.description') }}</p>
               </div>
-              <button
-                type="button"
-                class="button"
-                :aria-pressed="simulationEnabled"
-                @click="toggleSimulationMode"
-              >
-                {{
+              <AppButton
+                size="sm"
+                :label="
                   simulationEnabled
                     ? t('gcodeViewer.simulation.exit')
                     : t('gcodeViewer.simulation.enter')
-                }}
-              </button>
+                "
+                :aria-pressed="simulationEnabled"
+                @click="toggleSimulationMode"
+              />
             </header>
             <div v-if="simulationEnabled" class="gcode-simulation-controls">
               <AppSlider
@@ -2256,18 +2251,17 @@ onBeforeUnmount(() => {
                 </template>
               </AppSlider>
               <div class="gcode-simulation-transport">
-                <button
-                  type="button"
-                  class="button button--icon"
+                <AppButton
+                  icon-only
+                  icon="refresh"
                   :aria-label="t('gcodeViewer.simulation.restart')"
                   :title="t('gcodeViewer.simulation.restart')"
                   @click="restartSimulation"
-                >
-                  <AppIcon name="refresh" class="size-5" aria-hidden="true" />
-                </button>
-                <button
-                  type="button"
-                  class="button button--primary button--icon"
+                />
+                <AppButton
+                  variant="primary"
+                  icon-only
+                  :icon="simulationPlaying ? 'pause' : 'play'"
                   :aria-label="
                     simulationPlaying
                       ? t('gcodeViewer.simulation.pause')
@@ -2279,37 +2273,29 @@ onBeforeUnmount(() => {
                       : t('gcodeViewer.simulation.play')
                   "
                   @click="toggleSimulationPlayback"
-                >
-                  <AppIcon
-                    :name="simulationPlaying ? 'pause' : 'play'"
-                    class="size-5"
-                    aria-hidden="true"
-                  />
-                </button>
-                <button
-                  type="button"
-                  class="button button--icon"
+                />
+                <AppButton
+                  icon-only
+                  icon="skipForward"
                   :aria-label="t('gcodeViewer.simulation.finish')"
                   :title="t('gcodeViewer.simulation.finish')"
                   @click="finishSimulation"
-                >
-                  <AppIcon name="skipForward" class="size-5" aria-hidden="true" />
-                </button>
+                />
                 <div
                   class="segmented gcode-simulation-speeds"
                   :aria-label="t('gcodeViewer.simulation.speedLabel')"
                   role="group"
                 >
-                  <button
+                  <AppButton
                     v-for="speed in simulationSpeeds"
                     :key="speed"
-                    type="button"
-                    class="button button--sm button--value"
+                    size="sm"
+                    mono
                     :aria-pressed="simulationSpeed === speed"
                     @click="simulationSpeed = speed"
                   >
                     {{ t('gcodeViewer.simulation.speedValue', { speed }) }}
-                  </button>
+                  </AppButton>
                 </div>
               </div>
             </div>

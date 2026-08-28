@@ -2,6 +2,8 @@
 import { computed, nextTick, onBeforeUnmount, ref, useId, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import AppButton from '@/components/AppButton.vue'
+
 const props = defineProps<{
   open: boolean
   title: string
@@ -109,12 +111,13 @@ function submit(): void {
         <p v-if="error" :id="errorId" class="prompt-dialog__error">{{ error }}</p>
       </div>
       <div class="confirm-dialog__actions">
-        <button type="submit" class="button button--primary" :disabled="error !== undefined">
-          {{ confirmLabel }}
-        </button>
-        <button type="button" class="button" @click="emit('cancel')">
-          {{ t('dashboard.cancel') }}
-        </button>
+        <AppButton
+          variant="primary"
+          :label="confirmLabel"
+          type="submit"
+          :disabled="error !== undefined"
+        />
+        <AppButton size="sm" :label="t('dashboard.cancel')" @click="emit('cancel')" />
       </div>
     </form>
   </dialog>

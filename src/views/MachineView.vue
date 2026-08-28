@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import AppButton from '@/components/AppButton.vue'
 import AppIcon from '@/components/AppIcon.vue'
 import AppStatusField, { type AppStatusFieldTone } from '@/components/AppStatusField.vue'
 import AvailabilityRegion from '@/components/AvailabilityRegion.vue'
@@ -10,7 +11,7 @@ import MachineUpdateConsoleDialog from '@/components/MachineUpdateConsoleDialog.
 import PageHeading from '@/components/PageHeading.vue'
 import UpdateCommitList from '@/components/UpdateCommitList.vue'
 import UpdateRecoveryDialog from '@/components/UpdateRecoveryDialog.vue'
-import { useActionGuard, type ActionGuardBindings } from '@/composables/useActionGuard'
+import { useActionGuard, type ActionGuardResult } from '@/composables/useActionGuard'
 import type {
   MachineServiceStatus,
   MachineUpdateAvailability,
@@ -190,12 +191,13 @@ function serviceActionLabel(service: MachineServiceStatus): string {
 }
 
 /** Stopping is the only half that carries a guard; starting a stopped unit has nothing to ask about. */
-function serviceActionVariant(service: MachineServiceStatus): string | null {
-  return service.state === 'active' ? stopServiceGuard.variant.value : null
-}
-
-function serviceActionBind(service: MachineServiceStatus): ActionGuardBindings {
-  return service.state === 'active' ? stopServiceGuard.bind.value : {}
+/**
+ * Stop is guarded; Start is corrective and carries none. One helper rather than
+ * the previous pair, because a variant and a binding that disagreed about which
+ * service they described was exactly the split `useActionGuard` exists to close.
+ */
+function serviceActionGuard(service: MachineServiceStatus): ActionGuardResult | undefined {
+  return service.state === 'active' ? stopServiceGuard : undefined
 }
 
 const pendingServiceStop = ref<string | null>(null)
@@ -687,34 +689,27 @@ onBeforeUnmount(() => {
                   >
                     <AppIcon name="globe" class="size-5" aria-hidden="true" />
                   </a>
-                  <button
+                  <AppButton
                     v-if="isSystemdService(service.name) && canToggleService(service)"
-                    type="button"
-                    class="button button--quiet button--icon"
-                    :class="serviceActionVariant(service)"
-                    v-bind="serviceActionBind(service)"
+                    variant="quiet"
+                    :guard="serviceActionGuard(service)"
+                    :icon="serviceActionIcon(service)"
                     :disabled="!moonraker.isConnected || machine.isServicePending(service.name)"
-                    :data-pending="machine.isServicePending(service.name) ? 'true' : undefined"
+                    :pending="machine.isServicePending(service.name)"
                     :aria-label="serviceActionLabel(service)"
                     :title="serviceActionLabel(service)"
                     @click="requestServiceAction(service)"
-                  >
-                    <AppIcon :name="serviceActionIcon(service)" class="size-5" aria-hidden="true" />
-                  </button>
-                  <button
+                  />
+                  <AppButton
                     v-if="isSystemdService(service.name) && canRestartService(service)"
-                    type="button"
-                    class="button button--quiet button--icon"
-                    :class="restartServiceGuard.variant.value"
-                    v-bind="restartServiceGuard.bind.value"
+                    :guard="restartServiceGuard"
+                    :icon="restartActionIcon(service)"
                     :disabled="!moonraker.isConnected || machine.isServicePending(service.name)"
-                    :data-pending="machine.isServicePending(service.name) ? 'true' : undefined"
+                    :pending="machine.isServicePending(service.name)"
                     :aria-label="restartActionLabel(service)"
                     :title="restartActionLabel(service)"
                     @click="requestServiceRestart(service)"
-                  >
-                    <AppIcon :name="restartActionIcon(service)" class="size-5" aria-hidden="true" />
-                  </button>
+                  />
                   <AppStatusField
                     class="machine-service-status"
                     :text="t(`machine.services.status.${service.state}`)"
@@ -754,11 +749,12 @@ onBeforeUnmount(() => {
                   re-read with nothing to confirm, named well enough by the icon
                   that a text label added nothing beside it.
                 -->
-                <button
-                  type="button"
-                  class="button button--quiet button--icon"
+                <AppButton
+                  variant="quiet"
+                  icon-only
+                  :pending="machine.isLoadingPeripherals"
+                  :icon="machine.isLoadingPeripherals ? 'spinner' : 'refresh'"
                   :disabled="!moonraker.isConnected"
-                  :data-pending="machine.isLoadingPeripherals ? 'true' : undefined"
                   :aria-label="
                     machine.isLoadingPeripherals
                       ? t('machine.peripherals.refreshing')
@@ -770,13 +766,7 @@ onBeforeUnmount(() => {
                       : t('machine.peripherals.refresh')
                   "
                   @click="machine.refreshPeripherals()"
-                >
-                  <AppIcon
-                    :name="machine.isLoadingPeripherals ? 'spinner' : 'refresh'"
-                    class="size-5"
-                    aria-hidden="true"
-                  />
-                </button>
+                />
               </div>
             </header>
 
@@ -874,21 +864,21 @@ onBeforeUnmount(() => {
             <AppIcon name="refresh" class="size-5 text-action" aria-hidden="true" />
             <h2 id="machine-updates-title">{{ t('machine.updates.title') }}</h2>
             <div class="machine-panel-heading__actions">
-              <button
+              <AppButton
                 v-if="machine.outputLines.length > 0 || machine.isUpdating"
-                type="button"
-                class="button button--quiet button--sm"
-                :data-pending="machine.isUpdating ? 'true' : undefined"
+                variant="quiet"
+                size="sm"
+                :pending="machine.isUpdating"
+                icon="console"
+                :label="t('machine.output.openConsole')"
                 @click="isConsoleOpen = true"
-              >
-                <AppIcon name="console" class="size-4" aria-hidden="true" />
-                {{ t('machine.output.openConsole') }}
-              </button>
-              <button
-                type="button"
-                class="button button--quiet button--icon"
+              />
+              <AppButton
+                variant="quiet"
+                icon-only
+                :pending="machine.checkingUpdateId === ''"
+                :icon="machine.checkingUpdateId === '' ? 'spinner' : 'refresh'"
                 :disabled="updatesDisabled"
-                :data-pending="machine.checkingUpdateId === '' ? 'true' : undefined"
                 :aria-label="
                   machine.checkingUpdateId === ''
                     ? t('machine.updates.checking')
@@ -900,26 +890,17 @@ onBeforeUnmount(() => {
                     : t('machine.updates.check')
                 "
                 @click="machine.checkForUpdates()"
-              >
-                <AppIcon
-                  :name="machine.checkingUpdateId === '' ? 'spinner' : 'refresh'"
-                  class="size-5"
-                  aria-hidden="true"
-                />
-              </button>
-              <button
+              />
+              <AppButton
                 v-if="machine.hasAvailableUpdates"
-                type="button"
-                class="button button--sm"
-                :class="installGuard.variant.value"
-                v-bind="installGuard.bind.value"
+                size="sm"
+                :guard="installGuard"
+                :pending="machine.isUpdatingAll"
+                icon="download"
+                :label="t('machine.updates.updateAll')"
                 :disabled="updatesDisabled"
-                :data-pending="machine.isUpdatingAll ? 'true' : undefined"
                 @click="requestUpdateAll"
-              >
-                <AppIcon name="download" class="size-4" aria-hidden="true" />
-                {{ t('machine.updates.updateAll') }}
-              </button>
+              />
             </div>
           </header>
 
@@ -964,10 +945,12 @@ onBeforeUnmount(() => {
                   a fourth row state, the same reasoning that already keeps rollback
                   beside the row instead of inside its click.
                 -->
-                <button
+                <AppButton
                   v-if="hasAnomalyToggle(update)"
-                  type="button"
-                  class="button button--quiet button--icon machine-update-row__anomalies-toggle"
+                  variant="quiet"
+                  icon-only
+                  icon="info"
+                  class="machine-update-row__anomalies-toggle"
                   :aria-pressed="isAnomaliesExpanded(update.id)"
                   :aria-controls="`machine-update-anomalies-${update.id}`"
                   :aria-label="
@@ -980,9 +963,7 @@ onBeforeUnmount(() => {
                   "
                   :title="t('machine.updates.anomalies')"
                   @click="toggleAnomalies(update.id)"
-                >
-                  <AppIcon name="info" class="size-5" aria-hidden="true" />
-                </button>
+                />
                 <!--
                   A secondary control beside the row rather than a fourth state
                   folded into the action button: rollback has nothing to do with
@@ -991,19 +972,16 @@ onBeforeUnmount(() => {
                   `aria-haspopup` is its only carrier, same as the Console card
                   header's clear and the job queue row's remove.
                 -->
-                <button
+                <AppButton
                   v-if="canRollbackUpdate(update)"
-                  type="button"
-                  class="button button--quiet button--icon machine-update-row__rollback"
-                  :class="rollbackGuard.variant.value"
-                  v-bind="rollbackGuard.bind.value"
+                  class="machine-update-row__rollback"
+                  :guard="rollbackGuard"
+                  icon="undo"
                   :disabled="updatesDisabled"
                   :aria-label="t('machine.updates.rollbackOne', { name: update.displayName })"
                   :title="t('machine.updates.rollback')"
                   @click="requestRollback(update)"
-                >
-                  <AppIcon name="undo" class="size-5" aria-hidden="true" />
-                </button>
+                />
                 <!--
                   A dirty/invalid/corrupt source cannot be installed at all, so its
                   action is Investigate rather than Update now or Check -- and
@@ -1011,17 +989,17 @@ onBeforeUnmount(() => {
                   starting or reading, which earns it a distinct icon beside the
                   status instead of the trailing labeled/icon action button below.
                 -->
-                <button
+                <AppButton
                   v-if="rowAction(update) === 'investigate'"
-                  type="button"
-                  class="button button--quiet button--icon machine-update-row__investigate"
+                  variant="quiet"
+                  icon-only
+                  icon="warningDiamond"
+                  class="machine-update-row__investigate"
                   :disabled="updatesDisabled"
                   :aria-label="rowActionName(update)"
                   :title="rowActionName(update)"
                   @click="activateRow(update)"
-                >
-                  <AppIcon name="warningDiamond" class="size-5" aria-hidden="true" />
-                </button>
+                />
                 <AppStatusField
                   class="machine-update-status"
                   :text="t(`machine.updates.status.${updateAvailability(update)}`)"
@@ -1041,30 +1019,37 @@ onBeforeUnmount(() => {
                   "Up to date". Investigate never reaches this button at all; see
                   the icon beside the status above.
                 -->
-                <button
-                  v-if="rowAction(update) !== 'investigate'"
-                  type="button"
-                  class="button machine-update-row__action"
-                  :class="
-                    rowAction(update) === 'install'
-                      ? ['button--sm', installGuard.variant.value]
-                      : ['button--quiet', 'button--icon']
-                  "
-                  v-bind="rowAction(update) === 'install' ? installGuard.bind.value : {}"
+                <!--
+                  Two controls, not one with a ternary in every attribute. Check
+                  and Install differ in size, variant, guard, and whether they
+                  carry a label at all, so the single element was branching on
+                  `rowAction` five times and could land a combination neither
+                  branch intended — an `install` that kept the icon-only shape,
+                  say. Splitting them makes each one legible on its own.
+                -->
+                <AppButton
+                  v-if="rowAction(update) === 'check'"
+                  class="machine-update-row__action"
+                  variant="quiet"
+                  :icon="machine.checkingUpdateId === update.id ? 'spinner' : 'refresh'"
                   :disabled="updatesDisabled"
-                  :data-pending="rowIsPending(update) ? 'true' : undefined"
+                  :pending="rowIsPending(update)"
                   :aria-label="rowActionName(update)"
                   :title="rowActionName(update)"
                   @click="activateRow(update)"
-                >
-                  <AppIcon
-                    v-if="rowAction(update) === 'check'"
-                    :name="machine.checkingUpdateId === update.id ? 'spinner' : 'refresh'"
-                    class="size-5"
-                    aria-hidden="true"
-                  />
-                  <template v-else>{{ rowActionLabel(update) }}</template>
-                </button>
+                />
+                <AppButton
+                  v-else-if="rowAction(update) === 'install'"
+                  class="machine-update-row__action"
+                  size="sm"
+                  :guard="installGuard"
+                  :label="rowActionLabel(update)"
+                  :disabled="updatesDisabled"
+                  :pending="rowIsPending(update)"
+                  :aria-label="rowActionName(update)"
+                  :title="rowActionName(update)"
+                  @click="activateRow(update)"
+                />
               </div>
               <ul
                 v-if="hasAnomalyToggle(update) && isAnomaliesExpanded(update.id)"

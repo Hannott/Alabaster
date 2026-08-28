@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import AppButton from '@/components/AppButton.vue'
 import type { GcodeHelpEntry } from '@/stores/console'
 
 /**
@@ -61,14 +62,16 @@ const matches = computed(() => {
       </p>
       <ul class="console-browser__list">
         <li v-for="entry in matches" :key="entry.command">
-          <button
-            type="button"
-            class="button button--quiet button--xs button--start button--block"
+          <AppButton
+            variant="quiet"
+            size="xs"
+            start
+            block
             :title="t('console.help.insert', { command: entry.command })"
             @click="emit('select', entry.command)"
           >
             <span class="text-accent console-browser__command">{{ entry.command }}</span>
-          </button>
+          </AppButton>
           <p class="console-browser__help">{{ entry.help || t('console.help.noHelp') }}</p>
         </li>
       </ul>

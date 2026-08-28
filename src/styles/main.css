@@ -3853,20 +3853,27 @@ input.z-axis__slider {
  * buttons beside it are sized to the same `xs` height (`.jog-button` below),
  * so the row is uniform and there is no longer a taller sibling for this box
  * to be stretched to.
+ *
+ * That height now comes from `AppButton`'s own `xs` tier rather than from a
+ * rule here. The pivot used to restate the whole box beside `.button` instead
+ * of building on it — its own height, border, radius, fill, flex, and gap —
+ * and what that cost is recorded in the rule this replaces: a hand-written
+ * `.jog-pivot:disabled { opacity: 0.5 }`, needed only because the shared
+ * disabled treatment never reached a control that was not a `.button`.
+ *
+ * So what is left here is only the difference: room for the unhomed dot, a
+ * tighter inline padding so an icon and a single letter fit the grid column,
+ * and the muted caps label the axis letters read as.
+ *
+ * One consequence, and it is the good direction. `height` pinned every pivot
+ * to 28px; `min-height` lets home-all stretch to its grid row, so it finally
+ * matches the motors-off button sharing that row instead of sitting four
+ * pixels short of it. The three axis pivots have no taller row-mate and stay
+ * at 28px, exactly as the paragraph above describes.
  */
 .jog-pivot {
   position: relative;
-  display: flex;
-  min-width: 0;
-  height: 1.75rem;
-  flex-direction: row;
-  align-items: center;
-  justify-content: center;
-  gap: 0.3rem;
   padding-inline: 0.4rem;
-  border: 1px solid var(--border-subtle);
-  border-radius: 0.4rem;
-  background: var(--surface-soft);
   color: var(--text-muted);
   font-size: var(--text-label-caps-size);
   font-weight: var(--font-weight-increased);
@@ -3901,17 +3908,6 @@ input.z-axis__slider {
   border-color: color-mix(in srgb, var(--action-primary) 55%, transparent);
   background: color-mix(in srgb, var(--action-primary) 12%, var(--surface-soft));
   color: var(--action-primary);
-}
-
-/*
- * The pivot is a bespoke shape (outlier 2 in button-system.md), not a
- * `.button`, so it never picked up the shared `.button:disabled` opacity —
- * only the global `cursor: not-allowed` any native `<button disabled>` gets.
- * Home-all is disabled while a home is already in flight or a print is
- * running, and looked fully enabled the whole time.
- */
-.jog-pivot:disabled {
-  opacity: 0.5;
 }
 
 .jog-pivot__dot {

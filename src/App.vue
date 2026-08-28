@@ -5,6 +5,7 @@ import { RouterLink, RouterView } from 'vue-router'
 
 import ActivityList from '@/components/ActivityList.vue'
 import AlabasterMark from '@/components/AlabasterMark.vue'
+import AppButton from '@/components/AppButton.vue'
 import AppIcon, { type AppIconName } from '@/components/AppIcon.vue'
 import BedScrewsDialog from '@/components/BedScrewsDialog.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
@@ -372,12 +373,12 @@ const powerGuards = {
   }),
   restartKlipper: useActionGuard({
     tier: printDerived,
-    emphasis: 'neutral',
+    emphasis: 'quiet',
     key: 'restartKlipper',
   }),
   firmwareRestart: useActionGuard({
     tier: printDerived,
-    emphasis: 'neutral',
+    emphasis: 'quiet',
     key: 'firmwareRestart',
   }),
 } as const
@@ -522,21 +523,16 @@ async function discardPendingConfig(): Promise<void> {
         </ol>
       </nav>
 
-      <button
-        type="button"
-        class="button button--icon sidebar-toggle relative mt-auto shrink-0 self-start"
+      <AppButton
+        icon-only
+        :icon="isSidebarCollapsed ? 'sidebarExpand' : 'sidebarCollapse'"
+        class="sidebar-toggle relative mt-auto shrink-0 self-start"
         :aria-label="sidebarLabel"
         :aria-expanded="!isSidebarCollapsed"
         aria-controls="desktop-primary-navigation"
         :title="sidebarLabel"
         @click="toggleSidebar"
-      >
-        <AppIcon
-          :name="isSidebarCollapsed ? 'sidebarExpand' : 'sidebarCollapse'"
-          class="size-5"
-          aria-hidden="true"
-        />
-      </button>
+      />
     </aside>
 
     <div class="app-content min-w-0 flex-1">
@@ -557,7 +553,9 @@ async function discardPendingConfig(): Promise<void> {
                 class="shrink-0"
                 :label="t('header.printers.label')"
                 align="start"
-                trigger-class="button button--quiet button--xs button--icon"
+                trigger-variant="quiet"
+                trigger-size="xs"
+                trigger-icon-only
               >
                 <template #trigger>
                   <AppIcon name="down" class="size-4" aria-hidden="true" />
@@ -566,9 +564,11 @@ async function discardPendingConfig(): Promise<void> {
                   <p class="header-menu__section-title">{{ t('header.printers.title') }}</p>
                   <ul class="grid gap-0.5">
                     <li v-for="entry in printers.entries" :key="entry.id">
-                      <button
-                        type="button"
-                        class="button button--quiet button--sm button--start button--block"
+                      <AppButton
+                        variant="quiet"
+                        size="sm"
+                        start
+                        block
                         :aria-current="entry.id === printers.activeId ? 'true' : undefined"
                         @click="
                           () => {
@@ -590,7 +590,7 @@ async function discardPendingConfig(): Promise<void> {
                             >{{ printerHost(entry.endpoint) }}</span
                           >
                         </span>
-                      </button>
+                      </AppButton>
                     </li>
                   </ul>
                   <div class="header-menu__divider" role="none"></div>
@@ -656,16 +656,16 @@ async function discardPendingConfig(): Promise<void> {
             one primary, and both can be present at once: staging a probe offset
             and then running another calibration is an ordinary evening.
           -->
-          <button
+          <AppButton
             v-if="manualProbe.isActive"
-            type="button"
-            class="button button--sm button--icon-lg"
+            size="sm"
+            icon-lg
             :title="t('manualProbe.openTitle')"
             @click="manualProbe.reopen()"
           >
             <AppIcon name="probe" class="size-5" aria-hidden="true" />
             {{ t('manualProbe.open') }}
-          </button>
+          </AppButton>
           <!--
             The same gate for a bed-screw round that has been put aside. A
             separate control rather than one shared "a procedure is waiting"
@@ -674,27 +674,28 @@ async function discardPendingConfig(): Promise<void> {
             can only ever have one of them running — so the pair never both
             appear and the row never grows by two.
           -->
-          <button
+          <AppButton
             v-if="bedScrews.isActive"
-            type="button"
-            class="button button--sm button--icon-lg"
+            size="sm"
+            icon-lg
             :title="t('bedScrews.openTitle')"
             @click="bedScrews.reopen()"
           >
             <AppIcon name="maintenance" class="size-5" aria-hidden="true" />
             {{ t('bedScrews.open') }}
-          </button>
-          <button
+          </AppButton>
+          <AppButton
             v-if="hasPendingConfig"
-            type="button"
-            class="button button--primary button--sm button--icon-lg"
-            :data-pending="printer.pendingCommands.saveConfig ? 'true' : undefined"
+            variant="primary"
+            size="sm"
+            icon-lg
+            :pending="printer.pendingCommands.saveConfig"
             :title="t('saveConfig.open')"
             @click="isSaveConfigOpen = true"
           >
             <AppIcon name="save" class="size-5" aria-hidden="true" />
             {{ t('saveConfig.open') }}
-          </button>
+          </AppButton>
           <!--
             The notice that a saved config file has not taken effect yet, and the
             action that applies it — one control, for the same reason the save
@@ -717,22 +718,21 @@ async function discardPendingConfig(): Promise<void> {
             second one, so the confirmation, the tier that resolves to terminal
             only while a print is running, and the variant are all decided once.
           -->
-          <button
+          <AppButton
             v-if="machineFiles.hasUnappliedConfigChanges"
-            type="button"
-            class="button button--sm button--icon-lg"
-            :class="powerGuards.firmwareRestart.variant.value ?? undefined"
-            v-bind="powerGuards.firmwareRestart.bind.value"
+            size="sm"
+            icon-lg
+            :guard="powerGuards.firmwareRestart"
+            :pending="printer.pendingCommands.firmwareRestart"
             :disabled="
               !moonrakerAvailability.isAvailable || printer.pendingCommands.firmwareRestart
             "
-            :data-pending="printer.pendingCommands.firmwareRestart ? 'true' : undefined"
             :title="t('header.applyConfig.title')"
             @click="requestAction('firmwareRestart')"
           >
             <AppIcon name="refresh" class="size-5" aria-hidden="true" />
             {{ t('header.applyConfig.label') }}
-          </button>
+          </AppButton>
           <!--
             Text, not a button — outlier 1 in button-system.md. The one control
             that has to be found before it is read, so shape (all caps, the
@@ -759,7 +759,10 @@ async function discardPendingConfig(): Promise<void> {
           <HeaderMenu
             :label="t('header.notifications.label')"
             align="end"
-            trigger-class="button button--quiet button--icon header-icon"
+            trigger-variant="quiet"
+            trigger-size="md"
+            trigger-icon-only
+            trigger-class="header-icon"
             @open="serverWarnings.markRead()"
           >
             <template #trigger>
@@ -812,25 +815,26 @@ async function discardPendingConfig(): Promise<void> {
                         <span class="text-[0.68rem] text-muted">{{
                           t('header.notifications.remindLabel')
                         }}</span>
-                        <button
-                          type="button"
-                          class="button button--quiet button--xs"
+                        <AppButton
+                          variant="quiet"
+                          size="xs"
+                          :label="t('header.notifications.remindNextReboot')"
                           @click="snoozeWarning(notice.id)"
-                        >
-                          {{ t('header.notifications.remindNextReboot') }}
-                        </button>
-                        <button
-                          type="button"
-                          class="button button--quiet button--xs"
+                        />
+                        <AppButton
+                          variant="quiet"
+                          size="xs"
+                          :label="t('header.notifications.remindNever')"
                           @click="muteWarning(notice.id)"
-                        >
-                          {{ t('header.notifications.remindNever') }}
-                        </button>
+                        />
                       </div>
                     </div>
-                    <button
-                      type="button"
-                      class="button button--quiet button--xs button--icon shrink-0"
+                    <AppButton
+                      variant="quiet"
+                      size="xs"
+                      icon-only
+                      icon="bellSlash"
+                      class="shrink-0"
                       :aria-expanded="expandedWarningId === notice.id"
                       :aria-label="
                         t('header.notifications.remind', { title: serverWarningTitle(notice) })
@@ -839,9 +843,7 @@ async function discardPendingConfig(): Promise<void> {
                         t('header.notifications.remind', { title: serverWarningTitle(notice) })
                       "
                       @click="toggleWarningRemind(notice.id)"
-                    >
-                      <AppIcon name="bellSlash" class="size-4" aria-hidden="true" />
-                    </button>
+                    />
                   </li>
                 </ul>
                 <p class="header-menu__divider" role="separator"></p>
@@ -887,16 +889,17 @@ async function discardPendingConfig(): Promise<void> {
                         {{ entry.description }}
                       </span>
                     </div>
-                    <button
-                      type="button"
-                      class="button button--quiet button--xs button--icon shrink-0"
+                    <AppButton
+                      variant="quiet"
+                      size="xs"
+                      icon-only
+                      icon="close"
+                      class="shrink-0"
                       :disabled="announcements.dismissingIds.has(entry.entry_id)"
                       :aria-label="t('header.notifications.dismiss', { title: entry.title })"
                       :title="t('header.notifications.dismiss', { title: entry.title })"
                       @click="announcements.dismiss(entry.entry_id)"
-                    >
-                      <AppIcon name="close" class="size-4" aria-hidden="true" />
-                    </button>
+                    />
                   </li>
                 </ul>
                 <p class="header-menu__divider" role="separator"></p>
@@ -927,18 +930,23 @@ async function discardPendingConfig(): Promise<void> {
           <HeaderMenu
             :label="t('header.power.label')"
             align="end"
-            trigger-class="button button--quiet button--icon header-icon"
+            trigger-variant="quiet"
+            trigger-size="md"
+            trigger-icon-only
+            trigger-class="header-icon"
           >
             <template #trigger>
               <AppIcon name="power" class="size-6" aria-hidden="true" />
             </template>
             <template #default="{ close }">
               <p class="header-menu__section-title">{{ t('header.power.klipperControl') }}</p>
-              <button
-                type="button"
-                class="button button--sm button--start button--block"
-                :class="powerGuards.restartKlipper.variant.value ?? 'button--quiet'"
-                v-bind="powerGuards.restartKlipper.bind.value"
+              <AppButton
+                size="sm"
+                start
+                block
+                :guard="powerGuards.restartKlipper"
+                icon="refresh"
+                :label="t('header.power.restartKlipper')"
                 :disabled="
                   !moonrakerAvailability.isAvailable || printer.pendingCommands.restartKlipper
                 "
@@ -948,15 +956,14 @@ async function discardPendingConfig(): Promise<void> {
                     close()
                   }
                 "
-              >
-                <AppIcon name="refresh" class="size-4" aria-hidden="true" />
-                {{ t('header.power.restartKlipper') }}
-              </button>
-              <button
-                type="button"
-                class="button button--sm button--start button--block"
-                :class="powerGuards.firmwareRestart.variant.value ?? 'button--quiet'"
-                v-bind="powerGuards.firmwareRestart.bind.value"
+              />
+              <AppButton
+                size="sm"
+                start
+                block
+                :guard="powerGuards.firmwareRestart"
+                icon="refresh"
+                :label="t('header.power.firmwareRestart')"
                 :disabled="
                   !moonrakerAvailability.isAvailable || printer.pendingCommands.firmwareRestart
                 "
@@ -966,17 +973,17 @@ async function discardPendingConfig(): Promise<void> {
                     close()
                   }
                 "
-              >
-                <AppIcon name="refresh" class="size-4" aria-hidden="true" />
-                {{ t('header.power.firmwareRestart') }}
-              </button>
+              />
 
               <p class="header-menu__divider" role="separator"></p>
               <p class="header-menu__section-title">{{ t('header.power.serviceControl') }}</p>
-              <button
-                type="button"
-                class="button button--quiet button--sm button--start button--block"
-                v-bind="restartMoonrakerGuard.bind.value"
+              <AppButton
+                size="sm"
+                start
+                block
+                :guard="restartMoonrakerGuard"
+                icon="refresh"
+                :label="t('header.power.restartMoonraker')"
                 :disabled="
                   !moonrakerAvailability.isAvailable || printer.pendingCommands.restartMoonraker
                 "
@@ -986,16 +993,17 @@ async function discardPendingConfig(): Promise<void> {
                     close()
                   }
                 "
-              >
-                <AppIcon name="refresh" class="size-4" aria-hidden="true" />
-                {{ t('header.power.restartMoonraker') }}
-              </button>
+              />
 
               <p class="header-menu__divider" role="separator"></p>
               <p class="header-menu__section-title">{{ t('header.power.hostControl') }}</p>
-              <button
-                type="button"
-                class="button button--danger-quiet button--sm button--start button--block"
+              <AppButton
+                variant="danger-quiet"
+                size="sm"
+                start
+                block
+                icon="power"
+                :label="t('header.power.rebootHost')"
                 :disabled="!moonrakerAvailability.isAvailable"
                 @click="
                   () => {
@@ -1003,13 +1011,14 @@ async function discardPendingConfig(): Promise<void> {
                     close()
                   }
                 "
-              >
-                <AppIcon name="power" class="size-4" aria-hidden="true" />
-                {{ t('header.power.rebootHost') }}
-              </button>
-              <button
-                type="button"
-                class="button button--danger-quiet button--sm button--start button--block"
+              />
+              <AppButton
+                variant="danger-quiet"
+                size="sm"
+                start
+                block
+                icon="power"
+                :label="t('header.power.shutdownHost')"
                 :disabled="!moonrakerAvailability.isAvailable"
                 @click="
                   () => {
@@ -1017,10 +1026,7 @@ async function discardPendingConfig(): Promise<void> {
                     close()
                   }
                 "
-              >
-                <AppIcon name="power" class="size-4" aria-hidden="true" />
-                {{ t('header.power.shutdownHost') }}
-              </button>
+              />
 
               <!--
                 Auxiliary switches — a PSU relay, an enclosure light — live here
@@ -1032,12 +1038,19 @@ async function discardPendingConfig(): Promise<void> {
               <template v-if="devicePower.hasDevices">
                 <p class="header-menu__divider" role="separator"></p>
                 <p class="header-menu__section-title">{{ t('header.power.devicePower') }}</p>
-                <button
+                <AppButton
                   v-for="device in devicePower.devices"
                   :key="device.device"
-                  type="button"
-                  class="button button--sm button--start button--block"
-                  :class="device.status === 'on' ? 'button--danger-quiet' : 'button--quiet'"
+                  size="sm"
+                  start
+                  block
+                  :variant="device.status === 'on' ? 'danger-quiet' : 'quiet'"
+                  icon="power"
+                  :label="
+                    device.status === 'on'
+                      ? t('header.power.turnDeviceOff', { name: device.device })
+                      : t('header.power.turnDeviceOn', { name: device.device })
+                  "
                   :disabled="
                     !moonrakerAvailability.isAvailable ||
                     devicePower.pendingDevices.has(device.device) ||
@@ -1049,14 +1062,7 @@ async function discardPendingConfig(): Promise<void> {
                       : undefined
                   "
                   @click="toggleDevice(device)"
-                >
-                  <AppIcon name="power" class="size-4" aria-hidden="true" />
-                  {{
-                    device.status === 'on'
-                      ? t('header.power.turnDeviceOff', { name: device.device })
-                      : t('header.power.turnDeviceOn', { name: device.device })
-                  }}
-                </button>
+                />
               </template>
             </template>
           </HeaderMenu>
@@ -1113,7 +1119,10 @@ async function discardPendingConfig(): Promise<void> {
               :label="t('navigation.more')"
               align="end"
               placement="above"
-              trigger-class="button button--quiet button--block mobile-nav-link"
+              trigger-variant="quiet"
+              trigger-size="md"
+              trigger-block
+              trigger-class="mobile-nav-link"
               :badge="hasUnsavedOverflowItem"
             >
               <template #trigger>

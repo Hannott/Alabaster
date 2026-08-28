@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import AppButton from '@/components/AppButton.vue'
 import AppField from '@/components/AppField.vue'
 import AppIcon from '@/components/AppIcon.vue'
 import AppSlider from '@/components/AppSlider.vue'
@@ -870,45 +871,45 @@ function screwInstruction(screw: (typeof screwResults.value)[number]): string {
               :aria-label="axisLabel(axis)"
             >
               <div class="jog-steps">
-                <button
+                <AppButton
                   v-for="step in descending(stepsFor(axis))"
                   :key="`${axis}-minus-${step}`"
-                  type="button"
-                  class="button button--xs button--value jog-button"
+                  size="xs"
+                  mono
+                  :label="signedStep(-step)"
+                  class="jog-button"
                   :disabled="printer.pendingCommands.move || homing || !isHomed(axis)"
                   :aria-label="t('dashboard.movement.jog', { axis, distance: signedStep(-step) })"
                   @click="printer.moveAxis(axis, -step)"
-                >
-                  {{ signedStep(-step) }}
-                </button>
+                />
               </div>
 
-              <button
-                type="button"
+              <AppButton
+                size="xs"
                 class="jog-pivot"
                 :class="{ 'jog-pivot--homed': isHomed(axis) }"
                 :disabled="printer.pendingCommands.home || hasJobLoaded"
                 :aria-label="pivotLabel(axis)"
                 :title="pivotTitle(axis)"
-                @click="printer.homeAxes(axis)"
+                @click="() => printer.homeAxes(axis)"
               >
                 <AppIcon name="home" class="size-4 shrink-0" aria-hidden="true" />
                 <span>{{ axis }}</span>
                 <span v-if="!isHomed(axis)" class="jog-pivot__dot" aria-hidden="true"></span>
-              </button>
+              </AppButton>
 
               <div class="jog-steps">
-                <button
+                <AppButton
                   v-for="step in stepsFor(axis)"
                   :key="`${axis}-plus-${step}`"
-                  type="button"
-                  class="button button--xs button--value jog-button"
+                  size="xs"
+                  mono
+                  :label="signedStep(step)"
+                  class="jog-button"
                   :disabled="printer.pendingCommands.move || homing || !isHomed(axis)"
                   :aria-label="t('dashboard.movement.jog', { axis, distance: signedStep(step) })"
                   @click="printer.moveAxis(axis, step)"
-                >
-                  {{ signedStep(step) }}
-                </button>
+                />
               </div>
             </div>
 
@@ -944,31 +945,29 @@ function screwInstruction(screw: (typeof screwResults.value)[number]): string {
               is the same action reached from a second place, not a second
               action.
             -->
-              <button
+              <AppButton
                 v-if="showBedScrewsCheck && hasScrewsTiltMethod"
-                type="button"
-                class="button button--xs jog-leveling-shortcut"
-                :class="levelingGuard.variant.value"
-                v-bind="levelingGuard.bind.value"
-                :data-pending="printer.pendingCommands.leveling ? 'true' : undefined"
+                size="sm"
+                :guard="levelingGuard"
+                :pending="printer.pendingCommands.leveling"
+                :label="t('dashboard.movement.screwsCheckShort')"
+                class="jog-leveling-shortcut"
                 :aria-busy="printer.pendingCommands.leveling || undefined"
                 :disabled="printer.pendingCommands.leveling || homing || !isFullyHomed"
                 :aria-label="t('dashboard.movement.leveling.screwsTiltAdjust')"
                 :title="t('dashboard.movement.leveling.screwsTiltAdjust')"
                 @click="requestLeveling('screwsTiltAdjust')"
-              >
-                {{ t('dashboard.movement.screwsCheckShort') }}
-              </button>
-              <button
-                type="button"
+              />
+              <AppButton
+                size="xs"
                 class="jog-pivot jog-pivot--primary"
                 :aria-label="t('dashboard.movement.homeAll')"
                 :disabled="printer.pendingCommands.home"
-                @click="printer.homeAxes()"
+                @click="() => printer.homeAxes()"
               >
                 <AppIcon name="home" class="size-4 shrink-0" aria-hidden="true" />
                 <span>{{ t('dashboard.movement.homeAllShort') }}</span>
-              </button>
+              </AppButton>
               <div class="jog-actions">
                 <!--
                 `G28 X Y` beside `G28` itself: homing the gantry without
@@ -978,22 +977,21 @@ function screwInstruction(screw: (typeof screwResults.value)[number]): string {
                 control nobody asked for outright until it existed does not get
                 to change what an existing card already shows.
               -->
-                <button
+                <AppButton
                   v-if="showHomeXY"
-                  type="button"
+                  size="xs"
                   class="jog-pivot"
                   :aria-label="t('dashboard.movement.homeXY')"
                   :disabled="printer.pendingCommands.home"
-                  @click="printer.homeAxes('XY')"
+                  @click="() => printer.homeAxes('XY')"
                 >
                   <AppIcon name="home" class="size-4 shrink-0" aria-hidden="true" />
                   <span>{{ t('dashboard.movement.homeXYShort') }}</span>
-                </button>
-                <button
-                  type="button"
-                  class="button button--xs jog-motors-off"
-                  :class="motorsOffGuard.variant.value"
-                  v-bind="motorsOffGuard.bind.value"
+                </AppButton>
+                <AppButton
+                  size="sm"
+                  :guard="motorsOffGuard"
+                  class="jog-motors-off"
                   :aria-label="t('dashboard.movement.motorsOff')"
                   :title="t('dashboard.movement.motorsOff')"
                   :disabled="printer.pendingCommands.motorsOff"
@@ -1001,7 +999,7 @@ function screwInstruction(screw: (typeof screwResults.value)[number]): string {
                 >
                   <AppIcon name="bolt" class="size-4 shrink-0" aria-hidden="true" />
                   <span>{{ t('dashboard.movement.motorsOffShort') }}</span>
-                </button>
+                </AppButton>
               </div>
             </div>
           </div>
@@ -1028,33 +1026,30 @@ function screwInstruction(screw: (typeof screwResults.value)[number]): string {
         reason the feed rate reserves its line rather than using `v-if`.
       -->
         <div v-if="hasParkRow" class="movement-actions__row">
-          <button
+          <AppButton
             v-for="park in parkPositions"
             :key="`park-${park.key}`"
-            type="button"
-            class="button button--sm"
+            size="sm"
             :disabled="!canMoveToTarget"
             @click="printer.moveTo(park.target)"
           >
             {{ t(`dashboard.movement.park.${park.key}`) }}
-          </button>
+          </AppButton>
         </div>
 
         <div v-if="hasLevelingRow" class="movement-actions__row">
-          <button
+          <AppButton
             v-for="method in levelingRowMethods"
             :key="`leveling-${method}`"
-            type="button"
-            class="button button--sm"
-            :class="levelingGuard.variant.value"
-            v-bind="levelingGuard.bind.value"
-            :data-pending="printer.pendingCommands.leveling ? 'true' : undefined"
+            size="sm"
+            :guard="levelingGuard"
+            :pending="printer.pendingCommands.leveling"
             :aria-busy="printer.pendingCommands.leveling || undefined"
             :disabled="printer.pendingCommands.leveling || homing || !isFullyHomed"
             @click="requestLeveling(method)"
           >
             {{ t(`dashboard.movement.leveling.${method}`) }}
-          </button>
+          </AppButton>
         </div>
 
         <!--
@@ -1103,16 +1098,16 @@ function screwInstruction(screw: (typeof screwResults.value)[number]): string {
             {{ t(`dashboard.movement.zOffsetTitle.${offsetUnit}`) }}
           </span>
           <span class="trim__value">{{ offsetValue(zOffset, offsetUnit) }}</span>
-          <button
-            type="button"
-            class="button button--quiet button--xs button--icon"
+          <AppButton
+            variant="quiet"
+            size="xs"
+            icon-only
+            icon="undo"
             :disabled="!canAdjustOffset"
             :aria-label="t('dashboard.movement.zOffsetReset')"
             :title="t('dashboard.movement.zOffsetReset')"
             @click="printer.resetZOffset()"
-          >
-            <AppIcon name="undo" class="size-4" aria-hidden="true" />
-          </button>
+          />
           <!--
           Absent, not disabled, where this machine has nowhere to put the
           offset. `Z_OFFSET_APPLY_PROBE` comes from Klipper's probe object and
@@ -1123,17 +1118,17 @@ function screwInstruction(screw: (typeof screwResults.value)[number]): string {
           command, and on every probe-less printer it was a button whose only
           possible outcome was "Unknown command".
         -->
-          <button
+          <AppButton
             v-if="offsetApplyTarget"
-            type="button"
-            class="button button--quiet button--xs button--icon"
+            variant="quiet"
+            size="xs"
+            icon-only
+            icon="save"
             :disabled="printer.pendingCommands.zOffset || zOffset === 0"
             :aria-label="t('dashboard.movement.zOffsetApply')"
             :title="offsetApplyTitle"
             @click="applyOffset"
-          >
-            <AppIcon name="save" class="size-4" aria-hidden="true" />
-          </button>
+          />
         </div>
 
         <!--
@@ -1152,30 +1147,28 @@ function screwInstruction(screw: (typeof screwResults.value)[number]): string {
           <span>{{ t('dashboard.movement.zOffsetUnsaved') }}</span>
         </p>
         <div class="trim__steps" :style="{ '--offset-step-min': offsetStepMinimum }">
-          <button
+          <AppButton
             v-for="step in descending(offsetSteps)"
             :key="`offset-minus-${step}`"
-            type="button"
-            class="button button--xs button--value"
+            size="xs"
+            mono
+            :label="signedOffsetStep(-step, offsetUnit)"
             :disabled="!canAdjustOffset"
             :aria-label="offsetStepLabel(-step)"
             :title="offsetStepLabel(-step)"
             @click="printer.adjustZOffset(-step)"
-          >
-            {{ signedOffsetStep(-step, offsetUnit) }}
-          </button>
-          <button
+          />
+          <AppButton
             v-for="step in offsetSteps"
             :key="`offset-plus-${step}`"
-            type="button"
-            class="button button--xs button--value"
+            size="xs"
+            mono
+            :label="signedOffsetStep(step, offsetUnit)"
             :disabled="!canAdjustOffset"
             :aria-label="offsetStepLabel(step)"
             :title="offsetStepLabel(step)"
             @click="printer.adjustZOffset(step)"
-          >
-            {{ signedOffsetStep(step, offsetUnit) }}
-          </button>
+          />
         </div>
 
         <!--

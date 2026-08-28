@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import AppButton from '@/components/AppButton.vue'
 import AppIcon from '@/components/AppIcon.vue'
 import { isChangedRow, type PendingConfigSection } from '@/features/config/pendingConfig'
 
@@ -154,28 +155,24 @@ onBeforeUnmount(() => {
       system specifies.
     -->
     <div class="save-config-dialog__actions">
-      <button
-        type="button"
-        class="button button--primary button--block"
+      <AppButton
+        variant="primary"
+        block
+        :pending="busy"
+        icon="save"
+        :label="t('saveConfig.save')"
         :disabled="!canWrite"
-        :data-pending="busy ? 'true' : undefined"
         @click="emit('save')"
-      >
-        <AppIcon name="save" class="size-5" aria-hidden="true" />
-        {{ t('saveConfig.save') }}
-      </button>
-      <button
-        type="button"
-        class="button button--danger button--block"
+      />
+      <AppButton
+        variant="danger"
+        block
+        icon="undo"
+        :label="t('saveConfig.discard')"
         :disabled="!canWrite"
         @click="emit('discard')"
-      >
-        <AppIcon name="undo" class="size-5" aria-hidden="true" />
-        {{ t('saveConfig.discard') }}
-      </button>
-      <button type="button" class="button button--quiet button--block" @click="emit('close')">
-        {{ t('dashboard.cancel') }}
-      </button>
+      />
+      <AppButton variant="quiet" block :label="t('dashboard.cancel')" @click="emit('close')" />
     </div>
   </dialog>
 </template>

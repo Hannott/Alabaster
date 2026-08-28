@@ -30,6 +30,39 @@ function filesBelow(directory: string): string[] {
   })
 }
 
+/**
+ * Every `<AppButton>` in a template, as its attribute text and its slot body.
+ *
+ * A regex alone cannot do this: `<AppButton ... />` beside `<AppButton>...
+ * </AppButton>` makes any lazy `</AppButton>` match run across the sibling and
+ * report the next element's children as this one's. Self-closing tags are
+ * recognised explicitly instead, and quoted attribute values are skipped so a
+ * `>` inside one does not end the tag early.
+ */
+function appButtons(source: string): { attrs: string; body: string }[] {
+  const found: { attrs: string; body: string }[] = []
+  for (const match of source.matchAll(/<AppButton\b/g)) {
+    let index = match.index + match[0].length
+    let quote: string | null = null
+    while (index < source.length) {
+      const char = source[index]
+      if (quote !== null) {
+        if (char === quote) quote = null
+      } else if (char === '"' || char === "'") quote = char
+      else if (char === '>') break
+      index += 1
+    }
+    const attrs = source.slice(match.index + match[0].length, index)
+    if (attrs.trimEnd().endsWith('/')) {
+      found.push({ attrs, body: '' })
+      continue
+    }
+    const close = source.indexOf('</AppButton>', index)
+    found.push({ attrs, body: close === -1 ? '' : source.slice(index + 1, close) })
+  }
+  return found
+}
+
 describe('interaction and iconography contract', () => {
   it('uses pointer and not-allowed cursors for actionable and disabled controls', () => {
     expect(styles).toMatch(/button:not\(:disabled\)[\s\S]*cursor:\s*pointer/)
@@ -838,21 +871,23 @@ describe('interaction and iconography contract', () => {
     expect(dialogSource).toContain('aria-labelledby="update-recovery-title"')
     expect(dialogSource).toContain('aria-describedby="update-recovery-description"')
 
-    // No dialog styles its own buttons, and a multi-choice dialog stacks them
-    // full-width rather than sharing the binary two-column track.
-    const buttonClasses = [...dialogSource.matchAll(/<button[^>]*class="([^"]*)"/g)].map(
-      ([, value]) => value,
-    )
-    expect(buttonClasses.length).toBeGreaterThan(2)
-    for (const value of buttonClasses) {
-      expect(value).toMatch(/(?:^|\s)button(?:\s|$)/)
-      expect(value).toContain('button--block')
-    }
+    /*
+     * No dialog styles its own buttons, and a multi-choice dialog stacks them
+     * full-width rather than sharing the binary two-column track.
+     *
+     * Read off `AppButton`'s props rather than a class string: the component is
+     * the only thing that composes those classes now, so a class string in a
+     * dialog would mean a hand-rolled control had come back — which the
+     * "builds every control from AppButton" test below fails on its own.
+     */
+    const actions = [...dialogSource.matchAll(/<AppButton\b([\s\S]*?)\/?>/g)].map(([, a]) => a)
+    expect(actions.length).toBeGreaterThan(2)
+    for (const attrs of actions) expect(attrs).toMatch(/(?:^|\s)block(?:\s|$)/)
 
     // At most one danger, no primary, and the dismissive action last and quietest.
-    expect(buttonClasses.filter((value) => value.includes('button--danger'))).toHaveLength(1)
-    expect(buttonClasses.filter((value) => value.includes('button--primary'))).toHaveLength(0)
-    expect(buttonClasses.at(-1)).toContain('button--quiet')
+    expect(actions.filter((a) => /variant="danger"/.test(a))).toHaveLength(1)
+    expect(actions.filter((a) => /variant="primary"/.test(a))).toHaveLength(0)
+    expect(actions.at(-1)).toMatch(/variant="quiet"/)
 
     expect(styles).toMatch(
       /\.update-recovery-dialog__actions\s*\{[^}]*display:\s*grid[^}]*gap:\s*0\.5rem/s,
@@ -865,31 +900,20 @@ describe('interaction and iconography contract', () => {
   })
 
   it('scales a button icon to its button size, not to the author of the moment', () => {
-    // button-system.md fixes the icon to the control size: 1.25rem inside md,
-    // 1rem inside sm and xs. The product drifted to 1rem everywhere before this
-    // was enforced, which left every md button with a visibly undersized icon.
-    const offenders: string[] = []
-    // The scan stops at the control's own closing tag, never at a character
-    // budget alone: a fixed window both missed the macro run button — seven
-    // bound attributes between its class and its icon — and, widened, bled
-    // past short buttons into whatever icon followed them in the file.
-    const insideControl = String.raw`(?:(?!<\/(?:button|RouterLink|a)>)[\s\S]){0,700}?`
-    const mdIcon = new RegExp(
-      String.raw`<(?:button|RouterLink|a)\b[^>]*class="(button(?![^"]*button--(?:sm|xs))[^"]*)"${insideControl}<AppIcon[^>]*class="(size-[\d.]+)`,
-      'g',
-    )
-    const denseIcon = new RegExp(
-      String.raw`<(?:button|RouterLink|a)\b[^>]*class="(button[^"]*button--(?:sm|xs)[^"]*)"${insideControl}<AppIcon[^>]*class="(size-[\d.]+)`,
-      'g',
-    )
-
     /*
-     * Outlier 8: `button--icon-lg` buys glyph size with padding rather than
-     * height, for the one control whose icon carries meaning no label does.
-     * Allowlisted by file for the same reason as outlier 7 — so a second
-     * oversized icon has to be argued for in the document before it can ship.
+     * button-system.md fixes the icon to the control size: 1.25rem inside md,
+     * 1rem inside sm and xs. The product drifted to 1rem everywhere before this
+     * was first enforced, which left every md button with a visibly undersized
+     * icon.
+     *
+     * `AppButton` now derives the size for anything passed as its `icon` prop,
+     * so that half of the rule holds by construction. What this guards is the
+     * other half: a glyph handed to the default slot, where the component
+     * cannot size it and the author writes the class themselves. That is the
+     * same hole the class-string era had, narrowed to the sites that still
+     * need a slot — a glyph beside other content, or one of the two outliers.
      */
-    const largeIconButtons = new Set(['App.vue'])
+    const offenders: string[] = []
 
     /*
      * Outlier 7: the console send button, an icon-only `sm` whose glyph is the
@@ -898,32 +922,30 @@ describe('interaction and iconography contract', () => {
      * exception cannot exist in the code alone.
      */
     const oversizedDenseIcons = new Set(['components/console/ConsoleCommandInput.vue'])
+    /*
+     * Outlier 8: `button--icon-lg` buys glyph size with padding rather than
+     * height, for the one control whose icon carries meaning no label does.
+     */
+    const largeIconButtons = new Set(['App.vue'])
     const buttonSystem = designDoc('button-system.md')
 
     for (const path of filesBelow(sourceRoot).filter((file) => file.endsWith('.vue'))) {
       const source = readFileSync(path, 'utf8')
       const name = relative(sourceRoot, path).replace(/\\/g, '/')
-      // The exception is the icon size and the file it lives in, not a
-      // licence for any size at all — and it applies at any control height,
-      // since outlier 8's whole point is buying glyph size without height.
-      const largeIconPermitted = new Set(['size-5', 'size-6', 'size-7', 'size-8'])
-      for (const [, classes, size] of source.matchAll(mdIcon)) {
-        if (classes.includes('button--icon-lg')) {
-          if (largeIconButtons.has(name) && largeIconPermitted.has(size)) continue
-          offenders.push(`${name}: unregistered button--icon-lg with ${size}`)
+      for (const { attrs, body } of appButtons(source)) {
+        const size = /\bsize="(\w+)"/.exec(attrs)?.[1] ?? 'md'
+        const isLarge = /(?:^|\s)icon-lg(?:\s|$)/.test(attrs)
+        if (isLarge && !largeIconButtons.has(name)) {
+          offenders.push(`${name}: unregistered icon-lg`)
           continue
         }
-        if (size !== 'size-5') offenders.push(`${name}: md button with ${size}`)
-      }
-      for (const [, classes, size] of source.matchAll(denseIcon)) {
-        if (classes.includes('button--icon-lg')) {
-          if (largeIconButtons.has(name) && largeIconPermitted.has(size)) continue
-          offenders.push(`${name}: unregistered button--icon-lg with ${size}`)
-          continue
+        const want = size === 'md' || isLarge ? 'size-5' : 'size-4'
+        for (const [, classes] of body.matchAll(/<AppIcon[^>]*class="([^"]*)"/g)) {
+          const got = /size-[\d.]+/.exec(classes)?.[0]
+          if (got === undefined || got === want) continue
+          if (got === 'size-5' && oversizedDenseIcons.has(name)) continue
+          offenders.push(`${name}: ${size} button with a ${got} slot icon`)
         }
-        if (size === 'size-4') continue
-        if (size === 'size-5' && oversizedDenseIcons.has(name)) continue
-        offenders.push(`${name}: sm/xs button with ${size}`)
       }
     }
 
@@ -935,6 +957,60 @@ describe('interaction and iconography contract', () => {
       expect(buttonSystem).toContain('ConsoleCommandInput.vue')
       expect(buttonSystem).toContain('### 8. Large icon buttons')
       expect(buttonSystem).toContain('`button--icon-lg`')
+    }
+  })
+
+  it('builds every control from AppButton, never from a hand-written class string', () => {
+    /*
+     * `AppButton` is the only thing allowed to compose `button--*`. The failure
+     * this prevents is the one the whole system was written against and did not
+     * actually stop: a class string is just text, so nothing rejected an
+     * illegal combination, and the four ways a hand-assembled control drifted
+     * are listed in `AppButton.vue`'s own header. A component cannot be
+     * half-assembled, so the drift has nowhere left to enter.
+     *
+     * The scan is for `button--*` in markup rather than for `<button>` itself,
+     * because a native `<button>` is still correct for the patterns that
+     * deliberately are not buttons — `file-select`, `text-action`,
+     * `tab-select`, `brand-trigger`, the emergency stop, and the swatches. What
+     * none of them may do is wear the button system's own classes.
+     */
+    const offenders: string[] = []
+
+    /*
+     * Three kinds of element still carry the classes by hand, and none of them
+     * can be an `AppButton`, because `AppButton` renders a `<button>`:
+     *
+     * - `RouterLink` and `a` — a navigation destination and an external link.
+     *   Outlier 6 in `button-system.md`; a link that renders as a `<button>`
+     *   loses middle-click, Open in new tab, and the status-bar URL.
+     * - `span` — the dashboard card's drag handle, which borrows the geometry
+     *   and is deliberately not a control at all.
+     *
+     * So the rule is about the tag, not the file: a `<button>` never composes
+     * these names, and the borrowers are listed rather than allowed by default.
+     */
+    const borrowers = new Set(['RouterLink', 'a', 'span'])
+
+    for (const path of filesBelow(sourceRoot).filter((file) => file.endsWith('.vue'))) {
+      const name = relative(sourceRoot, path).replace(/\\/g, '/')
+      if (name === 'components/AppButton.vue') continue
+      const source = readFileSync(path, 'utf8').replace(/<!--[\s\S]*?-->/g, '')
+      const template = source.slice(source.indexOf('<template>'))
+      for (const [, tag, attrs] of template.matchAll(/<([A-Za-z][\w-]*)((?:[^>"]|"[^"]*")*)>/g)) {
+        if (!/\bbutton--[a-z-]+/.test(attrs)) continue
+        if (borrowers.has(tag)) continue
+        offenders.push(`${name}: <${tag}> composes button--* by hand`)
+      }
+    }
+
+    expect(offenders).toEqual([])
+
+    // The borrowed-geometry exception is registered in the document that grants it.
+    const buttonSystem = designDoc('button-system.md')
+    if (buttonSystem) {
+      expect(buttonSystem).toContain('### 6. Primary navigation links')
+      expect(buttonSystem).toContain('One borrowed shape that is not a control')
     }
   })
 

@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import AppButton from '@/components/AppButton.vue'
 import { bedExtents, nudgeCoordinate, planCoordinate, planPoint } from '@/dashboard/bedPlan'
 import { usePrinterStore } from '@/stores/printer'
 
@@ -332,19 +333,19 @@ function commitFromControl(): void {
         a drag selecting the card, and it costs that handler the focus a press
         normally gives — which is exactly what this button must keep.
       -->
-      <button
+      <AppButton
         v-if="target"
-        type="button"
-        class="button button--primary button--xs bed-plan__go"
+        variant="primary"
+        size="xs"
+        :label="t('dashboard.movement.planGo')"
+        class="bed-plan__go"
         :aria-label="planLabel"
         @pointerdown.stop
         @pointermove.stop
         @pointerenter="emit('hover', null)"
         @click="commitFromControl"
         @keydown.enter.stop.prevent="commitFromControl"
-      >
-        {{ t('dashboard.movement.planGo') }}
-      </button>
+      />
     </div>
   </div>
 </template>

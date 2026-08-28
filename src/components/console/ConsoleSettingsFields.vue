@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import AppButton from '@/components/AppButton.vue'
 import AppSlider from '@/components/AppSlider.vue'
 import QuickSettingToggle from '@/components/dashboard/QuickSettingToggle.vue'
 import SurfaceSection from '@/components/dashboard/SurfaceSection.vue'
@@ -188,22 +189,18 @@ function setLines(value: number): void {
       <span class="settings-row__label">{{ t('console.settings.inputPosition') }}</span>
       <div class="flex items-center gap-2">
         <div class="segmented" role="group" :aria-label="t('console.settings.inputPosition')">
-          <button
-            type="button"
-            class="button button--sm"
+          <AppButton
+            size="sm"
+            :label="t('console.settings.inputBottom')"
             :aria-pressed="settings.inputPosition === 'bottom'"
             @click="setInputPosition('bottom')"
-          >
-            {{ t('console.settings.inputBottom') }}
-          </button>
-          <button
-            type="button"
-            class="button button--sm"
+          />
+          <AppButton
+            size="sm"
+            :label="t('console.settings.inputTop')"
             :aria-pressed="settings.inputPosition === 'top'"
             @click="setInputPosition('top')"
-          >
-            {{ t('console.settings.inputTop') }}
-          </button>
+          />
         </div>
         <QuickSettingToggle
           v-if="pins"

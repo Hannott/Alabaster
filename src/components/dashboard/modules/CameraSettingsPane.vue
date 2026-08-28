@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import AppIcon from '@/components/AppIcon.vue'
+import AppButton from '@/components/AppButton.vue'
 import SurfaceSection from '@/components/dashboard/SurfaceSection.vue'
 import CameraCardSettingsFields from '@/components/dashboard/modules/CameraCardSettingsFields.vue'
 import { camerasOnOtherCards } from '@/components/dashboard/modules/cameraCardSettings'
@@ -139,11 +139,11 @@ function move(uid: string, offset: number): void {
 <template>
   <SurfaceSection :title="t('dashboard.camera.cardsTitle')">
     <div class="camera-cards">
-      <button
+      <AppButton
         v-for="card in cards"
         :key="card.instanceId"
-        type="button"
-        class="button button--sm"
+        size="sm"
+        :label="card.title"
         :aria-current="card.instanceId === instanceId"
         :title="
           card.instanceId === instanceId
@@ -151,13 +151,8 @@ function move(uid: string, offset: number): void {
             : t('dashboard.camera.switchToCard', { card: card.title })
         "
         @click="selectCard(card.instanceId)"
-      >
-        {{ card.title }}
-      </button>
-      <button type="button" class="button button--sm" @click="createCard">
-        <AppIcon name="add" class="size-4" aria-hidden="true" />
-        {{ t('dashboard.camera.addCard') }}
-      </button>
+      />
+      <AppButton size="sm" icon="add" :label="t('dashboard.camera.addCard')" @click="createCard" />
     </div>
 
     <div class="settings-row mt-4">
@@ -191,36 +186,36 @@ function move(uid: string, offset: number): void {
           {{ t('dashboard.camera.disabledShort') }}
         </span>
         <div class="camera-row__reorder">
-          <button
-            type="button"
-            class="button button--quiet button--xs button--icon"
+          <AppButton
+            variant="quiet"
+            size="xs"
+            icon-only
+            icon="up"
             :disabled="index === 0"
             :title="t('dashboard.camera.moveEarlier', { camera: row.label })"
             :aria-label="t('dashboard.camera.moveEarlier', { camera: row.label })"
             @click="move(row.uid, -1)"
-          >
-            <AppIcon name="up" class="size-4" aria-hidden="true" />
-          </button>
-          <button
-            type="button"
-            class="button button--quiet button--xs button--icon"
+          />
+          <AppButton
+            variant="quiet"
+            size="xs"
+            icon-only
+            icon="down"
             :disabled="index === selectedRows.length - 1"
             :title="t('dashboard.camera.moveLater', { camera: row.label })"
             :aria-label="t('dashboard.camera.moveLater', { camera: row.label })"
             @click="move(row.uid, 1)"
-          >
-            <AppIcon name="down" class="size-4" aria-hidden="true" />
-          </button>
+          />
         </div>
-        <button
-          type="button"
-          class="button button--danger-quiet button--xs button--icon"
+        <AppButton
+          variant="danger-quiet"
+          size="xs"
+          icon-only
+          icon="trash"
           :title="t('dashboard.camera.remove', { camera: row.label })"
           :aria-label="t('dashboard.camera.remove', { camera: row.label })"
           @click="deselect(row.uid)"
-        >
-          <AppIcon name="trash" class="size-4" aria-hidden="true" />
-        </button>
+        />
       </li>
     </ul>
     <p v-else class="mt-2 text-xs text-muted">{{ t('dashboard.camera.noneOnCard') }}</p>
@@ -234,15 +229,15 @@ function move(uid: string, offset: number): void {
         <span v-if="!camera.enabled" class="camera-row__badge">
           {{ t('dashboard.camera.disabledShort') }}
         </span>
-        <button
-          type="button"
-          class="button button--quiet button--xs button--icon"
+        <AppButton
+          variant="quiet"
+          size="xs"
+          icon-only
+          icon="add"
           :title="t('dashboard.camera.add', { camera: camera.name })"
           :aria-label="t('dashboard.camera.add', { camera: camera.name })"
           @click="select(camera.uid)"
-        >
-          <AppIcon name="add" class="size-4" aria-hidden="true" />
-        </button>
+        />
       </li>
     </ul>
     <p v-if="webcams.cameras.length === 0" class="mt-2 text-xs text-muted">

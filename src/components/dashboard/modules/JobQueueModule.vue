@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import AppIcon from '@/components/AppIcon.vue'
+import AppButton from '@/components/AppButton.vue'
 import FileDropOverlay from '@/components/FileDropOverlay.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import AppDashboardModule from '@/components/dashboard/AppDashboardModule.vue'
@@ -102,36 +102,29 @@ const {
           </p>
         </div>
         <div class="flex flex-wrap gap-2">
-          <button
+          <AppButton
             v-if="jobQueue.isPaused"
-            type="button"
-            class="button button--primary"
+            variant="primary"
+            icon="play"
+            :label="t('dashboard.jobQueue.start')"
             :disabled="jobQueue.pendingCommands.start || jobQueue.jobs.length === 0"
             @click="jobQueue.startQueue()"
-          >
-            <AppIcon name="play" class="size-5" aria-hidden="true" />
-            {{ t('dashboard.jobQueue.start') }}
-          </button>
-          <button
+          />
+          <AppButton
             v-else
-            type="button"
-            class="button"
+            size="sm"
             :disabled="jobQueue.pendingCommands.pause"
+            icon="pause"
+            :label="t('dashboard.jobQueue.pause')"
             @click="jobQueue.pauseQueue()"
-          >
-            <AppIcon name="pause" class="size-5" aria-hidden="true" />
-            {{ t('dashboard.jobQueue.pause') }}
-          </button>
-          <button
-            type="button"
-            class="button"
-            :class="clearQueueGuard.variant.value"
-            v-bind="clearQueueGuard.bind.value"
+          />
+          <AppButton
+            size="sm"
+            :guard="clearQueueGuard"
+            :label="t('dashboard.jobQueue.clear')"
             :disabled="jobQueue.pendingCommands.clear || jobQueue.jobs.length === 0"
             @click="requestClearQueue()"
-          >
-            {{ t('dashboard.jobQueue.clear') }}
-          </button>
+          />
         </div>
       </div>
 
@@ -143,16 +136,16 @@ const {
           <span class="min-w-0 truncate text-row-name" :title="job.filename">
             {{ filename(job.filename) }}
           </span>
-          <button
-            type="button"
-            class="button button--danger-quiet button--xs button--icon"
+          <AppButton
+            variant="danger-quiet"
+            size="xs"
+            icon-only
+            icon="close"
             :disabled="jobQueue.pendingCommands.remove"
             :aria-label="t('dashboard.jobQueue.remove', { filename: filename(job.filename) })"
             :title="t('dashboard.jobQueue.remove', { filename: filename(job.filename) })"
             @click="jobQueue.removeJob(job.job_id)"
-          >
-            <AppIcon name="close" class="size-4" aria-hidden="true" />
-          </button>
+          />
         </li>
       </ol>
       <p v-else class="text-xs text-muted">{{ t('dashboard.jobQueue.empty') }}</p>

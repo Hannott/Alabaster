@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { onBeforeUnmount, ref, watch } from 'vue'
 
+import AppButton, { type AppButtonSize, type AppButtonVariant } from '@/components/AppButton.vue'
+
 const props = defineProps<{
   label: string
   align?: 'start' | 'end'
@@ -14,11 +16,28 @@ const props = defineProps<{
    */
   placement?: 'below' | 'above'
   /**
-   * Button classes for the trigger, for a menu whose trigger has to match the
-   * controls beside it rather than the header's icon buttons. Still a documented
-   * `button-system.md` variant — this chooses among them, it does not add one.
+   * The trigger's shape, for a menu whose trigger has to match the controls
+   * beside it rather than the header's default icon button.
+   *
+   * These were one `triggerClass` string until `AppButton` existed, and the
+   * string is what let the mobile navigation trigger ship as
+   * `button button--quiet button--block mobile-nav-link` — four tokens, three of
+   * them the button system's own, hand-assembled at the call site with nothing
+   * checking the combination. The variant and the geometry are props now, and
+   * `triggerClass` keeps only what it should ever have carried: the caller's own
+   * feature class.
    */
-  triggerClass?: string
+  triggerVariant?: AppButtonVariant | undefined
+  triggerSize?: AppButtonSize | undefined
+  triggerBlock?: boolean | undefined
+  /**
+   * Explicit rather than derived: the trigger's content arrives through a slot,
+   * so `AppButton` cannot tell an icon from a label the way it can at an
+   * ordinary call site.
+   */
+  triggerIconOnly?: boolean | undefined
+  /** Feature classes only — `header-icon`, `mobile-nav-link`. Never a `button--*` token. */
+  triggerClass?: string | undefined
 }>()
 
 defineSlots<{
@@ -83,16 +102,20 @@ onBeforeUnmount(() => {
 
 <template>
   <div ref="root" class="header-menu">
-    <button
-      type="button"
-      :class="[props.triggerClass ?? 'button button--xs', { 'button--badged': props.badge }]"
+    <AppButton
+      :class="props.triggerClass"
+      :variant="props.triggerVariant"
+      :size="props.triggerSize ?? 'xs'"
+      :block="props.triggerBlock"
+      :icon-only="props.triggerIconOnly"
+      :badged="props.badge"
       :aria-label="props.label"
       :aria-expanded="open"
       aria-haspopup="menu"
       @click="toggle"
     >
       <slot name="trigger" :open="open" />
-    </button>
+    </AppButton>
     <div
       v-if="open"
       class="header-menu__panel"

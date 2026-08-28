@@ -2,6 +2,7 @@
 import { computed, nextTick, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import AppButton from '@/components/AppButton.vue'
 import FilamentCatalogueDialog from '@/components/FilamentCatalogueDialog.vue'
 import AppIcon from '@/components/AppIcon.vue'
 import HeaterCalibrationPanel from '@/components/calibration/HeaterCalibrationPanel.vue'
@@ -313,32 +314,32 @@ function toggleSeries(objectName: string): void {
           :aria-label="t('dashboard.temperature.presetBed')"
           @change="commitPresets"
         />
-        <button
-          type="button"
-          class="button button--danger-quiet button--sm button--icon"
+        <AppButton
+          variant="danger-quiet"
+          size="sm"
+          icon-only
+          icon="trash"
           :aria-label="t('dashboard.temperature.presetRemove', { preset: presetLabel(draft) })"
           :title="t('dashboard.temperature.presetRemove', { preset: presetLabel(draft) })"
           @click="removePreset(index)"
-        >
-          <AppIcon name="trash" class="size-4" aria-hidden="true" />
-        </button>
+        />
       </div>
     </div>
 
     <div class="mt-2 flex flex-wrap gap-2">
-      <button type="button" class="button button--sm" @click="addPreset">
-        <AppIcon name="add" class="size-4" aria-hidden="true" />
-        {{ t('dashboard.temperature.presetAdd') }}
-      </button>
-      <button
+      <AppButton
+        size="sm"
+        icon="add"
+        :label="t('dashboard.temperature.presetAdd')"
+        @click="addPreset"
+      />
+      <AppButton
         v-if="showCatalogueButton"
-        type="button"
-        class="button button--sm"
+        size="sm"
+        icon="fileSearch"
+        :label="t('dashboard.temperature.presetAddFromCatalogue')"
         @click="catalogueDialogOpen = true"
-      >
-        <AppIcon name="fileSearch" class="size-4" aria-hidden="true" />
-        {{ t('dashboard.temperature.presetAddFromCatalogue') }}
-      </button>
+      />
     </div>
   </SurfaceSection>
 

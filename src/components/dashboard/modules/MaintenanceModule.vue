@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import AppButton from '@/components/AppButton.vue'
 import AppIcon from '@/components/AppIcon.vue'
 import AppDashboardModule from '@/components/dashboard/AppDashboardModule.vue'
 import { useDashboardModule } from '@/dashboard/context'
@@ -87,22 +88,21 @@ function submitDraft(): void {
           {{ row.interval.name }}
         </span>
         <span class="maintenance-row__remaining">{{ remainingLabel(row) }}</span>
-        <button
-          type="button"
-          class="button button--quiet button--xs"
+        <AppButton
+          variant="quiet"
+          size="xs"
+          :label="t('dashboard.maintenance.markPerformed')"
           @click="maintenance.markPerformed(row.interval.id)"
-        >
-          {{ t('dashboard.maintenance.markPerformed') }}
-        </button>
-        <button
-          type="button"
-          class="button button--quiet button--xs button--icon"
+        />
+        <AppButton
+          variant="quiet"
+          size="xs"
+          icon-only
+          icon="trash"
           :aria-label="t('dashboard.maintenance.delete', { name: row.interval.name })"
           :title="t('dashboard.maintenance.delete', { name: row.interval.name })"
           @click="maintenance.deleteInterval(row.interval.id)"
-        >
-          <AppIcon name="trash" class="size-4" aria-hidden="true" />
-        </button>
+        />
       </li>
     </ul>
     <p v-else class="calibration-panel__hint">{{ t('dashboard.maintenance.empty') }}</p>
@@ -123,16 +123,15 @@ function submitDraft(): void {
       <div class="settings-row">
         <span class="settings-row__label">{{ t('dashboard.maintenance.kindLabel') }}</span>
         <div class="segmented" role="group" :aria-label="t('dashboard.maintenance.kindLabel')">
-          <button
+          <AppButton
             v-for="option in kindOptions"
             :key="option"
-            type="button"
-            class="button button--sm"
+            size="sm"
             :aria-pressed="draftKind === option"
             @click="draftKind = option"
           >
             {{ t(`dashboard.maintenance.kind.${option}`) }}
-          </button>
+          </AppButton>
         </div>
       </div>
       <div class="settings-row">
@@ -148,16 +147,22 @@ function submitDraft(): void {
         />
       </div>
       <div class="maintenance-form__actions">
-        <button type="submit" class="button button--sm button--primary" :disabled="!canSubmit">
-          {{ t('dashboard.maintenance.add') }}
-        </button>
-        <button type="button" class="button button--sm" @click="resetDraft">
-          {{ t('dashboard.cancel') }}
-        </button>
+        <AppButton
+          size="sm"
+          variant="primary"
+          :label="t('dashboard.maintenance.add')"
+          type="submit"
+          :disabled="!canSubmit"
+        />
+        <AppButton size="sm" :label="t('dashboard.cancel')" @click="resetDraft" />
       </div>
     </form>
-    <button v-else type="button" class="button button--sm mt-3" @click="adding = true">
-      {{ t('dashboard.maintenance.addInterval') }}
-    </button>
+    <AppButton
+      v-else
+      size="sm"
+      :label="t('dashboard.maintenance.addInterval')"
+      class="mt-3"
+      @click="adding = true"
+    />
   </AppDashboardModule>
 </template>

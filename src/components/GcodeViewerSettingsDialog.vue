@@ -2,7 +2,7 @@
 import { onBeforeUnmount, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import AppIcon from '@/components/AppIcon.vue'
+import AppButton from '@/components/AppButton.vue'
 import type { GcodeOrbitMode } from '@/composables/useGcodeViewerSettings'
 
 const props = defineProps<{
@@ -72,14 +72,12 @@ onBeforeUnmount(() => {
   <dialog ref="dialog" class="gcode-settings-dialog" @cancel.prevent="emit('close')">
     <header>
       <h2>{{ t('gcodeViewer.settings.title') }}</h2>
-      <button
-        type="button"
-        class="button button--icon"
+      <AppButton
+        icon-only
+        icon="close"
         :aria-label="t('gcodeViewer.settings.close')"
         @click="emit('close')"
-      >
-        <AppIcon name="close" class="size-5" aria-hidden="true" />
-      </button>
+      />
     </header>
     <p class="gcode-view-description">{{ t('gcodeViewer.settings.description') }}</p>
 
@@ -155,9 +153,11 @@ onBeforeUnmount(() => {
     </fieldset>
 
     <div class="mt-5 flex justify-end">
-      <button type="button" class="button button--primary" @click="emit('close')">
-        {{ t('gcodeViewer.settings.close') }}
-      </button>
+      <AppButton
+        variant="primary"
+        :label="t('gcodeViewer.settings.close')"
+        @click="emit('close')"
+      />
     </div>
   </dialog>
 </template>

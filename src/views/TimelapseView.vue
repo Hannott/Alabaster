@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import AppButton from '@/components/AppButton.vue'
 import AppIcon from '@/components/AppIcon.vue'
 import AvailabilityRegion from '@/components/AvailabilityRegion.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
@@ -99,13 +100,12 @@ function requestDelete(video: TimelapseVideo): void {
                 <AppIcon name="download" class="size-4" aria-hidden="true" />
                 {{ t('timelapse.download') }}
               </a>
-              <button
-                type="button"
-                class="button button--quiet button--xs"
+              <AppButton
+                variant="quiet"
+                size="xs"
+                :label="t('timelapse.close')"
                 @click="timelapse.select(null)"
-              >
-                {{ t('timelapse.close') }}
-              </button>
+              />
             </div>
           </header>
           <!--
@@ -143,16 +143,13 @@ function requestDelete(video: TimelapseVideo): void {
                 <span>{{ formatWhen(video.modified) }}</span>
                 <span>{{ formatSize(video.size) }}</span>
               </span>
-              <button
-                type="button"
-                class="button button--xs"
-                :class="deleteVideoGuard.variant.value"
-                v-bind="deleteVideoGuard.bind.value"
+              <AppButton
+                size="xs"
+                :guard="deleteVideoGuard"
+                :label="t('timelapse.delete')"
                 :disabled="!moonrakerAvailability.isAvailable"
                 @click="requestDelete(video)"
-              >
-                {{ t('timelapse.delete') }}
-              </button>
+              />
             </li>
           </ul>
           <p v-else-if="!timelapse.isLoading" class="calibration-panel__hint">

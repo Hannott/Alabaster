@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import AppIcon from '@/components/AppIcon.vue'
+import AppButton from '@/components/AppButton.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import ConsoleCommandBrowser from '@/components/console/ConsoleCommandBrowser.vue'
 import ConsoleCommandInput from '@/components/console/ConsoleCommandInput.vue'
@@ -168,35 +168,30 @@ function requestClearHistory(): void {
           </p>
         </div>
         <div class="console-toolbar__actions">
-          <button
-            type="button"
-            class="button button--quiet button--sm"
+          <AppButton
+            variant="quiet"
+            size="sm"
+            icon="console"
+            :label="t('console.help.open')"
             :aria-pressed="panel === 'commands'"
             @click="togglePanel('commands')"
-          >
-            <AppIcon name="console" class="size-4" aria-hidden="true" />
-            {{ t('console.help.open') }}
-          </button>
-          <button
-            type="button"
-            class="button button--quiet button--sm"
+          />
+          <AppButton
+            variant="quiet"
+            size="sm"
+            icon="settings"
+            :label="t('console.settings.open')"
             :aria-pressed="panel === 'settings'"
             @click="togglePanel('settings')"
-          >
-            <AppIcon name="settings" class="size-4" aria-hidden="true" />
-            {{ t('console.settings.open') }}
-          </button>
-          <button
-            type="button"
-            class="button button--sm"
-            :class="clearGuard.variant.value"
-            v-bind="clearGuard.bind.value"
+          />
+          <AppButton
+            size="sm"
+            :guard="clearGuard"
+            icon="trash"
+            :label="t('console.clear')"
             :disabled="gcodeConsole.consoleEntries.length === 0"
             @click="requestClear"
-          >
-            <AppIcon name="trash" class="size-4" aria-hidden="true" />
-            {{ t('console.clear') }}
-          </button>
+          />
         </div>
       </header>
 
@@ -233,14 +228,14 @@ function requestClearHistory(): void {
         <h2 class="text-card-title">
           {{ panel === 'commands' ? t('console.help.title') : t('console.settings.title') }}
         </h2>
-        <button
-          type="button"
-          class="button button--quiet button--xs button--icon"
+        <AppButton
+          variant="quiet"
+          size="xs"
+          icon-only
+          icon="close"
           :aria-label="t('console.closePanel')"
           @click="panel = 'none'"
-        >
-          <AppIcon name="close" class="size-4" aria-hidden="true" />
-        </button>
+        />
       </header>
       <div class="console-aside__body">
         <ConsoleCommandBrowser
@@ -278,17 +273,15 @@ function requestClearHistory(): void {
                   : t('console.historyEmpty')
               }}
             </p>
-            <button
-              type="button"
-              class="button button--sm button--start"
-              :class="clearHistoryGuard.variant.value"
-              v-bind="clearHistoryGuard.bind.value"
+            <AppButton
+              size="sm"
+              start
+              :guard="clearHistoryGuard"
+              icon="trash"
+              :label="t('console.clearHistory')"
               :disabled="gcodeConsole.commandHistory.length === 0"
               @click="requestClearHistory"
-            >
-              <AppIcon name="trash" class="size-4" aria-hidden="true" />
-              {{ t('console.clearHistory') }}
-            </button>
+            />
           </SurfaceSection>
         </template>
       </div>

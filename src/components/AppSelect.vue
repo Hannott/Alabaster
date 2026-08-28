@@ -16,6 +16,7 @@
  */
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 
+import AppButton from '@/components/AppButton.vue'
 import AppIcon from '@/components/AppIcon.vue'
 
 /** How far below the trigger the panel opens, and the clamp margin from every viewport edge. */
@@ -51,7 +52,13 @@ const props = defineProps<{
 const model = defineModel<string>({ required: true })
 
 const root = ref<HTMLElement | null>(null)
-const trigger = ref<HTMLButtonElement | null>(null)
+/**
+ * The trigger is an `AppButton`, so the ref holds a component instance rather
+ * than the element. `triggerEl` below is the element the panel is measured and
+ * teleported from; `focus()` comes off the instance, which exposes it.
+ */
+const trigger = ref<InstanceType<typeof AppButton> | null>(null)
+const triggerEl = computed(() => trigger.value?.el ?? null)
 const panel = ref<HTMLElement | null>(null)
 const open = ref(false)
 const activeIndex = ref(0)
@@ -142,7 +149,7 @@ function onDocumentClick(event: MouseEvent): void {
  * moves the trigger without the panel's own geometry knowing to follow.
  */
 function positionPanel(): void {
-  const triggerRect = trigger.value?.getBoundingClientRect()
+  const triggerRect = triggerEl.value?.getBoundingClientRect()
   const panelRect = panel.value?.getBoundingClientRect()
   if (!triggerRect || !panelRect) return
   const left = Math.max(
@@ -215,7 +222,7 @@ function onListKeydown(event: KeyboardEvent): void {
 watch(open, (isOpen) => {
   if (isOpen) {
     activeIndex.value = selectedIndex.value
-    teleportTarget.value = trigger.value?.closest<HTMLElement>('dialog[open]') ?? document.body
+    teleportTarget.value = triggerEl.value?.closest<HTMLElement>('dialog[open]') ?? document.body
     document.addEventListener('click', onDocumentClick)
     window.addEventListener('resize', positionPanel)
     // Scroll events do not bubble, so this has to listen during capture to
@@ -242,10 +249,10 @@ onBeforeUnmount(() => {
 
 <template>
   <div ref="root" class="app-select">
-    <button
+    <AppButton
       ref="trigger"
-      type="button"
-      class="button button--sm app-select__trigger"
+      size="sm"
+      class="app-select__trigger"
       :disabled="disabled"
       :aria-label="label"
       :aria-expanded="open"
@@ -255,7 +262,7 @@ onBeforeUnmount(() => {
     >
       <span class="truncate">{{ selectedLabel }}</span>
       <AppIcon name="down" class="size-4 shrink-0" aria-hidden="true" />
-    </button>
+    </AppButton>
     <Teleport v-if="open" :to="teleportTarget">
       <ul
         ref="panel"

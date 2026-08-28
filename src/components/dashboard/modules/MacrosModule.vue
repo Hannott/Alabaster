@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import AppIcon from '@/components/AppIcon.vue'
+import AppButton from '@/components/AppButton.vue'
 import AppDashboardModule from '@/components/dashboard/AppDashboardModule.vue'
 import { macroColorVariable } from '@/components/dashboard/modules/macroColors'
 import MacroRunControl from '@/components/dashboard/modules/MacroRunControl.vue'
@@ -192,10 +192,12 @@ const gridStyle = computed(() => {
 
       <div v-else class="grid gap-3">
         <p class="text-xs text-muted">{{ t('dashboard.macros.empty') }}</p>
-        <button type="button" class="button button--primary" @click="openSurface()">
-          <AppIcon name="add" class="size-5" aria-hidden="true" />
-          {{ t('dashboard.macros.choose') }}
-        </button>
+        <AppButton
+          variant="primary"
+          icon="add"
+          :label="t('dashboard.macros.choose')"
+          @click="openSurface()"
+        />
       </div>
     </template>
 

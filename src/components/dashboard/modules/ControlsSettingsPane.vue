@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import AppButton from '@/components/AppButton.vue'
 import AppIcon, { type AppIconName } from '@/components/AppIcon.vue'
 import IconPickerDialog from '@/components/IconPickerDialog.vue'
 import SurfaceSection from '@/components/dashboard/SurfaceSection.vue'
@@ -105,15 +106,15 @@ function chooseIcon(name: AppIconName | null): void {
   <SurfaceSection v-if="iconRows.length > 0" :title="t('dashboard.controls.iconsTitle')" divided>
     <div v-for="row in iconRows" :key="row.objectName" class="settings-row">
       <span class="settings-row__label">{{ row.label }}</span>
-      <button
-        type="button"
-        class="button button--icon button--sm"
+      <AppButton
+        icon-only
+        size="sm"
         :aria-label="t('dashboard.controls.chooseIcon', { label: row.label })"
         @click="openPicker(row)"
       >
         <AppIcon v-if="row.icon" :name="row.icon" class="size-4" aria-hidden="true" />
         <span v-else class="icon-none-mark size-4" aria-hidden="true">–</span>
-      </button>
+      </AppButton>
     </div>
   </SurfaceSection>
 

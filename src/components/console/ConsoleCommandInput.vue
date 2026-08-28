@@ -2,6 +2,7 @@
 import { computed, nextTick, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import AppButton from '@/components/AppButton.vue'
 import AppIcon from '@/components/AppIcon.vue'
 import type { MacroParameter } from '@/dashboard/macroParams'
 import {
@@ -306,9 +307,7 @@ defineExpose({ fill, focus })
     -->
     <ul v-if="completions.length" class="console-prompt__completions">
       <li v-for="candidate in completions" :key="candidate">
-        <button type="button" class="button button--quiet button--xs" @click="fill(candidate)">
-          {{ candidate }}
-        </button>
+        <AppButton variant="quiet" size="xs" :label="candidate" @click="fill(candidate)" />
       </li>
     </ul>
     <!--
@@ -371,17 +370,20 @@ defineExpose({ fill, focus })
         and a control that is merely greyed out for a minute reads as broken. The
         label and icon do not change, per button-system.md's one state model.
       -->
-      <button
+      <AppButton
+        variant="primary"
+        size="sm"
+        icon-only
+        :pending="pending"
+        class="console-prompt__send"
         type="submit"
-        class="button button--primary button--sm button--icon console-prompt__send"
         :disabled="!canSend"
-        :data-pending="pending ? 'true' : undefined"
         :aria-busy="pending || undefined"
         :aria-label="t('console.send')"
         :title="t('console.send')"
       >
         <AppIcon name="send" class="size-5" aria-hidden="true" />
-      </button>
+      </AppButton>
     </form>
   </div>
 </template>

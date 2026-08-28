@@ -2,6 +2,7 @@
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import AppButton from '@/components/AppButton.vue'
 import AppIcon from '@/components/AppIcon.vue'
 import AvailabilityRegion from '@/components/AvailabilityRegion.vue'
 import DashboardModuleCard from '@/components/dashboard/DashboardModuleCard.vue'
@@ -604,16 +605,15 @@ function setColumnWidth(width: DashboardColumnWidth): void {
           </div>
         </div>
         <div class="segmented" :aria-label="t('dashboard.layout.viewportLabel')">
-          <button
+          <AppButton
             v-for="candidate in ['desktop', 'tablet', 'mobile'] as DashboardViewport[]"
             :key="candidate"
-            type="button"
-            class="button button--sm"
+            size="sm"
             :aria-pressed="selectedViewport === candidate"
             @click="selectedViewport = candidate"
           >
             {{ t(`dashboard.layout.viewport.${candidate}`) }}
-          </button>
+          </AppButton>
         </div>
         <!--
         Two controls rather than one per column: pick the column, then set its
@@ -633,11 +633,11 @@ function setColumnWidth(width: DashboardColumnWidth): void {
             class="segmented dashboard-column-ruler"
             :style="{ '--dashboard-ruler-template': rulerTemplate }"
           >
-            <button
+            <AppButton
               v-for="column in columnCountFor(selectedViewport)"
               :key="column"
-              type="button"
-              class="button button--sm"
+              size="sm"
+              :label="column"
               :aria-pressed="selectedColumn === column - 1"
               :aria-label="
                 t('dashboard.layout.columnWidthOf', {
@@ -646,21 +646,18 @@ function setColumnWidth(width: DashboardColumnWidth): void {
                 })
               "
               @click="selectedColumn = column - 1"
-            >
-              {{ column }}
-            </button>
+            />
           </div>
           <div class="segmented dashboard-column-width-scale">
-            <button
+            <AppButton
               v-for="width in dashboardColumnWidthNames"
               :key="width"
-              type="button"
-              class="button button--sm"
+              size="sm"
               :aria-pressed="(columnWidths[selectedColumn] ?? 'normal') === width"
               @click="setColumnWidth(width)"
             >
               {{ t(`dashboard.layout.columnWidth.${width}`) }}
-            </button>
+            </AppButton>
           </div>
         </div>
         <label class="sr-only" for="dashboard-preset-select">
@@ -677,13 +674,11 @@ function setColumnWidth(width: DashboardColumnWidth): void {
             {{ t(`dashboard.layout.preset.${preset}`) }}
           </option>
         </select>
-        <button
-          type="button"
-          class="button button--on-soft"
+        <AppButton
+          on-soft
+          :label="t('dashboard.layout.reset')"
           @click="layout.reset(selectedViewport)"
-        >
-          {{ t('dashboard.layout.reset') }}
-        </button>
+        />
       </div>
 
       <div v-if="editing" class="dashboard-module-tray">
@@ -692,16 +687,15 @@ function setColumnWidth(width: DashboardColumnWidth): void {
           <p class="mt-0.5 text-xs text-muted">{{ t('dashboard.layout.availableDescription') }}</p>
         </div>
         <div class="flex flex-wrap gap-2">
-          <button
+          <AppButton
             v-for="item in hiddenModules"
             :key="item.instance.instanceId"
-            type="button"
-            class="button button--sm button--on-soft"
+            size="sm"
+            on-soft
+            icon="add"
+            :label="moduleTitle(item)"
             @click="layout.setVisible(displayedViewport, item.instance.instanceId, true)"
-          >
-            <AppIcon name="add" class="size-4" aria-hidden="true" />
-            {{ moduleTitle(item) }}
-          </button>
+          />
           <span v-if="hiddenModules.length === 0" class="text-xs text-muted">
             {{ t('dashboard.layout.noneHidden') }}
           </span>
@@ -841,9 +835,12 @@ function setColumnWidth(width: DashboardColumnWidth): void {
       <div v-if="visibleModules.length === 0 && !editing" class="dashboard-empty-layout">
         <AppIcon name="customize" class="size-8 text-data-sky" aria-hidden="true" />
         <p class="mt-3 text-section-title">{{ t('dashboard.layout.empty') }}</p>
-        <button type="button" class="button button--on-soft mt-4" @click="toggleEditing">
-          {{ t('dashboard.layout.customize') }}
-        </button>
+        <AppButton
+          on-soft
+          :label="t('dashboard.layout.customize')"
+          class="mt-4"
+          @click="toggleEditing"
+        />
       </div>
     </section>
 
