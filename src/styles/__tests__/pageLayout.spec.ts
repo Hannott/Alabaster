@@ -296,13 +296,13 @@ describe('page layout contract', () => {
   })
 
   it('keeps update rows on the same inline edge as the rest of the panel', () => {
-    // 0.5rem of list padding + the row button's own 1px border + its inline
-    // padding is the 1rem every other panel row uses. The border has to be
-    // subtracted, not ignored: these rows are controls and the others are not, so
-    // ignoring it leaves the source names 1px inside every neighbouring row.
+    // 0.5rem of list padding + the row-group's own inline padding is the 1rem
+    // every other panel row uses. The padding is 1px wider than a literal
+    // 0.5rem split would need -- a leftover from when this row was a bordered
+    // button and the border ate the missing pixel.
     expect(styles).toMatch(/\.machine-update-list\s*\{[^}]*padding:\s*0\.5rem/s)
     expect(styles).toMatch(
-      /\.machine-update-row\s*\{[^}]*padding:\s*0\.75rem calc\(0\.5rem - 1px\)/s,
+      /\.machine-update-row-group\s*\{[^}]*padding:\s*0\.75rem calc\(0\.5rem - 1px\)/s,
     )
     expect(styles).toMatch(/\.machine-panel-heading\s*\{[^}]*padding:\s*0\.8rem 1rem/s)
     expect(styles).toMatch(/\.machine-module-list > h3\s*\{[^}]*padding:\s*0\.8rem 1rem/s)

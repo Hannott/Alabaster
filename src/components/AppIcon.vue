@@ -53,6 +53,7 @@ export type AppIconName =
   | 'hide'
   | 'history'
   | 'home'
+  | 'info'
   | 'jobs'
   | 'layerNext'
   | 'layers'
@@ -104,6 +105,7 @@ export type AppIconName =
   | 'user'
   | 'viewer'
   | 'warning'
+  | 'warningDiamond'
   | 'workUpdate'
   | 'zoomIn'
   | 'zoomOut'
@@ -836,6 +838,18 @@ defineProps<{ name: AppIconName }>()
       <path d="M5 10v11h14V10M9 21v-7h6v7" />
     </g>
     <!--
+      Akar Icons' "info" glyph (MIT licensed) -- a circled "i", for a reported
+      condition that is neither an error nor an action, distinct from `help`'s
+      circled question mark. Circle radius brought from the source's 10 to 9
+      to match `help`'s own clearance, since the two appear in the same rows.
+    -->
+    <g v-else-if="name === 'info'">
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 8h.01" />
+      <path d="M10 11h2v5" />
+      <path d="M10 16h4" />
+    </g>
+    <!--
       IconPark Outline's "history" glyph (ByteDance, Apache 2.0) — a clock
       face with its hour hand mid-sweep and a small counter-clockwise arrow
       at the base, for "time already elapsed" rather than `activity`'s live
@@ -1013,6 +1027,26 @@ defineProps<{ name: AppIconName }>()
     <g v-else-if="name === 'warning'">
       <path d="M12 3.5 2.5 20h19Z" />
       <path d="M12 9.5v5M12 18h.01" />
+    </g>
+    <!--
+      Carbon's "warning--diamond" glyph (IBM, Apache-2.0 licensed), scaled from
+      its native 32x32 box (`scale(0.75)`, unmoved: 32 * 0.75 = 24). A diamond
+      rather than `warning`'s triangle, so a row needing attention reads as a
+      distinct shape rather than the same caution glyph at a different size.
+    -->
+    <g
+      v-else-if="name === 'warningDiamond'"
+      fill="currentColor"
+      stroke="none"
+      transform="scale(0.75)"
+    >
+      <path
+        d="m16,20c-.8284,0-1.5.6716-1.5,1.5s.6716,1.5,1.5,1.5,1.5-.6716,1.5-1.5-.6716-1.5-1.5-1.5h0Z"
+      />
+      <rect x="15" y="9" width="2" height="9" />
+      <path
+        d="m16,30c-.5335,0-1.0672-.2031-1.4732-.6094L2.6094,17.4732c-.8126-.8123-.8126-2.1342,0-2.9465L14.5268,2.6094c.8121-.8126,2.1344-.8126,2.9465,0l11.9173,11.9173c.8126.8123.8126,2.1342,0,2.9465l-11.9173,11.9173c-.406.4063-.9398.6094-1.4732.6094Zm0-26.0008c-.0215,0-.0427.0083-.0591.0244L4.0236,15.9409c-.0325.0327-.0325.0855,0,.1182l11.9173,11.9173c.0327.0322.0855.0322.1182,0l11.9173-11.9173c.0325-.0327.0325-.0855,0-.1182l-11.9173-11.9173c-.0164-.0161-.0376-.0244-.0591-.0244Z"
+      />
     </g>
     <g v-else-if="name === 'zoomIn'">
       <circle cx="10.5" cy="10.5" r="6.5" />

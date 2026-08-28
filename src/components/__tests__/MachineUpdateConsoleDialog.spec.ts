@@ -47,7 +47,7 @@ describe('MachineUpdateConsoleDialog', () => {
     const wrapper = mountDialog([{ id: 1, application: 'moonraker', message: 'line' }], true)
 
     expect(wrapper.get('.update-console-state').text()).toBe('Running')
-    expect(wrapper.get('.update-console-state').attributes('data-state')).toBe('running')
+    expect(wrapper.get('.update-console-state').attributes('data-tone')).toBe('accent')
     expect(wrapper.get('dialog').attributes('aria-busy')).toBe('true')
     // Clearing the scrollback mid-run would discard the transcript being written.
     expect(wrapper.get('.button--quiet').attributes('disabled')).toBeDefined()
@@ -55,7 +55,7 @@ describe('MachineUpdateConsoleDialog', () => {
     await wrapper.setProps({ running: false })
 
     expect(wrapper.get('.update-console-state').text()).toBe('Finished')
-    expect(wrapper.get('.update-console-state').attributes('data-state')).toBe('finished')
+    expect(wrapper.get('.update-console-state').attributes('data-tone')).toBe('positive')
     expect(wrapper.get('dialog').attributes('aria-busy')).toBeUndefined()
     expect(wrapper.get('.button--quiet').attributes('disabled')).toBeUndefined()
   })
@@ -64,7 +64,7 @@ describe('MachineUpdateConsoleDialog', () => {
     const wrapper = mountDialog([{ id: 1, application: 'moonraker', message: 'line' }], false, true)
 
     expect(wrapper.get('.update-console-state').text()).toBe('Failed')
-    expect(wrapper.get('.update-console-state').attributes('data-state')).toBe('failed')
+    expect(wrapper.get('.update-console-state').attributes('data-tone')).toBe('danger')
   })
 
   it('emits clear from its own button rather than mutating the transcript itself', async () => {

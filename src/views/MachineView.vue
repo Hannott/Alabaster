@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import AppIcon from '@/components/AppIcon.vue'
+import AppStatusField, { type AppStatusFieldTone } from '@/components/AppStatusField.vue'
 import AvailabilityRegion from '@/components/AvailabilityRegion.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import MachineUpdateConsoleDialog from '@/components/MachineUpdateConsoleDialog.vue'
@@ -10,7 +11,11 @@ import PageHeading from '@/components/PageHeading.vue'
 import UpdateCommitList from '@/components/UpdateCommitList.vue'
 import UpdateRecoveryDialog from '@/components/UpdateRecoveryDialog.vue'
 import { useActionGuard, type ActionGuardBindings } from '@/composables/useActionGuard'
-import type { MachineServiceStatus, MachineUpdateItem } from '@/stores/machineSystem'
+import type {
+  MachineServiceStatus,
+  MachineUpdateAvailability,
+  MachineUpdateItem,
+} from '@/stores/machineSystem'
 import { updateAvailability, useMachineSystemStore } from '@/stores/machineSystem'
 import { useMoonrakerStore } from '@/stores/moonraker'
 
@@ -157,6 +162,17 @@ function canToggleService(service: MachineServiceStatus): boolean {
   return !(service.name === 'moonraker' && service.state === 'active')
 }
 
+/** `AppStatusField`'s closed tone set, not `MachineServiceState`'s own domain vocabulary. */
+const serviceStatusTones: Record<MachineServiceStatus['state'], AppStatusFieldTone> = {
+  active: 'positive',
+  failed: 'danger',
+  inactive: 'offline',
+}
+
+function serviceStatusTone(service: MachineServiceStatus): AppStatusFieldTone {
+  return serviceStatusTones[service.state]
+}
+
 function serviceActionIcon(service: MachineServiceStatus): 'spinner' | 'stop' | 'play' {
   if (machine.isServicePending(service.name)) return 'spinner'
   return service.state === 'active' ? 'stop' : 'play'
@@ -266,6 +282,17 @@ function rowIsPending(update: MachineUpdateItem): boolean {
   return machine.checkingUpdateId === update.id || machine.runningUpdateId === update.id
 }
 
+/** `AppStatusField`'s closed tone set, not `updateAvailability`'s own domain vocabulary. */
+const updateStatusTones: Record<MachineUpdateAvailability, AppStatusFieldTone> = {
+  current: 'positive',
+  available: 'accent',
+  attention: 'caution',
+}
+
+function updateStatusTone(update: MachineUpdateItem): AppStatusFieldTone {
+  return updateStatusTones[updateAvailability(update)]
+}
+
 /** The full sentence a screen reader hears, which never depends on hover. */
 function rowActionName(update: MachineUpdateItem): string {
   const key = {
@@ -277,8 +304,8 @@ function rowActionName(update: MachineUpdateItem): string {
 }
 
 /**
- * The label the status chip reveals on hover and focus. It is `aria-hidden`,
- * because `rowActionName` already carries the action to assistive technology.
+ * The action button's own visible label -- the generic verb, not the
+ * name-including phrase `rowActionName` carries for assistive technology.
  */
 function rowActionLabel(update: MachineUpdateItem): string {
   if (machine.runningUpdateId === update.id) return t('machine.updates.updating')
@@ -399,6 +426,31 @@ function confirmRecovery(id: string): void {
  */
 function canRollbackUpdate(update: MachineUpdateItem): boolean {
   return update.configured_type !== 'system' && updateAvailability(update) !== 'attention'
+}
+
+/*
+ * Moonraker's `anomalies` are unexpected-but-tolerated conditions -- an
+ * unofficial remote or branch is the common case -- that never raise
+ * `attention` and so are never covered by Investigate. `attention` rows are
+ * excluded here because their own recovery dialog already lists every
+ * reported condition, anomalies included; showing this toggle there too would
+ * be the same information behind two controls on the same row.
+ */
+function hasAnomalyToggle(update: MachineUpdateItem): boolean {
+  return (update.anomalies?.length ?? 0) > 0 && updateAvailability(update) !== 'attention'
+}
+
+const expandedAnomalyIds = ref(new Set<string>())
+
+function isAnomaliesExpanded(id: string): boolean {
+  return expandedAnomalyIds.value.has(id)
+}
+
+function toggleAnomalies(id: string): void {
+  const next = new Set(expandedAnomalyIds.value)
+  if (next.has(id)) next.delete(id)
+  else next.add(id)
+  expandedAnomalyIds.value = next
 }
 
 const pendingRollback = ref<MachineUpdateItem | null>(null)
@@ -607,9 +659,12 @@ onBeforeUnmount(() => {
                     </span>
                   </p>
                 </div>
-                <span v-if="module.isDisconnected" class="machine-module-disconnected">
-                  {{ t('machine.modules.disconnected') }}
-                </span>
+                <AppStatusField
+                  v-if="module.isDisconnected"
+                  class="machine-module-disconnected"
+                  :text="t('machine.modules.disconnected')"
+                  tone="caution"
+                />
               </article>
             </section>
 
@@ -624,18 +679,18 @@ onBeforeUnmount(() => {
                 <span class="machine-service-actions">
                   <a
                     v-if="service.url"
-                    class="button button--quiet button--xs button--icon"
+                    class="button button--quiet button--icon"
                     :href="service.url"
                     target="_blank"
                     rel="noopener noreferrer"
                     :aria-label="t('machine.services.open', { name: service.name })"
                   >
-                    <AppIcon name="globe" class="size-4" aria-hidden="true" />
+                    <AppIcon name="globe" class="size-5" aria-hidden="true" />
                   </a>
                   <button
                     v-if="isSystemdService(service.name) && canToggleService(service)"
                     type="button"
-                    class="button button--quiet button--xs button--icon"
+                    class="button button--quiet button--icon"
                     :class="serviceActionVariant(service)"
                     v-bind="serviceActionBind(service)"
                     :disabled="!moonraker.isConnected || machine.isServicePending(service.name)"
@@ -644,12 +699,12 @@ onBeforeUnmount(() => {
                     :title="serviceActionLabel(service)"
                     @click="requestServiceAction(service)"
                   >
-                    <AppIcon :name="serviceActionIcon(service)" class="size-4" aria-hidden="true" />
+                    <AppIcon :name="serviceActionIcon(service)" class="size-5" aria-hidden="true" />
                   </button>
                   <button
                     v-if="isSystemdService(service.name) && canRestartService(service)"
                     type="button"
-                    class="button button--quiet button--xs button--icon"
+                    class="button button--quiet button--icon"
                     :class="restartServiceGuard.variant.value"
                     v-bind="restartServiceGuard.bind.value"
                     :disabled="!moonraker.isConnected || machine.isServicePending(service.name)"
@@ -658,11 +713,13 @@ onBeforeUnmount(() => {
                     :title="restartActionLabel(service)"
                     @click="requestServiceRestart(service)"
                   >
-                    <AppIcon :name="restartActionIcon(service)" class="size-4" aria-hidden="true" />
+                    <AppIcon :name="restartActionIcon(service)" class="size-5" aria-hidden="true" />
                   </button>
-                  <span class="machine-service-status" :data-state="service.state">
-                    {{ t(`machine.services.status.${service.state}`) }}
-                  </span>
+                  <AppStatusField
+                    class="machine-service-status"
+                    :text="t(`machine.services.status.${service.state}`)"
+                    :tone="serviceStatusTone(service)"
+                  />
                 </span>
               </article>
             </section>
@@ -690,15 +747,35 @@ onBeforeUnmount(() => {
               <AppIcon name="usb" class="size-5 text-action" aria-hidden="true" />
               <h2 id="machine-peripherals-title">{{ t('machine.peripherals.title') }}</h2>
               <div class="machine-panel-heading__actions">
+                <!--
+                  Icon-only with the same refresh/spinner swap as the Repository
+                  updates panel's own Check for updates control -- outlier 12's
+                  third instance, since this is the same kind of action: a plain
+                  re-read with nothing to confirm, named well enough by the icon
+                  that a text label added nothing beside it.
+                -->
                 <button
                   type="button"
-                  class="button button--quiet button--sm"
+                  class="button button--quiet button--icon"
                   :disabled="!moonraker.isConnected"
                   :data-pending="machine.isLoadingPeripherals ? 'true' : undefined"
+                  :aria-label="
+                    machine.isLoadingPeripherals
+                      ? t('machine.peripherals.refreshing')
+                      : t('machine.peripherals.refresh')
+                  "
+                  :title="
+                    machine.isLoadingPeripherals
+                      ? t('machine.peripherals.refreshing')
+                      : t('machine.peripherals.refresh')
+                  "
                   @click="machine.refreshPeripherals()"
                 >
-                  <AppIcon name="refresh" class="size-4" aria-hidden="true" />
-                  {{ t('machine.peripherals.refresh') }}
+                  <AppIcon
+                    :name="machine.isLoadingPeripherals ? 'spinner' : 'refresh'"
+                    class="size-5"
+                    aria-hidden="true"
+                  />
                 </button>
               </div>
             </header>
@@ -862,19 +939,14 @@ onBeforeUnmount(() => {
           </p>
 
           <div v-if="machine.updates.length" class="machine-update-list">
-            <div
-              v-for="update in machine.updates"
-              :key="update.id"
-              class="machine-update-row-group"
-            >
-              <button
-                type="button"
-                class="button button--quiet button--start button--block machine-update-row"
-                :disabled="updatesDisabled"
-                :data-pending="rowIsPending(update) ? 'true' : undefined"
-                :title="rowActionName(update)"
-                @click="activateRow(update)"
-              >
+            <template v-for="update in machine.updates" :key="update.id">
+              <div class="machine-update-row-group">
+                <!--
+                  Plain content, not a control: a source's name, version, and
+                  status are facts to read, not a click target whose meaning
+                  changes with state. It leads the group, since it is the one
+                  thing every row always has, unlike the controls beside it.
+                -->
                 <span class="machine-update-row__detail">
                   <span class="machine-update-row__name">{{ update.displayName }}</span>
                   <span class="machine-update-row__version">{{ updateVersion(update) }}</span>
@@ -886,48 +958,125 @@ onBeforeUnmount(() => {
                   </span>
                 </span>
                 <!--
-                  Both labels occupy one grid cell, so the chip is already as wide as
-                  the wider of the two and the hover swap is a crossfade rather than
-                  a reflow of the row.
+                  A disclosure toggle for `anomalies` Moonraker reports outside the
+                  attention state -- see `hasAnomalyToggle`'s reasoning. It follows
+                  button-system.md's shared toggle model (`aria-pressed`) rather than
+                  a fourth row state, the same reasoning that already keeps rollback
+                  beside the row instead of inside its click.
                 -->
-                <span class="machine-update-status" :data-state="updateAvailability(update)">
-                  <span class="machine-update-status__label">
-                    {{ t(`machine.updates.status.${updateAvailability(update)}`) }}
-                  </span>
-                  <span class="machine-update-status__action" aria-hidden="true">
-                    {{ rowActionLabel(update) }}
-                  </span>
-                </span>
+                <button
+                  v-if="hasAnomalyToggle(update)"
+                  type="button"
+                  class="button button--quiet button--icon machine-update-row__anomalies-toggle"
+                  :aria-pressed="isAnomaliesExpanded(update.id)"
+                  :aria-controls="`machine-update-anomalies-${update.id}`"
+                  :aria-label="
+                    t(
+                      isAnomaliesExpanded(update.id)
+                        ? 'machine.updates.anomaliesHide'
+                        : 'machine.updates.anomaliesShow',
+                      { name: update.displayName },
+                    )
+                  "
+                  :title="t('machine.updates.anomalies')"
+                  @click="toggleAnomalies(update.id)"
+                >
+                  <AppIcon name="info" class="size-5" aria-hidden="true" />
+                </button>
                 <!--
-                  The chip's action label is a hover affordance, so the action is
-                  named here instead. Leaving the row's own text in the accessible
-                  name is why this is not an `aria-label`.
+                  A secondary control beside the row rather than a fourth state
+                  folded into the action button: rollback has nothing to do with
+                  whether a source is behind. Icon-only, per button-system.md's
+                  bounded exception for icon-only confirming controls --
+                  `aria-haspopup` is its only carrier, same as the Console card
+                  header's clear and the job queue row's remove.
                 -->
-                <span class="sr-only">{{ rowActionName(update) }}</span>
-              </button>
-              <!--
-                A secondary control beside the row's own button rather than a
-                fourth state folded into it: rollback has nothing to do with
-                whether a source is behind, so it does not fit the row's
-                existing available/current/attention click. Icon-only, per
-                button-system.md's bounded exception for icon-only confirming
-                controls -- `aria-haspopup` is its only carrier, same as the
-                Console card header's clear and the job queue row's remove.
-              -->
-              <button
-                v-if="canRollbackUpdate(update)"
-                type="button"
-                class="button button--quiet button--xs button--icon"
-                :class="rollbackGuard.variant.value"
-                v-bind="rollbackGuard.bind.value"
-                :disabled="updatesDisabled"
-                :aria-label="t('machine.updates.rollbackOne', { name: update.displayName })"
-                :title="t('machine.updates.rollback')"
-                @click="requestRollback(update)"
+                <button
+                  v-if="canRollbackUpdate(update)"
+                  type="button"
+                  class="button button--quiet button--icon machine-update-row__rollback"
+                  :class="rollbackGuard.variant.value"
+                  v-bind="rollbackGuard.bind.value"
+                  :disabled="updatesDisabled"
+                  :aria-label="t('machine.updates.rollbackOne', { name: update.displayName })"
+                  :title="t('machine.updates.rollback')"
+                  @click="requestRollback(update)"
+                >
+                  <AppIcon name="undo" class="size-5" aria-hidden="true" />
+                </button>
+                <!--
+                  A dirty/invalid/corrupt source cannot be installed at all, so its
+                  action is Investigate rather than Update now or Check -- and
+                  unlike those two, it opens a whole recovery dialog rather than
+                  starting or reading, which earns it a distinct icon beside the
+                  status instead of the trailing labeled/icon action button below.
+                -->
+                <button
+                  v-if="rowAction(update) === 'investigate'"
+                  type="button"
+                  class="button button--quiet button--icon machine-update-row__investigate"
+                  :disabled="updatesDisabled"
+                  :aria-label="rowActionName(update)"
+                  :title="rowActionName(update)"
+                  @click="activateRow(update)"
+                >
+                  <AppIcon name="warningDiamond" class="size-5" aria-hidden="true" />
+                </button>
+                <AppStatusField
+                  class="machine-update-status"
+                  :text="t(`machine.updates.status.${updateAvailability(update)}`)"
+                  :tone="updateStatusTone(update)"
+                />
+                <!--
+                  The row's own action, trailing the status it acts on: an install
+                  carries `installGuard`'s escalation and dialog exactly like Update
+                  all, since a single-source install answers to the same
+                  confirmation key. A check asks nothing, so it wears no guard, and
+                  collapses to an icon in the same `button--quiet button--icon` shape
+                  as the anomalies toggle, rollback, and Investigate beside it --
+                  the same refresh/spinner swap the panel header's own
+                  Check-for-updates control already uses, at that control's own `md`
+                  size rather than a bespoke dense one, since "check" names nothing
+                  an icon cannot already say next to a status that already reads
+                  "Up to date". Investigate never reaches this button at all; see
+                  the icon beside the status above.
+                -->
+                <button
+                  v-if="rowAction(update) !== 'investigate'"
+                  type="button"
+                  class="button machine-update-row__action"
+                  :class="
+                    rowAction(update) === 'install'
+                      ? ['button--sm', installGuard.variant.value]
+                      : ['button--quiet', 'button--icon']
+                  "
+                  v-bind="rowAction(update) === 'install' ? installGuard.bind.value : {}"
+                  :disabled="updatesDisabled"
+                  :data-pending="rowIsPending(update) ? 'true' : undefined"
+                  :aria-label="rowActionName(update)"
+                  :title="rowActionName(update)"
+                  @click="activateRow(update)"
+                >
+                  <AppIcon
+                    v-if="rowAction(update) === 'check'"
+                    :name="machine.checkingUpdateId === update.id ? 'spinner' : 'refresh'"
+                    class="size-5"
+                    aria-hidden="true"
+                  />
+                  <template v-else>{{ rowActionLabel(update) }}</template>
+                </button>
+              </div>
+              <ul
+                v-if="hasAnomalyToggle(update) && isAnomaliesExpanded(update.id)"
+                :id="`machine-update-anomalies-${update.id}`"
+                class="machine-update-anomalies selectable"
               >
-                <AppIcon name="undo" class="size-4" aria-hidden="true" />
-              </button>
-            </div>
+                <li v-for="message in update.anomalies" :key="message">
+                  <AppIcon name="info" class="size-4" aria-hidden="true" />
+                  <span>{{ message }}</span>
+                </li>
+              </ul>
+            </template>
           </div>
           <p v-else class="machine-panel-empty">{{ t('machine.updates.empty') }}</p>
         </section>

@@ -1709,6 +1709,7 @@
     "peripherals": {
       "title": "Peripherals",
       "refresh": "Refresh",
+      "refreshing": "Refreshing",
       "serialTitle": "Serial devices",
       "usbTitle": "USB devices",
       "canbusTitle": "CAN bus",
@@ -1749,6 +1750,9 @@
       "rollbackOne": "Roll back {name} to its previous version",
       "rollbackConfirmTitle": "Roll back {name}?",
       "rollbackConfirmDescription": "Moonraker reverts to the version installed before the most recent update and restarts the affected service. The printer must not be printing.",
+      "anomalies": "Reported notes",
+      "anomaliesShow": "Show reported notes for {name}",
+      "anomaliesHide": "Hide reported notes for {name}",
       "status": {
         "current": "Up to date",
         "available": "Update available",

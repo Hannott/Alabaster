@@ -3,6 +3,7 @@ import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import AppIcon from '@/components/AppIcon.vue'
+import AppStatusField, { type AppStatusFieldTone } from '@/components/AppStatusField.vue'
 import type { MachineUpdateOutputLine } from '@/stores/machineSystem'
 
 /*
@@ -102,6 +103,13 @@ const state = computed<'running' | 'failed' | 'finished'>(() => {
   return props.failed ? 'failed' : 'finished'
 })
 
+/** `AppStatusField`'s closed tone set, not this dialog's own state vocabulary. */
+const stateTones: Record<'running' | 'failed' | 'finished', AppStatusFieldTone> = {
+  running: 'accent',
+  finished: 'positive',
+  failed: 'danger',
+}
+
 /** A run in progress must not be dismissed and lose track of — see above. */
 function requestClose(): void {
   if (props.running) return
@@ -130,15 +138,17 @@ function handleDialogClick(event: MouseEvent): void {
     <header class="update-console-dialog__header">
       <AppIcon name="workUpdate" class="size-5 text-action" aria-hidden="true" />
       <span class="update-console-dialog__title truncate">{{ t('machine.output.title') }}</span>
-      <span class="update-console-state" :data-state="state">
-        {{
+      <AppStatusField
+        class="update-console-state"
+        :text="
           state === 'running'
             ? t('machine.output.running')
             : state === 'failed'
               ? t('machine.output.failed')
               : t('machine.output.finished')
-        }}
-      </span>
+        "
+        :tone="stateTones[state]"
+      />
       <div class="update-console-dialog__actions">
         <button
           type="button"

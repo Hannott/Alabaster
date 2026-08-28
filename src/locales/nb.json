@@ -1709,6 +1709,7 @@
     "peripherals": {
       "title": "Tilkoblet maskinvare",
       "refresh": "Oppdater",
+      "refreshing": "Oppdaterer",
       "serialTitle": "Serielle enheter",
       "usbTitle": "USB-enheter",
       "canbusTitle": "CAN-buss",
@@ -1749,6 +1750,9 @@
       "rollbackOne": "Rull {name} tilbake til forrige versjon",
       "rollbackConfirmTitle": "Rulle tilbake {name}?",
       "rollbackConfirmDescription": "Moonraker går tilbake til versjonen som var installert før den siste oppdateringen, og starter den berørte tjenesten på nytt. Skriveren må ikke skrive ut.",
+      "anomalies": "Rapporterte merknader",
+      "anomaliesShow": "Vis rapporterte merknader for {name}",
+      "anomaliesHide": "Skjul rapporterte merknader for {name}",
       "status": {
         "current": "Oppdatert",
         "available": "Oppdatering tilgjengelig",

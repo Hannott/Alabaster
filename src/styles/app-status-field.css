@@ -1,0 +1,70 @@
+/*
+ * `AppStatusField`'s box joins the button system's own three-tier height and
+ * radius scale -- the same join `.field`/`.app-field__box` already make in
+ * `main.css` -- so a status pill and the button beside it line up without
+ * either being nudged: `min-height`, `padding-inline`, and `border-radius`
+ * are copied from `.button`/`.button--sm`/`.button--xs` exactly rather than
+ * re-derived. Text styling stays its own thing (`--text-badge-size`,
+ * uppercase, increased weight) -- a pill is content to scan at a glance, not
+ * a label to read like a button's, so it does not borrow the button system's
+ * text tokens too.
+ */
+.status-field {
+  display: inline-flex;
+  flex: 0 0 auto;
+  min-height: 2.25rem;
+  align-items: center;
+  justify-content: center;
+  padding-inline: 0.65rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: 0.4rem;
+  color: var(--text-muted);
+  font-size: var(--text-badge-size);
+  font-weight: var(--font-weight-increased);
+  text-align: center;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.status-field--sm {
+  min-height: 2rem;
+  padding-inline: 0.5rem;
+  border-radius: 0.3rem;
+}
+
+.status-field--xs {
+  min-height: 1.75rem;
+  padding-inline: 0.3rem;
+  border-radius: 0.25rem;
+}
+
+/*
+ * Each tone borrows one semantic status token for both its border (blended
+ * toward the resting `--border-subtle`, never a flat saturated ring) and its
+ * text -- the same `color-mix` shape the update and service panels each
+ * wrote out by hand before this component existed.
+ */
+.status-field[data-tone='positive'] {
+  border-color: color-mix(in srgb, var(--status-available) 55%, var(--border-subtle));
+  color: var(--status-available);
+}
+
+.status-field[data-tone='accent'] {
+  border-color: color-mix(in srgb, var(--action-primary) 55%, var(--border-subtle));
+  color: var(--action-primary);
+}
+
+.status-field[data-tone='caution'] {
+  border-color: color-mix(in srgb, var(--status-recovering) 55%, var(--border-subtle));
+  color: var(--status-recovering);
+}
+
+.status-field[data-tone='danger'] {
+  border-color: color-mix(in srgb, var(--status-danger-text) 55%, var(--border-subtle));
+  color: var(--status-danger-text);
+}
+
+.status-field[data-tone='offline'] {
+  border-color: color-mix(in srgb, var(--status-offline) 55%, var(--border-subtle));
+  color: var(--status-offline);
+}

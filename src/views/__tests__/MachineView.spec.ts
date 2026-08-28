@@ -48,17 +48,35 @@ function mountMachineView() {
 
 function rowFor(wrapper: VueWrapper, name: string) {
   const row = wrapper
-    .findAll('.machine-update-row')
+    .findAll('.machine-update-row-group')
     .find((candidate) => candidate.text().includes(name))
   if (!row) throw new Error(`No update row for ${name}`)
   return row
+}
+
+function actionButtonFor(wrapper: VueWrapper, name: string) {
+  const group = wrapper
+    .findAll('.machine-update-row-group')
+    .find((candidate) => candidate.text().includes(name))
+  if (!group) throw new Error(`No update row for ${name}`)
+  return group.get('.machine-update-row__action')
+}
+
+function investigateButtonFor(wrapper: VueWrapper, name: string) {
+  const group = wrapper
+    .findAll('.machine-update-row-group')
+    .find((candidate) => candidate.text().includes(name))
+  if (!group) throw new Error(`No update row for ${name}`)
+  return group.get('.machine-update-row__investigate')
 }
 
 function rollbackButtonFor(wrapper: VueWrapper, name: string) {
   const group = wrapper
     .findAll('.machine-update-row-group')
     .find((candidate) => candidate.text().includes(name))
-  return group?.findAll('button').find((button) => !button.classes().includes('machine-update-row'))
+  return group
+    ?.findAll('button')
+    .find((button) => button.classes().includes('machine-update-row__rollback'))
 }
 
 function serviceRowFor(wrapper: VueWrapper, name: string) {
@@ -142,11 +160,14 @@ describe('MachineView', () => {
     expect(headingActionText(wrapper)).not.toContain('Update all')
 
     const row = rowFor(wrapper, 'KlipperScreen')
-    expect(row.get('.machine-update-status__label').text()).toBe('Needs attention')
-    expect(row.get('.machine-update-status__action').text()).toBe('Investigate')
-    expect(row.get('.sr-only').text()).toBe('Investigate KlipperScreen')
+    expect(row.get('.machine-update-status').text()).toBe('Needs attention')
+    // Investigate has its own icon beside the status rather than the row's
+    // trailing action button, which does not render at all for this state.
+    expect(row.find('.machine-update-row__action').exists()).toBe(false)
+    const action = investigateButtonFor(wrapper, 'KlipperScreen')
+    expect(action.attributes('aria-label')).toBe('Investigate KlipperScreen')
 
-    await row.trigger('click')
+    await action.trigger('click')
     expect(startUpdate).not.toHaveBeenCalled()
     expect(wrapper.get('.update-recovery-dialog').text()).toContain('Investigate KlipperScreen')
   })
@@ -230,7 +251,7 @@ describe('MachineView', () => {
       },
     ]
     await flushPromises()
-    await rowFor(wrapper, 'KlipperScreen').trigger('click')
+    await investigateButtonFor(wrapper, 'KlipperScreen').trigger('click')
 
     const dialog = wrapper.get('.update-recovery-dialog')
     // Every reported reason is listed, not just the first one.
@@ -267,7 +288,7 @@ describe('MachineView', () => {
     const { machine, wrapper } = mountMachineView()
     machine.updates = [{ id: 'webclient', displayName: 'webclient', corrupt: true }]
     await flushPromises()
-    await rowFor(wrapper, 'webclient').trigger('click')
+    await investigateButtonFor(wrapper, 'webclient').trigger('click')
 
     const dialog = wrapper.get('.update-recovery-dialog')
     // `git reset` cannot repair a corrupt repository, so the mode follows the state.
@@ -287,13 +308,19 @@ describe('MachineView', () => {
     ]
     await flushPromises()
 
-    // An up-to-date source has nothing to install, so its row is a check — and a
-    // check reads the repository, so it is not confirmed.
-    await rowFor(wrapper, 'Klipper').trigger('click')
+    // An up-to-date source has nothing to install, so its action button checks —
+    // and a check reads the repository, so it is not confirmed.
+    await actionButtonFor(wrapper, 'Klipper').trigger('click')
     expect(checkForUpdates).toHaveBeenCalledWith('klipper')
     expect(wrapper.find('.confirm-dialog[open]').exists()).toBe(false)
 
-    await rowFor(wrapper, 'moonraker').trigger('click')
+    // An install answers to the same guard as Update all, so its action button
+    // carries the same confirming-control marker.
+    const installAction = actionButtonFor(wrapper, 'moonraker')
+    expect(installAction.attributes('data-guard')).toBe('confirm')
+    expect(installAction.attributes('aria-haspopup')).toBe('dialog')
+
+    await installAction.trigger('click')
     expect(startUpdate).not.toHaveBeenCalled()
     expect(wrapper.get('.confirm-dialog').text()).toContain('Update moonraker?')
 
@@ -330,7 +357,7 @@ describe('MachineView', () => {
     ]
     await flushPromises()
 
-    await rowFor(wrapper, 'Klipper').trigger('click')
+    await actionButtonFor(wrapper, 'Klipper').trigger('click')
     const commitDialog = wrapper.get('.confirm-dialog')
     // Body content widens the dialog, the same measure `UpdateRecoveryDialog` uses.
     expect(commitDialog.classes()).toContain('confirm-dialog--wide')
@@ -344,7 +371,7 @@ describe('MachineView', () => {
       .find((button) => !button.classes().includes('button--primary'))!
       .trigger('click')
 
-    await rowFor(wrapper, 'System').trigger('click')
+    await actionButtonFor(wrapper, 'System').trigger('click')
     const packageDialog = wrapper.get('.confirm-dialog')
     expect(packageDialog.text()).toContain('These packages will be upgraded')
     expect(packageDialog.text()).toContain('raspberrypi-kernel')
@@ -353,7 +380,7 @@ describe('MachineView', () => {
     expect(packageDialog.find('.update-recovery-commits').exists()).toBe(false)
   })
 
-  it('names the row action for assistive technology and reveals it in the status chip', async () => {
+  it('shows a plain status and names its action button for assistive technology', async () => {
     const { machine, wrapper } = mountMachineView()
     machine.updates = [
       { id: 'klipper', displayName: 'Klipper', remote_version: 'v1', version: 'v1' },
@@ -361,18 +388,32 @@ describe('MachineView', () => {
     ]
     await flushPromises()
 
+    // The row is plain content now, not a control -- no accessible name of its
+    // own to carry, since it is not a button.
     const current = rowFor(wrapper, 'Klipper')
-    expect(current.get('.machine-update-status__label').text()).toBe('Up to date')
-    expect(current.get('.machine-update-status__action').text()).toBe('Check for updates')
-    // The chip's action label is a hover affordance, so the row keeps its own
-    // text in the accessible name and states the action separately.
-    expect(current.get('.sr-only').text()).toBe('Check Klipper for updates')
+    expect(current.get('.machine-update-status').text()).toBe('Up to date')
     expect(current.attributes('aria-label')).toBeUndefined()
 
+    // A check collapses to an icon, since "check" names nothing a refresh
+    // glyph cannot already say next to a status that already reads "Up to
+    // date" -- its accessible name still carries the fuller, name-including
+    // phrase.
+    const currentAction = actionButtonFor(wrapper, 'Klipper')
+    expect(currentAction.text()).toBe('')
+    expect(currentAction.attributes('aria-label')).toBe('Check Klipper for updates')
+    // Matches the anomalies toggle, rollback, and Investigate's own shape --
+    // `md` `button--quiet button--icon` -- not a bespoke dense size.
+    expect(currentAction.classes()).toEqual(
+      expect.arrayContaining(['button--quiet', 'button--icon']),
+    )
+    expect(currentAction.classes()).not.toContain('button--sm')
+
     const behind = rowFor(wrapper, 'moonraker')
-    expect(behind.get('.machine-update-status__label').text()).toBe('Update available')
-    expect(behind.get('.machine-update-status__action').text()).toBe('Update now')
-    expect(behind.get('.sr-only').text()).toBe('Update moonraker')
+    expect(behind.get('.machine-update-status').text()).toBe('Update available')
+    const behindAction = actionButtonFor(wrapper, 'moonraker')
+    expect(behindAction.text()).toBe('Update now')
+    expect(behindAction.attributes('aria-label')).toBe('Update moonraker')
+    expect(behindAction.classes()).toContain('button--sm')
   })
 
   it('offers the console popout only once there is a transcript, and reports a failed start in the panel', async () => {
@@ -418,6 +459,41 @@ describe('MachineView', () => {
     expect(rollbackButtonFor(wrapper, 'Klipper')).toBeTruthy()
     expect(rollbackButtonFor(wrapper, 'system')).toBeUndefined()
     expect(rollbackButtonFor(wrapper, 'webclient')).toBeUndefined()
+  })
+
+  it('offers an anomalies toggle only when Moonraker reported one and the source is not needing attention', async () => {
+    const { machine, wrapper } = mountMachineView()
+    machine.updates = [
+      {
+        id: 'klipper',
+        displayName: 'Klipper',
+        configured_type: 'git_repo',
+        anomalies: ['Repo not on official remote/branch, expected: origin/master'],
+      },
+      { id: 'moonraker', displayName: 'moonraker', configured_type: 'git_repo' },
+      {
+        id: 'webclient',
+        displayName: 'webclient',
+        configured_type: 'web',
+        is_dirty: true,
+        anomalies: ['Detached from its branch'],
+      },
+    ]
+    await flushPromises()
+
+    expect(wrapper.find('.machine-update-row__anomalies-toggle').exists()).toBe(true)
+    const toggles = wrapper.findAll('.machine-update-row__anomalies-toggle')
+    expect(toggles).toHaveLength(1)
+    expect(toggles[0]?.attributes('aria-pressed')).toBe('false')
+    expect(wrapper.find('.machine-update-anomalies').exists()).toBe(false)
+
+    await toggles[0]?.trigger('click')
+    expect(toggles[0]?.attributes('aria-pressed')).toBe('true')
+    const list = wrapper.get('.machine-update-anomalies')
+    expect(list.text()).toContain('Repo not on official remote/branch, expected: origin/master')
+
+    await toggles[0]?.trigger('click')
+    expect(wrapper.find('.machine-update-anomalies').exists()).toBe(false)
   })
 
   it('confirms a rollback and opens the update console once it starts', async () => {
@@ -690,7 +766,10 @@ describe('MachineView', () => {
       const refreshPeripherals = vi.spyOn(machine, 'refreshPeripherals').mockResolvedValue()
       await flushPromises()
 
-      await actionByLabel(wrapper, 'Refresh').trigger('click')
+      // Icon-only, the same refresh/spinner shape as the Repository updates
+      // panel's own Check for updates control, so it is found by aria-label
+      // rather than visible text.
+      await wrapper.get('[aria-label="Refresh"]').trigger('click')
 
       expect(refreshPeripherals).toHaveBeenCalled()
     })
