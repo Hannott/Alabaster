@@ -8928,11 +8928,28 @@ select {
   }
 }
 
+/*
+ * A container query, not a viewport one: this panel's width is set by
+ * whichever track of `.machine-system-grid` it lands in (18rem-ish at the
+ * narrow end of the two-column split), not by the window. A viewport
+ * breakpoint tuned to the single-column mobile case left the desktop
+ * two/three-column range with no fallback at all, so `.machine-host-row`
+ * stayed in its row layout at any width and wrapped every word of the host
+ * text onto its own line once the CPU/RAM meters took their share.
+ */
 .machine-status-panel {
+  container-type: inline-size;
+  container-name: machine-status-panel;
   overflow: hidden;
   border: 1px solid var(--border-subtle);
   border-radius: 1.35rem;
   background: var(--surface-raised);
+}
+
+@container machine-status-panel (max-width: 26rem) {
+  .machine-host-row {
+    flex-direction: column;
+  }
 }
 
 .machine-panel-heading {
@@ -11070,8 +11087,7 @@ body.machine-editor-fullscreen-open {
 }
 
 @media (max-width: 35rem) {
-  .page-heading,
-  .machine-host-row {
+  .page-heading {
     flex-direction: column;
   }
 
