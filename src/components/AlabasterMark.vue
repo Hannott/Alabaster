@@ -94,7 +94,14 @@ function onAnimationEnd(): void {
 
 <style scoped>
 .alabaster-mark-trigger {
-  display: block;
+  /*
+   * No `display` here on purpose: both call sites are flex items (blockified
+   * regardless of their own `display`), and App.vue's header instance relies
+   * on its `mobile-brand` class winning `display: none` at desktop widths.
+   * A scoped `display: block` here compiles to `[data-v-xxxx]`, out-specifying
+   * that plain class and leaving an invisible, still-clickable button sitting
+   * in the header past the width where it's supposed to disappear.
+   */
   flex: 0 0 auto;
   padding: 0;
   margin: 0;
