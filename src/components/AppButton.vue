@@ -160,7 +160,7 @@ const props = withDefaults(
      */
     type?: 'button' | 'submit' | 'reset' | undefined
   }>(),
-  { size: 'md', type: 'button' },
+  { size: 'sm', type: 'button' },
 )
 
 const slots = useSlots()
