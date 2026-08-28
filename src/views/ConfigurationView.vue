@@ -166,6 +166,8 @@ const pendingCreateDirectory = ref(false)
 const pendingRename = ref<MachineFileEntry | null>(null)
 const draggingEntry = ref<MachineFileEntry | null>(null)
 const dropTargetKey = ref<string | null>(null)
+/** Viewport coordinates the custom drag ghost below follows; null while nothing is dragging. */
+const dragGhostPosition = ref<{ x: number; y: number } | null>(null)
 const pendingMove = ref<PendingMove | null>(null)
 // Counts nested dragenter/dragleave pairs across the whole file list, since
 // the browser fires both on every descendant the pointer crosses. Only 0 means
@@ -173,6 +175,18 @@ const pendingMove = ref<PendingMove | null>(null)
 const externalDragDepth = ref(0)
 let explorerResizeTimer: ReturnType<typeof setTimeout> | null = null
 let contentSearchTimer: ReturnType<typeof setTimeout> | null = null
+/*
+ * Passed to setDragImage in onDragStart to suppress the browser's own drag
+ * image (a snapshot of the whole row, columns and all) in favour of the
+ * `.machine-drag-ghost` pill rendered below, which needs a real element to
+ * react to the current drop target — a native drag image is fixed at
+ * dragstart and neither Chrome nor Safari redraws it afterwards. Created
+ * once and preloaded eagerly rather than in onDragStart itself, since a
+ * still-loading image has no pixels for the browser to snapshot as blank.
+ */
+const dragGhostSuppressionImage = new Image()
+dragGhostSuppressionImage.src =
+  'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBTAA7'
 
 /** Debounced so content search runs once typing pauses, not once per keystroke. */
 function scheduleContentSearch(): void {
@@ -815,13 +829,28 @@ function onDragStart(event: DragEvent, entry: MachineFileEntry): void {
     return
   }
   draggingEntry.value = entry
+  dragGhostPosition.value = { x: event.clientX, y: event.clientY }
   event.dataTransfer?.setData('text/plain', entryPathOf(entry))
-  if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move'
+  if (event.dataTransfer) {
+    event.dataTransfer.effectAllowed = 'move'
+    event.dataTransfer.setDragImage(dragGhostSuppressionImage, 0, 0)
+  }
 }
 
 function onDragEnd(): void {
   draggingEntry.value = null
   dropTargetKey.value = null
+  dragGhostPosition.value = null
+}
+
+/**
+ * Keeps the custom drag ghost under the pointer. Bound on the window rather
+ * than the file list so the ghost keeps tracking even over the gaps between
+ * rows and the list's own padding, which fire no row-level dragover.
+ */
+function trackDragGhost(event: DragEvent): void {
+  if (!draggingEntry.value) return
+  dragGhostPosition.value = { x: event.clientX, y: event.clientY }
 }
 
 /** Whether the dragged file can land on this row. */
@@ -1593,6 +1622,7 @@ onMounted(() => {
   // shortcut) fires no keyup here, which would otherwise leave the hotlink
   // cursor stuck on until the next unrelated keypress.
   window.addEventListener('blur', clearLinkModifierState)
+  window.addEventListener('dragover', trackDragGhost)
 })
 
 /*
@@ -1625,6 +1655,7 @@ onBeforeUnmount(() => {
   window.removeEventListener('keydown', updateLinkModifierState)
   window.removeEventListener('keyup', updateLinkModifierState)
   window.removeEventListener('blur', clearLinkModifierState)
+  window.removeEventListener('dragover', trackDragGhost)
   document.body.classList.remove('machine-editor-fullscreen-open')
   if (explorerResizeTimer) clearTimeout(explorerResizeTimer)
   if (contentSearchTimer) clearTimeout(contentSearchTimer)
@@ -2499,6 +2530,30 @@ onBeforeUnmount(() => {
       @confirm="confirmSaveAllAndRestart"
       @cancel="pendingRestartWithUnsaved = false"
     />
+
+    <!--
+      Stands in for the browser's own drag image, which onDragStart suppresses
+      with a transparent pixel. Teleported to the body so it is never clipped
+      by the explorer's scroll container, and positioned with a transform
+      rather than left/top so tracking the pointer never triggers layout.
+      The move icon appears only once `dropTargetKey` names a folder the file
+      can actually land on — the same condition that already draws that row's
+      drop-target ring — so the ghost never promises a move that canDropOn
+      would refuse.
+    -->
+    <Teleport to="body">
+      <div
+        v-if="draggingEntry && dragGhostPosition"
+        class="machine-drag-ghost"
+        :style="{
+          transform: `translate3d(${dragGhostPosition.x + 14}px, ${dragGhostPosition.y + 18}px, 0)`,
+        }"
+        aria-hidden="true"
+      >
+        <AppIcon v-if="dropTargetKey" name="folderMoveTo" class="size-4 shrink-0" />
+        <span class="machine-drag-ghost__name">{{ draggingEntry.name }}</span>
+      </div>
+    </Teleport>
 
     <FileContextMenu
       v-if="contextMenu"

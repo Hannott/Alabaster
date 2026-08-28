@@ -43,6 +43,7 @@ export type AppIconName =
   | 'fileUpload'
   | 'folder'
   | 'folderCode'
+  | 'folderMoveTo'
   | 'folderPlus'
   | 'folderUp'
   | 'forward'
@@ -774,6 +775,24 @@ defineProps<{ name: AppIconName }>()
       <path
         fill-rule="evenodd"
         d="M19.25 21.005H4.75A2.755 2.755 0 0 1 2 18.255v-12.5a2.755 2.755 0 0 1 2.75-2.75h4.81l2.5 2.5h7.19A2.755 2.755 0 0 1 22 8.255v10a2.755 2.755 0 0 1-2.75 2.75m-14.5-16.5c-.69 0-1.25.56-1.25 1.25v12.5c0 .69.56 1.25 1.25 1.25h14.5c.69 0 1.25-.56 1.25-1.25V8.25c0-.69-.56-1.25-1.25-1.25h-7.81l-2.5-2.5H4.75zm9.78 13.025l-1.06-1.06l2.97-2.97l-2.97-2.97l1.06-1.06l3.145 3.145c.485.485.485 1.28 0 1.77zm-8.205-3.145L9.47 17.53l1.06-1.06l-2.97-2.97l2.97-2.97l-1.06-1.06l-3.145 3.145a1.26 1.26 0 0 0 0 1.77"
+      />
+    </g>
+    <!--
+      Carbon's "folder-move-to" glyph (IBM, Apache-2.0 licensed) — a folder
+      with an arrow entering it, for the drag ghost that follows a file onto
+      a destination folder in the Configuration explorer. Drawn on Carbon's
+      own 32x32 grid, scaled 0.75x to this file's 24x24 viewBox; both origins
+      sit at (0,0), so the scale alone lines it up with no translate.
+    -->
+    <g
+      v-else-if="name === 'folderMoveTo'"
+      fill="currentColor"
+      stroke="none"
+      transform="scale(0.75)"
+    >
+      <path d="m18 13l-1.41 1.41L19.17 17H10v2h9.17l-2.58 2.59L18 23l5-5z" />
+      <path
+        d="m11.172 6l3.414 3.414l.586.586H28v16H4V6zm0-2H4a2 2 0 0 0-2 2v20a2 2 0 0 0 2 2h24a2 2 0 0 0 2-2V10a2 2 0 0 0-2-2H16l-3.414-3.414A2 2 0 0 0 11.172 4"
       />
     </g>
     <!--

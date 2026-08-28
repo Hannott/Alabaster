@@ -9875,6 +9875,43 @@ body.machine-editor-fullscreen-open {
   opacity: 0.45;
 }
 
+/*
+ * The custom drag ghost that replaces the browser's own row snapshot — see
+ * the Teleport in ConfigurationView.vue. Never tilted: it is a label
+ * following the pointer, not a lifted physical object. Its icon mounts and
+ * unmounts with dropTargetKey with no transition of its own, the same as the
+ * drop-target ring on the row underneath it.
+ */
+.machine-drag-ghost {
+  position: fixed;
+  inset-block-start: 0;
+  inset-inline-start: 0;
+  z-index: 130;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.85rem;
+  border-radius: 999px;
+  border: 1px solid var(--border-subtle);
+  background-color: var(--surface-raised);
+  box-shadow: 0 0.75rem 2rem color-mix(in srgb, var(--ito-black) 16%, transparent);
+  color: var(--text-primary);
+  font-size: var(--text-row-name-size);
+  font-weight: var(--font-weight);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.machine-drag-ghost svg {
+  color: var(--action-primary);
+}
+
+.machine-drag-ghost__name {
+  max-width: 40vw;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .machine-file-list {
   min-height: 0;
   flex: 1;
