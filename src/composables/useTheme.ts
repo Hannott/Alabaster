@@ -1,6 +1,12 @@
 import { computed, readonly, ref } from 'vue'
 
-import { defaultThemePackId, isThemePackId, type ThemePackId, themePacks } from '@/themes/registry'
+import {
+  defaultThemePackId,
+  isThemePackId,
+  lockedModeFor,
+  type ThemePackId,
+  themePacks,
+} from '@/themes/registry'
 
 /** What the user asked for. `system` is not a fourth visual theme — it means "whatever `prefers-color-scheme` says right now." */
 export type ThemeMode = 'dark' | 'light' | 'system'
@@ -33,21 +39,39 @@ function effectiveTheme(mode: ThemeMode): EffectiveTheme {
 }
 
 const mode = ref<ThemeMode>(getInitialMode())
-const theme = ref<EffectiveTheme>(effectiveTheme(mode.value))
 const themePack = ref<ThemePackId>(getInitialThemePack())
+
+/**
+ * The stored preference, overridden by the active pack's own lock when it has
+ * one — see `registry.ts`'s `lockedMode`. The preference itself is never
+ * touched here, so switching to an unlocked pack later resolves back to
+ * whatever `mode` was already asking for.
+ */
+function resolvedTheme(): EffectiveTheme {
+  return lockedModeFor(themePack.value) ?? effectiveTheme(mode.value)
+}
+
+const theme = ref<EffectiveTheme>(resolvedTheme())
 
 function applyTheme(nextTheme: EffectiveTheme): void {
   theme.value = nextTheme
   document.documentElement.dataset.theme = nextTheme
 }
 
+function refreshTheme(): void {
+  applyTheme(resolvedTheme())
+}
+
 /**
  * `system` has to keep following the OS after it is chosen, not just read it
  * once — otherwise switching the OS theme while Alabaster is open would do
  * nothing until the next reload, which is the one thing "system" promises.
+ * Recomputing through `resolvedTheme` rather than applying `event.matches`
+ * directly is what keeps a locked pack from being knocked out of its one mode
+ * by an OS change that no longer has any say while that pack is active.
  */
-function handleSystemPreferenceChange(event: MediaQueryListEvent): void {
-  if (mode.value === 'system') applyTheme(event.matches ? 'dark' : 'light')
+function handleSystemPreferenceChange(): void {
+  if (mode.value === 'system') refreshTheme()
 }
 
 if (typeof window.matchMedia === 'function') {
@@ -59,20 +83,25 @@ if (typeof window.matchMedia === 'function') {
 function setMode(nextMode: ThemeMode): void {
   mode.value = nextMode
   localStorage.setItem(themeStorageKey, nextMode)
-  applyTheme(effectiveTheme(nextMode))
+  refreshTheme()
 }
 
 function setThemePack(nextThemePack: ThemePackId): void {
   themePack.value = nextThemePack
   document.documentElement.dataset.themePack = nextThemePack
   localStorage.setItem(themePackStorageKey, nextThemePack)
+  refreshTheme()
 }
 
-applyTheme(theme.value)
+// `setThemePack` both sets the pack attribute and applies the resolved theme,
+// so this one call covers the `data-theme` attribute `applyTheme` would
+// otherwise need a separate initial call to set.
 setThemePack(themePack.value)
 
 export function useTheme() {
   const isDark = computed(() => theme.value === 'dark')
+  /** The active pack's own mode, when it has one — see `registry.ts`'s `lockedMode`. */
+  const lockedMode = computed(() => lockedModeFor(themePack.value))
 
   return {
     isDark,
@@ -83,10 +112,12 @@ export function useTheme() {
     mode: readonly(mode),
     themePack: readonly(themePack),
     themePacks,
+    lockedMode,
     /**
-     * The header's quick toggle: an explicit choice, same as it always was.
-     * It never re-enters `system` — the Settings page is the only way back
-     * there, since a binary icon has no third state to represent.
+     * A binary quick-toggle between light and dark, for a future control that
+     * has no room for a third state. Always an explicit choice — it never
+     * re-enters `system` — since the Settings page's Mode group is the only
+     * way back there. No shipped UI calls this today.
      */
     toggleTheme: () => setMode(isDark.value ? 'light' : 'dark'),
   }

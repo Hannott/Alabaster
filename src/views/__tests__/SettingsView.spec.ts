@@ -753,6 +753,26 @@ describe('SettingsView — language and theme', () => {
     expect(rows.map((row) => row.text())).toEqual(['System', 'Light', 'Dark'])
   })
 
+  it('disables the mode radios and explains why, while a mode-locked pack is active', async () => {
+    const wrapper = await mountView()
+    const select = wrapper.get('#theme-pack-select')
+
+    // Terminal locks dark — see themes/registry.ts's `lockedMode`.
+    await select.setValue('terminal')
+
+    const rows = wrapper
+      .findAll('.check-row')
+      .filter((row) => row.find('input[name="theme-mode"]').exists())
+
+    for (const row of rows) {
+      expect(row.get('input[type="radio"]').attributes('disabled')).toBeDefined()
+    }
+    expect(wrapper.text()).toContain('Terminal only supports Dark mode.')
+
+    // Reset so later tests in this file see the default, unlocked pack.
+    await select.setValue('alabaster')
+  })
+
   it('offers a typeface picker defaulting to Source Code Pro, not the dyslexia-friendly option', async () => {
     const wrapper = await mountView()
     const select = wrapper.get('#font-select')

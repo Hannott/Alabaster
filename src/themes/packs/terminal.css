@@ -1,0 +1,315 @@
+/*
+ * Midnight terminal: a CRT phosphor screen in dark mode, a dot-matrix
+ * printout in light mode. Exempt from the Okabe-Ito and WCAG floors under
+ * src/themes/README.md's "Custom packs may break every other rule" -- every
+ * value below is a raw literal chosen for period-correct hue, not derived
+ * from palette.css or measured for contrast.
+ */
+:root[data-theme-pack='terminal'][data-theme='dark'] {
+  color-scheme: dark;
+  --surface-canvas: #050805;
+  --surface-canvas-glass: rgba(5, 10, 5, 0.86);
+  --surface-raised: #0b120b;
+  --surface-soft: #101a10;
+  --surface-strong: #000000;
+  --surface-on-strong-soft: rgba(57, 255, 20, 0.12);
+  --viewer-surface: #050805;
+  --viewer-grid: rgba(57, 255, 20, 0.16);
+  --viewer-shadow: rgba(0, 0, 0, 0.6);
+  --viewer-nozzle: #ffb000;
+  --viewer-extrusion: #39ff14;
+  --viewer-progress: #ffb000;
+  --viewer-seam: #ff33cc;
+  --viewer-axis-x: #ff5c33;
+  --viewer-axis-y: #39ff14;
+  --viewer-axis-z: #00e5ff;
+  --viewer-accent: #39ff14;
+  --viewer-feature-perimeter-outer: #00e5ff;
+  --viewer-feature-perimeter-inner: #39ff14;
+  --viewer-feature-infill: #ffb000;
+  --viewer-feature-infill-solid: #ff5c33;
+  --viewer-feature-bridge: #ff33cc;
+  --viewer-feature-support: #b026ff;
+  --viewer-feature-skirt: #f0f000;
+  --viewer-feature-other: #4d6b52;
+  --viewer-feed-slow: #3377ff;
+  --viewer-feed-fast: #ff1744;
+  --mesh-low-deep: #00394d;
+  --mesh-low: #00b3e6;
+  --mesh-middle: #0f1a10;
+  --mesh-high: #ffb000;
+  --mesh-high-deep: #ff3b1f;
+  --mesh-plane: rgba(57, 255, 20, 0.25);
+  --text-primary: #4dff7f;
+  --text-muted: rgba(77, 255, 127, 0.6);
+  --text-on-strong: #4dff7f;
+  --text-on-strong-muted: rgba(77, 255, 127, 0.6);
+  --text-on-strong-faint: rgba(77, 255, 127, 0.35);
+  --border-subtle: rgba(77, 255, 127, 0.18);
+  --action-primary: #39ff14;
+  --action-on-primary: #04150a;
+  --accent-primary: var(--action-primary);
+  --focus-ring: #ffb000;
+  --interaction-veil: rgba(77, 255, 127, 0.1);
+  --interaction-veil-strong: rgba(77, 255, 127, 0.16);
+  --status-offline: rgba(120, 150, 130, 0.55);
+  --status-available: #39ff14;
+  --status-recovering: #ffb000;
+  --status-danger: #ff2b3d;
+  --status-danger-soft: rgba(255, 43, 61, 0.16);
+  --status-danger-text: #ff5c68;
+  --status-danger-strong: #b3001f;
+  --status-on-danger: #fff5f5;
+  --status-danger-border: #ff2b3d;
+  --status-caution-text: #ffb000;
+  --status-caution-border: #ffb000;
+  --status-caution-veil: rgba(255, 176, 0, 0.18);
+}
+
+:root[data-theme-pack='terminal'][data-theme='light'] {
+  color-scheme: light;
+  --surface-canvas: #efe8d3;
+  --surface-canvas-glass: rgba(239, 232, 211, 0.88);
+  --surface-raised: #f8f3e4;
+  --surface-soft: #e6ddc3;
+  --surface-strong: #16210f;
+  --surface-on-strong-soft: rgba(239, 232, 211, 0.14);
+  --viewer-surface: #efe8d3;
+  --viewer-grid: rgba(22, 33, 15, 0.18);
+  --viewer-shadow: rgba(22, 33, 15, 0.22);
+  --viewer-nozzle: #a15c00;
+  --viewer-extrusion: #1f5c2e;
+  --viewer-progress: #a15c00;
+  --viewer-seam: #7a3b8a;
+  --viewer-axis-x: #a3341c;
+  --viewer-axis-y: #1f5c2e;
+  --viewer-axis-z: #0e6e8c;
+  --viewer-accent: #1f5c2e;
+  --viewer-feature-perimeter-outer: #0e6e8c;
+  --viewer-feature-perimeter-inner: #1f5c2e;
+  --viewer-feature-infill: #a15c00;
+  --viewer-feature-infill-solid: #a3341c;
+  --viewer-feature-bridge: #7a3b8a;
+  --viewer-feature-support: #5a3d99;
+  --viewer-feature-skirt: #8a7a00;
+  --viewer-feature-other: #7c8a7c;
+  --viewer-feed-slow: #2d5ea3;
+  --viewer-feed-fast: #a3221b;
+  --mesh-low-deep: #0e4a63;
+  --mesh-low: #0e6e8c;
+  --mesh-middle: #ded4b4;
+  --mesh-high: #a15c00;
+  --mesh-high-deep: #a3221b;
+  --mesh-plane: rgba(22, 33, 15, 0.3);
+  --text-primary: #16210f;
+  --text-muted: rgba(22, 33, 15, 0.62);
+  --text-on-strong: #efe8d3;
+  --text-on-strong-muted: rgba(239, 232, 211, 0.68);
+  --text-on-strong-faint: rgba(239, 232, 211, 0.4);
+  --border-subtle: rgba(22, 33, 15, 0.16);
+  --action-primary: #1f5c2e;
+  --action-on-primary: #f8f3e4;
+  --accent-primary: var(--action-primary);
+  --focus-ring: #a15c00;
+  --interaction-veil: rgba(22, 33, 15, 0.06);
+  --interaction-veil-strong: rgba(22, 33, 15, 0.1);
+  --status-offline: rgba(22, 33, 15, 0.45);
+  --status-available: #1f5c2e;
+  --status-recovering: #a15c00;
+  --status-danger: #a3221b;
+  --status-danger-soft: rgba(163, 34, 27, 0.14);
+  --status-danger-text: #7a1913;
+  --status-danger-strong: #7a1913;
+  --status-on-danger: #f8f3e4;
+  --status-danger-border: #a3221b;
+  --status-caution-text: #7a4f00;
+  --status-caution-border: #a15c00;
+  --status-caution-veil: rgba(161, 92, 0, 0.16);
+}
+
+/*
+ * Component reshaping, not just recoloring, per README's "Custom packs may
+ * break every other rule": a custom pack may override spacing, radius,
+ * typography, or button and dialog shape for itself. Every selector below is
+ * scoped by the `[data-theme-pack='terminal']` attribute, which outranks the
+ * single-class rules in main.css/app-field.css/app-slider.css it replaces, so
+ * nothing here needs `!important`.
+ */
+
+[data-theme-pack='terminal'] .button {
+  border-radius: 0;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+[data-theme-pack='terminal'] .button--primary {
+  box-shadow: 0 0 10px color-mix(in srgb, var(--action-primary) 55%, transparent);
+}
+
+[data-theme-pack='terminal'] .button--critical {
+  box-shadow: 0 0 10px color-mix(in srgb, var(--status-danger-strong) 55%, transparent);
+}
+
+/* Phosphor bloom on the outline/quiet variants, which carry no fill to glow. */
+[data-theme-pack='terminal']
+  .button:hover:not(:disabled, [aria-disabled='true'], .button--primary, .button--critical),
+[data-theme-pack='terminal'] .button:focus-visible:not(.button--primary, .button--critical) {
+  text-shadow: 0 0 6px currentColor;
+}
+
+[data-theme-pack='terminal'] .field,
+[data-theme-pack='terminal'] .app-field__box,
+[data-theme-pack='terminal'] .app-slider__entry {
+  border-radius: 0;
+}
+
+[data-theme-pack='terminal'] .app-field__label,
+[data-theme-pack='terminal'] .app-slider__label {
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+[data-theme-pack='terminal'] .app-slider__reset,
+[data-theme-pack='terminal'] .app-slider__stepper,
+[data-theme-pack='terminal'] .app-field__reset,
+[data-theme-pack='terminal'] .app-field__stepper,
+[data-theme-pack='terminal'] .app-slider__reset:focus-visible,
+[data-theme-pack='terminal'] .app-slider__stepper:focus-visible .app-slider__stepper-icon,
+[data-theme-pack='terminal'] .app-field__reset:focus-visible .app-field__reset-icon,
+[data-theme-pack='terminal'] .app-field__stepper:focus-visible .app-field__stepper-icon {
+  border-radius: 0;
+}
+
+/*
+ * The track reads as a stepped meter rather than a smooth bar, echoing a
+ * terminal's own bar-graph readouts. The thumb becomes a block cursor: a
+ * narrow rectangle rather than a dot, still centered on the (now thicker)
+ * track by the same margin-top technique app-slider.css already uses.
+ */
+[data-theme-pack='terminal'] .app-slider__track::-webkit-slider-runnable-track,
+[data-theme-pack='terminal'] .app-slider__track::-moz-range-track {
+  block-size: 0.28rem;
+  background-color: var(--border-subtle);
+}
+
+[data-theme-pack='terminal'] .app-slider__track-fill {
+  block-size: 0.28rem;
+  background-color: transparent;
+  background-image: repeating-linear-gradient(
+    to right,
+    var(--text-muted) 0,
+    var(--text-muted) 5px,
+    transparent 5px,
+    transparent 7px
+  );
+}
+
+[data-theme-pack='terminal'] .app-slider__track:hover ~ .app-slider__track-fill,
+[data-theme-pack='terminal'] .app-slider__track:active ~ .app-slider__track-fill,
+[data-theme-pack='terminal'] .app-slider__track:focus-visible ~ .app-slider__track-fill {
+  background-image: repeating-linear-gradient(
+    to right,
+    var(--app-slider-accent, var(--action-primary)) 0,
+    var(--app-slider-accent, var(--action-primary)) 5px,
+    transparent 5px,
+    transparent 7px
+  );
+}
+
+[data-theme-pack='terminal'] .app-slider__track:disabled ~ .app-slider__track-fill {
+  background-image: repeating-linear-gradient(
+    to right,
+    var(--border-subtle) 0,
+    var(--border-subtle) 5px,
+    transparent 5px,
+    transparent 7px
+  );
+}
+
+[data-theme-pack='terminal'] .app-slider__track::-webkit-slider-thumb {
+  width: 0.4rem;
+  height: 0.9rem;
+  margin-top: calc((0.28rem - 0.9rem) / 2);
+  border-radius: 0;
+}
+
+[data-theme-pack='terminal'] .app-slider__track::-moz-range-thumb {
+  width: 0.4rem;
+  height: 0.9rem;
+  border-radius: 0;
+}
+
+[data-theme-pack='terminal'] .app-slider__track:hover::-webkit-slider-thumb,
+[data-theme-pack='terminal'] .app-slider__track:active::-webkit-slider-thumb,
+[data-theme-pack='terminal'] .app-slider__track:focus-visible::-webkit-slider-thumb {
+  width: 0.5rem;
+  height: 1.05rem;
+  margin-top: calc((0.28rem - 1.05rem) / 2);
+  border-radius: 0;
+}
+
+/*
+ * The console transcript as an actual CRT screen — the pack's one phosphor
+ * surface that reads as a physical monitor rather than a page background.
+ * Dark mode only: light mode's dot-matrix printout has no bezel to wear, so
+ * `.gcode-console` stays the plain paper box there.
+ *
+ * Scoped to the transcript's own class rather than a page or route, so it
+ * applies identically wherever the transcript renders — the Console page,
+ * the dashboard card, and the Calibration bench — without a second rule per
+ * host. Doubled attribute selectors (`[data-theme-pack]` and `[data-theme]`
+ * together) rather than one, matching `packs/alabaster.css`'s own light/dark
+ * scoping: `main.css`'s `.gcode-console:focus-visible` is two classes deep by
+ * pseudo-class, so a single-attribute override would tie for specificity and
+ * depend on import order to win. Two attributes plus the class outranks it
+ * outright.
+ */
+:root[data-theme-pack='terminal'][data-theme='dark'] .gcode-console {
+  border-radius: 14px;
+  box-shadow:
+    inset 0 0 2.5rem 0.4rem rgba(0, 0, 0, 0.65),
+    inset 0 0 1rem color-mix(in srgb, var(--action-primary) 35%, transparent),
+    0 0 0 4px var(--surface-strong),
+    0 6px 18px rgba(0, 0, 0, 0.45);
+  background-image: radial-gradient(
+    ellipse at 50% -20%,
+    rgba(255, 255, 255, 0.06),
+    transparent 60%
+  );
+  text-shadow: 0 0 3px currentColor;
+}
+
+/* Combined with the focus ring rather than replaced by it, so focusing the
+   transcript to scroll it by keyboard does not flatten the screen back to a
+   plain box. */
+:root[data-theme-pack='terminal'][data-theme='dark'] .gcode-console:focus-visible {
+  box-shadow:
+    inset 0 0 0 2px var(--focus-ring),
+    inset 0 0 2.5rem 0.4rem rgba(0, 0, 0, 0.65),
+    inset 0 0 1rem color-mix(in srgb, var(--action-primary) 35%, transparent),
+    0 0 0 4px var(--surface-strong);
+}
+
+/*
+ * The pack's own flourish, per README's "Custom packs may break every other
+ * rule": a static scanline overlay evoking a CRT. Fixed and pointer-events
+ * none so it never intercepts input, and un-animated so it needs no
+ * reduced-motion fallback.
+ */
+:root[data-theme-pack='terminal']::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
+  pointer-events: none;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0.05) 0px,
+    rgba(0, 0, 0, 0.05) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+  mix-blend-mode: overlay;
+}

@@ -1927,9 +1927,11 @@
       "dark": "Mørk",
       "system": "System"
     },
+    "modeLockedByPack": "{pack} støtter bare {mode}-modus.",
     "packLabel": "Aktiv temapakke",
     "packs": {
-      "alabaster": "Alabaster"
+      "alabaster": "Alabaster",
+      "terminal": "Terminal"
     },
     "fontLabel": "Skrifttype",
     "fonts": {

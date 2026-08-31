@@ -1927,9 +1927,11 @@
       "dark": "Dark",
       "system": "System"
     },
+    "modeLockedByPack": "{pack} only supports {mode} mode.",
     "packLabel": "Active theme pack",
     "packs": {
-      "alabaster": "Alabaster"
+      "alabaster": "Alabaster",
+      "terminal": "Terminal"
     },
     "fontLabel": "Typeface",
     "fonts": {

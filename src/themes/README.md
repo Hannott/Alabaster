@@ -45,8 +45,8 @@ All theme-related source lives in this directory:
    type checking, and production build must all pass.
 
 After registration, the pack is selectable under Settings → Theme pack. The
-sun/moon control changes mode without changing the selected pack, and both
-preferences persist in local storage.
+Mode radio group there (System/Light/Dark) changes mode without changing the
+selected pack, and both preferences persist in local storage.
 
 ## Bundled packs
 
@@ -57,12 +57,29 @@ preferences persist in local storage.
   document it links to: the one pack every other rule in the codebase remains
   written against, and the only pack the automated contrast tests run against
   (see "Custom packs may break every other rule" below).
-- No other pack ships today. `Kalico` shipped for a time and was removed by
-  product decision; `registry.ts`'s `isThemePackId` migrates anyone who still
-  has it selected back to `alabaster` without asking. Historical measurements
-  against Kalico's surfaces remain in [`button-system.md`](../../docs/design/button-system.md)
-  as worked examples of the contrast method, not as a claim that the pack is
-  installed.
+- `Terminal` is a non-canonical pack exercising the exemption below: a CRT
+  phosphor screen (near-black surfaces, phosphor green text and actions, amber
+  focus ring and caution) in dark mode, a dot-matrix printout (parchment
+  surfaces, dark ink green) in light mode. Every value is a raw literal chosen
+  for period-correct hue, not a palette primitive or a contrast-derived one.
+  It also reaches past color: `AppButton` turns square, monospaced, uppercase,
+  and gains a phosphor-bloom glow; `AppSlider`'s track becomes a stepped meter
+  with a block-cursor thumb in place of the round one; and both it and
+  `AppField` lose their rounded corners and gain uppercase labels. In dark mode
+  the console transcript (`.gcode-console`, shared by the Console page, the
+  dashboard card, and the Calibration bench) becomes an actual CRT screen —
+  curved corners, an inset vignette, a bezel ring, and a phosphor glow on its
+  own text — a treatment light mode's dot-matrix printout does not share,
+  since a printout has no bezel to wear. All of it lives in rules scoped to
+  `[data-theme-pack='terminal']` in `packs/terminal.css`, which the exemption's
+  own scoping rule permits — none of it touches `main.css`, `app-field.css`,
+  `app-slider.css`, or the components themselves. The pack also adds one rule
+  outside the token contract entirely, a static scanline overlay (`::after` on
+  `:root[data-theme-pack='terminal']`).
+
+A pack that is removed by product decision is dropped from `themePacks`
+entirely; `registry.ts`'s `isThemePackId` migrates anyone who still has it
+selected back to `alabaster` without asking.
 
 ## Custom packs may break every other rule
 
@@ -76,11 +93,12 @@ written against the **canonical `alabaster` pack** and against shared
 component code. Any other pack is exempt from all of it, entirely and on
 purpose.
 
-**The failure this prevents:** Kalico's own entry above used to end "while
-retaining Alabaster's layout and interaction language" — a compromise forced
-on it because every rule elsewhere in the codebase was phrased as universal,
-not "universal for the one pack the product ships by default." Faithfully
-reproducing a printer firmware's or a person's own visual identity often means
+**The failure this prevents:** an earlier non-canonical pack's own entry above
+used to end "while retaining Alabaster's layout and interaction language" — a
+compromise forced on it because every rule elsewhere in the codebase was
+phrased as universal, not "universal for the one pack the product ships by
+default." Faithfully reproducing a printer firmware's or a person's own visual
+identity often means
 a different corner-radius scale, a different motion budget, a button that
 does not follow the six-variant emphasis taxonomy, or a contrast ratio the
 identity being reproduced does not itself meet — and a reviewer holding a new
@@ -152,9 +170,9 @@ selectors so native controls match the pack mode.
   `src/themes/__tests__/controlContrast.spec.ts` composites every button variant
   over `--surface-raised`, `--surface-soft`, and `--surface-canvas` at rest, on
   hover, and pressed, and fails the pack below 4.5:1. Expect to tune
-  `--status-danger-text` and the two veils to your own surfaces: Kalico needs a
-  much lighter danger label than Alabaster because its dark surfaces are warm
-  mid-greys rather than near-black. See
+  `--status-danger-text` and the two veils to your own surfaces: a pack whose
+  dark surfaces are warm mid-greys rather than near-black needs a much lighter
+  danger label than Alabaster's. See
   [`docs/design/button-system.md`](../../docs/design/button-system.md) for what
   each token does.
 - **A boundary keeps its own budget, separate from its label's.**
@@ -168,10 +186,10 @@ selectors so native controls match the pack mode.
 
   How much of the hue a border can keep is set by that mode's own
   `--surface-soft`, so **each pack states its measured share in a comment beside
-  the declaration** rather than copying another pack's figure. The spread is
-  wide: three of the four light/dark combinations carry 90% vermillion, and
-  Kalico's dark carries 60%, because against a warm mid-grey nothing at or above
-  70% clears 3:1 at all.
+  the declaration** rather than copying another pack's figure. Alabaster's
+  light and dark both carry 90% vermillion, but a pack whose dark surfaces are
+  a warm mid-grey may need to settle for 60%, because against a warm mid-grey
+  nothing at or above 70% clears 3:1 at all.
 
 - **`--status-caution-veil` composites over a fill, not over a surface.** Like
   `--interaction-veil`, it lands on whatever the control is already filled with,

@@ -66,7 +66,17 @@ import type { ThemePackId } from '@/themes/registry'
 import { copyToClipboard } from '@/utils/clipboard'
 
 const { locale, t } = useI18n({ useScope: 'global' })
-const { mode: themeMode, setMode, setThemePack, themePack, themePacks } = useTheme()
+const {
+  mode: themeMode,
+  setMode,
+  setThemePack,
+  themePack,
+  themePacks,
+  lockedMode: themeLockedMode,
+} = useTheme()
+const activeThemePackLabelKey = computed(
+  () => themePacks.find((pack) => pack.id === themePack.value)?.labelKey ?? themePacks[0].labelKey,
+)
 const { fontId, fonts, setFontId } = useFont()
 const { mode: textWeightMode, setTextWeightMode } = useTextWeight()
 const { consoleFont, fonts: consoleFonts, setConsoleFont } = useConsoleFont()
@@ -1424,11 +1434,20 @@ const lastSyncedDisplay = computed(() => {
                   type="radio"
                   name="theme-mode"
                   :checked="themeMode === mode"
+                  :disabled="themeLockedMode !== null"
                   @change="setMode(mode)"
                 />
                 <span>{{ t(`theme.mode.${mode}`) }}</span>
               </label>
             </div>
+            <p v-if="themeLockedMode !== null" class="mt-2 text-xs text-muted">
+              {{
+                t('theme.modeLockedByPack', {
+                  pack: t(activeThemePackLabelKey),
+                  mode: t(`theme.mode.${themeLockedMode}`),
+                })
+              }}
+            </p>
 
             <label for="theme-pack-select" class="mt-7 block text-group-title">
               {{ t('theme.packLabel') }}
