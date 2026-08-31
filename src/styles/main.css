@@ -9952,6 +9952,7 @@ body.machine-editor-fullscreen-open {
   opacity: 1;
   transition: opacity var(--motion-duration-fast) var(--motion-ease-standard) 40ms;
   white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .machine-workspace--maximized .machine-file-meta,
@@ -9998,7 +9999,7 @@ body.machine-editor-fullscreen-open {
   display: grid;
   align-items: center;
   gap: 0.75rem;
-  grid-template-columns: minmax(0, 1fr) 4.4rem 6.7rem;
+  grid-template-columns: minmax(0, 1fr) 4.4rem 10rem;
 }
 
 .machine-file-columns {

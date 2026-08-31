@@ -2163,9 +2163,11 @@ onBeforeUnmount(() => {
                       : formatSize(entry.size)
                   }}
                 </span>
-                <span class="machine-file-meta text-xs text-muted">{{
-                  formatModified(entry.modified)
-                }}</span>
+                <span
+                  class="machine-file-meta text-xs text-muted"
+                  :title="formatModified(entry.modified)"
+                  >{{ formatModified(entry.modified) }}</span
+                >
               </button>
             </li>
 
