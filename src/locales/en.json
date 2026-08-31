@@ -1440,7 +1440,6 @@
     "clearHistoryAction": "Clear history",
     "clearHistoryConfirm": "The commands you have typed at this printer are forgotten, so the arrow keys start over. The transcript is left as it is.",
     "history": "Command history",
-    "historyHint": "Kept in this browser for this printer, and never sent anywhere.",
     "historyCount": "{count} remembered",
     "historyEmpty": "Nothing typed at this printer yet.",
     "closePanel": "Close panel",

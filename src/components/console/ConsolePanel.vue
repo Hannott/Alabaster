@@ -265,7 +265,7 @@ function requestClearHistory(): void {
             how much is remembered before offering to forget it, because the
             arrow-key history is invisible until it is gone.
           -->
-          <SurfaceSection :title="t('console.history')" :hint="t('console.historyHint')" divided>
+          <SurfaceSection :title="t('console.history')" divided>
             <p class="hint">
               {{
                 gcodeConsole.commandHistory.length > 0

@@ -1440,7 +1440,6 @@
     "clearHistoryAction": "Tøm historikk",
     "clearHistoryConfirm": "Kommandoene du har skrevet på denne skriveren glemmes, så piltastene begynner forfra. Transkriptet står som det er.",
     "history": "Kommandohistorikk",
-    "historyHint": "Lagret i denne nettleseren for denne skriveren, og sendes ingen steder.",
     "historyCount": "{count} husket",
     "historyEmpty": "Ingenting skrevet på denne skriveren ennå.",
     "closePanel": "Lukk panel",
