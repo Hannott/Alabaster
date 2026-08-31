@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, ref, useId, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, useId, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import AppButton from '@/components/AppButton.vue'
@@ -42,21 +42,21 @@ const error = computed(() => props.validate?.(value.value))
  * without a bespoke focus manager. The field is seeded and pre-selected after
  * showModal(), so a rename still supports "change one character and confirm".
  */
-watch(
-  () => props.open,
-  async (isOpen) => {
-    const element = dialog.value
-    if (!element) return
-    if (isOpen && !element.open) {
-      value.value = props.initialValue ?? ''
-      element.showModal()
-      await nextTick()
-      input.value?.select()
-    }
-    if (!isOpen && element.open) element.close()
-  },
-  { flush: 'post' },
-)
+async function sync(isOpen: boolean): Promise<void> {
+  const element = dialog.value
+  if (!element) return
+  if (isOpen && !element.open) {
+    value.value = props.initialValue ?? ''
+    element.showModal()
+    await nextTick()
+    input.value?.select()
+  }
+  if (!isOpen && element.open) element.close()
+}
+
+/** Also from mounting already open — see `ConfirmDialog` for what that costs. */
+onMounted(() => void sync(props.open))
+watch(() => props.open, sync, { flush: 'post' })
 
 onBeforeUnmount(() => {
   if (dialog.value?.open) dialog.value.close()

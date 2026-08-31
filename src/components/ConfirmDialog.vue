@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onBeforeUnmount, ref, watch } from 'vue'
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import AppButton from '@/components/AppButton.vue'
@@ -33,16 +33,24 @@ const dialog = ref<HTMLDialogElement | null>(null)
  * A native dialog gives modal focus trapping, Escape handling, and the top layer
  * without a bespoke focus manager.
  */
-watch(
-  () => props.open,
-  (isOpen) => {
-    const element = dialog.value
-    if (!element) return
-    if (isOpen && !element.open) element.showModal()
-    if (!isOpen && element.open) element.close()
-  },
-  { flush: 'post' },
-)
+function sync(isOpen: boolean): void {
+  const element = dialog.value
+  if (!element) return
+  if (isOpen && !element.open) element.showModal()
+  if (!isOpen && element.open) element.close()
+}
+
+/**
+ * Mounting already open is a real calling convention, not a mistake — a caller
+ * with many potential dialogs renders one only while it is needed, so that a
+ * Farm rail of twenty columns holds at most one `<dialog>` rather than twenty
+ * closed ones. A watcher alone never fires for it: the first `open` it could
+ * see has already happened by the time the element exists, so the dialog sat
+ * in the document unopened and every guarded action on a Farm card silently
+ * did nothing.
+ */
+onMounted(() => sync(props.open))
+watch(() => props.open, sync, { flush: 'post' })
 
 onBeforeUnmount(() => {
   if (dialog.value?.open) dialog.value.close()
