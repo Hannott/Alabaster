@@ -96,7 +96,7 @@ describe('ConsoleView', () => {
     ready()
     seed()
     const wrapper = mountView()
-    const [commands, settings] = wrapper.findAll('.console-toolbar__actions button')
+    const [commands, , settings] = wrapper.findAll('.console-toolbar__actions button')
 
     expect(wrapper.find('.console-aside').exists()).toBe(false)
     await commands?.trigger('click')
@@ -129,7 +129,7 @@ describe('ConsoleView', () => {
     ready()
     const gcodeConsole = seed()
     const wrapper = mountView()
-    const settings = wrapper.findAll('.console-toolbar__actions button')[1]
+    const settings = wrapper.findAll('.console-toolbar__actions button')[2]
     await settings?.trigger('click')
     expect(wrapper.text()).toContain('Hide timelapse commands')
 
@@ -142,7 +142,7 @@ describe('ConsoleView', () => {
     ready()
     seed()
     const wrapper = mountView()
-    await wrapper.findAll('.console-toolbar__actions button')[1]?.trigger('click')
+    await wrapper.findAll('.console-toolbar__actions button')[2]?.trigger('click')
     expect(wrapper.text()).not.toContain('Visible lines')
     expect(wrapper.get('.gcode-console').classes()).toContain('gcode-console--fill')
   })
@@ -185,7 +185,7 @@ describe('ConsoleView', () => {
     ready()
     const gcodeConsole = seed()
     const wrapper = mountView()
-    const clear = wrapper.findAll('.console-toolbar__actions button')[2]
+    const clear = wrapper.findAll('.console-toolbar__actions button')[3]
 
     expect(clear?.attributes('disabled')).toBeUndefined()
     await clear?.trigger('click')
@@ -200,7 +200,7 @@ describe('ConsoleView', () => {
     expect(gcodeConsole.consoleEntries).toEqual([])
     await flushPromises()
     expect(
-      wrapper.findAll('.console-toolbar__actions button')[2]?.attributes('disabled'),
+      wrapper.findAll('.console-toolbar__actions button')[3]?.attributes('disabled'),
     ).toBeDefined()
   })
 
@@ -210,7 +210,7 @@ describe('ConsoleView', () => {
     useConfirmationsStore().setSkip('clearConsole', true)
     const wrapper = mountView()
 
-    await wrapper.findAll('.console-toolbar__actions button')[2]?.trigger('click')
+    await wrapper.findAll('.console-toolbar__actions button')[3]?.trigger('click')
     await flushPromises()
 
     expect(gcodeConsole.consoleEntries).toEqual([])
@@ -254,5 +254,28 @@ describe('ConsoleView', () => {
       .findAll('button')
       .find((button) => button.text() === 'Clear command history')
     expect(forget?.attributes('disabled')).toBeDefined()
+  })
+
+  it('lists sent commands newest first, narrows them by search, and puts a pick back in the prompt', async () => {
+    ready()
+    const gcodeConsole = seed()
+    gcodeConsole.commandHistory = ['G28', 'BED_MESH_CALIBRATE', 'M114']
+    const wrapper = mountView()
+    const sendGcode = vi.spyOn(gcodeConsole, 'sendConsoleCommand')
+    await wrapper.findAll('.console-toolbar__actions button')[1]?.trigger('click')
+
+    const aside = wrapper.get('.console-aside')
+    const listed = () =>
+      aside.findAll('.console-browser__list button').map((button) => button.text())
+    expect(listed()).toEqual(['M114', 'BED_MESH_CALIBRATE', 'G28'])
+
+    await aside.get('.console-browser__search').setValue('bed_mesh')
+    expect(listed()).toEqual(['BED_MESH_CALIBRATE'])
+
+    await aside.get('.console-browser__list button').trigger('click')
+    expect((wrapper.get('textarea').element as HTMLTextAreaElement).value).toBe(
+      'BED_MESH_CALIBRATE',
+    )
+    expect(sendGcode).not.toHaveBeenCalled()
   })
 })

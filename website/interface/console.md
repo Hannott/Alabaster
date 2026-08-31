@@ -5,8 +5,8 @@ exactly what the printer says back. The record survives a reload.
 
 The console appears in two places. The dashboard card sends a command and
 shows the response without leaving the Overview page. The Console page reads
-back through a print's full history, sets up filters, and looks up the
-commands your machine supports.
+back through a print's full history, sets up filters, looks up the commands
+your machine supports, and searches what you have already sent it.
 
 ## Sending commands
 
@@ -45,6 +45,15 @@ command is `BED_MESH_CALIBRATE` or something else.
 Selecting a command puts it in the prompt instead of running it, so you can
 read it and add parameters before anything moves.
 
+## Browsing what you have already sent
+
+**Browse history**, on the Console page, lists every command you have sent to
+this printer, newest first, and searches it the same way command browsing
+does. Clicking one puts it back in the prompt rather than running it. Use it
+instead of stepping through with <kbd>↑</kbd> when you want to see everything
+you have typed at once, or find one command among many without walking past
+the rest.
+
 ## Reading the response stream
 
 The console follows the newest line while you are scrolled to the bottom. It
@@ -76,10 +85,9 @@ printer; it only clears your view of it. You can turn off this confirmation,
 along with every other confirmation in Alabaster, under Settings →
 Confirmations.
 
-Your typed-command history is separate. It lives under **Console settings**
-on the page, which shows how many commands it holds for this printer. It
-clears on its own, so emptying the transcript never removes the arrow-key
-history.
+Your typed-command history is separate, and lives under **Browse history**
+instead. It clears on its own, so emptying the transcript never removes what
+you have sent before.
 
 ## Filtering output
 

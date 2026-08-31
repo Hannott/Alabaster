@@ -1434,14 +1434,11 @@
     "reuseCommand": "Legg kommandoen tilbake i feltet",
     "clear": "Tøm",
     "clearTitle": "Tøm konsollet?",
-    "clearConfirm": "Transkriptet tømmes på denne enheten, og det skriveren tok vare på fra før nå blir liggende skjult — tømmingen huskes over omlastinger. Ingenting som allerede er sendt til skriveren angres.",
+    "clearConfirm": "Transkriptet tømmes på denne enheten.",
     "clearHistory": "Tøm kommandohistorikk",
     "clearHistoryTitle": "Tøm kommandohistorikken?",
     "clearHistoryAction": "Tøm historikk",
     "clearHistoryConfirm": "Kommandoene du har skrevet på denne skriveren glemmes, så piltastene begynner forfra. Transkriptet står som det er.",
-    "history": "Kommandohistorikk",
-    "historyCount": "{count} husket",
-    "historyEmpty": "Ingenting skrevet på denne skriveren ennå.",
     "closePanel": "Lukk panel",
     "kind": {
       "command": "Sendt",
@@ -1475,6 +1472,16 @@
       "count": "{count} kommandoer",
       "insert": "Legg {command} i feltet",
       "noHelp": "Ingen beskrivelse rapportert."
+    },
+    "history": {
+      "title": "Kommandohistorikk",
+      "open": "Utforsk historikk",
+      "search": "Søk i historikk",
+      "searchLabel": "Søk i kommandohistorikken",
+      "empty": "Ingen historikkoppføring passer med det.",
+      "unavailable": "Ingenting skrevet på denne skriveren ennå.",
+      "count": "{count} husket",
+      "insert": "Legg {command} i feltet"
     }
   },
   "configuration": {

@@ -6,9 +6,9 @@ import AppButton from '@/components/AppButton.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import ConsoleCommandBrowser from '@/components/console/ConsoleCommandBrowser.vue'
 import ConsoleCommandInput from '@/components/console/ConsoleCommandInput.vue'
+import ConsoleHistoryBrowser from '@/components/console/ConsoleHistoryBrowser.vue'
 import ConsoleSettingsFields from '@/components/console/ConsoleSettingsFields.vue'
 import ConsoleTranscript from '@/components/console/ConsoleTranscript.vue'
-import SurfaceSection from '@/components/dashboard/SurfaceSection.vue'
 import { macroParamsFromSettings } from '@/dashboard/macroParams'
 import { useAvailability } from '@/composables/useAvailability'
 import { useConsoleSettings } from '@/composables/useConsoleSettings'
@@ -20,7 +20,8 @@ import { usePrinterStore } from '@/stores/printer'
 
 /**
  * The full console: toolbar, transcript, prompt, and the aside that browses the
- * machine's command list or edits the settings.
+ * machine's command list, the commands this browser has already sent, or edits
+ * the settings.
  *
  * This is the Console route's own console, extracted so a second surface can
  * render it rather than approximate it. The Calibration bench is that surface,
@@ -78,9 +79,15 @@ const klipper = useAvailability('klipper')
 const { settings, update } = useConsoleSettings()
 const prompt = ref<InstanceType<typeof ConsoleCommandInput> | null>(null)
 
-/** Which aside is showing. One region rather than two, so narrow widths have one
- * thing to linearize and the toolbar has no state that survives out of view. */
-const panel = ref<'none' | 'commands' | 'settings'>('none')
+/** Which aside is showing. One region rather than three, so narrow widths have
+ * one thing to linearize and the toolbar has no state that survives out of
+ * view. */
+const panel = ref<'none' | 'commands' | 'history' | 'settings'>('none')
+const panelTitle = computed(() => {
+  if (panel.value === 'commands') return t('console.help.title')
+  if (panel.value === 'history') return t('console.history.title')
+  return t('console.settings.title')
+})
 
 const entries = computed(() =>
   filterConsoleEntries(gcodeConsole.consoleEntries, {
@@ -110,7 +117,7 @@ const transcriptLines = computed(() =>
   props.fill ? null : Math.min(Math.max(Math.round(settings.value.visibleLines), 5), 100),
 )
 
-function togglePanel(next: 'commands' | 'settings'): void {
+function togglePanel(next: 'commands' | 'history' | 'settings'): void {
   panel.value = panel.value === next ? 'none' : next
 }
 
@@ -179,6 +186,14 @@ function requestClearHistory(): void {
           <AppButton
             variant="quiet"
             size="sm"
+            icon="history"
+            :label="t('console.history.open')"
+            :aria-pressed="panel === 'history'"
+            @click="togglePanel('history')"
+          />
+          <AppButton
+            variant="quiet"
+            size="sm"
             icon="settings"
             :label="t('console.settings.open')"
             :aria-pressed="panel === 'settings'"
@@ -219,15 +234,9 @@ function requestClearHistory(): void {
       </div>
     </section>
 
-    <aside
-      v-if="panel !== 'none'"
-      class="console-aside"
-      :aria-label="panel === 'commands' ? t('console.help.title') : t('console.settings.title')"
-    >
+    <aside v-if="panel !== 'none'" class="console-aside" :aria-label="panelTitle">
       <header class="console-aside__header">
-        <h2 class="text-card-title">
-          {{ panel === 'commands' ? t('console.help.title') : t('console.settings.title') }}
-        </h2>
+        <h2 class="text-card-title">{{ panelTitle }}</h2>
         <AppButton
           variant="quiet"
           size="xs"
@@ -243,47 +252,27 @@ function requestClearHistory(): void {
           :commands="gcodeConsole.gcodeHelp"
           @select="useCommand"
         />
-        <template v-else>
-          <!--
-            `show-line-count` follows the same fact `fill` does: a console that
-            states its height in lines is one whose line count is worth
-            offering. On a pane-filling console the setting means nothing, which
-            is why the field has always been gated rather than merely hidden.
-          -->
-          <ConsoleSettingsFields
-            :settings="settings"
-            :has-timelapse="hasTimelapse"
-            :show-line-count="!fill"
-            mode="page"
-            @update="update($event)"
-          />
-          <!--
-            The history is the one thing on this panel that is stored rather
-            than displayed, so it gets a section instead of a row: the rows
-            above are shared with the card and own no state, and an action
-            among them would appear on the card's quick layer too. It says
-            how much is remembered before offering to forget it, because the
-            arrow-key history is invisible until it is gone.
-          -->
-          <SurfaceSection :title="t('console.history')" divided>
-            <p class="hint">
-              {{
-                gcodeConsole.commandHistory.length > 0
-                  ? t('console.historyCount', { count: gcodeConsole.commandHistory.length })
-                  : t('console.historyEmpty')
-              }}
-            </p>
-            <AppButton
-              size="sm"
-              start
-              :guard="clearHistoryGuard"
-              icon="trash"
-              :label="t('console.clearHistory')"
-              :disabled="gcodeConsole.commandHistory.length === 0"
-              @click="requestClearHistory"
-            />
-          </SurfaceSection>
-        </template>
+        <ConsoleHistoryBrowser
+          v-else-if="panel === 'history'"
+          :history="gcodeConsole.commandHistory"
+          :clear-guard="clearHistoryGuard"
+          @select="useCommand"
+          @clear="requestClearHistory"
+        />
+        <!--
+          `show-line-count` follows the same fact `fill` does: a console that
+          states its height in lines is one whose line count is worth
+          offering. On a pane-filling console the setting means nothing, which
+          is why the field has always been gated rather than merely hidden.
+        -->
+        <ConsoleSettingsFields
+          v-else
+          :settings="settings"
+          :has-timelapse="hasTimelapse"
+          :show-line-count="!fill"
+          mode="page"
+          @update="update($event)"
+        />
       </div>
     </aside>
 

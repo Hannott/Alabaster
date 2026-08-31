@@ -1434,14 +1434,11 @@
     "reuseCommand": "Put this command back in the prompt",
     "clear": "Clear",
     "clearTitle": "Clear the console?",
-    "clearConfirm": "The transcript is emptied on this device, and the output the printer kept from before now stays hidden — clearing is remembered across reloads. Nothing already sent to the printer is undone.",
+    "clearConfirm": "The transcript is emptied on this device only",
     "clearHistory": "Clear command history",
     "clearHistoryTitle": "Clear the command history?",
     "clearHistoryAction": "Clear history",
     "clearHistoryConfirm": "The commands you have typed at this printer are forgotten, so the arrow keys start over. The transcript is left as it is.",
-    "history": "Command history",
-    "historyCount": "{count} remembered",
-    "historyEmpty": "Nothing typed at this printer yet.",
     "closePanel": "Close panel",
     "kind": {
       "command": "Sent",
@@ -1475,6 +1472,16 @@
       "count": "{count} commands",
       "insert": "Put {command} in the prompt",
       "noHelp": "No description reported."
+    },
+    "history": {
+      "title": "Command history",
+      "open": "Browse history",
+      "search": "Search history",
+      "searchLabel": "Search command history",
+      "empty": "No history entry matches that.",
+      "unavailable": "Nothing typed at this printer yet.",
+      "count": "{count} remembered",
+      "insert": "Put {command} in the prompt"
     }
   },
   "configuration": {
