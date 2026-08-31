@@ -203,11 +203,11 @@
       "title": "Høydekart",
       "probing": "Prober — {count} punkter så langt",
       "provisional": "Formen er foreløpig mens den prober: hvert punkt plottes mot gjennomsnittet av kjøringen så langt, så den setter seg etter hvert som flere kommer inn.",
-      "scanningProbe": "Denne skriveren har en skannende probe, som sveiper over bedet i stedet for å berøre hvert punkt. Det finnes ingen rapport per punkt å følge, så kartet fylles ut når meshet er ferdig."
+      "scanningProbe": "En skannende probe rapporterer ingen framdrift per punkt — kartet fylles ut når meshet er ferdig."
     },
     "endstops": {
       "title": "Endestopp",
-      "hint": "Klipper melder disse bare når den blir spurt, så de leses på nytt hvert par sekund mens skriveren er ledig.",
+      "hint": "Leses på nytt hvert par sekund mens skriveren er ledig.",
       "refresh": "Les nå",
       "empty": "Denne skriveren melder ingen endestopp.",
       "failed": "Siste avlesning ble avvist. Verdiene under er fra forrige avlesning.",
@@ -221,7 +221,7 @@
     },
     "probe": {
       "title": "Probenøyaktighet",
-      "hint": "Gjentar ett punkt ti ganger på samme sted, så drift eller støy i selve proben vises før den skyldes på bedet.",
+      "hint": "Prober ett punkt ti ganger på samme sted.",
       "run": "Kjør nøyaktighetstest",
       "running": "Prober samme punkt gjentatte ganger — dette tar en liten stund.",
       "outsideBed": "Probens offset vil føre den utenfor bedet herfra. Flytt skrivehodet før du kjører dette.",
@@ -236,7 +236,6 @@
     },
     "sensors": {
       "title": "Tomkjøringssensorer",
-      "hint": "Lest direkte fra skriveren, så en sensor som utløses mens bedet probes vises her uten en oppdatering.",
       "empty": "Denne skriveren melder ingen filamentsensorer.",
       "detected": "Filament lastet",
       "notDetected": "Ingen filament",
@@ -244,7 +243,6 @@
     },
     "mesh": {
       "title": "Bedmesh-profiler",
-      "hint": "Hver profil bærer spredningen Klipper målte for den, så de kan sammenlignes uten å laste hver enkelt inn på skriveren.",
       "calibrate": "Kalibrer mesh",
       "save": "Lagre innlastet mesh",
       "saveTitle": "Lagre innlastet mesh",
@@ -274,7 +272,7 @@
       "runLabel": "Kjør {category}",
       "empty": "Ingenting registrert for denne testen ennå.",
       "checkNoise": "Sjekk akselerometerstøy",
-      "noiseHint": "Leser bakgrunnsvibrasjon i 2 sekunder, så et løst feste eller en vifte som berører skrivehodet vises før en ekte test bruker flere minutter på det.",
+      "noiseHint": "Leser bakgrunnsvibrasjon i 2 sekunder.",
       "noiseReading": "{axis}-akse-akselerometer — x {x}, y {y}, z {z}",
       "category": {
         "inputShaper": "Input shaper",
@@ -361,7 +359,7 @@
       "fileGone": "Denne filen finnes ikke lenger på skriveren.",
       "delete": "Fjern",
       "deleteTitle": "Fjerne denne jobben fra historikken?",
-      "deleteConfirm": "Oppføringen for {name} slettes. Totalene beholder den.",
+      "deleteConfirm": "Totalene teller den fortsatt med.",
       "auxiliary": {
         "spool": "Spole {id}",
         "spools": "Spoler {ids}"
@@ -388,7 +386,7 @@
     "title": "Timelapse",
     "list": "Timelapse-videoer",
     "refresh": "Oppdater",
-    "empty": "Ingen ferdige timelapser ennå. En dukker opp her når en utskrift er ferdig rendret.",
+    "empty": "Ingen ferdige timelapser ennå.",
     "failed": "Timelapse-mappen kunne ikke leses.",
     "download": "Last ned",
     "close": "Lukk",
@@ -400,7 +398,7 @@
   "header": {
     "applyConfig": {
       "label": "Start på nytt",
-      "title": "En konfigurasjonsfil er lagret. Klipper kjører videre på konfigurasjonen den lastet inn til fastvaren starter på nytt."
+      "title": "En konfigurasjonsfil er lagret."
     },
     "printerLabel": "Skriver",
     "printerName": "Verkstedskriver",
@@ -427,15 +425,15 @@
       "klipperControl": "Klipper-kontroll",
       "restartKlipper": "Start Klipper på nytt",
       "firmwareRestart": "Fastvare-restart",
-      "restartKlipperConfirm": "Klipper laster konfigurasjonen på nytt, og utskriften på platen avsluttes der den står. Omstart er dagligdags på en ledig maskin; denne kjører en jobb.",
-      "firmwareRestartConfirm": "Kontrollerkortet nullstilles sammen med Klipper, og utskriften på platen avsluttes der den står. Omstart er dagligdags på en ledig maskin; denne kjører en jobb.",
+      "restartKlipperConfirm": "Klipper laster konfigurasjonen på nytt, og utskriften på platen avsluttes der den står.",
+      "firmwareRestartConfirm": "Kontrollerkortet nullstilles sammen med Klipper, og utskriften på platen avsluttes der den står.",
       "serviceControl": "Tjenestekontroll",
       "restartMoonraker": "Start Moonraker på nytt",
       "hostControl": "Vertskontroll",
       "rebootHost": "Restart verten",
-      "rebootHostConfirm": "Dette starter datamaskinen som kjører Moonraker på nytt. En aktiv utskrift vil bli avbrutt.",
+      "rebootHostConfirm": "En aktiv utskrift vil bli avbrutt.",
       "shutdownHost": "Slå av verten",
-      "shutdownHostConfirm": "Dette slår av datamaskinen som kjører Moonraker. Du må ha fysisk tilgang for å skru den på igjen.",
+      "shutdownHostConfirm": "Fysisk tilgang trengs for å skru den på igjen.",
       "devicePower": "Strømbrytere",
       "turnDeviceOn": "Slå på {name}",
       "turnDeviceOff": "Slå av {name}",
@@ -462,10 +460,10 @@
   "saveConfig": {
     "open": "Lagre ny konfigurasjon",
     "title": "Lagre ny konfigurasjon?",
-    "description": "Klipper holder disse endringene. Lagring skriver dem til printer.cfg og starter Klipper på nytt.",
+    "description": "Lagring skriver disse endringene til printer.cfg og starter Klipper på nytt.",
     "save": "Lagre og start på nytt",
     "discard": "Forkast og start på nytt",
-    "whilePrinting": "En utskrift kjører, og begge handlingene starter Klipper på nytt — det ville avbryte den. Begge venter til utskriften er ferdig.",
+    "whilePrinting": "Begge handlingene starter Klipper på nytt, som ville avbryte den pågående utskriften. Begge venter til den er ferdig.",
     "valueCount": "{count} verdier",
     "summary": {
       "probe": "Probe-offset",
@@ -526,7 +524,6 @@
       "customize": "Tilpass",
       "done": "Ferdig",
       "title": "Rediger kontrollpanelet",
-      "description": "Dra moduler eller bruk knappene for å endre kolonne, rekkefølge og synlighet.",
       "viewportLabel": "Oppsettprofil",
       "viewport": {
         "desktop": "Datamaskin",
@@ -600,7 +597,7 @@
       "recentFailed": "Fillisten kunne ikke leses.",
       "confirmStart": "Starte utskrift av {filename}?",
       "confirmCancel": "Dette kan ikke angres — jobben stopper der den er og kan ikke gjenopptas.",
-      "confirmPause": "Utskriften forblir lastet og kan gjenopptas, men ingenting starter den igjen av seg selv — den venter til noen gjør det.",
+      "confirmPause": "Utskriften forblir lastet; ingenting gjenopptar den av seg selv.",
       "closeRecent": "Lukk nylige filer",
       "startFile": "Start {filename}",
       "confirmStartTitle": "Start denne utskriften?",
@@ -631,7 +628,7 @@
       "printAgain": "Skriv ut igjen",
       "dropHint": "Slipp en fil for å laste den opp og starte utskriften",
       "useSlicerProgress": "Bruk slicerens framdrift (M73)",
-      "slicerProgressHint": "Slå på M73-utdata i sliceren. Uten det rapporterer skriveren ingen slicer-framdrift, og G-kode-posisjonen brukes i stedet.",
+      "slicerProgressHint": "Krever at M73-utdata er slått på i sliceren. G-kode-posisjonen brukes ellers.",
       "slicerProgressMissing": "Denne skriveren rapporterer ikke M73-framdrift.",
       "totalTime": "Total tid",
       "printingTime": "Utskriftstid",
@@ -728,7 +725,7 @@
         "yellow": "Gul"
       },
       "presetsTitle": "Materialforvalg",
-      "presetsHint": "Hva hver knapp på kortet setter dyse og bed til. La ett felt stå tomt, og forvalget lar den varmeren stå som den er.",
+      "presetsHint": "La ett felt stå tomt, og forvalget lar den varmeren stå som den er.",
       "presetName": "Navn på forvalg",
       "presetHotend": "Dysetemperatur",
       "presetBed": "Bedtemperatur",
@@ -753,7 +750,6 @@
       "showSpeedFactor": "Vis hastighetsfaktor",
       "speedFactor": "Hastighetsfaktor",
       "swapZDirection": "Bytt Z-retning",
-      "swapZDirectionHint": "For skrivere der bedet beveger seg i stedet for gantryet, slik at Z 0 er øverst på glidebryteren i stedet for nederst.",
       "zOffsetStep": "Z-offset-steg",
       "homeAll": "Kjør alle akser til nullpunkt",
       "machineActions": "Maskinhandlinger",
@@ -786,7 +782,7 @@
         "micrometre": "µm",
         "millimetre": "mm"
       },
-      "zOffsetUnitHint": "Stegene blir {steps}; skriveren får millimeter uansett.",
+      "zOffsetUnitHint": "Skriveren får millimeter uansett.",
       "screwColumnName": "Skrue",
       "screwColumnAdjustment": "Justering",
       "summaryHeight": "Z {height}",
@@ -976,7 +972,7 @@
         "none": "Ingen kamera satt opp"
       },
       "emptyHint": {
-        "failed": "Prøv igjen, eller sjekk kameraet under Innstillinger, Kameraer.",
+        "failed": "Sjekk kameraet under Innstillinger, Kameraer.",
         "disabled": "Slå det på igjen under Innstillinger, Kameraer.",
         "unselected": "Velg kameraer i kortets innstillinger.",
         "none": "Legg til ett under Innstillinger, Kameraer."
@@ -1023,7 +1019,7 @@
       "secondsUnit": "s",
       "pressureAdvanceConfigured": "Pressure advance-modell",
       "macrosTitle": "Makroknapper",
-      "macrosEmpty": "Ingen makroer valgt ennå. Klipper definerer ingen selv, så velg dem denne skriveren har.",
+      "macrosEmpty": "Ingen makroer valgt ennå.",
       "macrosNoneSelected": "Legg til makroer fra listen under.",
       "macrosAllSelected": "Alle makroene denne skriveren rapporterer ligger allerede på kortet.",
       "showRetraction": "Vis fastvare-retraksjon",
@@ -1190,7 +1186,6 @@
       "nameTaken": "En profil med det navnet finnes allerede.",
       "scaleTitle": "Fargeskala",
       "fixedLimit": "Fast skala (± mm)",
-      "fixedLimitHint": "To mesh-er lest mot samme faste skala kan sammenlignes; en som skaleres til seg selv kan ikke det.",
       "rangeWarning": "Bedets spenn (mm)",
       "rangeWarningHint": "Kortet varsler når bedets samlede spenn passerer dette; null slår det av.",
       "temperatureWarning": "Avvik i måletemperatur (°C)",
@@ -1310,7 +1305,6 @@
     },
     "simulation": {
       "title": "Simuleringsmodus",
-      "description": "Forhåndsvis skrivehodets bane jevnt uten å sende kommandoer til skriveren.",
       "enter": "Start simulering",
       "exit": "Avslutt simulering",
       "position": "Posisjon i verktøybanen",
@@ -1447,7 +1441,7 @@
     "clearHistoryAction": "Tøm historikk",
     "clearHistoryConfirm": "Kommandoene du har skrevet på denne skriveren glemmes, så piltastene begynner forfra. Transkriptet står som det er.",
     "history": "Kommandohistorikk",
-    "historyHint": "Lagret i denne nettleseren for denne skriveren, nyeste først, og sendes ingen steder.",
+    "historyHint": "Lagret i denne nettleseren for denne skriveren, og sendes ingen steder.",
     "historyCount": "{count} husket",
     "historyEmpty": "Ingenting skrevet på denne skriveren ennå.",
     "closePanel": "Lukk panel",
@@ -1547,12 +1541,11 @@
       "openInclude": "Ctrl-klikk for å åpne {path}",
       "deadIncludeTooltip": "{path} finnes ikke. Ctrl-klikk for å opprette den.",
       "createIncludeTitle": "Opprett den manglende filen?",
-      "createIncludeDescription": "{path} finnes ikke ennå. Opprett den som en tom fil, slik at den kan redigeres?",
+      "createIncludeDescription": "{path} finnes ikke ennå. Opprett den som en tom fil?",
       "createIncludeWithFolderDescription": "Verken mappen {directory} eller {path} finnes ennå. Opprett mappen og filen?",
       "createIncludeConfirm": "Opprett fil",
       "createIncludeWithFolderConfirm": "Opprett mappe og fil",
       "emptyTitle": "Velg en konfigurasjonsfil",
-      "emptyDescription": "Velg en tekstfil fra utforskeren for å undersøke eller redigere den. Velg standard visning under.",
       "openAnyway": "Åpne likevel",
       "unsupportedTitle": "Ukjent filtype",
       "unsupportedDescription": "{name} er ikke en konfigurasjonsfil eller et støttet bilde eller nettside, og vises kanskje ikke riktig. Åpne den likevel?",
@@ -1785,9 +1778,9 @@
       "stopping": "Stopper",
       "restarting": "Starter på nytt",
       "stopConfirmTitle": "Stoppe {name}?",
-      "stopConfirmDescription": "Dette stopper {name}-tjenesten direkte. Alt den gjorde — inkludert en pågående utskrift, hvis dette er Klipper — stopper med den, og Alabaster viser den som frakoblet til den er startet igjen.",
+      "stopConfirmDescription": "Alt den gjorde — inkludert en pågående utskrift, hvis dette er Klipper — stopper med den. Alabaster viser den som frakoblet til den er startet igjen.",
       "restartConfirmTitle": "Starte {name} på nytt?",
-      "restartConfirmDescription": "Dette starter {name}-tjenesten på nytt direkte. Alt den gjorde — inkludert en pågående utskrift, hvis dette er Klipper — avbrytes mens den kommer tilbake.",
+      "restartConfirmDescription": "Alt den gjorde — inkludert en pågående utskrift, hvis dette er Klipper — avbrytes mens den kommer tilbake.",
       "status": {
         "active": "Kjører",
         "failed": "Feilet",
@@ -1896,7 +1889,7 @@
     "title": "Moonraker-tilkobling",
     "description": "Alabaster kobler til igjen i bakgrunnen og beholder gjeldende skjermbilde mens Moonraker eller Klipper starter på nytt.",
     "endpointLabel": "Moonraker-adresse",
-    "endpointHint": "Skriv inn et vertsnavn, en HTTP-adresse eller en fullstendig WebSocket-adresse. Alabaster legger til /websocket når det trengs.",
+    "endpointHint": "Godtar et vertsnavn, en HTTP-adresse eller en fullstendig WebSocket-adresse. /websocket legges til når det trengs.",
     "endpointPlaceholder": "skriver.local:7125",
     "saveAndConnect": "Lagre og koble til",
     "disconnect": "Koble fra",
@@ -1969,17 +1962,15 @@
     "description": "Dette gjelder bare mens fanen er åpen og aktiv — å bytte bort eller la skjermen låse seg opphever det til du kommer tilbake.",
     "toggle": "Hold skjermen våken mens denne fanen er åpen",
     "unsupportedBrowser": "Nettleseren din støtter ikke å holde skjermen våken.",
-    "requiresSecureContext": "Ikke tilgjengelig over en vanlig http://-adresse som en lokal IP eller et vertsnavn. Dette fungerer når Alabaster er installert på maskinen du ser den fra (localhost), eller nås over HTTPS – for eksempel via OctoEverywhere eller en lignende relétjeneste.",
+    "requiresSecureContext": "Ikke tilgjengelig over vanlig http://. Fungerer på localhost, eller over HTTPS – for eksempel via OctoEverywhere eller en lignende relétjeneste.",
     "active": "Holder for øyeblikket skjermen våken.",
     "inactiveWhileHidden": "Fortsetter når denne fanen er aktiv igjen."
   },
   "editor": {
     "eyebrow": "Redigering",
     "title": "Innrykk",
-    "description": "Hvordan konfigurasjonsredigeringen rykker inn når du trykker Tab, og når en ny linje viderefører en egenskap som G-koden i en makro. Den setter inn mellomrom, slik at en fil du redigerer her leses med samme bredde overalt den åpnes.",
     "indentLabel": "Bredde på innrykk",
-    "indentOption": "{count} mellomrom",
-    "indentHint": "Dette gjelder det du skriver. Innrykk som allerede finnes i en fil beholdes nøyaktig som det er, også tabulatorer — som vises med denne bredden."
+    "indentOption": "{count} mellomrom"
   },
   "formats": {
     "timeLabel": "Klokkeslett",
@@ -2028,7 +2019,7 @@
     "eyebrow": "Skrivere",
     "title": "Lagrede skrivere",
     "description": "Bytt herfra eller fra toppfeltet.",
-    "empty": "Ingen skrivere lagret enda. Koble til en ovenfor, eller legg til adressen nedenfor.",
+    "empty": "Ingen skrivere lagret enda.",
     "active": "Aktiv",
     "switch": "Bytt",
     "rename": "Endre navn på {name}",
@@ -2147,7 +2138,7 @@
     },
     "login": {
       "title": "Logg inn",
-      "description": "Alabaster husker økten på denne enheten, så dette trengs vanligvis bare én gang.",
+      "description": "Økten huskes på denne enheten.",
       "usernameLabel": "Brukernavn",
       "passwordLabel": "Passord",
       "sourceLabel": "Autentiseringskilde",
@@ -2171,7 +2162,7 @@
     },
     "add": {
       "title": "Legg til en bruker",
-      "description": "Logger denne enheten inn som den nye brukeren med det samme. Logg inn som deg selv igjen etterpå for å fortsette å administrere denne skriveren.",
+      "description": "Logger denne enheten inn som den nye brukeren med det samme.",
       "usernameLabel": "Brukernavn",
       "passwordLabel": "Passord",
       "submit": "Legg til bruker",
@@ -2179,7 +2170,6 @@
     },
     "apiKey": {
       "title": "API-nøkkel",
-      "description": "Brukes av andre Moonraker-klienter — mobilapper, skript — som ikke kan logge inn interaktivt.",
       "loading": "Laster …",
       "copy": "Kopier til utklippstavlen",
       "copied": "Kopiert",
@@ -2193,7 +2183,7 @@
   "confirmations": {
     "eyebrow": "Sikkerhet",
     "title": "Bekreftelser",
-    "description": "Å hake av en boks hopper over den ene dialogen fra nå av, på samme måte på hver skriver — denne innstillingen er ikke knyttet til en bestemt skriver.",
+    "description": "Å hake av en boks hopper over den dialogen fra nå av, på hver skriver.",
     "skipAll": "Hopp over alle bekreftelsesdialoger",
     "globalOverride": "Overstyrt av global innstilling",
     "groups": {
@@ -2255,7 +2245,7 @@
     },
     "groupOverride": "Gruppeinnstilling overstyrer",
     "printInterruptingSkipAll": "Hopp over alle bekreftelser som avbryter en aktiv utskrift",
-    "printInterruptingDescription": "Disse spør bare mens en jobb er lastet. Uten en utskrift i gang er hver av dem en helt vanlig handling og utføres uten spørsmål."
+    "printInterruptingDescription": "Disse spør bare mens en jobb er lastet."
   },
   "backup": {
     "eyebrow": "Sikkerhetskopi",
@@ -2268,7 +2258,7 @@
     "importConfirmDescription": "Dette erstatter dine nåværende innstillinger for tema, språk, format, bekreftelser og dashbordoppsett med det filen inneholder.",
     "reset": "Tilbakestill til standard",
     "resetConfirmTitle": "Tilbakestille innstillinger til standard?",
-    "resetConfirmDescription": "Innstillinger for tema, språk, format, bekreftelser og dashbordoppsett går alle tilbake til hvordan Alabaster starter. Skriverne du har lagt til, og eventuelle innlogginger, påvirkes ikke.",
+    "resetConfirmDescription": "Innstillinger for tema, språk, format, bekreftelser og dashbordoppsett tilbakestilles. Skrivere og innlogginger påvirkes ikke.",
     "sync": {
       "title": "Synkroniser til denne skriveren",
       "description": "Holder innstillingene over, og denne skriverens dashbordoppsett, i skriverens egen Moonraker-database — slik at de følger deg tilbake hit fra en annen nettleser eller enhet.",
@@ -2298,7 +2288,7 @@
     "accepted": "Godtatt",
     "progressValue": "{accepted} av {total}",
     "noProgress": "Ikke rapportert ennå",
-    "adjustedHint": "Justert starter runden på nytt — en skrue du har vridd mye endrer de andre.",
+    "adjustedHint": "Justert starter runden på nytt.",
     "accept": "Godta",
     "acceptTitle": "Godta denne skruen og gå til neste",
     "adjusted": "Justert",

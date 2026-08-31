@@ -1264,9 +1264,6 @@ const lastSyncedDisplay = computed(() => {
 
             <div class="mt-7 border-t border-subtle pt-7">
               <p class="text-group-title">{{ t('users.apiKey.title') }}</p>
-              <p class="mt-2 text-sm leading-6 text-muted">
-                {{ t('users.apiKey.description') }}
-              </p>
               <div class="mt-3 flex items-center gap-2">
                 <code class="min-w-0 flex-1 truncate font-mono text-xs text-primary">
                   {{ auth.apiKey ?? t('users.apiKey.loading') }}
@@ -1486,7 +1483,6 @@ const lastSyncedDisplay = computed(() => {
             <select
               id="console-font-select"
               :value="consoleFont"
-              aria-describedby="console-font-hint"
               class="field field--block mt-5 sm:max-w-sm"
               @focus="ensureAllFontsLoaded"
               @change="changeConsoleFont"
@@ -1573,9 +1569,6 @@ const lastSyncedDisplay = computed(() => {
               {{ t('editor.eyebrow') }}
             </p>
             <h2 class="mt-2 text-section-title">{{ t('editor.title') }}</h2>
-            <p class="mt-2 max-w-2xl text-sm leading-6 text-muted">
-              {{ t('editor.description') }}
-            </p>
 
             <p class="mt-7 text-group-title">{{ t('editor.indentLabel') }}</p>
             <div class="check-set mt-2">
@@ -1589,7 +1582,6 @@ const lastSyncedDisplay = computed(() => {
                 <span>{{ t('editor.indentOption', { count: width }) }}</span>
               </label>
             </div>
-            <p class="mt-2 text-sm leading-6 text-muted">{{ t('editor.indentHint') }}</p>
           </section>
 
           <section v-if="showCategory('confirmations')" class="page-card">

@@ -203,11 +203,11 @@
       "title": "Height map",
       "probing": "Probing — {count} points so far",
       "provisional": "The shape is provisional while probing: each point is plotted against the average of the run so far, so it settles as more arrive.",
-      "scanningProbe": "This printer has a scanning probe, which sweeps the bed instead of touching each point. There is no per-point report to follow, so the map fills in when the mesh finishes."
+      "scanningProbe": "A scanning probe reports no per-point progress — the map fills in when the mesh finishes."
     },
     "endstops": {
       "title": "Endstops",
-      "hint": "Klipper reports these only when asked, so they are read again every couple of seconds while the printer is idle.",
+      "hint": "Read again every couple of seconds while the printer is idle.",
       "refresh": "Read now",
       "empty": "This printer reports no endstops.",
       "failed": "The last read was refused. The readings below are the ones before it.",
@@ -221,7 +221,7 @@
     },
     "probe": {
       "title": "Probe accuracy",
-      "hint": "Repeats one point ten times in place, so drift or noise in the probe itself shows up before it's blamed on the bed.",
+      "hint": "Probes one point ten times in place.",
       "run": "Run accuracy test",
       "running": "Probing the same point repeatedly — this takes a moment.",
       "outsideBed": "The probe's offset would carry it outside the bed from here. Move the toolhead before running this.",
@@ -236,7 +236,6 @@
     },
     "sensors": {
       "title": "Runout sensors",
-      "hint": "Read live from the printer, so a sensor tripped while probing the bed shows up here without a refresh.",
       "empty": "This printer reports no filament sensors.",
       "detected": "Filament loaded",
       "notDetected": "No filament",
@@ -244,7 +243,6 @@
     },
     "mesh": {
       "title": "Bed mesh profiles",
-      "hint": "Each profile carries the spread Klipper measured for it, so they can be compared without loading each one onto the printer.",
       "calibrate": "Calibrate mesh",
       "save": "Save loaded mesh",
       "saveTitle": "Save the loaded mesh",
@@ -274,7 +272,7 @@
       "runLabel": "Run {category}",
       "empty": "Nothing recorded for this test yet.",
       "checkNoise": "Check accelerometer noise",
-      "noiseHint": "Reads background vibration for 2 seconds, so a loose mount or a rubbing fan shows up before a real test wastes minutes on it.",
+      "noiseHint": "Reads background vibration for 2 seconds.",
       "noiseReading": "{axis}-axis accelerometer — x {x}, y {y}, z {z}",
       "category": {
         "inputShaper": "Input shaper",
@@ -361,7 +359,7 @@
       "fileGone": "This file is no longer on the printer.",
       "delete": "Remove",
       "deleteTitle": "Remove this job from the history?",
-      "deleteConfirm": "The record of {name} will be deleted. The lifetime totals keep it.",
+      "deleteConfirm": "The lifetime totals still count it.",
       "auxiliary": {
         "spool": "Spool {id}",
         "spools": "Spools {ids}"
@@ -388,7 +386,7 @@
     "title": "Timelapse",
     "list": "Timelapse videos",
     "refresh": "Refresh",
-    "empty": "No rendered timelapses yet. One appears here after a print finishes rendering.",
+    "empty": "No rendered timelapses yet.",
     "failed": "The timelapse folder could not be read.",
     "download": "Download",
     "close": "Close",
@@ -400,7 +398,7 @@
   "header": {
     "applyConfig": {
       "label": "Restart to apply",
-      "title": "A configuration file was saved. Klipper keeps running the config it loaded until the firmware restarts."
+      "title": "A configuration file was saved."
     },
     "printerLabel": "Printer",
     "printerName": "Workshop printer",
@@ -427,15 +425,15 @@
       "klipperControl": "Klipper control",
       "restartKlipper": "Restart Klipper",
       "firmwareRestart": "Firmware restart",
-      "restartKlipperConfirm": "Klipper reloads its configuration and the print on the plate ends where it is. Restarting is ordinary on an idle machine; this one is running a job.",
-      "firmwareRestartConfirm": "The controller board resets along with Klipper, and the print on the plate ends where it is. Restarting is ordinary on an idle machine; this one is running a job.",
+      "restartKlipperConfirm": "Klipper reloads its configuration and the print on the plate ends where it is.",
+      "firmwareRestartConfirm": "The controller board resets along with Klipper, and the print on the plate ends where it is.",
       "serviceControl": "Service control",
       "restartMoonraker": "Restart Moonraker",
       "hostControl": "Host control",
       "rebootHost": "Reboot host",
-      "rebootHostConfirm": "This restarts the computer running Moonraker. Any active print will be interrupted.",
+      "rebootHostConfirm": "Any active print will be interrupted.",
       "shutdownHost": "Shut down host",
-      "shutdownHostConfirm": "This powers off the computer running Moonraker. You'll need physical access to turn it back on.",
+      "shutdownHostConfirm": "Physical access is needed to turn it back on.",
       "devicePower": "Device power",
       "turnDeviceOn": "Turn on {name}",
       "turnDeviceOff": "Turn off {name}",
@@ -462,10 +460,10 @@
   "saveConfig": {
     "open": "Save new config",
     "title": "Save new config?",
-    "description": "Klipper is holding these changes. Saving writes them into printer.cfg and restarts Klipper.",
+    "description": "Saving writes these changes into printer.cfg and restarts Klipper.",
     "save": "Save and restart",
     "discard": "Discard and restart",
-    "whilePrinting": "A print is running, and either action restarts Klipper — which would end it. Both wait until the print finishes.",
+    "whilePrinting": "Either action restarts Klipper, which would end the running print. Both wait until it finishes.",
     "valueCount": "{count} values",
     "summary": {
       "probe": "Probe offset",
@@ -526,7 +524,6 @@
       "customize": "Customize",
       "done": "Done",
       "title": "Edit dashboard layout",
-      "description": "Drag modules or use the buttons to change their column, order, and visibility.",
       "viewportLabel": "Layout profile",
       "viewport": {
         "desktop": "Desktop",
@@ -600,7 +597,7 @@
       "recentFailed": "The file list could not be read.",
       "confirmStart": "Start printing {filename}?",
       "confirmCancel": "This cannot be undone — the job stops where it is and cannot be resumed.",
-      "confirmPause": "The print stays loaded and can be resumed, but nothing brings it back on its own — it waits until someone does.",
+      "confirmPause": "The print stays loaded; nothing resumes it on its own.",
       "closeRecent": "Close recent files",
       "startFile": "Start {filename}",
       "confirmStartTitle": "Start this print?",
@@ -631,7 +628,7 @@
       "printAgain": "Print again",
       "dropHint": "Drop a file to upload and start printing it",
       "useSlicerProgress": "Use the slicer progress (M73)",
-      "slicerProgressHint": "Enable M73 output in your slicer. Without it the printer reports no slicer progress and the G-code position is used instead.",
+      "slicerProgressHint": "Requires M73 output enabled in your slicer. G-code position is used otherwise.",
       "slicerProgressMissing": "This printer is not reporting M73 progress.",
       "totalTime": "Total time",
       "printingTime": "Printing time",
@@ -728,7 +725,7 @@
         "yellow": "Yellow"
       },
       "presetsTitle": "Material presets",
-      "presetsHint": "What each button on the card sets the hotend and bed to. Leave one blank and the preset leaves that heater as it is.",
+      "presetsHint": "Leave one blank and the preset leaves that heater as it is.",
       "presetName": "Preset name",
       "presetHotend": "Hotend temperature",
       "presetBed": "Bed temperature",
@@ -753,7 +750,6 @@
       "showSpeedFactor": "Show speed factor",
       "speedFactor": "Speed factor",
       "swapZDirection": "Swap Z direction",
-      "swapZDirectionHint": "For printers whose bed moves rather than the gantry, so Z 0 is at the top of the slider instead of the bottom.",
       "zOffsetStep": "Z offset step",
       "homeAll": "Home all axes",
       "machineActions": "Machine actions",
@@ -786,7 +782,7 @@
         "micrometre": "µm",
         "millimetre": "mm"
       },
-      "zOffsetUnitHint": "Steps become {steps}; the printer is sent millimetres either way.",
+      "zOffsetUnitHint": "The printer is sent millimetres either way.",
       "screwColumnName": "Screw",
       "screwColumnAdjustment": "Adjustment",
       "summaryHeight": "Z {height}",
@@ -976,7 +972,7 @@
         "none": "No camera configured"
       },
       "emptyHint": {
-        "failed": "Retry, or check the camera under Settings, Cameras.",
+        "failed": "Check the camera under Settings, Cameras.",
         "disabled": "Switch it back on under Settings, Cameras.",
         "unselected": "Pick cameras in this card's settings.",
         "none": "Add one under Settings, Cameras."
@@ -1023,7 +1019,7 @@
       "secondsUnit": "s",
       "pressureAdvanceConfigured": "Pressure advance model",
       "macrosTitle": "Macro buttons",
-      "macrosEmpty": "No macros chosen yet. Klipper defines none of its own, so pick the ones this printer has.",
+      "macrosEmpty": "No macros chosen yet.",
       "macrosNoneSelected": "Add macros from the list below.",
       "macrosAllSelected": "Every macro this printer reports is already on the card.",
       "showRetraction": "Show firmware retraction",
@@ -1190,7 +1186,6 @@
       "nameTaken": "A profile with that name already exists.",
       "scaleTitle": "Colour scale",
       "fixedLimit": "Fixed scale (± mm)",
-      "fixedLimitHint": "Two meshes read against the same fixed scale can be compared; one scaled to itself cannot.",
       "rangeWarning": "Bed range (mm)",
       "rangeWarningHint": "The card warns once the bed's total range passes this; zero turns it off.",
       "temperatureWarning": "Probe temperature drift (°C)",
@@ -1310,7 +1305,6 @@
     },
     "simulation": {
       "title": "Simulation mode",
-      "description": "Preview the toolhead path smoothly without sending commands to the printer.",
       "enter": "Start simulation",
       "exit": "Exit simulation",
       "position": "Toolpath position",
@@ -1347,7 +1341,7 @@
       },
       "renderer": {
         "title": "Hardware rendering is unavailable",
-        "description": "This viewer requires WebGL 2 so large files do not block the interface."
+        "description": "This viewer requires WebGL 2."
       },
       "tooLarge": {
         "title": "File too large",
@@ -1447,7 +1441,7 @@
     "clearHistoryAction": "Clear history",
     "clearHistoryConfirm": "The commands you have typed at this printer are forgotten, so the arrow keys start over. The transcript is left as it is.",
     "history": "Command history",
-    "historyHint": "Kept in this browser for this printer, newest first, and never sent anywhere.",
+    "historyHint": "Kept in this browser for this printer, and never sent anywhere.",
     "historyCount": "{count} remembered",
     "historyEmpty": "Nothing typed at this printer yet.",
     "closePanel": "Close panel",
@@ -1547,12 +1541,11 @@
       "openInclude": "Ctrl+click to open {path}",
       "deadIncludeTooltip": "{path} does not exist. Ctrl+click to create it.",
       "createIncludeTitle": "Create the missing file?",
-      "createIncludeDescription": "{path} doesn't exist yet. Create it as an empty file so it can be edited?",
+      "createIncludeDescription": "{path} doesn't exist yet. Create it as an empty file?",
       "createIncludeWithFolderDescription": "Neither the {directory} folder nor {path} exist yet. Create the folder and the file?",
       "createIncludeConfirm": "Create file",
       "createIncludeWithFolderConfirm": "Create folder and file",
       "emptyTitle": "Choose a configuration file",
-      "emptyDescription": "Select a text file from the explorer to inspect or edit it. Select the default view below.",
       "openAnyway": "Open anyway",
       "unsupportedTitle": "Unrecognized file type",
       "unsupportedDescription": "{name} isn't a configuration file or a supported image or web page, and may not display correctly. Open it anyway?",
@@ -1785,9 +1778,9 @@
       "stopping": "Stopping",
       "restarting": "Restarting",
       "stopConfirmTitle": "Stop {name}?",
-      "stopConfirmDescription": "This stops the {name} service directly. Anything it was doing — including a print in progress, if this is Klipper — stops with it, and Alabaster shows it as disconnected until it is started again.",
+      "stopConfirmDescription": "Anything it was doing — including a print in progress, if this is Klipper — stops with it. Alabaster shows it as disconnected until it is started again.",
       "restartConfirmTitle": "Restart {name}?",
-      "restartConfirmDescription": "This restarts the {name} service directly. Anything it was doing — including a print in progress, if this is Klipper — is interrupted while it comes back up.",
+      "restartConfirmDescription": "Anything it was doing — including a print in progress, if this is Klipper — is interrupted while it comes back up.",
       "status": {
         "active": "Running",
         "failed": "Failed",
@@ -1896,7 +1889,7 @@
     "title": "Moonraker connection",
     "description": "Alabaster reconnects in the background and keeps the current screen mounted while Moonraker or Klipper restarts.",
     "endpointLabel": "Moonraker address",
-    "endpointHint": "Enter a printer hostname, an HTTP address, or a complete WebSocket address. Alabaster adds the /websocket path when needed.",
+    "endpointHint": "Accepts a hostname, an HTTP address, or a complete WebSocket address. The /websocket path is added when needed.",
     "endpointPlaceholder": "printer.local:7125",
     "saveAndConnect": "Save and connect",
     "disconnect": "Disconnect",
@@ -1969,17 +1962,15 @@
     "description": "This only holds while the tab is open and in front — switching away or letting the screen lock releases it until you return.",
     "toggle": "Keep the screen awake while this tab is open",
     "unsupportedBrowser": "Your browser doesn't support keeping the screen awake.",
-    "requiresSecureContext": "Not available over a plain http:// address such as a LAN IP or hostname. This works when Alabaster is installed on the machine you're viewing it from (localhost), or reached over HTTPS — for example through OctoEverywhere or a similar relay.",
+    "requiresSecureContext": "Not available over plain http://. Works on localhost, or over HTTPS — for example through OctoEverywhere or a similar relay.",
     "active": "Currently keeping the screen awake.",
     "inactiveWhileHidden": "Will resume once this tab is in front again."
   },
   "editor": {
     "eyebrow": "Editor",
     "title": "Indentation",
-    "description": "How the configuration editor indents when you press Tab, and when a new line continues a property such as a macro's G-code. It inserts spaces, so a file you edit here reads at the same width everywhere it is opened.",
     "indentLabel": "Indent width",
-    "indentOption": "{count} spaces",
-    "indentHint": "This applies to what you type. Indentation already in a file is left exactly as it is, including tabs — which are shown at this width too."
+    "indentOption": "{count} spaces"
   },
   "formats": {
     "timeLabel": "Time",
@@ -2028,7 +2019,7 @@
     "eyebrow": "Printers",
     "title": "Saved printers",
     "description": "Switch from here or from the header.",
-    "empty": "No printers saved yet. Connect to one above, or add its address below.",
+    "empty": "No printers saved yet.",
     "active": "Active",
     "switch": "Switch",
     "rename": "Rename {name}",
@@ -2147,7 +2138,7 @@
     },
     "login": {
       "title": "Log in",
-      "description": "Alabaster remembers the session on this device, so this is normally only needed once.",
+      "description": "The session is remembered on this device.",
       "usernameLabel": "Username",
       "passwordLabel": "Password",
       "sourceLabel": "Authentication source",
@@ -2171,7 +2162,7 @@
     },
     "add": {
       "title": "Add a user",
-      "description": "Logs this device in as the new user immediately. Log back in as yourself afterward to keep managing this printer.",
+      "description": "Logs this device in as the new user immediately.",
       "usernameLabel": "Username",
       "passwordLabel": "Password",
       "submit": "Add user",
@@ -2179,7 +2170,6 @@
     },
     "apiKey": {
       "title": "API key",
-      "description": "Used by other Moonraker clients — mobile apps, scripts — that can't log in interactively.",
       "loading": "Loading…",
       "copy": "Copy to clipboard",
       "copied": "Copied",
@@ -2193,7 +2183,7 @@
   "confirmations": {
     "eyebrow": "Safety",
     "title": "Confirmations",
-    "description": "Checking a box skips that one dialog from now on, the same way on every printer — this preference is not scoped per printer.",
+    "description": "Checking a box skips that dialog from now on, on every printer.",
     "skipAll": "Skip all confirmation dialogs",
     "globalOverride": "Global setting override",
     "groups": {
@@ -2255,7 +2245,7 @@
     },
     "groupOverride": "Group setting override",
     "printInterruptingSkipAll": "Skip every confirmation that interrupts an active print",
-    "printInterruptingDescription": "These ask only while a job is loaded. With no print running each one is an ordinary action and goes ahead without a word."
+    "printInterruptingDescription": "These ask only while a job is loaded."
   },
   "backup": {
     "eyebrow": "Backup",
@@ -2268,7 +2258,7 @@
     "importConfirmDescription": "This replaces your current theme, language, format, confirmation, and dashboard-layout settings with whatever the file contains.",
     "reset": "Reset to defaults",
     "resetConfirmTitle": "Reset settings to their defaults?",
-    "resetConfirmDescription": "Theme, language, format, confirmation, and dashboard-layout settings all return to how Alabaster starts out. The printers you've added, and any logins, are not affected.",
+    "resetConfirmDescription": "Theme, language, format, confirmation, and dashboard-layout settings are reset. Printers and logins are not affected.",
     "sync": {
       "title": "Sync to this printer",
       "description": "Keeps the settings above, and this printer's dashboard layout, in that printer's own Moonraker database — so they follow you back here from another browser or device.",
@@ -2298,7 +2288,7 @@
     "accepted": "Accepted",
     "progressValue": "{accepted} of {total}",
     "noProgress": "Not reported yet",
-    "adjustedHint": "Adjusted starts the round over — a screw you turned a lot changes the others.",
+    "adjustedHint": "Adjusted starts the round over.",
     "accept": "Accept",
     "acceptTitle": "Accept this screw and move to the next",
     "adjusted": "Adjusted",

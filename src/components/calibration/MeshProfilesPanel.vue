@@ -81,7 +81,6 @@ function validateMeshName(value: string, except?: string): string | undefined {
     <header class="calibration-panel__header">
       <div>
         <h2 class="calibration-panel__title">{{ t('calibration.mesh.title') }}</h2>
-        <p class="calibration-panel__hint">{{ t('calibration.mesh.hint') }}</p>
       </div>
       <div class="calibration-panel__actions">
         <AppButton

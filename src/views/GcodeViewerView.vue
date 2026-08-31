@@ -2220,7 +2220,6 @@ onBeforeUnmount(() => {
             <header>
               <div>
                 <h2>{{ t('gcodeViewer.simulation.title') }}</h2>
-                <p>{{ t('gcodeViewer.simulation.description') }}</p>
               </div>
               <AppButton
                 size="sm"

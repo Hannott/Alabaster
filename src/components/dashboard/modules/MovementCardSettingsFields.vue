@@ -193,8 +193,5 @@ const swapZDirection = computed(() => readMovementCardSetting(config.value, 'swa
         @toggle="quick.setQuick('swapZDirection', $event)"
       />
     </div>
-    <p v-if="mode === 'pane'" class="surface-section__hint">
-      {{ t('dashboard.movement.swapZDirectionHint') }}
-    </p>
   </div>
 </template>

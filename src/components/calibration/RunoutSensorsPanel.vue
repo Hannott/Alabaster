@@ -19,7 +19,6 @@ const runoutSensors = useRunoutSensorsStore()
     <header class="calibration-panel__header">
       <div>
         <h2 class="calibration-panel__title">{{ t('calibration.sensors.title') }}</h2>
-        <p class="calibration-panel__hint">{{ t('calibration.sensors.hint') }}</p>
       </div>
     </header>
 

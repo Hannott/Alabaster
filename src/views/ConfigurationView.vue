@@ -2507,9 +2507,6 @@ onBeforeUnmount(() => {
             <h2 class="mt-5 text-section-title">
               {{ t('configuration.editor.emptyTitle') }}
             </h2>
-            <p class="mt-2 max-w-md text-sm leading-relaxed text-muted">
-              {{ t('configuration.editor.emptyDescription') }}
-            </p>
             <div
               class="segmented machine-editor-mode machine-editor-mode--empty"
               role="group"

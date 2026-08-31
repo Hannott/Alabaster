@@ -601,7 +601,6 @@ function setColumnWidth(width: DashboardColumnWidth): void {
           <AppIcon name="drag" class="size-5 shrink-0 text-data-sky" aria-hidden="true" />
           <div class="min-w-0">
             <p class="text-card-title">{{ t('dashboard.layout.title') }}</p>
-            <p class="mt-0.5 text-xs text-muted">{{ t('dashboard.layout.description') }}</p>
           </div>
         </div>
         <div class="segmented" :aria-label="t('dashboard.layout.viewportLabel')">

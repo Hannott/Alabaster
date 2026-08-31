@@ -68,6 +68,5 @@ const fixedLimit = computed(() => configNumber(config.value, 'fixedLimit', fixed
       commit-on-drag
       @commit="(value) => updateConfig({ fixedLimit: value })"
     />
-    <p class="module-settings__hint">{{ t('dashboard.bedMesh.fixedLimitHint') }}</p>
   </template>
 </template>
