@@ -1977,6 +1977,11 @@
     "consoleWeight": {
       "regular": "Normal",
       "bold": "Fet"
+    },
+    "pageHeadersLabel": "Sidetitler",
+    "pageHeaders": {
+      "show": "Vis",
+      "hide": "Skjul"
     }
   },
   "display": {

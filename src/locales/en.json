@@ -1977,6 +1977,11 @@
     "consoleWeight": {
       "regular": "Regular",
       "bold": "Bold"
+    },
+    "pageHeadersLabel": "Page headers",
+    "pageHeaders": {
+      "show": "Show",
+      "hide": "Hide"
     }
   },
   "display": {

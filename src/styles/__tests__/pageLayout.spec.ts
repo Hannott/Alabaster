@@ -117,15 +117,20 @@ describe('page layout contract', () => {
     expect(heading, 'PageHeading must not grow a standing description').not.toContain(
       'page-heading__description',
     )
-    // The one recipe every page-heading action uses — see button-system.md's
+
+    // The one recipe the row's *inline* action uses — see button-system.md's
     // migration map — so an action never arrives at a size or variant that
     // does not fit the row's fixed height. `md` `on-soft` and nothing else:
     // the size and variant props must stay absent, since either one present
-    // is a route having chosen its own.
-    expect(heading, 'PageHeading action must be an AppButton').toMatch(/<AppButton\b/)
-    expect(heading, 'PageHeading action must be on-soft').toMatch(/(?:^|\s)on-soft(?:\s|$)/m)
-    expect(heading, 'PageHeading action must not choose a size').not.toMatch(/\bsize="/)
-    expect(heading, 'PageHeading action must not choose a variant').not.toMatch(/\bvariant="/)
+    // is a route having chosen its own. Scoped to the `<header>` block itself
+    // rather than the whole file: "Page headers: hide" adds a floating
+    // fallback below it with its own documented recipe (a `primary` `md`
+    // trigger, a plain `sm` menu row), which legitimately does choose both.
+    const inlineAction = heading.slice(heading.indexOf('<header'), heading.indexOf('</header>'))
+    expect(inlineAction, 'PageHeading action must be an AppButton').toMatch(/<AppButton\b/)
+    expect(inlineAction, 'PageHeading action must be on-soft').toMatch(/(?:^|\s)on-soft(?:\s|$)/m)
+    expect(inlineAction, 'PageHeading action must not choose a size').not.toMatch(/\bsize="/)
+    expect(inlineAction, 'PageHeading action must not choose a variant').not.toMatch(/\bvariant="/)
   })
 
   it('reserves one fixed row height for the page heading, whether or not a route has an action', () => {

@@ -8724,6 +8724,97 @@ select {
   line-height: 1.15;
 }
 
+/*
+ * "Page headers: hide" (Settings → Appearance, `usePageHeaders`). The row
+ * keeps its DOM — the title stays reachable to assistive technology and a
+ * route's action stays mounted for `PageHeadingFab` to reveal — but
+ * contributes nothing to layout, so the page's own content sits close under
+ * the application header. `.sr-only`'s own declarations, repeated rather than
+ * shared as a class: applying `.sr-only` to the title directly would touch
+ * the one literal `<h1 class="page-heading__title">` string
+ * `pageLayout.spec.ts` matches, so the collapse lives on the ancestor instead.
+ */
+.page-heading--collapsed {
+  min-height: 0;
+  overflow: hidden;
+  /*
+   * Claws back half of `.standard-page`/`.workspace-page`'s own `gap: 1rem`
+   * flex gap, which still applies to a zero-height item. Paired with the
+   * halved `padding-top` below so the *whole* gap between the application
+   * header and the page's real content is cut in half, not just this half of
+   * it.
+   */
+  margin-block-end: -0.5rem;
+}
+
+.page-heading--collapsed .page-heading__title {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/*
+ * The other half of the collapsed gap: `--page-shell-pad-top` is what the
+ * application header and an ordinary, visible heading are already separated
+ * by, so it is also the one variable that has to shrink to shrink the space
+ * above a *collapsed* one. `:has()` reads the collapsed marker back off the
+ * child rather than duplicating this under `usePageHeaders`' own condition a
+ * second time in script, so the two page shells stay the only place this
+ * value is set.
+ */
+.standard-page:has(> .page-heading--collapsed),
+.workspace-page:has(> .page-heading--collapsed) {
+  /*
+   * Both the physical and the flow-relative property: the base rule sets
+   * `padding-top`, the narrow-width override below sets `padding-block-start`,
+   * and this selector's higher specificity (an extra class plus `:has()`) only
+   * wins over whichever one of the two is actually active at a given width if
+   * both are overridden here.
+   */
+  padding-top: calc(var(--page-shell-pad-top, 0rem) / 2);
+  padding-block-start: calc(var(--page-shell-pad-top, 0rem) / 2);
+}
+
+/*
+ * The floating trigger `PageHeading.vue` renders in the inline action's place
+ * once the row above is collapsed. Fixed to the viewport rather than to
+ * `.standard-page`'s own scroll region, so it stays reachable at the same
+ * corner regardless of scroll position — the same reason `.toast-stack` and
+ * `.dashboard-drag-ghost` are fixed rather than absolute. `HeaderMenu`
+ * supplies the panel itself (`placement="above"`, `align="end"`, exactly the
+ * mobile overflow navigation's own recipe for a trigger pinned to a screen
+ * corner); this only places the trigger.
+ */
+.page-heading-fab {
+  position: fixed;
+  inset-block-end: 1.5rem;
+  inset-inline-end: 1.5rem;
+  z-index: 40;
+}
+
+/*
+ * The rotate is the "spin" — `AppIcon`'s `name` swaps between the two ant
+ * design glyphs in the same frame, so the transform is what makes the swap
+ * read as one shape turning into the other rather than a hard cut. `fast`
+ * plus a plain `rotate` stays inside ADR 0004's ordinary motion vocabulary
+ * (a small icon change, not a continuous decorative loop), so it needs no
+ * exception of its own and no bespoke reduced-motion override — the
+ * application-wide rule already collapses it.
+ */
+.page-heading-fab__icon {
+  transition: transform var(--motion-duration-fast) var(--motion-ease-standard);
+}
+
+.page-heading-fab__icon--open {
+  transform: rotate(180deg);
+}
+
 .page-card {
   border: 1px solid var(--border-subtle);
   background: var(--surface-raised);
@@ -10956,6 +11047,17 @@ body.machine-editor-fullscreen-open {
 
   .machine-system-grid {
     grid-template-columns: 1fr;
+  }
+
+  /*
+   * `.mobile-navigation` floats over this same corner below 64rem
+   * (`bottom-3` plus its own padded row, the same clearance the page shells'
+   * own `padding-block-end` above buys). Raised to clear it rather than
+   * measured against it exactly, matching how loosely the shells' own
+   * clearance already tracks that bar's height.
+   */
+  .page-heading-fab {
+    inset-block-end: 5.5rem;
   }
 }
 

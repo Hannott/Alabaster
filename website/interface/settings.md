@@ -128,6 +128,11 @@ from a distance, and a lighter weight for a screen viewed up close.
 the interface. They apply to the console transcript, its prompt, and its
 command history, on both the dashboard card and the Console page.
 
+**Page headers** — Show or hide every page's title row. Hiding it pulls each
+page's content up under the header. A page with its own action — Timelapse's
+refresh, Dashboard's customize — moves that action into a button in the
+bottom-right corner; opening it reveals the action rather than losing it.
+
 ## Display
 
 **Keep the screen awake while this tab is open.** Use this for a shop-floor

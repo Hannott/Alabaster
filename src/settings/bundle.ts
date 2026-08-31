@@ -37,9 +37,10 @@ import { isRecord } from '@/utils/records'
  * Everything Backup/export, Backup/import, and Moonraker-DB sync
  * (`stores/settingsSync.ts`) read and write, in one shape. Deliberately
  * excludes device ergonomics that make no sense to carry to another screen
- * (wake lock, sidebar-collapsed state, the settings category-rail pick), the
- * printer list itself (`stores/printers.ts` explains why that stays
- * browser-local) along with the hidden-destination preference that describes it
+ * (wake lock, sidebar-collapsed state, the settings category-rail pick, the
+ * page-header visibility pick — see `usePageHeaders`), the printer list
+ * itself (`stores/printers.ts` explains why that stays browser-local) along
+ * with the hidden-destination preference that describes it
  * (`composables/useHiddenDestinations.ts` — what a browser has saved is what
  * makes Farm worth offering, so "Farm hidden" would travel to a screen where
  * the reason for it does not hold), and anything in `stores/auth.ts`'s domain.

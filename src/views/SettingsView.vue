@@ -14,6 +14,7 @@ import { useConsoleWeight, type ConsoleWeightMode } from '@/composables/useConso
 import { useEditorIndent } from '@/composables/useEditorIndent'
 import { useFont } from '@/composables/useFont'
 import { useHiddenDestinations } from '@/composables/useHiddenDestinations'
+import { usePageHeaders, type PageHeaderVisibility } from '@/composables/usePageHeaders'
 import { useSettingsCategory, type SettingsCategory } from '@/composables/useSettingsCategory'
 import { useTextWeight, type TextWeightMode } from '@/composables/useTextWeight'
 import { useTheme, type ThemeMode } from '@/composables/useTheme'
@@ -68,6 +69,7 @@ const { fontId, fonts, setFontId } = useFont()
 const { mode: textWeightMode, setTextWeightMode } = useTextWeight()
 const { consoleFont, fonts: consoleFonts, setConsoleFont } = useConsoleFont()
 const { mode: consoleWeightMode, setConsoleWeightMode } = useConsoleWeight()
+const { mode: pageHeaderVisibility, setPageHeaderVisibility } = usePageHeaders()
 const { timeMode, dateMode, dateCustomPattern, setTimeMode, setDateMode, setDateCustomPattern } =
   useDateTimeFormatMode()
 const wakeLock = useWakeLock()
@@ -90,6 +92,7 @@ const textWeightModes: readonly TextWeightMode[] = [
   'bold',
 ]
 const consoleWeightModes: readonly ConsoleWeightMode[] = ['regular', 'bold']
+const pageHeaderVisibilities: readonly PageHeaderVisibility[] = ['show', 'hide']
 const timeFormatModes: readonly TimeFormatMode[] = ['auto', 'h23', 'h12']
 
 // Fixed rather than live: every option's parenthesized example reads off the
@@ -1515,6 +1518,19 @@ const lastSyncedDisplay = computed(() => {
                   @change="setConsoleWeightMode(mode)"
                 />
                 <span>{{ t(`theme.consoleWeight.${mode}`) }}</span>
+              </label>
+            </div>
+
+            <p class="mt-7 text-group-title">{{ t('theme.pageHeadersLabel') }}</p>
+            <div class="check-set mt-2">
+              <label v-for="mode in pageHeaderVisibilities" :key="mode" class="check-row">
+                <input
+                  type="radio"
+                  name="page-headers"
+                  :checked="pageHeaderVisibility === mode"
+                  @change="setPageHeaderVisibility(mode)"
+                />
+                <span>{{ t(`theme.pageHeaders.${mode}`) }}</span>
               </label>
             </div>
           </section>

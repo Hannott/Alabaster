@@ -69,6 +69,7 @@ export type AppIconName =
   | 'maintenance'
   | 'mesh'
   | 'minus'
+  | 'minusCircleOutlined'
   | 'moon'
   | 'more'
   | 'move'
@@ -78,6 +79,7 @@ export type AppIconName =
   | 'pause'
   | 'pin'
   | 'play'
+  | 'plusCircleOutlined'
   | 'popout'
   | 'power'
   | 'print'
@@ -1314,6 +1316,43 @@ defineProps<{ name: AppIconName }>()
       `button-system.md` for the icon-only case this no longer is.
     -->
     <path v-else-if="name === 'bolt'" d="M13.8 4.6 8.2 12.6h3.2l-1.2 6.8 5.6-8h-3.2z" />
+    <!--
+      Ant Design's "plus-circle" outlined glyph (MIT licensed), scaled from its
+      native 1024-unit grid to this file's 24-unit one with a plain
+      `scale(24/1024)` — the path already sits centred on that grid, so no
+      translate is needed the way `collapse` above needs one. Pairs with
+      `minusCircleOutlined` below: the floating trigger `PageHeading.vue`
+      renders in place of its inline action once "Page headers" is set to
+      hide (see interface-standards.md) swaps between the two rather than
+      morphing one shape into the other.
+    -->
+    <g
+      v-else-if="name === 'plusCircleOutlined'"
+      fill="currentColor"
+      stroke="none"
+      transform="scale(0.0234375)"
+    >
+      <path
+        d="M696 480H544V328c0-4.4-3.6-8-8-8h-48c-4.4 0-8 3.6-8 8v152H328c-4.4 0-8 3.6-8 8v48c0 4.4 3.6 8 8 8h152v152c0 4.4 3.6 8 8 8h48c4.4 0 8-3.6 8-8V544h152c4.4 0 8-3.6 8-8v-48c0-4.4-3.6-8-8-8"
+      />
+      <path
+        d="M512 64C264.6 64 64 264.6 64 512s200.6 448 448 448s448-200.6 448-448S759.4 64 512 64m0 820c-205.4 0-372-166.6-372-372s166.6-372 372-372s372 166.6 372 372s-166.6 372-372 372"
+      />
+    </g>
+    <!-- Ant Design's "minus-circle" outlined glyph (MIT licensed) — see `plusCircleOutlined` above. -->
+    <g
+      v-else-if="name === 'minusCircleOutlined'"
+      fill="currentColor"
+      stroke="none"
+      transform="scale(0.0234375)"
+    >
+      <path
+        d="M696 480H328c-4.4 0-8 3.6-8 8v48c0 4.4 3.6 8 8 8h368c4.4 0 8-3.6 8-8v-48c0-4.4-3.6-8-8-8"
+      />
+      <path
+        d="M512 64C264.6 64 64 264.6 64 512s200.6 448 448 448s448-200.6 448-448S759.4 64 512 64m0 820c-205.4 0-372-166.6-372-372s166.6-372 372-372s372 166.6 372 372s-166.6 372-372 372"
+      />
+    </g>
     <g v-else>
       <rect x="3" y="3" width="18" height="18" rx="3" />
       <path d="M9 3v18" />
