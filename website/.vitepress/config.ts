@@ -37,6 +37,7 @@ export default defineConfig({
         link: '/interface/',
         items: [
           { text: 'Dashboard', link: '/interface/overview' },
+          { text: 'Farm', link: '/interface/farm' },
           { text: 'Dashboard modules', link: '/interface/modules' },
           { text: 'Customizing the dashboard', link: '/interface/customize' },
           { text: 'Print files', link: '/interface/print-files' },

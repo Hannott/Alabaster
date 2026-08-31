@@ -46,6 +46,22 @@ export interface PrinterEntry {
    * renaming the machine would stop renaming the entry.
    */
   label: string
+  /**
+   * What the printer calls itself — `printer.info`'s hostname, learned on
+   * connection and remembered so an entry keeps its name while offline.
+   *
+   * This is the other half of `label`'s promise, which until now the product
+   * only half kept: an unnamed entry fell back to its address, so a machine
+   * that had told us it was `voron` was still displayed as `192.168.1.50:7125`.
+   * It is a separate field rather than a seeded `label` for the reason stated
+   * above — renaming the machine has to keep renaming what the entry shows, and
+   * it cannot if the observed name has been copied into the chosen one.
+   *
+   * Never written by the user, and never sent anywhere: it is refreshed from
+   * whichever connection reaches the printer, so it corrects itself the first
+   * time the machine answers to a different name.
+   */
+  discoveredName?: string
   endpoint: string
   /**
    * This printer's Moonraker `access.login` refresh token, present only for a
@@ -78,9 +94,20 @@ export function printerHost(endpoint: string): string {
   }
 }
 
-/** What a saved-printer row shows: the chosen name, or the address if there is none. */
+/**
+ * What a printer is called, best answer first: the name the user chose, then
+ * the name the printer gave for itself, then its address.
+ *
+ * The address is last rather than second because it is the one answer that is
+ * always available and never informative — on a wall of six machines reached by
+ * IP, six addresses tell the reader nothing that the ordering did not. Every
+ * surface that renders this also renders the host beside or beneath it, so
+ * preferring a name costs no information: the Farm card shows the address under
+ * the name when expanded, and both the header's switcher and Settings' printer
+ * rows show it as the row's second line.
+ */
 export function printerDisplayLabel(entry: PrinterEntry): string {
-  return entry.label || printerHost(entry.endpoint)
+  return entry.label || entry.discoveredName || printerHost(entry.endpoint)
 }
 
 interface StoredPrinters {
@@ -123,6 +150,9 @@ function readEntries(value: unknown): PrinterEntry[] {
       id,
       label: typeof candidate.label === 'string' ? candidate.label.trim() : '',
       endpoint,
+      ...(typeof candidate.discoveredName === 'string' && candidate.discoveredName.trim() !== ''
+        ? { discoveredName: candidate.discoveredName.trim() }
+        : {}),
       ...(typeof candidate.refreshToken === 'string' && candidate.refreshToken !== ''
         ? { refreshToken: candidate.refreshToken }
         : {}),
@@ -329,6 +359,30 @@ export const usePrintersStore = defineStore('printers', () => {
     return true
   }
 
+  /**
+   * Records what a printer answered when asked its own name.
+   *
+   * Called from both producers that ever learn it — the live printer store for
+   * the printer in front, and a Farm column's own connection for the rest —
+   * which is why it writes only on a real change: a rail of twenty columns
+   * reconnecting would otherwise rewrite the whole list twenty times for no
+   * difference. An empty answer is ignored rather than stored, so a printer
+   * that reports no hostname keeps whatever it was last known as.
+   */
+  function rememberDiscoveredName(id: string, name: string): boolean {
+    const trimmed = name.trim()
+    if (trimmed === '') return false
+    const index = entries.value.findIndex((entry) => entry.id === id)
+    if (index === -1) return false
+    const entry = entries.value[index]
+    if (!entry || entry.discoveredName === trimmed) return false
+    const next = [...entries.value]
+    next[index] = { ...entry, discoveredName: trimmed }
+    entries.value = next
+    persist()
+    return true
+  }
+
   function setDbSyncEnabled(id: string, enabled: boolean): boolean {
     const index = entries.value.findIndex((entry) => entry.id === id)
     if (index === -1) return false
@@ -386,6 +440,7 @@ export const usePrintersStore = defineStore('printers', () => {
     selectPrinter,
     setEndpoint,
     setLabel,
+    rememberDiscoveredName,
     setRefreshToken,
     setDbSyncEnabled,
     removePrinter,

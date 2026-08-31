@@ -14,11 +14,11 @@ interface stays up when any of them is off. See
 
 **Settings → Printers → Add a printer.**
 
-| Field     | What it does                                                               |
-| --------- | -------------------------------------------------------------------------- |
-| Address   | `printer.local:7125`, an HTTP address, or a full `ws://` address.          |
-| Name      | Optional. Leave it blank and the address is shown instead.                 |
-| Dashboard | Start blank, or copy the dashboard from a printer you have already set up. |
+| Field     | What it does                                                                                                               |
+| --------- | -------------------------------------------------------------------------------------------------------------------------- |
+| Address   | `printer.local:7125`, an HTTP address, or a full `ws://` address.                                                          |
+| Name      | Optional. Leave it blank and the printer is shown by the name it reports for itself, or by its address if it reports none. |
+| Dashboard | Start blank, or copy the dashboard from a printer you have already set up.                                                 |
 
 Copying a dashboard suits a second machine of the same model. It brings the
 layout, the modules, and their configuration, including temperature presets,
@@ -30,6 +30,16 @@ The printer menu is in the header, on every page. Picking one disconnects the
 current printer and connects the new one.
 
 The page does not reload. Modules dim, then fill with the new machine's data.
+
+## Seeing them all at once
+
+With two or more printers saved, the [Farm](/interface/farm) page appears in the
+sidebar: every machine side by side, live, with the controls you need for the
+one that wants attention. Switching stays where it is — the menu is one click
+from every page, the Farm page is somewhere you go.
+
+If you keep several printers but work on one at a time, turn **Show the Farm
+page** off on this card and the sidebar entry goes away.
 
 ## What follows a printer, and what does not
 

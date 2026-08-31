@@ -670,6 +670,7 @@ input[type='radio']:focus-visible,
 .brand-trigger:focus-visible,
 .file-select:focus-visible,
 .header-estop:focus-visible,
+.farm-estop:focus-visible,
 .tab-select:focus-visible,
 .text-action:focus-visible,
 .history-trend__hit:focus-visible {
@@ -5299,6 +5300,83 @@ input.z-axis__slider {
  */
 .filament-catalogue-dialog {
   max-width: min(32rem, calc(100vw - 2rem));
+}
+
+/*
+ * The Farm rail's file picker — `dialog-system.md`'s Shape 4, second instance.
+ * Wider than the catalogue's measure because each row carries a path, a size
+ * and a date beside two actions, where a filament row carries a name.
+ */
+.farm-files {
+  max-width: min(38rem, calc(100vw - 2rem));
+}
+
+.farm-files__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.farm-files__search {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-block-start: 0.85rem;
+  color: var(--text-muted);
+}
+
+.farm-files__note {
+  margin-block-start: 0.85rem;
+  color: var(--text-muted);
+  font-size: var(--text-meta-size);
+}
+
+/* Capped so a long list scrolls in place rather than growing the dialog. */
+.farm-files__list {
+  display: grid;
+  gap: 0.3rem;
+  max-block-size: 20rem;
+  margin-block-start: 0.85rem;
+  padding: 0;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  list-style: none;
+}
+
+.farm-files__list li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.15rem 0.75rem;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: 0.6rem;
+  background-color: var(--surface-soft);
+}
+
+.farm-files__name {
+  grid-column: 1;
+  font-size: var(--text-row-name-size);
+  font-weight: var(--font-weight-increased);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.farm-files__meta {
+  grid-column: 1;
+  grid-row: 2;
+  font-size: var(--text-meta-size);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.farm-files__actions {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  display: flex;
+  gap: 0.4rem;
 }
 
 .filament-catalogue-dialog__header {
@@ -12543,6 +12621,640 @@ body.machine-editor-fullscreen-open {
 .toast-leave-to {
   opacity: 0;
   transform: translateY(-0.5rem);
+}
+
+/*
+ * Farm rail — every saved printer on screen at once.
+ *
+ * Two widths and one height carry the whole page. A collapsed column is
+ * `--farm-column-width`; an expanded one is exactly two of those plus the gap,
+ * so expanding never knocks the rail off its rhythm and "what does this cost
+ * me" is arithmetic anyone can do at a glance: one column. The height is the
+ * page's own, so every column ends on the same line and the control docks line
+ * up across the rail.
+ *
+ * The horizontal scroll lives here and never on the document.
+ * `interface-standards.md` forbids horizontal *document* overflow and controls
+ * past the inline edge of a container that clips rather than scrolls; a region
+ * that scrolls its own overflow is the permitted half, and the two conditions
+ * that make it usable — a scrollbar that stays visible, and a further column
+ * always partly on screen — are geometry rather than decoration.
+ */
+.farm-page {
+  --farm-column-width: 18.75rem;
+  --farm-column-width-wide: 32rem;
+  --farm-column-gap: 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-height: 0;
+}
+
+.farm-rail {
+  display: flex;
+  flex: 1 1 auto;
+  gap: var(--farm-column-gap);
+  min-height: 0;
+  /*
+   * `scroll`, not `auto`, and the reason is that this rail's overflow changes
+   * as the reader works: expanding a column can push the rail past the
+   * viewport, and an appearing scrollbar would then take its height out of
+   * every column at once — every card on the wall twitching because one of them
+   * was opened. `scrollbar-gutter: stable` does not cover this, because the
+   * gutter it reserves is the inline-end one for a vertical scrollbar; there is
+   * no equivalent for the block-end edge. Reserving the track unconditionally
+   * is the only thing that holds the geometry still. Overlay scrollbars, which
+   * take no space in the first place, are unaffected either way.
+   */
+  overflow-x: scroll;
+  overflow-y: hidden;
+  padding-bottom: 0.5rem;
+  /*
+   * Proximity, not mandatory: the rail settles on a column boundary without
+   * fighting a deliberate half-scroll, which is what a reader does when they
+   * want two columns side by side rather than one aligned to the edge.
+   */
+  scroll-snap-type: x proximity;
+  scrollbar-gutter: stable;
+}
+
+/*
+ * The rail is focusable so the arrow keys can scroll it, and it takes the
+ * shared inset ring rather than an outline of its own — a floating ring around
+ * a full-page region would trace the viewport edge.
+ */
+.farm-rail:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--focus-ring);
+  border-radius: 1.35rem;
+}
+
+.farm-column {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 var(--farm-column-width);
+  inline-size: var(--farm-column-width);
+  min-height: 0;
+  scroll-snap-align: start;
+  border: 1px solid var(--border-subtle);
+  border-radius: 1.35rem;
+  background-color: var(--surface-raised);
+  overflow: hidden;
+}
+
+/*
+ * The width change is instantaneous on purpose. ADR 0004 forbids animating
+ * pane widths and grid tracks, and this is the case that rule was written for:
+ * an animated 216px change would drag every column to its right across the
+ * screen for the length of the transition.
+ */
+.farm-column--wide {
+  flex-basis: var(--farm-column-width-wide);
+  inline-size: var(--farm-column-width-wide);
+}
+
+/* Which printer the rest of the application is pointed at, without moving it. */
+.farm-column--active {
+  border-color: color-mix(in srgb, var(--accent-primary) 55%, var(--border-subtle));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent-primary) 25%, transparent);
+}
+
+/*
+ * Last-known content stays mounted and dims, per ADR 0002 — never emptied, so
+ * a printer that has gone quiet still answers "what was it doing".
+ */
+.farm-column--stale .farm-column__camera,
+.farm-column--stale .farm-job,
+.farm-column--stale .farm-body {
+  opacity: 0.45;
+}
+
+/*
+ * Aligned to the first line, not to the box.
+ *
+ * Expanding a column adds the address under its name, and centring the row
+ * against a name that is sometimes one line and sometimes two moved the chevron
+ * and the emergency stop down by half a line as the card opened — the control
+ * the reader had just clicked, sliding out from under the pointer. So the name
+ * carries a first-line box exactly as tall as the two 1.5rem controls beside
+ * it, and everything in the row hangs from the top of that line.
+ */
+.farm-column__head {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.35rem;
+  padding: 0.5rem 0.6rem;
+  border-bottom: 1px solid var(--border-subtle);
+  min-width: 0;
+}
+
+.farm-column__chevron {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  inline-size: 1.5rem;
+  block-size: 1.5rem;
+  border: 0;
+  border-radius: 0.4rem;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.farm-column__chevron:hover {
+  background-color: var(--interaction-veil);
+  color: var(--text-primary);
+}
+
+.farm-column__chevron:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--focus-ring);
+}
+
+.farm-column__name {
+  flex: 1 1 auto;
+  min-width: 0;
+  /* The chevron's and the emergency stop's own block size: see the header. */
+  line-height: 1.5rem;
+  font-size: var(--text-row-name-size);
+  font-weight: var(--font-weight-increased);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.farm-column__state {
+  margin: 0;
+  padding: 0.35rem 0.6rem;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.farm-column__host {
+  display: block;
+  line-height: 1.3;
+  font-size: var(--text-meta-size);
+  font-weight: var(--font-weight);
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/*
+ * The emergency stop, outlier 5 in `button-system.md` and its second instance.
+ * Not an `AppButton`: it is found before it is read, so a fixed danger colour
+ * and the brake glyph carry that instead of button chrome. It stays on a
+ * *collapsed* column deliberately — the reason to have it here at all is
+ * spotting a crash on a machine nobody is driving, and expanding first would be
+ * one click too many.
+ */
+.farm-estop {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  inline-size: 1.5rem;
+  block-size: 1.5rem;
+  border: 0;
+  padding: 0;
+  background: none;
+  color: var(--status-danger-text);
+  cursor: pointer;
+}
+
+.farm-estop:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.farm-chip {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.1rem 0.35rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: 0.4rem;
+  font-size: var(--text-badge-size);
+  letter-spacing: var(--text-badge-tracking);
+  font-weight: var(--font-weight-increased);
+  text-transform: uppercase;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/*
+ * State is never colour alone: the chip's word is the state, and the tone only
+ * reinforces it.
+ */
+.farm-chip[data-tone='printing'],
+.farm-chip[data-tone='active'] {
+  color: var(--accent-primary);
+  border-color: color-mix(in srgb, var(--accent-primary) 45%, var(--border-subtle));
+}
+
+.farm-chip[data-tone='paused'] {
+  color: var(--status-caution-text);
+  border-color: var(--status-caution-border);
+}
+
+.farm-chip[data-tone='error'] {
+  color: var(--status-danger-text);
+  border-color: var(--status-danger-border);
+}
+
+.farm-chip[data-tone='idle'] {
+  color: var(--status-available);
+  border-color: color-mix(in srgb, var(--status-available) 45%, var(--border-subtle));
+}
+
+.farm-column__camera {
+  flex: 0 0 auto;
+  block-size: calc(var(--farm-column-width) * 9 / 16);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.farm-column--wide .farm-column__camera {
+  block-size: calc(var(--farm-column-width-wide) * 9 / 16);
+}
+
+/*
+ * Fixed at 16:9 at both sizes rather than flexible. A taller box would either
+ * letterbox a landscape stream or crop it to a slice, and the column has a row
+ * that genuinely wants the spare height — the queue.
+ */
+.farm-column__camera--empty {
+  display: grid;
+  place-items: center;
+  gap: 0.3rem;
+  background-color: var(--surface-soft);
+  color: var(--text-muted);
+  font-size: var(--text-meta-size);
+}
+
+.farm-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0.5rem 0.6rem;
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--status-caution-text);
+  font-size: var(--text-meta-size);
+  line-height: 1.35;
+}
+
+.farm-notice__message {
+  overflow-wrap: anywhere;
+}
+
+.farm-job {
+  padding: 0.45rem 0.6rem;
+  border-bottom: 1px solid var(--border-subtle);
+  min-width: 0;
+}
+
+.farm-job__name {
+  margin: 0;
+  font-size: var(--text-meta-size);
+  font-weight: var(--font-weight-increased);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.farm-job__name--past {
+  font-weight: var(--font-weight);
+  color: var(--text-muted);
+}
+
+.farm-bar {
+  margin-top: 0.35rem;
+  block-size: 0.3rem;
+  border-radius: 999px;
+  background-color: var(--surface-soft);
+  overflow: hidden;
+}
+
+.farm-bar > span {
+  display: block;
+  block-size: 100%;
+  border-radius: 999px;
+  background-color: var(--accent-primary);
+}
+
+.farm-bar > span[data-paused='true'] {
+  background-color: var(--status-caution-text);
+}
+
+.farm-job__meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.35rem;
+  margin-top: 0.25rem;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-value-micro-size);
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+/*
+ * The only flexible region in the column, at both sizes. Everything a shorter
+ * screen takes comes out of here — the queue list scrolls inside itself and the
+ * preview shrinks — so no other row ever moves between one viewport and the
+ * next.
+ */
+.farm-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 0.5rem 0.6rem;
+  gap: 0.5rem;
+  overflow: hidden;
+}
+
+/*
+ * Expanded puts the preview beside its data rather than above it. Two reading
+ * distances — a thumbnail recognised across a room, a queue read close up —
+ * and stacking them made the eye cross the whole column to answer either
+ * question. It is also what gives the queue the vertical run it needs.
+ */
+.farm-body--split {
+  display: grid;
+  grid-template-columns: 10.625rem minmax(0, 1fr);
+  gap: 0.6rem;
+}
+
+.farm-preview {
+  min-width: 0;
+  min-height: 0;
+}
+
+.farm-preview__image {
+  inline-size: 100%;
+  aspect-ratio: 1;
+  object-fit: contain;
+  border: 1px solid var(--border-subtle);
+  border-radius: 0.7rem;
+  background-color: var(--surface-soft);
+}
+
+.farm-preview__empty {
+  inline-size: 100%;
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  border: 1px dashed var(--border-subtle);
+  border-radius: 0.7rem;
+  color: var(--text-muted);
+  font-size: var(--text-meta-size);
+}
+
+.farm-data {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  min-height: 0;
+  min-width: 0;
+}
+
+.farm-temps {
+  display: grid;
+  gap: 0.2rem;
+  margin: 0;
+}
+
+.farm-temps > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.4rem;
+}
+
+.farm-temps dt {
+  font-size: var(--text-label-caps-size);
+  letter-spacing: var(--text-label-caps-tracking);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.farm-temps dd {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--font-weight-increased);
+  font-size: var(--text-value-size);
+  white-space: nowrap;
+}
+
+.farm-temps dd i {
+  font-style: normal;
+  font-weight: var(--font-weight);
+  color: var(--text-muted);
+}
+
+.farm-filament {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0;
+  font-size: var(--text-meta-size);
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.farm-filament b {
+  color: var(--text-primary);
+}
+
+.farm-filament__swatch {
+  flex: 0 0 auto;
+  inline-size: 0.7rem;
+  block-size: 0.7rem;
+  border-radius: 999px;
+  border: 1px solid var(--border-subtle);
+  background-color: var(--surface-soft);
+}
+
+/*
+ * The rail's one nested scroll. A second would make "which thing did I just
+ * scroll" unanswerable, which is why the queue is the row allowed to overflow
+ * and everything else is sized to fit.
+ */
+.farm-queue {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border: 1px solid var(--border-subtle);
+  border-radius: 0.6rem;
+  overflow: hidden;
+}
+
+.farm-queue__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem;
+  padding: 0.25rem 0.4rem;
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: var(--text-label-caps-size);
+  letter-spacing: var(--text-label-caps-tracking);
+  text-transform: uppercase;
+  font-weight: var(--font-weight-increased);
+  color: var(--text-muted);
+}
+
+.farm-queue__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.farm-queue__list li {
+  display: flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  padding: 0.25rem 0.4rem;
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: var(--text-meta-size);
+  min-width: 0;
+}
+
+.farm-queue__list li:last-child {
+  border-bottom: 0;
+}
+
+.farm-queue__list li > span:first-child {
+  flex: 0 0 auto;
+  font-family: var(--font-mono);
+  font-size: var(--text-value-micro-size);
+  color: var(--text-muted);
+}
+
+.farm-queue__file {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.farm-queue__empty {
+  margin: 0;
+  padding: 0.35rem 0.4rem;
+  font-size: var(--text-meta-size);
+  color: var(--text-muted);
+}
+
+/*
+ * Docked to the bottom edge so the controls are in the same place on every
+ * expanded column. Buttons are disabled rather than removed between states: a
+ * control that moves position is how a rail of near-identical columns produces
+ * a wrong click.
+ */
+.farm-dock {
+  flex: 0 0 auto;
+  border-top: 1px solid var(--border-subtle);
+  padding: 0.5rem 0.6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.farm-dock__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.4rem;
+}
+
+.farm-dock__span {
+  grid-column: span 2;
+}
+
+.farm-dock__utilities {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.farm-dock__utilities > * {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.farm-home {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.farm-home__state {
+  font-size: var(--text-label-caps-size);
+  letter-spacing: var(--text-label-caps-tracking);
+  text-transform: uppercase;
+  font-weight: var(--font-weight-increased);
+  color: var(--status-caution-text);
+}
+
+/*
+ * Homed is the unremarkable state, so it recedes; not-homed is the one worth
+ * noticing. Both say which they are in words — the colour only reinforces it.
+ */
+.farm-home__state[data-homed='true'] {
+  color: var(--text-muted);
+}
+
+.farm-home__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) repeat(3, minmax(0, 1fr));
+  gap: 0.4rem;
+}
+
+@media (max-width: 63.999rem) {
+  .farm-page {
+    --farm-column-width-wide: 28rem;
+  }
+}
+
+/*
+ * A phone shows one printer at a time whatever the page does, so an expanded
+ * column takes the screen with the next one peeking, and the split stacks. The
+ * destination is deliberately still reachable here — one that exists on desktop
+ * and not on a phone is the silent cull `navigation-plan.md` forbids.
+ */
+@media (max-width: 39.999rem) {
+  .farm-page {
+    --farm-column-width: 15rem;
+    --farm-column-width-wide: calc(100vw - 3rem);
+  }
+
+  .farm-rail {
+    scroll-snap-type: x mandatory;
+  }
+
+  .farm-body--split {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /*
+   * Stacked, the preview would take its own width in height as well and push
+   * the temperatures, filament and queue out of the column entirely. Capping it
+   * keeps the split's promise at the one width where it cannot be a split: the
+   * preview shrinks first, everything else keeps its size.
+   */
+  .farm-body--split .farm-preview {
+    display: flex;
+    justify-content: center;
+  }
+
+  .farm-body--split .farm-preview__image,
+  .farm-body--split .farm-preview__empty {
+    inline-size: auto;
+    block-size: 6rem;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

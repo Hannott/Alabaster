@@ -19,12 +19,14 @@ import { useConsoleFont } from '@/composables/useConsoleFont'
 import { useConsoleWeight } from '@/composables/useConsoleWeight'
 import { useContextMenuGuard } from '@/composables/useContextMenuGuard'
 import { useFont } from '@/composables/useFont'
+import { useHiddenDestinations } from '@/composables/useHiddenDestinations'
+import { useMinimalisticSidebar } from '@/composables/useMinimalisticSidebar'
 import { useSelectValueOnFocus } from '@/composables/useSelectValueOnFocus'
 import { useSidebar } from '@/composables/useSidebar'
 import { useTextWeight } from '@/composables/useTextWeight'
 import { useWakeLock } from '@/composables/useWakeLock'
 import {
-  isDestinationSupported,
+  isDestinationVisible,
   navigationDestinations,
   type NavigationDestination,
 } from '@/navigation/destinations'
@@ -58,6 +60,8 @@ useTextWeight()
 useConsoleFont()
 useConsoleWeight()
 const { isSidebarCollapsed, toggleSidebar } = useSidebar()
+const { isMinimalisticSidebar } = useMinimalisticSidebar()
+const hiddenDestinations = useHiddenDestinations()
 const { availability: printerAvailability, messageKey: printerAvailabilityMessageKey } =
   useAvailability('klipper')
 const { availability: moonrakerAvailability } = useAvailability('moonraker')
@@ -274,11 +278,16 @@ function openPrinterSettings(): void {
  */
 const supportedDestinations = computed(() =>
   navigationDestinations.filter((destination) =>
-    isDestinationSupported(destination, {
-      hasRoot: (root) => serverCapabilities.hasRoot(root),
-      hasComponent: (component) => serverCapabilities.hasComponent(component),
-      hasConfigSection: (section) => printerConfig.hasSection(section),
-    }),
+    isDestinationVisible(
+      destination,
+      {
+        hasRoot: (root) => serverCapabilities.hasRoot(root),
+        hasComponent: (component) => serverCapabilities.hasComponent(component),
+        hasConfigSection: (section) => printerConfig.hasSection(section),
+        savedPrinters: printers.entries.length,
+      },
+      hiddenDestinations.hidden.value,
+    ),
   ),
 )
 
@@ -481,11 +490,12 @@ async function discardPendingConfig(): Promise<void> {
   <div
     class="app-shell min-h-screen bg-canvas text-primary"
     :data-sidebar-collapsed="isSidebarCollapsed"
+    :data-sidebar-minimal="isMinimalisticSidebar"
   >
     <aside class="desktop-sidebar border-e border-subtle bg-raised p-7 text-primary">
       <div class="brand-grid" aria-hidden="true"></div>
 
-      <div class="sidebar-brand relative flex items-center gap-3">
+      <div v-if="!isMinimalisticSidebar" class="sidebar-brand relative flex items-center gap-3">
         <AlabasterMark class="size-11" />
         <div class="sidebar-copy">
           <p class="text-xl font-black tracking-[-0.04em]">{{ t('app.name') }}</p>
@@ -590,7 +600,7 @@ async function discardPendingConfig(): Promise<void> {
                         <span class="min-w-0 flex-1 text-start">
                           <strong class="block truncate">{{ printerDisplayLabel(entry) }}</strong>
                           <span
-                            v-if="entry.label"
+                            v-if="printerDisplayLabel(entry) !== printerHost(entry.endpoint)"
                             class="block truncate text-[0.68rem] font-medium text-muted"
                             >{{ printerHost(entry.endpoint) }}</span
                           >

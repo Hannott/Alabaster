@@ -3,7 +3,9 @@ import { describe, expect, it } from 'vitest'
 import en from '@/locales/en.json'
 import nb from '@/locales/nb.json'
 import {
+  hideableDestinations,
   isDestinationSupported,
+  isDestinationVisible,
   navigationDestinations,
   type MachineCapabilities,
   type NavigationDestination,
@@ -111,6 +113,43 @@ describe('navigation destinations', () => {
     expect(isDestinationSupported(gated, capabilities({ hasRoot: () => false }))).toBe(false)
     expect(isDestinationSupported(gated, capabilities({ hasComponent: () => false }))).toBe(false)
     expect(isDestinationSupported(gated, capabilities({ hasConfigSection: () => false }))).toBe(
+      false,
+    )
+  })
+})
+
+describe('destinations a user may hide', () => {
+  /*
+   * Hiding is granted per destination, not offered generally: Alabaster sends
+   * people to these pages — an error that says "see Machine" is worthless if
+   * Machine can be switched off — so the list of what may be hidden is a
+   * bounded exception that has to be argued for in the registry.
+   */
+  it('is only the Farm destination', () => {
+    expect([...hideableDestinations]).toEqual(['farm'])
+  })
+
+  it('drops a hidden destination from the rail', () => {
+    expect(isDestinationVisible(destination('farm'), capabilities({ savedPrinters: 2 }), [])).toBe(
+      true,
+    )
+    expect(
+      isDestinationVisible(destination('farm'), capabilities({ savedPrinters: 2 }), ['farm']),
+    ).toBe(false)
+  })
+
+  /*
+   * A stored preference naming a destination that is not hideable must not
+   * take effect, so removing a `hideable` flag un-hides the destination rather
+   * than stranding it behind a preference nothing can clear.
+   */
+  it('ignores a hidden entry for a destination that may not be hidden', () => {
+    const capability = capabilities({ savedPrinters: 2 })
+    expect(isDestinationVisible(destination('machine'), capability, ['machine'])).toBe(true)
+  })
+
+  it('still refuses an unsupported destination whatever the preference says', () => {
+    expect(isDestinationVisible(destination('farm'), capabilities({ savedPrinters: 1 }), [])).toBe(
       false,
     )
   })

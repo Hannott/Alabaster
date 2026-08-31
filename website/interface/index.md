@@ -1,6 +1,6 @@
 # The interface
 
-Alabaster is a dashboard plus nine focused pages. This section covers each of
+Alabaster is a dashboard plus ten focused pages. This section covers each of
 them.
 
 ## Pages
@@ -8,6 +8,7 @@ them.
 | Page                                      | What it is for                                                                   |
 | ----------------------------------------- | -------------------------------------------------------------------------------- |
 | [Dashboard](/interface/overview)          | Everything you watch and touch while a print runs, in cards you arrange.         |
+| [Farm](/interface/farm)                   | Every saved printer side by side, live, with controls for the one that needs it. |
 | [Print files](/interface/print-files)     | Browsing what is on the printer, with previews and slicer data, and starting it. |
 | [Calibration](/interface/calibration)     | Bed mesh profiles, live probing, endstops, and input-shaper results.             |
 | [History](/interface/history)             | Lifetime totals, statistics over a period, and every completed job.              |

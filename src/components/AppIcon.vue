@@ -59,6 +59,7 @@ export type AppIconName =
   | 'home'
   | 'info'
   | 'jobs'
+  | 'lan'
   | 'layerNext'
   | 'layers'
   | 'left'
@@ -960,6 +961,18 @@ defineProps<{ name: AppIconName }>()
       <rect x="4" y="3" width="16" height="18" rx="3" />
       <path d="M8 7h8M8 11h8M8 15h3" />
       <circle cx="16" cy="16" r="1.5" />
+    </g>
+    <!--
+      CoreUI's "lan" glyph (MIT licensed) — one node above two, wired together:
+      the Farm rail's destination, where several machines are one place. Drawn
+      on CoreUI's own 512x512 grid and scaled to this file's 24x24 viewBox
+      (24/512 = 0.046875); both origins sit at (0,0), so the scale alone lines
+      it up with no translate.
+    -->
+    <g v-else-if="name === 'lan'" fill="currentColor" stroke="none" transform="scale(0.046875)">
+      <path
+        d="M496 272v-32H272v-48h56a24.027 24.027 0 0 0 24-24V40a24.027 24.027 0 0 0-24-24H184a24.027 24.027 0 0 0-24 24v128a24.027 24.027 0 0 0 24 24h56v48H16v32h80v48H41.391a24.03 24.03 0 0 0-24 24v128a24.03 24.03 0 0 0 24 24H184a24.027 24.027 0 0 0 24-24V344a24.027 24.027 0 0 0-24-24h-56v-48h256v48h-56a24.027 24.027 0 0 0-24 24v128a24.027 24.027 0 0 0 24 24h144a24.027 24.027 0 0 0 24-24V344a24.027 24.027 0 0 0-24-24h-56v-48ZM192 48h128v112H192Zm-16 416H49.391V352H176Zm288 0H336V352h128Z"
+      />
     </g>
     <path v-else-if="name === 'macro'" d="M13.5 3 6 13.2h4.6L9.8 21l7.7-10.2h-4.7Z" />
     <!-- Griddy Icons' "alarm" glyph (MIT licensed). -->

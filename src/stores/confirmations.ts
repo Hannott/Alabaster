@@ -52,6 +52,9 @@ export const confirmationKeys = [
   'firmwareRestart',
   'clearJobQueue',
   'excludeObject',
+  'farmCancelPrint',
+  'farmPowerOff',
+  'farmStartPrint',
   'deleteUser',
   'regenerateApiKey',
   'openLargeGcodeFile',
@@ -83,6 +86,8 @@ export const printInterruptingKeys = [
   'firmwareRestart',
   'clearJobQueue',
   'excludeObject',
+  'farmCancelPrint',
+  'farmPowerOff',
 ] as const satisfies readonly ConfirmationKey[]
 
 export type ConfirmationGroup = 'printInterrupting'

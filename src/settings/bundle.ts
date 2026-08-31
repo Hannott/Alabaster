@@ -39,7 +39,10 @@ import { isRecord } from '@/utils/records'
  * excludes device ergonomics that make no sense to carry to another screen
  * (wake lock, sidebar-collapsed state, the settings category-rail pick), the
  * printer list itself (`stores/printers.ts` explains why that stays
- * browser-local), and anything in `stores/auth.ts`'s domain.
+ * browser-local) along with the hidden-destination preference that describes it
+ * (`composables/useHiddenDestinations.ts` — what a browser has saved is what
+ * makes Farm worth offering, so "Farm hidden" would travel to a screen where
+ * the reason for it does not hold), and anything in `stores/auth.ts`'s domain.
  *
  * `version` exists so a future incompatible change to this shape has
  * somewhere to branch from; there is only one version today.

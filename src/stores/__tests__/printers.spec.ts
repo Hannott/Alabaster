@@ -234,6 +234,83 @@ describe('printerHost and printerDisplayLabel', () => {
       printerDisplayLabel({ id: 'printer', label: '', endpoint: 'ws://voron.local/websocket' }),
     ).toBe('voron.local')
   })
+
+  /*
+   * The address is the last answer, not the second one. An unnamed entry used
+   * to show it even when the printer had said what it was called, which made a
+   * wall of machines reached by IP into a wall of IP addresses.
+   */
+  it('prefers what the printer calls itself over its address', () => {
+    expect(
+      printerDisplayLabel({
+        id: 'printer',
+        label: '',
+        discoveredName: 'voron24',
+        endpoint: 'ws://192.168.1.50:7125/websocket',
+      }),
+    ).toBe('voron24')
+  })
+
+  it("still lets a chosen name win over the printer's own", () => {
+    expect(
+      printerDisplayLabel({
+        id: 'printer',
+        label: 'Left bench',
+        discoveredName: 'voron24',
+        endpoint: 'ws://192.168.1.50:7125/websocket',
+      }),
+    ).toBe('Left bench')
+  })
+})
+
+describe('remembering what a printer calls itself', () => {
+  beforeEach(() => {
+    window.localStorage.clear()
+    setActivePinia(createPinia())
+  })
+
+  it('stores the name so an offline printer keeps it', () => {
+    const printers = usePrintersStore()
+    const entry = printers.addPrinter('192.168.1.50:7125')!
+
+    expect(printers.rememberDiscoveredName(entry.id, 'voron24')).toBe(true)
+    expect(stored().entries?.[0]?.discoveredName).toBe('voron24')
+
+    // Read back from storage alone, the way a fresh page load sees it.
+    setActivePinia(createPinia())
+    expect(printerDisplayLabel(usePrintersStore().entries[0]!)).toBe('voron24')
+  })
+
+  /*
+   * Both producers report this — the live store for the printer in front, a
+   * Farm column's own connection for the rest — so a rail reconnecting must not
+   * rewrite the list once per column for no difference.
+   */
+  it('writes nothing when the name has not changed', () => {
+    const printers = usePrintersStore()
+    const entry = printers.addPrinter('192.168.1.50:7125')!
+    printers.rememberDiscoveredName(entry.id, 'voron24')
+
+    expect(printers.rememberDiscoveredName(entry.id, 'voron24')).toBe(false)
+  })
+
+  it('ignores an empty answer rather than forgetting the name', () => {
+    const printers = usePrintersStore()
+    const entry = printers.addPrinter('192.168.1.50:7125')!
+    printers.rememberDiscoveredName(entry.id, 'voron24')
+
+    expect(printers.rememberDiscoveredName(entry.id, '   ')).toBe(false)
+    expect(printers.entries[0]?.discoveredName).toBe('voron24')
+  })
+
+  it('corrects itself when the machine answers to a different name', () => {
+    const printers = usePrintersStore()
+    const entry = printers.addPrinter('192.168.1.50:7125')!
+    printers.rememberDiscoveredName(entry.id, 'voron24')
+    printers.rememberDiscoveredName(entry.id, 'trident')
+
+    expect(printers.entries[0]?.discoveredName).toBe('trident')
+  })
 })
 
 describe('scopeKeysFor', () => {

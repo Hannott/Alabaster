@@ -32,6 +32,11 @@ export const router = createRouter({
       component: pageComponent('overview'),
     },
     {
+      path: '/farm',
+      name: 'farm',
+      component: pageComponent('farm'),
+    },
+    {
       path: '/print-files',
       name: 'printFiles',
       component: pageComponent('printFiles'),

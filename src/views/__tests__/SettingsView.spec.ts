@@ -115,6 +115,40 @@ describe('SettingsView — printers', () => {
     expect(rows[1]?.text()).toContain('Switch')
   })
 
+  /*
+   * The Farm destination is the one entry in the rail a user may switch off,
+   * and this card is where the printer list it describes already lives. The
+   * switch appears exactly where it does something: on a single-printer install
+   * there is no Farm entry to hide, and a control that explained that in a hint
+   * would be explaining the product's gating to somebody who has not met the
+   * page yet.
+   */
+  it('offers the Farm switch only once a second printer makes the page real', async () => {
+    const printers = usePrintersStore(pinia)
+    printers.addPrinter('voron.local:7125')
+
+    const single = await mountView()
+    expect(single.text()).not.toContain('Show the Farm page')
+
+    printers.addPrinter('prusa.local:7125')
+    const pair = await mountView()
+    const farmSwitch = pair
+      .findAll('label.check-row')
+      .find((row) => row.text().includes('Show the Farm page'))
+
+    expect(farmSwitch).toBeDefined()
+    expect(farmSwitch?.get('input').element.checked).toBe(true)
+
+    await farmSwitch!.get('input').setValue(false)
+    expect(JSON.parse(window.localStorage.getItem('alabaster.navigation.hidden') ?? '[]')).toEqual([
+      'farm',
+    ])
+
+    // Module-level state outlives a mount by design, so it is put back rather
+    // than left hiding the destination for every test after this one.
+    await farmSwitch!.get('input').setValue(true)
+  })
+
   it('switches the connection when Switch is pressed on another printer', async () => {
     const printers = usePrintersStore(pinia)
     printers.addPrinter('voron.local:7125')

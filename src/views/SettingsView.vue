@@ -13,11 +13,13 @@ import { useConsoleFont, type ConsoleFontChoice } from '@/composables/useConsole
 import { useConsoleWeight, type ConsoleWeightMode } from '@/composables/useConsoleWeight'
 import { useEditorIndent } from '@/composables/useEditorIndent'
 import { useFont } from '@/composables/useFont'
+import { useHiddenDestinations } from '@/composables/useHiddenDestinations'
 import { useSettingsCategory, type SettingsCategory } from '@/composables/useSettingsCategory'
 import { useTextWeight, type TextWeightMode } from '@/composables/useTextWeight'
 import { useTheme, type ThemeMode } from '@/composables/useTheme'
 import { useWakeLock } from '@/composables/useWakeLock'
 import { indentWidths, type IndentWidth } from '@/features/machine/indent'
+import { navigationDestinations } from '@/navigation/destinations'
 import { ensureAllFontsLoaded, type FontId } from '@/fonts/registry'
 import { setLocale, supportedLocales, type SupportedLocale } from '@/i18n'
 import {
@@ -382,7 +384,44 @@ function submitAddPrinter(): void {
   dashboardSeed.value = 'blank'
 }
 
+const hiddenDestinations = useHiddenDestinations()
+
+/*
+ * Read off the registry rather than restated: the count that earns the
+ * destination is declared there, and a second copy here would be the one that
+ * drifts. No Farm entry at all means no switch, rather than a switch guessing
+ * at a threshold.
+ */
+const farmMinimumPrinters =
+  navigationDestinations.find((destination) => destination.name === 'farm')
+    ?.requiresSavedPrinters ?? Number.POSITIVE_INFINITY
+
+/**
+ * The Farm row is offered only where the destination is otherwise earned.
+ *
+ * A switch that does nothing is worse than no switch: on a single-printer
+ * install the rail has no Farm entry to show or hide, and a control explaining
+ * that in a hint would be explaining the product's own gating to somebody who
+ * has not met the page yet.
+ */
+const canOfferFarm = computed(() => printers.entries.length >= farmMinimumPrinters)
+
+const showsFarmDestination = computed(() => !hiddenDestinations.isHidden('farm'))
+
 const pendingRename = ref<PrinterEntry | null>(null)
+
+/**
+ * What clearing the name falls back to — which is no longer always the address.
+ * A printer that has told us what it calls itself is shown by that name, so a
+ * hint promising the address would be describing a different product.
+ */
+const renameHint = computed(() => {
+  const entry = pendingRename.value
+  if (!entry) return ''
+  if (entry.discoveredName)
+    return t('printers.renameHintDiscovered', { name: entry.discoveredName })
+  return t('printers.renameHint', { host: printerHost(entry.endpoint) })
+})
 
 function confirmRename(value: string): void {
   if (pendingRename.value) printers.setLabel(pendingRename.value.id, value)
@@ -436,6 +475,10 @@ const confirmationGroups: readonly ConfirmationGroup[] = [
     group: 'printInterrupting',
     descriptionKey: 'confirmations.printInterruptingDescription',
     keys: ['restartKlipper', 'firmwareRestart', 'clearJobQueue', 'excludeObject'],
+  },
+  {
+    titleKey: 'confirmations.groups.farm',
+    keys: ['farmCancelPrint', 'farmPowerOff', 'farmStartPrint'],
   },
   { titleKey: 'confirmations.groups.bedMesh', keys: ['deleteMeshProfile'] },
   // One group for both console surfaces: the card's header action and the page's
@@ -788,6 +831,15 @@ const lastSyncedDisplay = computed(() => {
               {{ t('printers.description') }}
             </p>
 
+            <label v-if="canOfferFarm" class="check-row mt-7">
+              <input
+                type="checkbox"
+                :checked="showsFarmDestination"
+                @change="hiddenDestinations.setVisible('farm', !showsFarmDestination)"
+              />
+              <span>{{ t('printers.showFarm') }}</span>
+            </label>
+
             <p v-if="printers.entries.length === 0" class="mt-7 text-sm leading-6 text-muted">
               {{ t('printers.empty') }}
             </p>
@@ -801,9 +853,17 @@ const lastSyncedDisplay = computed(() => {
                   <strong class="block truncate text-row-name">{{
                     printerDisplayLabel(entry)
                   }}</strong>
-                  <span v-if="entry.label" class="block truncate text-xs text-muted">{{
-                    printerHost(entry.endpoint)
-                  }}</span>
+                  <!--
+                    Whenever the name above is not itself the address. That used
+                    to mean "the user named it"; a printer that reports its own
+                    name is now shown by that too, and its address would
+                    otherwise appear nowhere on this card.
+                  -->
+                  <span
+                    v-if="printerDisplayLabel(entry) !== printerHost(entry.endpoint)"
+                    class="block truncate text-xs text-muted"
+                    >{{ printerHost(entry.endpoint) }}</span
+                  >
                 </span>
                 <span
                   v-if="entry.id === printers.activeId"
@@ -935,11 +995,7 @@ const lastSyncedDisplay = computed(() => {
           <PromptDialog
             :open="pendingRename !== null"
             :title="t('printers.renameTitle')"
-            :description="
-              pendingRename
-                ? t('printers.renameHint', { host: printerHost(pendingRename.endpoint) })
-                : ''
-            "
+            :description="renameHint"
             :label="t('printers.renameLabel')"
             :initial-value="pendingRename?.label"
             :confirm-label="t('printers.renameConfirm')"

@@ -30,6 +30,117 @@
       "title": "{page} kunne ikke lastes",
       "description": "En del av Alabaster nådde ikke fram til nettleseren. Last siden på nytt for å hente den igjen.",
       "action": "Last Alabaster på nytt"
+    },
+    "farm": "Skriverpark"
+  },
+  "farm": {
+    "title": "Skriverpark",
+    "railLabel": "Lagrede skrivere",
+    "collapseAll": "Slå sammen alle",
+    "expand": "Utvid {printer}",
+    "collapse": "Slå sammen {printer}",
+    "status": {
+      "active": "Åpen",
+      "printing": "Skriver ut",
+      "paused": "Pauset",
+      "idle": "Ledig",
+      "printError": "Utskrift feilet",
+      "klipperError": "Klipper-feil",
+      "klipperStarting": "Starter",
+      "connecting": "Kobler til",
+      "reconnecting": "Kobler til igjen",
+      "offline": "Frakoblet",
+      "unreached": "Ikke nådd",
+      "refused": "Avvist"
+    },
+    "ended": {
+      "complete": "Fullført",
+      "cancelled": "Avbrutt",
+      "error": "Feilet",
+      "standby": "Klar",
+      "printing": "Skriver ut",
+      "paused": "Pauset",
+      "unknown": "Klar"
+    },
+    "noCamera": "Ingen kamera",
+    "noJob": "Ingen utskrift ennå",
+    "noPreview": "Ingen forhåndsvisning",
+    "previewAlt": "Forhåndsvisning av {file}",
+    "noValue": "—",
+    "percent": "{value} %",
+    "layers": "{current} / {total}",
+    "durationHours": "{hours} t {minutes} min igjen",
+    "durationMinutes": "{minutes} min igjen",
+    "hotend": "Dyse",
+    "bed": "Bygeplate",
+    "targetOff": "/ av",
+    "targetValue": "/ {value}",
+    "unknownMaterial": "Filament",
+    "grams": "{value} g",
+    "queue": "Kø",
+    "queueCount": "Kø · {count}",
+    "queueHeld": "Holdt",
+    "queueRunning": "Kjører",
+    "queueEmpty": "Ingenting i kø",
+    "originRefused": "Skriveren svarte, men avviste adressen til denne siden. Legg den til i [authorization] cors_domains.",
+    "neverReached": "Ikke nådd fra denne nettleseren ennå.",
+    "pause": "Pause utskrift",
+    "resume": "Fortsett",
+    "cancel": "Avbryt",
+    "holdQueue": "Hold kø",
+    "startQueue": "Start kø",
+    "removeNext": "Fjern neste",
+    "cooldown": "Kjøl ned",
+    "files": {
+      "open": "Filer",
+      "title": "Filer på {printer}",
+      "search": "Søk i filer",
+      "loading": "Leser fillisten …",
+      "unreachable": "{printer} svarte ikke med filene sine.",
+      "empty": "Ingen utskrivbare filer på denne skriveren.",
+      "noMatch": "Ingen fil passer med det.",
+      "queue": "Legg i kø",
+      "printNow": "Skriv ut nå",
+      "close": "Lukk",
+      "megabytes": "{value} MB",
+      "kilobytes": "{value} kB",
+      "confirmStart": {
+        "title": "Starte denne utskriften på {printer}?",
+        "description": "{file} starter umiddelbart på en maskin du ikke står ved.",
+        "confirm": "Start utskrift"
+      }
+    },
+    "homed": "Nullstilt",
+    "notHomed": "Ikke nullstilt",
+    "homeAll": "Nullstill alle akser",
+    "homeAllShort": "Nullstill",
+    "homeAxisHomed": "Nullstill {axis} på nytt",
+    "homeAxisNotHomed": "{axis} er ikke nullstilt — nullstill den",
+    "homeBlocked": "{axis} kan ikke nullstilles mens en jobb er lastet",
+    "powerOn": "Slå på",
+    "powerOff": "Slå av",
+    "retry": "Prøv igjen",
+    "switch": "Bytt",
+    "switchTo": "Bytt Alabaster til {printer}",
+    "openActive": "Gå til dashbord",
+    "emergencyStopFor": "Nødstopp {printer}",
+    "commandFailed": "{printer} tok ikke imot kommandoen.",
+    "confirm": {
+      "cancel": {
+        "title": "Avbryte utskriften på {printer}?",
+        "description": "{file} stopper der den er og kan ikke fortsettes.",
+        "confirm": "Avbryt utskrift"
+      },
+      "emergencyStop": {
+        "title": "Nødstoppe {printer}?",
+        "description": "Klipper stopper umiddelbart og trenger en fastvare-omstart etterpå.",
+        "confirm": "Nødstopp"
+      },
+      "power": {
+        "title": "Slå av {printer}?",
+        "description": "En pågående utskrift avsluttes med strømmen og kan ikke fortsettes.",
+        "confirm": "Slå av"
+      }
     }
   },
   "printFiles": {
@@ -1941,6 +2052,8 @@
     "renameTitle": "Endre skrivernavn",
     "renameLabel": "Navn",
     "renameHint": "La stå tomt for å vise adressen, {host}, i stedet.",
+    "renameHintDiscovered": "La stå tomt for å vise navnet skriveren oppgir selv, {name}.",
+    "showFarm": "Vis Farm-siden",
     "renameConfirm": "Endre navn",
     "removeTitle": "Fjern {name}",
     "removeDescription": "Fjerne {name}? Kontrollpanelet og andre innstillinger blir lagret, og dukker opp igjen hvis du legger den til på nytt.",
@@ -2114,7 +2227,8 @@
       "timelapse": "Tidsforløp",
       "maintenance": "Vedlikehold",
       "backup": "Sikkerhetskopi og synkronisering",
-      "moduleGuards": "Dashbord-moduler"
+      "moduleGuards": "Dashbord-moduler",
+      "farm": "Skriverpark"
     },
     "moduleGuardsDescription": "Hver av disse finnes også i modulens egne innstillinger.",
     "items": {
@@ -2150,7 +2264,10 @@
       "maintenanceReminder": "Spør før en utskrift startes mens et vedlikeholdsintervall er forfalt",
       "importSettings": "Importer en sikkerhetskopi av innstillinger",
       "resetSettings": "Tilbakestill innstillinger til standard",
-      "forgetSyncedData": "Glem innstillinger synkronisert til en skriver"
+      "forgetSyncedData": "Glem innstillinger synkronisert til en skriver",
+      "farmCancelPrint": "Avbryt en utskrift fra skriverpark-siden",
+      "farmPowerOff": "Slå av en skriver fra skriverpark-siden",
+      "farmStartPrint": "Start en utskrift fra skriverpark-siden"
     },
     "groupOverride": "Gruppeinnstilling overstyrer",
     "printInterruptingSkipAll": "Hopp over alle bekreftelser som avbryter en aktiv utskrift",

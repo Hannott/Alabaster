@@ -946,6 +946,14 @@ export const usePrinterStore = defineStore('printer', () => {
     try {
       const info = await moonraker.rpcCall('printer.info')
       detectedPrinterName.value = info.hostname || detectedPrinterName.value
+      /*
+       * Also onto the entry, so every other surface that names this printer —
+       * the header's switcher, Settings' printer rows, a Farm column — can use
+       * the name rather than the address, and can still use it while the
+       * printer is offline. The header reads `printerName` above and does not
+       * need this; nothing else has a live store to read.
+       */
+      if (info.hostname) printers.rememberDiscoveredName(printers.activeId, info.hostname)
     } catch {
       // The availability watcher retries after the next successful synchronization.
     }

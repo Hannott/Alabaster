@@ -30,6 +30,117 @@
       "title": "{page} could not be loaded",
       "description": "Part of Alabaster did not reach this browser. Reloading fetches it again.",
       "action": "Reload Alabaster"
+    },
+    "farm": "Farm"
+  },
+  "farm": {
+    "title": "Farm",
+    "railLabel": "Saved printers",
+    "collapseAll": "Collapse all",
+    "expand": "Expand {printer}",
+    "collapse": "Collapse {printer}",
+    "status": {
+      "active": "Open",
+      "printing": "Printing",
+      "paused": "Paused",
+      "idle": "Idle",
+      "printError": "Print failed",
+      "klipperError": "Klipper error",
+      "klipperStarting": "Starting",
+      "connecting": "Connecting",
+      "reconnecting": "Reconnecting",
+      "offline": "Offline",
+      "unreached": "Not reached",
+      "refused": "Refused"
+    },
+    "ended": {
+      "complete": "Completed",
+      "cancelled": "Cancelled",
+      "error": "Failed",
+      "standby": "Ready",
+      "printing": "Printing",
+      "paused": "Paused",
+      "unknown": "Ready"
+    },
+    "noCamera": "No camera",
+    "noJob": "Nothing printed yet",
+    "noPreview": "No preview",
+    "previewAlt": "Preview of {file}",
+    "noValue": "—",
+    "percent": "{value}%",
+    "layers": "{current} / {total}",
+    "durationHours": "{hours}h {minutes}m left",
+    "durationMinutes": "{minutes}m left",
+    "hotend": "Hotend",
+    "bed": "Bed",
+    "targetOff": "/ off",
+    "targetValue": "/ {value}",
+    "unknownMaterial": "Filament",
+    "grams": "{value} g",
+    "queue": "Queue",
+    "queueCount": "Queue · {count}",
+    "queueHeld": "Held",
+    "queueRunning": "Running",
+    "queueEmpty": "Nothing queued",
+    "originRefused": "This printer answered, but refused this page's address. Add it to [authorization] cors_domains.",
+    "neverReached": "Not reached from this browser yet.",
+    "pause": "Pause print",
+    "resume": "Resume",
+    "cancel": "Cancel",
+    "holdQueue": "Hold queue",
+    "startQueue": "Start queue",
+    "removeNext": "Remove next",
+    "cooldown": "Cooldown",
+    "files": {
+      "open": "Files",
+      "title": "Files on {printer}",
+      "search": "Search files",
+      "loading": "Reading the file list…",
+      "unreachable": "{printer} did not answer with its files.",
+      "empty": "No printable files on this printer.",
+      "noMatch": "No file matches that.",
+      "queue": "Add to queue",
+      "printNow": "Print now",
+      "close": "Close",
+      "megabytes": "{value} MB",
+      "kilobytes": "{value} kB",
+      "confirmStart": {
+        "title": "Start this print on {printer}?",
+        "description": "{file} starts immediately on a machine you are not standing at.",
+        "confirm": "Start print"
+      }
+    },
+    "homed": "Homed",
+    "notHomed": "Not homed",
+    "homeAll": "Home all axes",
+    "homeAllShort": "Home",
+    "homeAxisHomed": "Home {axis} again",
+    "homeAxisNotHomed": "{axis} is not homed — home it",
+    "homeBlocked": "{axis} cannot be homed while a job is loaded",
+    "powerOn": "Power on",
+    "powerOff": "Power off",
+    "retry": "Retry now",
+    "switch": "Switch",
+    "switchTo": "Switch Alabaster to {printer}",
+    "openActive": "Go to dashboard",
+    "emergencyStopFor": "Emergency stop {printer}",
+    "commandFailed": "{printer} did not accept that command.",
+    "confirm": {
+      "cancel": {
+        "title": "Cancel the print on {printer}?",
+        "description": "{file} stops where it is and cannot be resumed.",
+        "confirm": "Cancel print"
+      },
+      "emergencyStop": {
+        "title": "Emergency stop {printer}?",
+        "description": "Klipper halts immediately and needs a firmware restart afterwards.",
+        "confirm": "Emergency stop"
+      },
+      "power": {
+        "title": "Switch {printer} off?",
+        "description": "A print in progress ends with the power and cannot be resumed.",
+        "confirm": "Switch off"
+      }
     }
   },
   "printFiles": {
@@ -1941,6 +2052,8 @@
     "renameTitle": "Rename printer",
     "renameLabel": "Name",
     "renameHint": "Leave blank to show its address, {host}, instead.",
+    "renameHintDiscovered": "Leave blank to show what the printer calls itself, {name}.",
+    "showFarm": "Show the Farm page",
     "renameConfirm": "Rename",
     "removeTitle": "Remove {name}",
     "removeDescription": "Remove {name}? Its dashboard and other settings stay saved, and reappear if you add it again.",
@@ -2114,7 +2227,8 @@
       "timelapse": "Timelapse",
       "maintenance": "Maintenance",
       "backup": "Backup and sync",
-      "moduleGuards": "Dashboard modules"
+      "moduleGuards": "Dashboard modules",
+      "farm": "Farm"
     },
     "moduleGuardsDescription": "Each of these also lives in that module's own settings pane.",
     "items": {
@@ -2150,7 +2264,10 @@
       "maintenanceReminder": "Ask before starting a print while a maintenance interval is overdue",
       "importSettings": "Import a settings backup",
       "resetSettings": "Reset settings to their defaults",
-      "forgetSyncedData": "Forget settings synced to a printer"
+      "forgetSyncedData": "Forget settings synced to a printer",
+      "farmCancelPrint": "Cancel a print from the Farm page",
+      "farmPowerOff": "Switch a printer off from the Farm page",
+      "farmStartPrint": "Start a print from the Farm page"
     },
     "groupOverride": "Group setting override",
     "printInterruptingSkipAll": "Skip every confirmation that interrupts an active print",
