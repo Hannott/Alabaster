@@ -138,21 +138,35 @@
  * Component reshaping, not just recoloring, per README's "Custom packs may
  * break every other rule": a custom pack may override spacing, radius,
  * typography, or button and dialog shape for itself. Every selector below is
- * scoped by the `[data-theme-pack='blueprint']` attribute, which outranks the
- * single-class rules in main.css/app-field.css/app-slider.css it replaces, so
- * nothing here needs `!important`.
+ * scoped by the `[data-theme-pack='blueprint']` attribute, which now always
+ * wins over main.css/app-field.css/app-slider.css by cascade layer (ADR 0009)
+ * rather than by selector specificity, so nothing here needs `!important` or
+ * an over-specified selector.
+ *
+ * The structural token layer (ADR 0009) covers the corner-squaring and label
+ * casing this pack wants everywhere at once -- one declaration instead of the
+ * separate `border-radius: 0` this used to repeat across .field,
+ * .app-field__box, .app-slider__entry, and every reset/stepper control, plus
+ * a separate uppercase override on both label components. `font-weight`
+ * stays a direct override below: it is deliberately not part of that token
+ * layer, since a pack's own shape identity and the reader's own Settings
+ * weight preference are two different things.
  */
+[data-theme-pack='blueprint'] {
+  --control-radius-md: 0;
+  --control-radius-sm: 0;
+  --control-radius-xs: 0;
+  --control-radius-compact: 0;
+  --control-radius-inset: 0;
+  --control-button-transform: uppercase;
+  --control-button-letter-spacing: 0.05em;
+  --control-button-font-family: var(--font-mono);
+  --control-label-transform: uppercase;
+  --control-label-letter-spacing: 0.04em;
+}
 
-/*
- * Squared, monospaced, and uppercase applies to every button regardless of
- * size -- the drafting-lettering treatment reads fine at any scale.
- */
 [data-theme-pack='blueprint'] .button {
-  border-radius: 0;
-  font-family: var(--font-mono);
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
 }
 
 /* The solid variants gain an inset ink-impression ring, like a rubber stamp's own edge. */
@@ -168,7 +182,6 @@
 [data-theme-pack='blueprint'] .field,
 [data-theme-pack='blueprint'] .app-field__box,
 [data-theme-pack='blueprint'] .app-slider__entry {
-  border-radius: 0;
   background-image:
     repeating-linear-gradient(
       to right,
@@ -184,23 +197,6 @@
       transparent 1px,
       transparent 8px
     );
-}
-
-[data-theme-pack='blueprint'] .app-field__label,
-[data-theme-pack='blueprint'] .app-slider__label {
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-
-[data-theme-pack='blueprint'] .app-slider__reset,
-[data-theme-pack='blueprint'] .app-slider__stepper,
-[data-theme-pack='blueprint'] .app-field__reset,
-[data-theme-pack='blueprint'] .app-field__stepper,
-[data-theme-pack='blueprint'] .app-slider__reset:focus-visible,
-[data-theme-pack='blueprint'] .app-slider__stepper:focus-visible .app-slider__stepper-icon,
-[data-theme-pack='blueprint'] .app-field__reset:focus-visible .app-field__reset-icon,
-[data-theme-pack='blueprint'] .app-field__stepper:focus-visible .app-field__stepper-icon {
-  border-radius: 0;
 }
 
 /*
@@ -271,17 +267,14 @@
  * Scoped to the transcript's own class rather than a page or route, so it
  * applies identically wherever the transcript renders -- the Console page,
  * the dashboard card, and the Calibration bench -- without a second rule per
- * host. `:root[data-theme-pack='blueprint'][data-theme='<mode>']` rather than
- * a single attribute, matching `packs/terminal.css`'s own reasoning: the page
- * and module hosts set `background: none` on this class at two classes deep
- * (`.console-main .gcode-console`, `.console-module__body .gcode-console`),
- * which ties this rule's specificity at one attribute. Two attributes plus
- * the class outranks both outright, regardless of CSS import order.
+ * host. One attribute, not doubled with `[data-theme]`: unlike Terminal's
+ * CRT screen this treatment is not mode-gated, and ADR 0009's cascade layers
+ * already guarantee this rule outranks `.console-main .gcode-console` and
+ * `.console-module__body .gcode-console`'s `background: none` regardless of
+ * specificity or CSS import order.
  */
-:root[data-theme-pack='blueprint'][data-theme='light'] .gcode-console,
-:root[data-theme-pack='blueprint'][data-theme='dark'] .gcode-console {
+[data-theme-pack='blueprint'] .gcode-console {
   position: relative;
-  border-radius: 0;
   background-image:
     linear-gradient(to right, var(--text-muted) 12px, transparent 12px),
     linear-gradient(to bottom, var(--text-muted) 12px, transparent 12px),
@@ -332,8 +325,7 @@
     0 0;
 }
 
-:root[data-theme-pack='blueprint'][data-theme='light'] .gcode-console::before,
-:root[data-theme-pack='blueprint'][data-theme='dark'] .gcode-console::before {
+[data-theme-pack='blueprint'] .gcode-console::before {
   content: '';
   position: absolute;
   inset: 6px;

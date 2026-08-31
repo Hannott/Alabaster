@@ -16,7 +16,13 @@ function designDoc(name: string): string | null {
   const path = join(projectRoot, 'docs', 'design', name)
   return existsSync(path) ? readFileSync(path, 'utf8') : null
 }
-const styles = readFileSync(join(sourceRoot, 'styles', 'main.css'), 'utf8')
+// `components.css` carries the shared component rules main.css used to hold
+// directly; main.css itself is now just the `@layer`/`@import` header (ADR
+// 0009), so a check written against "the stylesheet" reads both as one.
+const styles =
+  readFileSync(join(sourceRoot, 'styles', 'main.css'), 'utf8') +
+  '\n' +
+  readFileSync(join(sourceRoot, 'styles', 'components.css'), 'utf8')
 const appFieldStyles = readFileSync(join(sourceRoot, 'styles', 'app-field.css'), 'utf8')
 const appSliderStyles = readFileSync(join(sourceRoot, 'styles', 'app-slider.css'), 'utf8')
 const appOutputRowStyles = readFileSync(join(sourceRoot, 'styles', 'app-output-row.css'), 'utf8')
@@ -399,10 +405,19 @@ describe('interaction and iconography contract', () => {
     // been switched off, and takes the ordinary rectangle. Reserving the pill
     // for non-buttons is what lets the emergency stop keep it as a signal, so
     // no button variant may claim one.
-    expect(styles).toMatch(/\.button\s*\{[^}]*border-radius:\s*0\.4rem/)
-    expect(styles).toMatch(/\.button--sm\s*\{[^}]*border-radius:\s*0\.3rem/)
-    expect(styles).toMatch(/\.button--xs\s*\{[^}]*border-radius:\s*0\.25rem/)
+    //
+    // Each tier reads a `--control-radius-*` token (ADR 0009) rather than
+    // restating its own literal, which is why `.field`'s matching tier below
+    // asserts the identical token reference rather than a second literal that
+    // merely happens to match today — that is the stronger statement "these
+    // two share one scale" actually requires.
+    expect(styles).toMatch(/\.button\s*\{[^}]*border-radius:\s*var\(--control-radius-md\)/)
+    expect(styles).toMatch(/\.button--sm\s*\{[^}]*border-radius:\s*var\(--control-radius-sm\)/)
+    expect(styles).toMatch(/\.button--xs\s*\{[^}]*border-radius:\s*var\(--control-radius-xs\)/)
     expect(styles).not.toMatch(/\.button--[a-z-]*\s*\{[^}]*border-radius:\s*999px/)
+    expect(styles).toMatch(/--control-radius-md:\s*0\.4rem/)
+    expect(styles).toMatch(/--control-radius-sm:\s*0\.3rem/)
+    expect(styles).toMatch(/--control-radius-xs:\s*0\.25rem/)
 
     expect(styles).toMatch(/\.button\s*\{[^}]*min-height:\s*2\.25rem/)
     expect(styles).toMatch(/\.button--sm\s*\{[^}]*min-height:\s*2rem/)
@@ -492,18 +507,19 @@ describe('interaction and iconography contract', () => {
   })
 
   it('builds every field from the one shared field, on the button geometry scale', () => {
-    expect(styles).toContain("@import './app-field.css';")
+    expect(styles).toContain("@import './app-field.css' layer(components);")
 
     // A field and the button beside it share the height and radius scale, so
-    // neither has to be nudged to line up with the other.
+    // neither has to be nudged to line up with the other. Same token
+    // reference as `.button`'s own assertion above, not a second literal.
     expect(styles).toMatch(
-      /\.field,[\s\S]*?\{[^}]*min-height:\s*2\.25rem[^}]*border-radius:\s*0\.4rem/,
+      /\.field,[\s\S]*?\{[^}]*min-height:\s*2\.25rem[^}]*border-radius:\s*var\(--control-radius-md\)/,
     )
     expect(styles).toMatch(
-      /\.field--sm,[\s\S]*?\{[^}]*min-height:\s*2rem[^}]*border-radius:\s*0\.3rem/,
+      /\.field--sm,[\s\S]*?\{[^}]*min-height:\s*2rem[^}]*border-radius:\s*var\(--control-radius-sm\)/,
     )
     expect(styles).toMatch(
-      /\.field--xs,[\s\S]*?\{[^}]*min-height:\s*1\.75rem[^}]*border-radius:\s*0\.25rem/,
+      /\.field--xs,[\s\S]*?\{[^}]*min-height:\s*1\.75rem[^}]*border-radius:\s*var\(--control-radius-xs\)/,
     )
     expect(styles).toMatch(/\.field,[\s\S]*?\.app-field__box\s*\{[^}]*min-height:\s*2\.25rem/)
     expect(styles).toMatch(/\.field--sm,[\s\S]*?\.app-field__box--sm\s*\{[^}]*min-height:\s*2rem/)
@@ -681,7 +697,7 @@ describe('interaction and iconography contract', () => {
   })
 
   it("centralizes every slider on AppSlider, at AppField's own height per size", () => {
-    expect(styles).toContain("@import './app-slider.css';")
+    expect(styles).toContain("@import './app-slider.css' layer(components);")
 
     // Every hand-rolled slider shape this replaced is gone from the shared
     // stylesheet — a new consumer has nowhere to copy the old markup from.
@@ -748,7 +764,7 @@ describe('interaction and iconography contract', () => {
   })
 
   it('gives AppOutputRow a shorter tier than AppField/AppSlider and keeps .pin-row matched to it', () => {
-    expect(styles).toContain("@import './app-output-row.css';")
+    expect(styles).toContain("@import './app-output-row.css' layer(components);")
 
     // The specific grid this replaced is gone; a new consumer has nowhere to
     // copy the old fan-table markup from.

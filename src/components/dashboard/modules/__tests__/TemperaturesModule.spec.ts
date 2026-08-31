@@ -173,7 +173,7 @@ describe('TemperaturesModule', () => {
    * the digits, a passive sensor's `Reports only` shipped as `Report…`.
    */
   it('sizes the value column to the widest notch, not to its digits', () => {
-    const styles = readFileSync(join(process.cwd(), 'src', 'styles', 'main.css'), 'utf8')
+    const styles = readFileSync(join(process.cwd(), 'src', 'styles', 'components.css'), 'utf8')
     const [, tracks] =
       styles.match(/\.temperature-table\s*{\s*grid-template-columns:([^;]*);/) ?? []
     expect(tracks).toBeDefined()
@@ -195,7 +195,7 @@ describe('TemperaturesModule', () => {
    * container query: what regresses here is the threshold, not the tracks.
    */
   it('flips to the wide row below the width an L dashboard column produces', () => {
-    const styles = readFileSync(join(process.cwd(), 'src', 'styles', 'main.css'), 'utf8')
+    const styles = readFileSync(join(process.cwd(), 'src', 'styles', 'components.css'), 'utf8')
     const [, breakpoint] =
       styles.match(/@container temperature-card \(min-width: ([\d.]+)rem\)/) ?? []
     expect(breakpoint).toBeDefined()
@@ -222,7 +222,7 @@ describe('TemperaturesModule', () => {
       expect(row.findAll('.temperature-cell--value')).toHaveLength(1)
     }
 
-    const styles = readFileSync(join(process.cwd(), 'src', 'styles', 'main.css'), 'utf8')
+    const styles = readFileSync(join(process.cwd(), 'src', 'styles', 'components.css'), 'utf8')
     expect(styles).toMatch(/\.temperature-cell--value\s*{\s*grid-column: 5;/)
   })
 

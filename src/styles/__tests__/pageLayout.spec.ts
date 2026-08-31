@@ -18,7 +18,10 @@ function designDoc(name: string): string | null {
   const path = join(projectRoot, 'docs', 'design', name)
   return existsSync(path) ? readFileSync(path, 'utf8') : null
 }
-const styles = source('styles/main.css')
+// `components.css` carries the shared component rules main.css used to hold
+// directly; main.css itself is now just the `@layer`/`@import` header (ADR
+// 0009), so a check written against "the stylesheet" reads both as one.
+const styles = `${source('styles/main.css')}\n${source('styles/components.css')}`
 
 function source(path: string): string {
   return readFileSync(join(sourceRoot, path), 'utf8')

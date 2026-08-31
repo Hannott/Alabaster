@@ -131,17 +131,34 @@
  * Component reshaping, not just recoloring, per README's "Custom packs may
  * break every other rule": a custom pack may override spacing, radius,
  * typography, or button and dialog shape for itself. Every selector below is
- * scoped by the `[data-theme-pack='terminal']` attribute, which outranks the
- * single-class rules in main.css/app-field.css/app-slider.css it replaces, so
- * nothing here needs `!important`.
+ * scoped by the `[data-theme-pack='terminal']` attribute, which now always
+ * wins over main.css/app-field.css/app-slider.css by cascade layer (ADR 0009)
+ * rather than by selector specificity, so nothing here needs `!important` or
+ * an over-specified selector.
+ *
+ * The structural token layer (ADR 0009) covers what used to be a repeated
+ * `border-radius: 0` on .field, .app-field__box, .app-slider__entry, and
+ * every reset/stepper control, plus a separate uppercase override on both
+ * label components — one declaration instead of five. `font-weight` stays a
+ * direct override below: it is deliberately not part of that token layer,
+ * since a pack's own shape identity and the reader's own Settings weight
+ * preference are two different things.
  */
+[data-theme-pack='terminal'] {
+  --control-radius-md: 0;
+  --control-radius-sm: 0;
+  --control-radius-xs: 0;
+  --control-radius-compact: 0;
+  --control-radius-inset: 0;
+  --control-button-transform: uppercase;
+  --control-button-letter-spacing: 0.06em;
+  --control-button-font-family: var(--font-mono);
+  --control-label-transform: uppercase;
+  --control-label-letter-spacing: 0.04em;
+}
 
 [data-theme-pack='terminal'] .button {
-  border-radius: 0;
-  font-family: var(--font-mono);
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
 }
 
 [data-theme-pack='terminal'] .button--primary {
@@ -157,29 +174,6 @@
   .button:hover:not(:disabled, [aria-disabled='true'], .button--primary, .button--critical),
 [data-theme-pack='terminal'] .button:focus-visible:not(.button--primary, .button--critical) {
   text-shadow: 0 0 6px currentColor;
-}
-
-[data-theme-pack='terminal'] .field,
-[data-theme-pack='terminal'] .app-field__box,
-[data-theme-pack='terminal'] .app-slider__entry {
-  border-radius: 0;
-}
-
-[data-theme-pack='terminal'] .app-field__label,
-[data-theme-pack='terminal'] .app-slider__label {
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-
-[data-theme-pack='terminal'] .app-slider__reset,
-[data-theme-pack='terminal'] .app-slider__stepper,
-[data-theme-pack='terminal'] .app-field__reset,
-[data-theme-pack='terminal'] .app-field__stepper,
-[data-theme-pack='terminal'] .app-slider__reset:focus-visible,
-[data-theme-pack='terminal'] .app-slider__stepper:focus-visible .app-slider__stepper-icon,
-[data-theme-pack='terminal'] .app-field__reset:focus-visible .app-field__reset-icon,
-[data-theme-pack='terminal'] .app-field__stepper:focus-visible .app-field__stepper-icon {
-  border-radius: 0;
 }
 
 /*
@@ -254,19 +248,18 @@
  * The console transcript as an actual CRT screen — the pack's one phosphor
  * surface that reads as a physical monitor rather than a page background.
  * Dark mode only: light mode's dot-matrix printout has no bezel to wear, so
- * `.gcode-console` stays the plain paper box there.
+ * `.gcode-console` stays the plain paper box there — `[data-theme='dark']`
+ * below is that mode gate, not a specificity device; ADR 0009's cascade
+ * layers already guarantee this rule outranks `main.css`'s
+ * `.gcode-console`/`.gcode-console:focus-visible` regardless of how many
+ * attributes it carries.
  *
  * Scoped to the transcript's own class rather than a page or route, so it
  * applies identically wherever the transcript renders — the Console page,
  * the dashboard card, and the Calibration bench — without a second rule per
- * host. Doubled attribute selectors (`[data-theme-pack]` and `[data-theme]`
- * together) rather than one, matching `packs/alabaster.css`'s own light/dark
- * scoping: `main.css`'s `.gcode-console:focus-visible` is two classes deep by
- * pseudo-class, so a single-attribute override would tie for specificity and
- * depend on import order to win. Two attributes plus the class outranks it
- * outright.
+ * host.
  */
-:root[data-theme-pack='terminal'][data-theme='dark'] .gcode-console {
+[data-theme-pack='terminal'][data-theme='dark'] .gcode-console {
   border-radius: 14px;
   box-shadow:
     inset 0 0 2.5rem 0.4rem rgba(0, 0, 0, 0.65),
@@ -284,7 +277,7 @@
 /* Combined with the focus ring rather than replaced by it, so focusing the
    transcript to scroll it by keyboard does not flatten the screen back to a
    plain box. */
-:root[data-theme-pack='terminal'][data-theme='dark'] .gcode-console:focus-visible {
+[data-theme-pack='terminal'][data-theme='dark'] .gcode-console:focus-visible {
   box-shadow:
     inset 0 0 0 2px var(--focus-ring),
     inset 0 0 2.5rem 0.4rem rgba(0, 0, 0, 0.65),

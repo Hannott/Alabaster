@@ -60,44 +60,60 @@ selected pack, and both preferences persist in local storage.
 - `Terminal` is a non-canonical pack exercising the exemption below: a CRT
   phosphor screen (near-black surfaces, phosphor green text and actions, amber
   focus ring and caution) in dark mode, a dot-matrix printout (parchment
-  surfaces, dark ink green) in light mode. Every value is a raw literal chosen
-  for period-correct hue, not a palette primitive or a contrast-derived one.
-  It also reaches past color: `AppButton` turns square, monospaced, uppercase,
-  and gains a phosphor-bloom glow; `AppSlider`'s track becomes a stepped meter
-  with a block-cursor thumb in place of the round one; and both it and
-  `AppField` lose their rounded corners and gain uppercase labels. In dark mode
-  the console transcript (`.gcode-console`, shared by the Console page, the
-  dashboard card, and the Calibration bench) becomes an actual CRT screen —
-  curved corners, an inset vignette, a bezel ring, and a phosphor glow on its
-  own text — a treatment light mode's dot-matrix printout does not share,
-  since a printout has no bezel to wear. All of it lives in rules scoped to
-  `[data-theme-pack='terminal']` in `packs/terminal.css`, which the exemption's
-  own scoping rule permits — none of it touches `main.css`, `app-field.css`,
-  `app-slider.css`, or the components themselves. The pack also adds one rule
-  outside the token contract entirely, a static scanline overlay (`::after` on
+  surfaces, dark ink green) in light mode. Every color value is a raw literal
+  chosen for period-correct hue, not a palette primitive or a contrast-derived
+  one. It also reaches past color, mostly through the structural token layer
+  ADR 0009 adds: one `[data-theme-pack='terminal']` block sets every
+  `--control-radius-*` token to `0`, turns `--control-button-transform`
+  uppercase, and swaps `--control-button-font-family` to `var(--font-mono)` —
+  which alone squares `AppButton`, `AppField`, and `AppSlider`'s entry box and
+  uppercases both label components, with no per-component rule to keep in
+  sync. What is left as scoped raw CSS is the genuinely bespoke shape a token
+  cannot express: the phosphor-bloom glow on solid buttons, and `AppSlider`'s
+  track becoming a stepped meter with a block-cursor thumb in place of the
+  round one. In dark mode the console transcript (`.gcode-console`, shared by
+  the Console page, the dashboard card, and the Calibration bench) becomes an
+  actual CRT screen — curved corners, an inset vignette, a bezel ring, and a
+  phosphor glow on its own text — a treatment light mode's dot-matrix printout
+  does not share, since a printout has no bezel to wear; `[data-theme='dark']`
+  on that rule is a mode gate, not a specificity device, per ADR 0009. All of
+  it lives in rules scoped to `[data-theme-pack='terminal']` in
+  `packs/terminal.css`, which the exemption's own scoping rule permits — none
+  of it touches `main.css`, `app-field.css`, `app-slider.css`, or the
+  components themselves. The pack also adds one rule outside the token
+  contract entirely, a static scanline overlay (`::after` on
   `:root[data-theme-pack='terminal']`).
 - `Blueprint` is a non-canonical pack reproducing a technical drawing sheet: a
   cyanotype blueprint (white/cyan ink on deep navy paper) in dark mode, a
   whiteprint drafting vellum (navy ink on cool paper) in light mode. Unlike
   Terminal, both modes get the pack's full component treatment rather than one
   mode being a plain fallback — a drafting sheet is what every surface is in
-  either polarity. `AppButton` turns square and monospaced, and the solid
-  `primary`/`critical` variants gain an inset ink-impression ring, like a
-  rubber stamp's own edge; `AppField` and `AppSlider`'s entry box lose their
-  rounded corners and gain a faint graph-paper grid behind the value.
-  `AppSlider`'s track becomes a ruler — graduated ticks along the unfilled
-  length, a solid inked line where filled — and its thumb a downward caliper
-  arrow, tinted at rest rather than only on interaction, since a caliper mark
-  is a permanent reference and not a hover affordance. The console transcript
-  (`.gcode-console`) becomes a full technical drawing sheet in both modes: a
+  either polarity. One `[data-theme-pack='blueprint']` block sets every
+  `--control-radius-*` token to `0`, uppercases both `--control-button-` and
+  `--control-label-transform`, and points `--control-button-font-family` at
+  `var(--font-mono)` (ADR 0009) — the same mechanism Terminal uses, reused
+  rather than reinvented, which is what makes the two packs' component
+  reshaping this short despite looking nothing alike. `font-weight: 600` stays
+  a direct override on `.button`, since a pack's own shape identity and the
+  reader's own Settings weight preference are deliberately two different
+  things. What is left as scoped raw CSS is what the token layer cannot
+  express: the solid `primary`/`critical` variants' inset ink-impression ring,
+  like a rubber stamp's own edge; `AppField` and `AppSlider`'s entry box
+  gaining a faint graph-paper grid behind the value; `AppSlider`'s track
+  becoming a ruler — graduated ticks along the unfilled length, a solid inked
+  line where filled — with its thumb a downward caliper arrow, tinted at rest
+  rather than only on interaction, since a caliper mark is a permanent
+  reference and not a hover affordance; and the console transcript
+  (`.gcode-console`) becoming a full technical drawing sheet in both modes: a
   coarser graph-paper grid, a ruled margin frame inset from the edge, and
   corner registration marks — the alignment ticks a real drafting sheet prints
   in its corners so a set of sheets registers to the same point. All of it
   lives in rules scoped to `[data-theme-pack='blueprint']` in
-  `packs/blueprint.css`; the console rule doubles the `data-theme` attribute
-  alongside `data-theme-pack` to outrank `.console-main .gcode-console` and
-  `.console-module__body .gcode-console`'s `background: none` regardless of
-  CSS import order, the same technique Terminal's own console override uses.
+  `packs/blueprint.css`; the console rule needs no `data-theme` attribute at
+  all, unlike Terminal's, since this treatment is not mode-gated — ADR 0009's
+  cascade layers already guarantee it outranks `.console-main .gcode-console`
+  and `.console-module__body .gcode-console`'s `background: none` regardless
+  of specificity or CSS import order.
   The bed mesh height map and G-code viewer axes also borrow real drafting and
   CAD vocabulary rather than inventing pack-specific hues: the mesh reads as a
   topographic contour map (blue low ground, tan mid, amber/red peaks), and the
@@ -186,6 +202,53 @@ pack.
 
 Also set `color-scheme: light` and `color-scheme: dark` in the corresponding
 selectors so native controls match the pack mode.
+
+## Structural tokens
+
+Color is not the only thing a pack can reach without writing a single
+component-level override. `main.css` also declares a small set of structural
+tokens once on `:root`, defaulted to the canonical pack's own literals, and a
+pack overrides only the ones it wants to change:
+
+| Token                             | Default      | Consumed by                                                                                        |
+| --------------------------------- | ------------ | -------------------------------------------------------------------------------------------------- |
+| `--control-radius-md`             | `0.4rem`     | `.button`, `.field`/`.app-field__box` at their default size                                        |
+| `--control-radius-sm`             | `0.3rem`     | the `--sm` tier of the same three                                                                  |
+| `--control-radius-xs`             | `0.25rem`    | the `--xs` tier, plus `.app-field__reset` and `.app-slider__entry`                                 |
+| `--control-radius-compact`        | `0.2rem`     | `.app-slider__reset`, `.app-slider__stepper`                                                       |
+| `--control-radius-inset`          | `0.1rem`     | every reset/stepper icon's own focus ring                                                          |
+| `--control-label-transform`       | `capitalize` | `.app-field__label`, `.app-slider__label` — the Title Case rule stays the canonical pack's default |
+| `--control-label-letter-spacing`  | `normal`     | the same two labels                                                                                |
+| `--control-button-transform`      | `none`       | `.button`                                                                                          |
+| `--control-button-letter-spacing` | `normal`     | `.button`                                                                                          |
+| `--control-button-font-family`    | `inherit`    | `.button`                                                                                          |
+
+Unlike the color contract above, **there is no completeness test for these**.
+A pack that sets none of them renders with the canonical values, which is
+correct — a radius or a label's casing has a sensible fallback, so nothing
+should force a pack to restate ten tokens it has no opinion about. Terminal
+and Blueprint both set every `--control-radius-*` to `0` and repoint the
+button/label tokens in one small `[data-theme-pack='<id>']` block with no
+mode qualifier — see either pack for the pattern, and ADR 0009 for the full
+reasoning, including why this list is deliberately short and grows only when
+a second shipped pack actually needs a property the first one already
+reached for by hand.
+
+Reaching past this list — a genuinely different shape (AppSlider's track and
+thumb geometry, for instance, which is a different shape per pack rather than
+a scalar a token can express) or a one-off ornament with no shared vocabulary
+to join (Terminal's scanline, Blueprint's corner registration marks) — is
+still exactly what "Custom packs may break every other rule" below is for.
+The two are complementary, not competing: reach for a structural token first,
+and drop to scoped raw CSS only for what a token genuinely cannot say. Every
+non-canonical pack's own selectors there now always win over
+`main.css`/`app-field.css`/`app-slider.css` by CSS cascade layer rather than
+by selector specificity (ADR 0009) — `main.css` declares `@layer components,
+packs;` before its own imports, and `themes/index.css` (and therefore every
+pack) imports into `layer(packs)`, so a pack rule wins regardless of how many
+classes or attributes it carries. A pack author no longer needs to
+over-specify a selector defensively against an import order it cannot see
+from its own file.
 
 ## Authoring rules
 

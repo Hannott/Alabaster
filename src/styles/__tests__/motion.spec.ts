@@ -4,7 +4,13 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 const sourceRoot = join(process.cwd(), 'src')
-const styles = readFileSync(join(sourceRoot, 'styles', 'main.css'), 'utf8')
+// `components.css` carries the shared component rules main.css used to hold
+// directly; main.css itself is now just the `@layer`/`@import` header (ADR
+// 0009), so a check written against "the stylesheet" reads both as one.
+const styles =
+  readFileSync(join(sourceRoot, 'styles', 'main.css'), 'utf8') +
+  '\n' +
+  readFileSync(join(sourceRoot, 'styles', 'components.css'), 'utf8')
 const app = readFileSync(join(sourceRoot, 'App.vue'), 'utf8')
 const temperatures = readFileSync(
   join(sourceRoot, 'components', 'dashboard', 'modules', 'TemperaturesModule.vue'),

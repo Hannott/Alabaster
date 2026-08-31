@@ -1291,7 +1291,7 @@ describe('the viewpoint transition', () => {
     // keeps the two in step. ADR 0004 records 500 ms as a bounded exception;
     // this fails if either side is changed alone.
     const root = resolve(__dirname, '../../../..')
-    const styles = readFileSync(resolve(root, 'styles/main.css'), 'utf8')
+    const styles = readFileSync(resolve(root, 'styles/components.css'), 'utf8')
     const module = readFileSync(
       resolve(root, 'components/dashboard/modules/BedMeshModule.vue'),
       'utf8',
