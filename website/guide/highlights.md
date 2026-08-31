@@ -1,7 +1,9 @@
 # What makes it different
 
-There are good Klipper web interfaces already. This page covers the reasons to
-look at another one.
+Alabaster builds on [Mainsail](https://docs.mainsail.xyz/) and
+[Fluidd](https://docs.fluidd.xyz/), two established Klipper web interfaces,
+and borrows many of the interface elements they already get right. This page
+covers what it adds on top: conveniences and customization.
 
 Everything below either does not exist in established Klipper web interfaces,
 or exists there in a different form. Each section links to the page that
