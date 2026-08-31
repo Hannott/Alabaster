@@ -28,7 +28,7 @@
     "loadingPage": "Loading {page}",
     "pageFailed": {
       "title": "{page} could not be loaded",
-      "description": "Part of Alabaster did not reach this browser. Reloading fetches it again.",
+      "description": "Part of Alabaster did not reach this browser. Please reload.",
       "action": "Reload Alabaster"
     },
     "farm": "Farm"
@@ -106,7 +106,7 @@
       "kilobytes": "{value} kB",
       "confirmStart": {
         "title": "Start this print on {printer}?",
-        "description": "{file} starts immediately on a machine you are not standing at.",
+        "description": "{file} starts immediately.",
         "confirm": "Start print"
       }
     },
@@ -128,7 +128,7 @@
     "confirm": {
       "cancel": {
         "title": "Cancel the print on {printer}?",
-        "description": "{file} stops where it is and cannot be resumed.",
+        "description": "{file} will be cancelled.",
         "confirm": "Cancel print"
       },
       "emergencyStop": {
@@ -138,7 +138,7 @@
       },
       "power": {
         "title": "Switch {printer} off?",
-        "description": "A print in progress ends with the power and cannot be resumed.",
+        "description": "Are you sure you want to switch off the printer?",
         "confirm": "Switch off"
       }
     }
@@ -265,7 +265,7 @@
     },
     "tuning": {
       "title": "Tuning results",
-      "hint": "Shake&Tune's own diagnostic graphs, read directly from the printer's config folder.",
+      "hint": "Shake&Tune's diagnostic graphs.",
       "refresh": "Refresh",
       "open": "Open {name} at full size",
       "run": "Run",
@@ -425,8 +425,8 @@
       "klipperControl": "Klipper control",
       "restartKlipper": "Restart Klipper",
       "firmwareRestart": "Firmware restart",
-      "restartKlipperConfirm": "Klipper reloads its configuration and the print on the plate ends where it is.",
-      "firmwareRestartConfirm": "The controller board resets along with Klipper, and the print on the plate ends where it is.",
+      "restartKlipperConfirm": "Are you sure you want to restart Klipper?",
+      "firmwareRestartConfirm": "Are you sure you want to restart the firmware?",
       "serviceControl": "Service control",
       "restartMoonraker": "Restart Moonraker",
       "hostControl": "Host control",
@@ -460,7 +460,7 @@
   "saveConfig": {
     "open": "Save new config",
     "title": "Save new config?",
-    "description": "Saving writes these changes into printer.cfg and restarts Klipper.",
+    "description": "Saves to printer.cfg and restarts Klipper.",
     "save": "Save and restart",
     "discard": "Discard and restart",
     "whilePrinting": "Either action restarts Klipper, which would end the running print. Both wait until it finishes.",
@@ -499,7 +499,7 @@
     "unavailableValue": "—",
     "emergencyStop": "Emergency stop",
     "emergencyStopShort": "Stop",
-    "emergencyStopConfirm": "Immediately stop the printer? Heaters and motion will be shut down.",
+    "emergencyStopConfirm": "Are you sure you want to perform an emergency stop?",
     "operationalTitle": "Dashboard",
     "cancel": "Cancel",
     "commandFailed": "The command could not be completed. Check the printer and try again.",
@@ -596,8 +596,8 @@
       "noFiles": "No G-code files were returned by Moonraker.",
       "recentFailed": "The file list could not be read.",
       "confirmStart": "Start printing {filename}?",
-      "confirmCancel": "This cannot be undone — the job stops where it is and cannot be resumed.",
-      "confirmPause": "The print stays loaded; nothing resumes it on its own.",
+      "confirmCancel": "Are you sure you want to cancel the print?",
+      "confirmPause": "Are you sure you want to pause the print?",
       "closeRecent": "Close recent files",
       "startFile": "Start {filename}",
       "confirmStartTitle": "Start this print?",
@@ -689,18 +689,18 @@
       "chartWindow": "Time window",
       "chartWindowOption": "{minutes} min",
       "calibrationTitle": "Calibration",
-      "calibrationHint": "Runs for several minutes and heats the printer physically. Do not start this while printing.",
+      "calibrationHint": "Heats the printer and runs for several minutes.",
       "calibratePid": "Calibrate PID",
       "calibrateMpc": "Calibrate MPC",
       "calibrationOutputLabel": "Calibration output",
       "calibrationRunning": "Calibrating…",
       "calibratePromptTitle": "Calibrate {heater}",
-      "calibratePromptDescription": "Choose the temperature to calibrate against — usually the material you print with most.",
+      "calibratePromptDescription": "Choose the temperature to calibrate against. (Recommended: 200°C.)",
       "calibratePromptLabel": "Target temperature",
       "calibrateInvalid": "Enter a temperature above 0.",
       "calibrateTooHigh": "{max}° is the highest this heater allows.",
       "calibrateConfirmTitle": "Calibrate {heater}?",
-      "calibrateConfirmDescription": "This heats {heater} to {target}{unit} and runs for several minutes. Do not start this while printing.",
+      "calibrateConfirmDescription": "Heats {heater} to {target}{unit} and runs for several minutes.",
       "calibrateConfirmAction": "Calibrate",
       "off": "Off",
       "atTarget": "At target",
@@ -792,7 +792,7 @@
       "motorsOff": "Motors off",
       "motorsOffShort": "Off",
       "motorsOffConfirmTitle": "Release the motors?",
-      "motorsOffConfirmDescription": "The axes can then be moved by hand, and the printer forgets where they are until it is homed again.",
+      "motorsOffConfirmDescription": "Are you sure you want to release the motors?",
       "showParking": "Show park positions",
       "showBedPlan": "Show the bed plan",
       "showBedPlanWhilePrinting": "Show during printing",
@@ -824,7 +824,7 @@
         "zTilt": "The Z steppers have not been aligned since the motors were last off."
       },
       "levelingConfirmTitle": "Start leveling?",
-      "levelingConfirmDescription": "{method} moves the printer and probes the bed, which takes a few minutes. Do not start this while printing.",
+      "levelingConfirmDescription": "Are you sure you want to start {method}?",
       "levelingConfirmAction": "Start",
       "screwBase": "Reference",
       "screwLevel": "Level",
@@ -978,7 +978,7 @@
       }
     },
     "activity": {
-      "empty": "Printer events will appear here as they happen.",
+      "empty": "Printer events will appear here.",
       "printerReady": "Printer synchronized",
       "printStarted": "Print started",
       "commandSent": "Command sent",
@@ -1047,7 +1047,7 @@
       "noSpoolOption": "No active spool",
       "switchLabel": "Active spool",
       "automationTitle": "Automation",
-      "autoPauseHint": "Based on Spoolman's own tracked remaining weight, not a sensor on the printer.",
+      "autoPauseHint": "Based on Spoolman's tracked remaining weight.",
       "autoPauseOnEmpty": "Pause the print automatically when Spoolman reports the spool is empty"
     },
     "sensors": {
@@ -1168,7 +1168,7 @@
       "profileSpread": "Lowest {lowest} mm, highest {highest} mm",
       "saveProfile": "Save as",
       "saveProfileTitle": "Save this mesh",
-      "saveProfileHint": "A mesh that is only calibrated is lost on the next restart.",
+      "saveProfileHint": "Unsaved mesh will be lost on restart.",
       "saveProfileFailed": "The mesh could not be saved.",
       "renameProfile": "Rename {name}",
       "renameProfileTitle": "Rename profile",
@@ -1190,8 +1190,8 @@
       "temperatureWarning": "Probe temperature drift (°C)",
       "temperatureWarningHint": "The card warns when the active profile was probed this far from the bed's current target; zero turns it off.",
       "resetTemperatureWarning": "Reset temperature warning threshold",
-      "temperatureMismatch": "This mesh was probed at {probed}°C, but the bed is now targeting {target}°C — recalibrate before trusting it.",
-      "empty": "No mesh is loaded. Calibrate to measure the bed.",
+      "temperatureMismatch": "This mesh was probed at {probed}°C, but the bed is now targeting {target}°C.",
+      "empty": "No mesh is loaded.",
       "calibrate": "Calibrate mesh",
       "warningsTitle": "Warnings"
     },
@@ -1211,7 +1211,7 @@
       "loadFailed": "The job queue could not be loaded.",
       "dropHint": "Drop a file to upload and add it to the queue",
       "clearConfirmTitle": "Clear the queue?",
-      "clearConfirm": "Every queued job is removed. A job already printing is unaffected, and the queue cannot be restored."
+      "clearConfirm": "Are you sure you want to clear the queue?"
     },
     "surface": {
       "open": "All settings",
@@ -1226,20 +1226,20 @@
   },
   "excludeObject": {
     "title": "Exclude an object",
-    "description": "The rest of the plate keeps printing. This cannot be undone for the current print.",
+    "description": "Warning: All objects with the same name will be excluded.",
     "close": "Close",
     "empty": "This file defines no objects to exclude.",
     "printingNow": "Printing now",
     "exclude": "Exclude",
     "excluded": "Excluded",
     "confirmTitle": "Exclude this object?",
-    "confirmDescription": "Klipper will stop printing {name} and continue with the rest of the plate."
+    "confirmDescription": "Are you sure you want to exclude {name}?"
   },
   "manualProbe": {
     "open": "Manual probe",
     "openTitle": "A manual probe is waiting for a height",
     "title": "Manual probe",
-    "description": "Klipper has stopped and is waiting for the nozzle height. Step down until the nozzle just grips a sheet of paper on the bed, then accept.",
+    "description": "Lower the nozzle or raise the bed until it just grips a sheet of paper on the bed.",
     "dismiss": "Close",
     "dismissTitle": "Closes this window only — the probe keeps waiting, and the header brings it back",
     "height": "Nozzle height (mm)",
@@ -1402,7 +1402,7 @@
     },
     "quality": {
       "title": "Rendering quality",
-      "description": "Auto measures this device and adjusts detail to keep the view responsive.",
+      "description": "Adjusts detail to keep the view responsive.",
       "modes": {
         "quality": "Quality",
         "auto": "Auto",
@@ -1410,7 +1410,7 @@
       },
       "stateFull": "Full detail",
       "stateReduced": "Detail reduced to keep up ({step} of {total})",
-      "stateSquareBeads": "Extrusions are drawn square rather than rounded, which is faster and steadier on large files."
+      "stateSquareBeads": "Extrusions are drawn square rather than rounded."
     },
     "color": {
       "title": "Colour",
@@ -1429,9 +1429,9 @@
     "empty": "Nothing from the printer yet.",
     "commandLabel": "G-code command",
     "placeholder": "Send G-code",
-    "paramSuggested": "Suggested next: {name}. Press the right arrow key to fill it in, or Tab for another parameter.",
+    "paramSuggested": "Suggested next: {name}. Press the right arrow key to fill it in, or Tab for next parameter.",
     "send": "Send command",
-    "reuseCommand": "Put this command back in the prompt",
+    "reuseCommand": "Insert command",
     "clear": "Clear",
     "clearTitle": "Clear the console?",
     "clearConfirm": "The transcript is emptied on this device only",
@@ -1535,7 +1535,7 @@
       "discardDescription": "Unsaved changes to {name} will be lost.",
       "saveRestartConfirm": "Save and restart",
       "saveAllRestartTitle": "Save all and restart?",
-      "saveAllRestartDescription": "Other files have unsaved changes too. These are saved before the firmware restarts:",
+      "saveAllRestartDescription": "Other files have unsaved changes. These are saved before the firmware restarts:",
       "unsaved": "Unsaved",
       "readOnly": "Read only",
       "history": "File history",
@@ -1783,9 +1783,9 @@
       "stopping": "Stopping",
       "restarting": "Restarting",
       "stopConfirmTitle": "Stop {name}?",
-      "stopConfirmDescription": "Anything it was doing — including a print in progress, if this is Klipper — stops with it. Alabaster shows it as disconnected until it is started again.",
+      "stopConfirmDescription": "Are you sure you want to stop {name}?",
       "restartConfirmTitle": "Restart {name}?",
-      "restartConfirmDescription": "Anything it was doing — including a print in progress, if this is Klipper — is interrupted while it comes back up.",
+      "restartConfirmDescription": "Are you sure you want to restart {name}?",
       "status": {
         "active": "Running",
         "failed": "Failed",
@@ -1831,10 +1831,10 @@
       "investigate": "Investigate",
       "investigateOne": "Investigate {name}",
       "updateAllConfirmTitle": "Update all software?",
-      "updateAllConfirmDescription": "These sources will be updated: {names}. Klipper and Moonraker restart when their own update finishes, so the printer must not be printing.",
+      "updateAllConfirmDescription": "These sources will be updated: {names}. Klipper and Moonraker restart when their own update finishes.",
       "updateOne": "Update {name}",
       "updateOneConfirmTitle": "Update {name}?",
-      "updateOneConfirmDescription": "Moonraker installs the available version and restarts the affected service. The printer must not be printing.",
+      "updateOneConfirmDescription": "Moonraker installs the available version and restarts the affected service.",
       "changelogCommits": "{count} commits will be applied:",
       "changelogPackages": "These packages will be upgraded:",
       "updateConfirm": "Start update",
@@ -1844,7 +1844,7 @@
       "rollback": "Roll back",
       "rollbackOne": "Roll back {name} to its previous version",
       "rollbackConfirmTitle": "Roll back {name}?",
-      "rollbackConfirmDescription": "Moonraker reverts to the version installed before the most recent update and restarts the affected service. The printer must not be printing.",
+      "rollbackConfirmDescription": "Moonraker reverts to the version installed before the most recent update and restarts the affected service.",
       "anomalies": "Reported notes",
       "anomaliesShow": "Show reported notes for {name}",
       "anomaliesHide": "Hide reported notes for {name}",
@@ -2085,7 +2085,7 @@
     "enableAudio": "Request audio",
     "hideFrameRate": "Hide the measured frame rate",
     "crosshairTitle": "Nozzle crosshair",
-    "crosshairHint": "Marks the centre of the frame, not the nozzle's real position.",
+    "crosshairHint": "Marks the centre of the frame.",
     "crosshairEnable": "Draw a crosshair",
     "crosshairColor": "Colour",
     "colors": {
@@ -2273,7 +2273,7 @@
       "now": "Sync now",
       "forget": "Forget synced data",
       "forgetConfirmTitle": "Forget synced data on this printer?",
-      "forgetConfirmDescription": "Removes the settings and layout stored in this printer's Moonraker database. Nothing changes here in the browser.",
+      "forgetConfirmDescription": "Removes the settings and layout stored in this printer's Moonraker database. Nothing changes in this browser.",
       "restoredToast": "Settings restored from this printer."
     }
   },
@@ -2281,7 +2281,7 @@
     "open": "Bed screws",
     "openTitle": "A bed screw is waiting to be adjusted",
     "title": "Adjust bed screws",
-    "description": "Klipper has moved the nozzle to a bed screw and is waiting. Turn the screw until the nozzle just grips a sheet of paper against the bed, then accept.",
+    "description": "Turn the screw until the nozzle just grips a sheet of paper against the bed, then accept.",
     "dismiss": "Close",
     "dismissTitle": "Closes this window only — the round keeps waiting, and the header brings it back",
     "pass": "Round",

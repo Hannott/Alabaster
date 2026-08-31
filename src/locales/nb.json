@@ -28,7 +28,7 @@
     "loadingPage": "Laster {page}",
     "pageFailed": {
       "title": "{page} kunne ikke lastes",
-      "description": "En del av Alabaster nådde ikke fram til nettleseren. Last siden på nytt for å hente den igjen.",
+      "description": "En del av Alabaster nådde ikke fram til nettleseren. Last siden på nytt.",
       "action": "Last Alabaster på nytt"
     },
     "farm": "Skriverpark"
@@ -106,7 +106,7 @@
       "kilobytes": "{value} kB",
       "confirmStart": {
         "title": "Starte denne utskriften på {printer}?",
-        "description": "{file} starter umiddelbart på en maskin du ikke står ved.",
+        "description": "{file} starter umiddelbart.",
         "confirm": "Start utskrift"
       }
     },
@@ -128,7 +128,7 @@
     "confirm": {
       "cancel": {
         "title": "Avbryte utskriften på {printer}?",
-        "description": "{file} stopper der den er og kan ikke fortsettes.",
+        "description": "{file} vil bli avbrutt.",
         "confirm": "Avbryt utskrift"
       },
       "emergencyStop": {
@@ -138,7 +138,7 @@
       },
       "power": {
         "title": "Slå av {printer}?",
-        "description": "En pågående utskrift avsluttes med strømmen og kan ikke fortsettes.",
+        "description": "Er du sikker på at du vil slå av skriveren?",
         "confirm": "Slå av"
       }
     }
@@ -265,7 +265,7 @@
     },
     "tuning": {
       "title": "Tuning-resultater",
-      "hint": "Shake&Tunes egne diagnosegrafer, lest direkte fra skriverens config-mappe.",
+      "hint": "Shake&Tunes diagnosegrafer.",
       "refresh": "Oppdater",
       "open": "Åpne {name} i full størrelse",
       "run": "Kjør",
@@ -425,8 +425,8 @@
       "klipperControl": "Klipper-kontroll",
       "restartKlipper": "Start Klipper på nytt",
       "firmwareRestart": "Fastvare-restart",
-      "restartKlipperConfirm": "Klipper laster konfigurasjonen på nytt, og utskriften på platen avsluttes der den står.",
-      "firmwareRestartConfirm": "Kontrollerkortet nullstilles sammen med Klipper, og utskriften på platen avsluttes der den står.",
+      "restartKlipperConfirm": "Er du sikker på at du vil starte Klipper på nytt?",
+      "firmwareRestartConfirm": "Er du sikker på at du vil starte fastvaren på nytt?",
       "serviceControl": "Tjenestekontroll",
       "restartMoonraker": "Start Moonraker på nytt",
       "hostControl": "Vertskontroll",
@@ -460,7 +460,7 @@
   "saveConfig": {
     "open": "Lagre ny konfigurasjon",
     "title": "Lagre ny konfigurasjon?",
-    "description": "Lagring skriver disse endringene til printer.cfg og starter Klipper på nytt.",
+    "description": "Lagrer til printer.cfg og starter Klipper på nytt.",
     "save": "Lagre og start på nytt",
     "discard": "Forkast og start på nytt",
     "whilePrinting": "Begge handlingene starter Klipper på nytt, som ville avbryte den pågående utskriften. Begge venter til den er ferdig.",
@@ -499,7 +499,7 @@
     "unavailableValue": "—",
     "emergencyStop": "Nødstopp",
     "emergencyStopShort": "Stopp",
-    "emergencyStopConfirm": "Stoppe skriveren umiddelbart? Varmeelementer og bevegelser blir slått av.",
+    "emergencyStopConfirm": "Er du sikker på at du vil utføre en nødstopp?",
     "operationalTitle": "Kontrollpanel",
     "cancel": "Avbryt",
     "commandFailed": "Kommandoen kunne ikke fullføres. Kontroller skriveren og prøv igjen.",
@@ -596,8 +596,8 @@
       "noFiles": "Moonraker returnerte ingen G-kodefiler.",
       "recentFailed": "Fillisten kunne ikke leses.",
       "confirmStart": "Starte utskrift av {filename}?",
-      "confirmCancel": "Dette kan ikke angres — jobben stopper der den er og kan ikke gjenopptas.",
-      "confirmPause": "Utskriften forblir lastet; ingenting gjenopptar den av seg selv.",
+      "confirmCancel": "Er du sikker på at du vil avbryte utskriften?",
+      "confirmPause": "Er du sikker på at du vil sette utskriften på pause?",
       "closeRecent": "Lukk nylige filer",
       "startFile": "Start {filename}",
       "confirmStartTitle": "Start denne utskriften?",
@@ -689,18 +689,18 @@
       "chartWindow": "Tidsvindu",
       "chartWindowOption": "{minutes} min",
       "calibrationTitle": "Kalibrering",
-      "calibrationHint": "Kjører i flere minutter og varmer opp skriveren fysisk. Ikke start dette under en utskrift.",
+      "calibrationHint": "Varmer opp skriveren og kjører i flere minutter.",
       "calibratePid": "Kalibrer PID",
       "calibrateMpc": "Kalibrer MPC",
       "calibrationOutputLabel": "Kalibreringslogg",
       "calibrationRunning": "Kalibrerer …",
       "calibratePromptTitle": "Kalibrer {heater}",
-      "calibratePromptDescription": "Velg temperaturen kalibreringen skal ta utgangspunkt i — vanligvis materialet du skriver ut mest med.",
+      "calibratePromptDescription": "Velg temperaturen kalibreringen skal ta utgangspunkt i. (Anbefalt: 200 °C.)",
       "calibratePromptLabel": "Måltemperatur",
       "calibrateInvalid": "Angi en temperatur over 0.",
       "calibrateTooHigh": "{max}° er høyeste tillatte temperatur for denne varmeren.",
       "calibrateConfirmTitle": "Kalibrer {heater}?",
-      "calibrateConfirmDescription": "Dette varmer {heater} til {target}{unit} og kjører i flere minutter. Ikke start dette under en utskrift.",
+      "calibrateConfirmDescription": "Varmer {heater} til {target}{unit} og kjører i flere minutter.",
       "calibrateConfirmAction": "Kalibrer",
       "off": "Av",
       "atTarget": "På mål",
@@ -978,7 +978,7 @@
       }
     },
     "activity": {
-      "empty": "Skriverhendelser vises her når de oppstår.",
+      "empty": "Skriverhendelser vises her.",
       "printerReady": "Skriveren er synkronisert",
       "printStarted": "Utskriften startet",
       "commandSent": "Kommando sendt",
@@ -1047,7 +1047,7 @@
       "noSpoolOption": "Ingen aktiv spole",
       "switchLabel": "Aktiv spole",
       "automationTitle": "Automatikk",
-      "autoPauseHint": "Basert på Spoolmans egen registrerte gjenværende vekt, ikke en sensor på skriveren.",
+      "autoPauseHint": "Basert på Spoolmans registrerte gjenværende vekt.",
       "autoPauseOnEmpty": "Sett utskriften automatisk på pause når Spoolman melder at spolen er tom"
     },
     "sensors": {
@@ -1168,7 +1168,7 @@
       "profileSpread": "Lavest {lowest} mm, høyest {highest} mm",
       "saveProfile": "Lagre som",
       "saveProfileTitle": "Lagre denne mesh-en",
-      "saveProfileHint": "En mesh som bare er kalibrert, går tapt ved neste omstart.",
+      "saveProfileHint": "Ulagret mesh går tapt ved omstart.",
       "saveProfileFailed": "Mesh-en kunne ikke lagres.",
       "renameProfile": "Gi {name} nytt navn",
       "renameProfileTitle": "Gi profilen nytt navn",
@@ -1190,8 +1190,8 @@
       "temperatureWarning": "Avvik i måletemperatur (°C)",
       "temperatureWarningHint": "Kortet varsler når den aktive profilen ble målt så langt fra bedets nåværende måltemperatur; null slår det av.",
       "resetTemperatureWarning": "Nullstill temperaturvarselgrense",
-      "temperatureMismatch": "Denne mesh-en ble målt ved {probed}°C, men bedet er nå satt til {target}°C — kalibrer på nytt før du stoler på den.",
-      "empty": "Ingen mesh er lastet. Kalibrer for å måle bedet.",
+      "temperatureMismatch": "Denne mesh-en ble målt ved {probed}°C, men bedet er nå satt til {target}°C.",
+      "empty": "Ingen mesh er lastet.",
       "calibrate": "Kalibrer mesh",
       "warningsTitle": "Varsler"
     },
@@ -1211,7 +1211,7 @@
       "loadFailed": "Jobbkøen kunne ikke lastes.",
       "dropHint": "Slipp en fil for å laste den opp og legge den i køen",
       "clearConfirmTitle": "Tømme køen?",
-      "clearConfirm": "Alle jobber i køen fjernes. En jobb som allerede skrives ut påvirkes ikke, og køen kan ikke gjenopprettes."
+      "clearConfirm": "Er du sikker på at du vil tømme køen?"
     },
     "surface": {
       "open": "Alle innstillinger",
@@ -1226,20 +1226,20 @@
   },
   "excludeObject": {
     "title": "Ekskluder et objekt",
-    "description": "Resten av platen fortsetter å skrives ut. Dette kan ikke angres for den pågående utskriften.",
+    "description": "Advarsel: Alle objekter med samme navn vil bli ekskludert.",
     "close": "Lukk",
     "empty": "Denne filen definerer ingen objekter som kan ekskluderes.",
     "printingNow": "Skrives ut nå",
     "exclude": "Ekskluder",
     "excluded": "Ekskludert",
     "confirmTitle": "Ekskludere dette objektet?",
-    "confirmDescription": "Klipper slutter å skrive ut {name} og fortsetter med resten av platen."
+    "confirmDescription": "Ekskluderer {name}. Alle objekter med samme navn vil bli ekskludert."
   },
   "manualProbe": {
     "open": "Manuell probing",
     "openTitle": "En manuell probing venter på en høyde",
     "title": "Manuell probing",
-    "description": "Klipper har stoppet og venter på dysehøyden. Gå nedover til dysen så vidt holder et papirark mot bedet, og godta deretter.",
+    "description": "Senk dysen eller hev bedet til dysen så vidt holder et papirark mot bedet.",
     "dismiss": "Lukk",
     "dismissTitle": "Lukker bare dette vinduet — probingen fortsetter å vente, og toppfeltet henter den tilbake",
     "height": "Dysehøyde (mm)",
@@ -1402,7 +1402,7 @@
     },
     "quality": {
       "title": "Gjengivelseskvalitet",
-      "description": "Auto måler denne enheten og justerer detaljnivået for å holde visningen responsiv.",
+      "description": "Justerer detaljnivået for å holde visningen responsiv.",
       "modes": {
         "quality": "Kvalitet",
         "auto": "Auto",
@@ -1410,7 +1410,7 @@
       },
       "stateFull": "Full detaljgrad",
       "stateReduced": "Detaljnivå redusert for å holde følge ({step} av {total})",
-      "stateSquareBeads": "Ekstruderingene tegnes firkantet i stedet for avrundet, som er raskere og roligere på store filer."
+      "stateSquareBeads": "Ekstruderingene tegnes firkantet i stedet for avrundet."
     },
     "color": {
       "title": "Farge",
@@ -1429,9 +1429,9 @@
     "empty": "Ingenting fra skriveren ennå.",
     "commandLabel": "G-kodekommando",
     "placeholder": "Send G-kode",
-    "paramSuggested": "Forslag: {name}. Trykk høyre piltast for å fylle den inn, eller Tab for en annen parameter.",
+    "paramSuggested": "Forslag: {name}. Trykk høyre piltast for å fylle den inn, eller Tab for neste parameter.",
     "send": "Send kommando",
-    "reuseCommand": "Legg kommandoen tilbake i feltet",
+    "reuseCommand": "Sett inn kommando",
     "clear": "Tøm",
     "clearTitle": "Tøm konsollet?",
     "clearConfirm": "Transkriptet tømmes på denne enheten.",
@@ -1535,7 +1535,7 @@
       "discardDescription": "Endringer som ikke er lagret i {name} vil gå tapt.",
       "saveRestartConfirm": "Lagre og start",
       "saveAllRestartTitle": "Lagre alt og start på nytt?",
-      "saveAllRestartDescription": "Andre filer har også ulagrede endringer. Disse lagres før fastvaren starter på nytt:",
+      "saveAllRestartDescription": "Andre filer har ulagrede endringer. Disse lagres før fastvaren starter på nytt:",
       "unsaved": "Ikke lagret",
       "readOnly": "Skrivebeskyttet",
       "history": "Filhistorikk",
@@ -1783,9 +1783,9 @@
       "stopping": "Stopper",
       "restarting": "Starter på nytt",
       "stopConfirmTitle": "Stoppe {name}?",
-      "stopConfirmDescription": "Alt den gjorde — inkludert en pågående utskrift, hvis dette er Klipper — stopper med den. Alabaster viser den som frakoblet til den er startet igjen.",
+      "stopConfirmDescription": "Er du sikker på at du vil stoppe {name}?",
       "restartConfirmTitle": "Starte {name} på nytt?",
-      "restartConfirmDescription": "Alt den gjorde — inkludert en pågående utskrift, hvis dette er Klipper — avbrytes mens den kommer tilbake.",
+      "restartConfirmDescription": "Er du sikker på at du vil starte {name} på nytt?",
       "status": {
         "active": "Kjører",
         "failed": "Feilet",
@@ -1831,10 +1831,10 @@
       "investigate": "Undersøk",
       "investigateOne": "Undersøk {name}",
       "updateAllConfirmTitle": "Oppdatere all programvare?",
-      "updateAllConfirmDescription": "Disse kildene oppdateres: {names}. Klipper og Moonraker starter på nytt når sin egen oppdatering er ferdig, så skriveren må ikke skrive ut.",
+      "updateAllConfirmDescription": "Disse kildene oppdateres: {names}. Klipper og Moonraker starter på nytt når sin egen oppdatering er ferdig.",
       "updateOne": "Oppdater {name}",
       "updateOneConfirmTitle": "Oppdatere {name}?",
-      "updateOneConfirmDescription": "Moonraker installerer tilgjengelig versjon og starter den berørte tjenesten på nytt. Skriveren må ikke skrive ut.",
+      "updateOneConfirmDescription": "Moonraker installerer tilgjengelig versjon og starter den berørte tjenesten på nytt.",
       "changelogCommits": "{count} commits vil bli lagt til:",
       "changelogPackages": "Disse pakkene vil bli oppgradert:",
       "updateConfirm": "Start oppdatering",
@@ -1844,7 +1844,7 @@
       "rollback": "Rull tilbake",
       "rollbackOne": "Rull {name} tilbake til forrige versjon",
       "rollbackConfirmTitle": "Rulle tilbake {name}?",
-      "rollbackConfirmDescription": "Moonraker går tilbake til versjonen som var installert før den siste oppdateringen, og starter den berørte tjenesten på nytt. Skriveren må ikke skrive ut.",
+      "rollbackConfirmDescription": "Moonraker går tilbake til versjonen som var installert før den siste oppdateringen, og starter den berørte tjenesten på nytt.",
       "anomalies": "Rapporterte merknader",
       "anomaliesShow": "Vis rapporterte merknader for {name}",
       "anomaliesHide": "Skjul rapporterte merknader for {name}",
@@ -2085,7 +2085,7 @@
     "enableAudio": "Be om lyd",
     "hideFrameRate": "Skjul målt bildefrekvens",
     "crosshairTitle": "Dysekors",
-    "crosshairHint": "Markerer midten av bildet, ikke dysens faktiske posisjon.",
+    "crosshairHint": "Markerer midten av bildet.",
     "crosshairEnable": "Tegn et kors",
     "crosshairColor": "Farge",
     "colors": {
@@ -2273,7 +2273,7 @@
       "now": "Synkroniser nå",
       "forget": "Glem synkroniserte data",
       "forgetConfirmTitle": "Glemme synkroniserte data på denne skriveren?",
-      "forgetConfirmDescription": "Fjerner innstillingene og oppsettet lagret i denne skriverens Moonraker-database. Ingenting endres her i nettleseren.",
+      "forgetConfirmDescription": "Fjerner innstillingene og oppsettet lagret i denne skriverens Moonraker-database. Ingenting endres i denne nettleseren.",
       "restoredToast": "Innstillinger gjenopprettet fra denne skriveren."
     }
   },
@@ -2281,7 +2281,7 @@
     "open": "Bedskruer",
     "openTitle": "En bedskrue venter på justering",
     "title": "Juster bedskruer",
-    "description": "Klipper har flyttet dysen til en bedskrue og venter. Vri skruen til dysen så vidt holder et papirark mot bedet, og godta deretter.",
+    "description": "Vri skruen til dysen så vidt holder et papirark mot bedet, og godta deretter.",
     "dismiss": "Lukk",
     "dismissTitle": "Lukker bare dette vinduet — runden venter videre, og topplinjen henter den tilbake",
     "pass": "Runde",
