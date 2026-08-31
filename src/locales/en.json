@@ -837,7 +837,6 @@
       "homeAxisNotHomed": "{axis} is not homed — home it",
       "homeAxisBlocked": "{axis} cannot be homed while a job is loaded",
       "stepsTitle": "Step sizes",
-      "stepsHint": "The Z jog stops at 0.1 mm; smaller moves belong to the Z offset steps below.",
       "confirmationsTitle": "Confirmations",
       "skipMotorsOffWarning": "Turn off motors without confirming",
       "skipLevelingWarning": "Start bed leveling without confirming"

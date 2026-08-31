@@ -837,7 +837,6 @@
       "homeAxisNotHomed": "{axis} mangler nullpunkt — kjør den dit",
       "homeAxisBlocked": "{axis} kan ikke kjøres til nullpunkt mens en jobb er lastet",
       "stepsTitle": "Stegstørrelser",
-      "stepsHint": "Z-jogging stopper på 0,1 mm; mindre bevegelser hører til Z-offset-stegene under.",
       "confirmationsTitle": "Bekreftelser",
       "skipMotorsOffWarning": "Slå av motorer uten bekreftelse",
       "skipLevelingWarning": "Start bednivellering uten bekreftelse"

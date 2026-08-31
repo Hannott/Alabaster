@@ -38,7 +38,6 @@ const skipLevelingWarning = computed(() =>
 
   <SurfaceSection
     :title="t('dashboard.movement.stepsTitle')"
-    :hint="t('dashboard.movement.stepsHint')"
     divided
   >
     <MovementStepSettingsFields mode="pane" />
