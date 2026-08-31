@@ -1630,6 +1630,7 @@ input[type='number']::-webkit-inner-spin-button {
     display var(--motion-duration-standard) allow-discrete,
     flex-basis var(--motion-duration-standard) var(--motion-ease-emphasized),
     inline-size var(--motion-duration-standard) var(--motion-ease-emphasized),
+    padding-inline var(--motion-duration-standard) var(--motion-ease-emphasized),
     opacity var(--motion-duration-standard) var(--motion-ease-standard),
     transform var(--motion-duration-standard) var(--motion-ease-emphasized);
 }
@@ -1670,7 +1671,7 @@ input[type='number']::-webkit-inner-spin-button {
   border-radius: 1rem;
   font-size: var(--nav-text-md-size);
   font-weight: var(--font-weight);
-  transition-property: gap, background-color, background-image, color;
+  transition-property: gap, padding-inline, background-color, background-image, color;
 }
 
 /*
@@ -1750,6 +1751,69 @@ input[type='number']::-webkit-inner-spin-button {
 .app-shell[data-sidebar-collapsed='true'] .sidebar-nav-label {
   max-inline-size: 0;
   opacity: 0;
+}
+
+/*
+ * Minimalistic mode removes `.sidebar-brand` outright rather than fading it
+ * like the collapsed state does, so the `mt-8` that used to separate it from
+ * the nav below would otherwise leave a gap sized for a row that no longer
+ * exists.
+ */
+.app-shell[data-sidebar-minimal='true'] .sidebar-navigation {
+  margin-top: 0;
+}
+
+/*
+ * Minimal mode's own inline padding is smaller than the ordinary `1.75rem` /
+ * `0.8125rem` pair, and — unlike the ordinary collapsed rail, which keeps the
+ * full-size padding at every width — it applies whether the rail is
+ * collapsed or expanded. That is what keeps "Icon-only collapse" (see
+ * docs/design/button-system.md) true here too: expanding and collapsing
+ * *within* minimal mode never touches padding at all, so the icon has no
+ * reason to move and nothing needs to animate for that toggle. Only turning
+ * minimal mode itself on or off is a real padding change (going from one
+ * constant to the other), which is why `padding-inline` still carries a
+ * transition on `.desktop-sidebar` above and on `.sidebar-nav-link` below —
+ * that one moment eases instead of snapping, exactly like the width change it
+ * coincides with (turning minimal on also collapses the rail, so both change
+ * together).
+ */
+.app-shell[data-sidebar-minimal='true'] .desktop-sidebar {
+  padding-inline: 0.5rem;
+}
+
+.app-shell[data-sidebar-minimal='true'] .sidebar-nav-link {
+  padding-inline: 0.4375rem;
+}
+
+/*
+ * Collapsed-and-minimal halves the ordinary collapsed rail (`6.5rem` to
+ * `3.25rem`): with no brand row ever occupying it, and minimal mode's own
+ * padding above already narrower than the ordinary case, the rail has no
+ * reason to stay as wide as the icon-only state that still has to leave room
+ * for a brand it never shows.
+ */
+.app-shell[data-sidebar-minimal='true'][data-sidebar-collapsed='true'] .desktop-sidebar {
+  inline-size: 3.25rem;
+  flex-basis: 3.25rem;
+}
+
+/*
+ * Expanded-and-minimal does not inherit the ordinary `17rem` rail either —
+ * that width is sized for the shared case (a brand row, room to grow into),
+ * and minimal mode has neither. `13rem` is sized against the longest nav
+ * label actually shipped, `Utskriftsfiler` (Norwegian "Print files"), at the
+ * default typeface: aside padding (`0.5rem` a side) + the link's own border
+ * and padding + the icon + its `1rem` gap + the label's own measured width
+ * comes to just over `12.6rem`, and `13rem` is that plus a small rounding
+ * buffer, not an exact fit — unlike the collapsed rail above, there is no
+ * icon position to protect here, so there is no reason to size this to the
+ * pixel. A future label longer than today's longest would need this number
+ * revisited; it is not derived from anything that keeps itself in sync.
+ */
+.app-shell[data-sidebar-minimal='true'][data-sidebar-collapsed='false'] .desktop-sidebar {
+  inline-size: 13rem;
+  flex-basis: 13rem;
 }
 
 .mobile-brand,

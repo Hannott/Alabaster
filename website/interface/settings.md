@@ -133,6 +133,10 @@ page's content up under the header. A page with its own action — Timelapse's
 refresh, Dashboard's customize — moves that action into a button in the
 bottom-right corner; opening it reveals the action rather than losing it.
 
+**Minimalistic sidebar** — Removes the Alabaster mark and name from the
+sidebar and collapses it to icons only. You can still expand it from its
+collapse button; only the mark and name stay hidden.
+
 ## Display
 
 **Keep the screen awake while this tab is open.** Use this for a shop-floor

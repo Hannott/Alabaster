@@ -14,8 +14,10 @@ import { useConsoleWeight, type ConsoleWeightMode } from '@/composables/useConso
 import { useEditorIndent } from '@/composables/useEditorIndent'
 import { useFont } from '@/composables/useFont'
 import { useHiddenDestinations } from '@/composables/useHiddenDestinations'
+import { useMinimalisticSidebar } from '@/composables/useMinimalisticSidebar'
 import { usePageHeaders, type PageHeaderVisibility } from '@/composables/usePageHeaders'
 import { useSettingsCategory, type SettingsCategory } from '@/composables/useSettingsCategory'
+import { useSidebar } from '@/composables/useSidebar'
 import { useTextWeight, type TextWeightMode } from '@/composables/useTextWeight'
 import { useTheme, type ThemeMode } from '@/composables/useTheme'
 import { useWakeLock } from '@/composables/useWakeLock'
@@ -70,6 +72,8 @@ const { mode: textWeightMode, setTextWeightMode } = useTextWeight()
 const { consoleFont, fonts: consoleFonts, setConsoleFont } = useConsoleFont()
 const { mode: consoleWeightMode, setConsoleWeightMode } = useConsoleWeight()
 const { mode: pageHeaderVisibility, setPageHeaderVisibility } = usePageHeaders()
+const { isMinimalisticSidebar, setMinimalisticSidebar } = useMinimalisticSidebar()
+const { setSidebarCollapsed } = useSidebar()
 const { timeMode, dateMode, dateCustomPattern, setTimeMode, setDateMode, setDateCustomPattern } =
   useDateTimeFormatMode()
 const wakeLock = useWakeLock()
@@ -93,6 +97,13 @@ const textWeightModes: readonly TextWeightMode[] = [
 ]
 const consoleWeightModes: readonly ConsoleWeightMode[] = ['regular', 'bold']
 const pageHeaderVisibilities: readonly PageHeaderVisibility[] = ['show', 'hide']
+
+/** Turning minimalistic mode on also collapses the sidebar immediately, rather than only changing its future default. */
+function toggleMinimalisticSidebar(): void {
+  const next = !isMinimalisticSidebar.value
+  setMinimalisticSidebar(next)
+  if (next) setSidebarCollapsed(true)
+}
 const timeFormatModes: readonly TimeFormatMode[] = ['auto', 'h23', 'h12']
 
 // Fixed rather than live: every option's parenthesized example reads off the
@@ -1533,6 +1544,18 @@ const lastSyncedDisplay = computed(() => {
                 <span>{{ t(`theme.pageHeaders.${mode}`) }}</span>
               </label>
             </div>
+
+            <label class="check-row mt-7">
+              <input
+                type="checkbox"
+                :checked="isMinimalisticSidebar"
+                @change="toggleMinimalisticSidebar"
+              />
+              <span>{{ t('theme.minimalisticSidebar') }}</span>
+            </label>
+            <p class="mt-2 text-sm leading-6 text-muted">
+              {{ t('theme.minimalisticSidebarHint') }}
+            </p>
           </section>
 
           <section v-if="showCategory('display')" class="page-card">

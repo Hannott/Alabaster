@@ -37,7 +37,8 @@ import { isRecord } from '@/utils/records'
  * Everything Backup/export, Backup/import, and Moonraker-DB sync
  * (`stores/settingsSync.ts`) read and write, in one shape. Deliberately
  * excludes device ergonomics that make no sense to carry to another screen
- * (wake lock, sidebar-collapsed state, the settings category-rail pick, the
+ * (wake lock, sidebar-collapsed state, the minimalistic-sidebar pick — see
+ * `useMinimalisticSidebar` — the settings category-rail pick, the
  * page-header visibility pick — see `usePageHeaders`), the printer list
  * itself (`stores/printers.ts` explains why that stays browser-local) along
  * with the hidden-destination preference that describes it

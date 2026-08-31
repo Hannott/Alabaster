@@ -802,10 +802,26 @@ describe('interaction and iconography contract', () => {
     // "Icon-only collapse" in docs/design/button-system.md. A justify-content
     // override that recenters on collapse would recompute that offset every
     // animation frame as the sidebar's width changes, making the icon visibly
-    // slide; the padding must instead be declared exactly once, never
-    // overridden for the collapsed state.
+    // slide; the padding must instead be declared exactly once for the
+    // ordinary collapsed rail, never overridden there.
+    //
+    // The one bounded exception is minimal mode's own padding
+    // (`[data-sidebar-minimal='true'] .sidebar-nav-link`), a second constant —
+    // not a per-collapse-state override — that applies whether the rail is
+    // collapsed or expanded, so expanding and collapsing within minimal mode
+    // never touches padding either; see button-system.md's "Icon-only
+    // collapse" exception. It is asserted by selector rather than merely
+    // tolerated by count: exactly the base declaration and exactly this one
+    // exception, nothing else.
     const paddingDeclarations = [...styles.matchAll(/\.sidebar-nav-link\s*\{[^}]*padding-inline:/g)]
-    expect(paddingDeclarations).toHaveLength(1)
+    expect(paddingDeclarations).toHaveLength(2)
+
+    const minimalPadding = [
+      ...styles.matchAll(
+        /\[data-sidebar-minimal='true'\][^{[]*\.sidebar-nav-link\s*\{[^}]*padding-inline:/g,
+      ),
+    ]
+    expect(minimalPadding).toHaveLength(1)
 
     expect(styles).not.toMatch(
       /\[data-sidebar-collapsed='true'\][^{]*\.sidebar-nav-link\s*\{[^}]*justify-content/,

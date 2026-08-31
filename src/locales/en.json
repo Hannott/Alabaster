@@ -1982,7 +1982,9 @@
     "pageHeaders": {
       "show": "Show",
       "hide": "Hide"
-    }
+    },
+    "minimalisticSidebar": "Minimalistic sidebar",
+    "minimalisticSidebarHint": "The collapse button still expands it — only the mark and name stay hidden."
   },
   "display": {
     "eyebrow": "Display",

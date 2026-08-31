@@ -1982,7 +1982,9 @@
     "pageHeaders": {
       "show": "Vis",
       "hide": "Skjul"
-    }
+    },
+    "minimalisticSidebar": "Minimalistisk sidepanel",
+    "minimalisticSidebarHint": "Sammenslå-knappen utvider det fortsatt — bare merket og navnet forblir skjult."
   },
   "display": {
     "eyebrow": "Skjerm",
