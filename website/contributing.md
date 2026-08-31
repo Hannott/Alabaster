@@ -25,7 +25,7 @@ Work happens on `develop`. `main` carries releases and this site.
 ## The cheapest ways to help
 
 **Translate it.** English is the source locale. To add a language, copy
-`src/locales/en.json` and keep the same keys. No code changes are needed. A
+`src/locales/en.json`, keep the same keys, and skip code changes entirely. A
 test fails the build if a locale is missing a key or has an empty message, so
 partial translations cannot ship.
 
@@ -61,8 +61,8 @@ These fail the build. They are not review preferences.
 - **Colour is never the only carrier of status.** Pair it with text or a distinct
   shape.
 - **No `window.confirm`, `window.prompt`, or `window.alert`.** Every confirmation
-  is a real dialog that names what it will touch. It is also registered in the
-  [Confirmations](/interface/settings#confirmations) list.
+  is a real dialog that names what it will touch. The
+  [Confirmations](/interface/settings#confirmations) list also tracks it.
 - **Never reload the application or replace the route** during a Moonraker,
   Klipper, or firmware restart. Keep last-known data mounted and mark it stale.
 - **Never replay a mutating command after reconnecting.** Surface the failure and
@@ -76,21 +76,21 @@ These fail the build. They are not review preferences.
 
 ## Where the standards live
 
-Alabaster keeps internal design and architecture documents. There is one for
-each of these areas: page layout and shared UI, navigation, buttons, dialogs,
-module settings, the dashboard module contract, motion, availability and
-reconnection, the Moonraker transport, the frontend stack, and deployment.
-These documents are not part of this repository's public checkout, so you
-cannot open them directly. They are binding on every change: code and
-documents must agree.
+Alabaster keeps internal design and architecture documents. Each of these
+areas has its own document: page layout and shared UI, navigation, buttons,
+dialogs, module settings, the dashboard module contract, motion, availability
+and reconnection, the Moonraker transport, the frontend stack, and
+deployment. These documents are not part of this repository's public
+checkout, so you cannot open them directly. They are binding on every
+change: code and documents must agree.
 
 If your change touches one of these areas, say so in the issue or pull request
 before you design a solution. A reviewer can tell you what the document
-already settled. This avoids reinventing a decision that was already made.
+already settled, so you don't reinvent a decision that already exists.
 
 ## Editing this site
 
-The published documentation lives in `website/` and is built with VitePress:
+The published documentation lives in `website/`, built with VitePress:
 
 ```bash
 npm run docs:dev
@@ -111,7 +111,7 @@ Every page has an **Edit this page on GitHub** link at the bottom.
 Alabaster's design draws on [Mainsail](https://github.com/mainsail-crew/mainsail)
 and [Fluidd](https://github.com/fluidd-core/fluidd). Both interfaces have years
 of production use, and they already settled much of what a Moonraker client
-needs to get right. Alabaster's own design documents were written against a
-survey of both. Referencing what either does, for Moonraker behaviour or for
+needs to get right. Alabaster's own design documents came from a survey of
+both. Referencing what either does, for Moonraker behaviour or for
 UI patterns worth carrying over, is welcome. Copying their Vue 2 / Vuex /
 Vuetify implementation is not.

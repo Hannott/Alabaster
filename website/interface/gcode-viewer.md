@@ -33,7 +33,7 @@ position reports, so corners stay sharp and the marker never cuts across a
 curve.
 
 Geometry ahead of the current print position is not drawn. Only what has
-actually printed is shown, so the model's edge always matches real progress.
+printed is shown, so the model's edge always matches real progress.
 Finished layers show in the printed colour.
 
 This feature requires that the loaded file matches the file being printed.
@@ -51,14 +51,14 @@ updates.
 **Colour** changes how moves are coloured:
 
 - **Single**: One colour for the whole model.
-- **Feature**: Colours each move by its type — external and inner
+- **Feature**: Colours each move by its type: external and inner
   perimeters, infill, solid infill, bridges, support, skirt, and brim. The
   legend lists only the types present in the file. A file from an
   unrecognized slicer shows its moves as unclassified.
 - **Feed rate**: Shades moves from slow to fast based on the extrusion
   speeds in the file. Use it to find where the slicer reduced speed.
 
-**Highlight seams** marks where each extrusion path starts and stops — the
+**Highlight seams** marks where each extrusion path starts and stops: the
 points where a seam can appear on the print.
 
 ## Layers and cross-sections

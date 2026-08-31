@@ -8,7 +8,8 @@ Requires a registered `gcodes` file root. Without one the page is not shown.
 ## Browsing
 
 Folders and files, sorted independently, with folders first. The breadcrumb
-walks back up the folder tree, and **Up one level** does the same in one step.
+jumps to any folder above the current one. **Up one level** moves up exactly
+one level.
 
 | Column   | Notes                                |
 | -------- | ------------------------------------ |
@@ -16,10 +17,10 @@ walks back up the folder tree, and **Up one level** does the same in one step.
 | Size     |                                      |
 | Modified | In your chosen date and time format. |
 
-The list stays current on its own. Moonraker sends a notification whenever a
-file under the root is created, deleted, moved, or modified, whether from a
-slicer upload, another tab, or a macro, and the list updates automatically.
-Use **Refresh list** if Moonraker's file watcher has been turned off.
+Moonraker sends a notification whenever a file under the root is created,
+deleted, moved, or modified, whether from a slicer upload, another tab, or a
+macro, and the list updates automatically. Use **Refresh list** if
+Moonraker's file watcher has been turned off.
 
 ## What a file tells you
 
@@ -37,9 +38,9 @@ it:
 A file with no slicer data says so, instead of showing empty rows.
 
 ::: tip Mismatched filament
-If Spoolman knows what is loaded, the detail panel warns when the file asks
-for a different hot end temperature than the loaded filament is set for. It
-warns before the print starts.
+If Spoolman knows what is loaded, the detail panel warns before the print
+starts when the file asks for a different hot end temperature than the
+loaded filament is set for.
 :::
 
 ## Accurate estimates
@@ -52,7 +53,7 @@ Slicer estimates assume the slicer's idea of your machine. This uses the
 machine's.
 
 It is safe to run on a file that was already analysed on upload. Moonraker
-reports this and changes nothing, so there is no need to check in advance.
+reports this and changes nothing.
 
 ## Starting a print
 
@@ -68,6 +69,6 @@ current job finishes.
 
 **Upload** takes a file into the folder you are looking at.
 
-Or drag one from your desktop onto the page. `.gcode`, `.g`, `.gco`, `.ufp`,
-and `.nc` are accepted, and files land in the folder you are in rather than at
-the root.
+Drag a file from your desktop onto the page instead. `.gcode`, `.g`, `.gco`,
+`.ufp`, and `.nc` are accepted, and files land in the folder you are in
+rather than at the root.

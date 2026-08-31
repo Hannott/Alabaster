@@ -19,7 +19,7 @@ features:
     details: Choose from fifteen modules and arrange them across up to three columns. Desktop, tablet, and phone each keep their own layout. Drag a module to reposition it, and duplicate any module you need more than once.
     link: /interface/customize
   - title: Nothing here needs a reload
-    details: Klipper, Moonraker, and firmware restarts are handled without reloading the page. Values dim while they are stale, then return to normal once fresh data arrives. You keep your place on the page throughout.
+    details: Alabaster handles Klipper, Moonraker, and firmware restarts without reloading the page. Values dim while they are stale, then return to normal once fresh data arrives. You keep your place on the page throughout.
     link: /guide/connecting
   - title: Heat-up times it learned from your printer
     details: The Temperatures module shows when a heater will reach its target, how fast its temperature is rising, and when it has stopped rising.
@@ -31,10 +31,10 @@ features:
     details: A hundred-megabyte print file starts drawing within a quarter of a second. Follow a live print as it happens, or replay a section at 20x speed before you commit filament.
     link: /interface/gcode-viewer
   - title: Maintenance that counts for you
-    details: Service intervals are measured in print hours, metres of filament, or days. Alabaster warns you before you start a print that would run into an overdue interval.
+    details: Alabaster measures service intervals in print hours, metres of filament, or days, and warns you before you start a print that would run into an overdue one.
     link: /interface/modules#maintenance
   - title: Readable by contract
-    details: Every control meets WCAG AA contrast on every surface. A test checks this and fails the build if contrast drops. Status is never shown by colour alone.
+    details: Every control meets WCAG AA contrast on every surface. A test checks this and fails the build if contrast drops. Colour never carries status alone.
     link: /accessibility
   - title: Themes, typefaces, and languages
     details: Alabaster includes theme packs with independent light and dark modes, five typefaces including OpenDyslexic, and full localization. English and Norwegian are both available.

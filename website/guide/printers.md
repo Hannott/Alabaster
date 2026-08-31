@@ -5,8 +5,8 @@ connection is live at a time.
 
 ::: tip Run it off-printer
 With more than one machine, serve Alabaster from a NAS, a spare box, or a
-container rather than from one printer's Pi. Every printer is then equal, and the
-interface stays up when any of them is off. See
+container rather than from one printer's Pi. No printer depends on another's
+Pi being on, and the interface stays up when any one of them is off. See
 [Installation](/guide/installation#choose-where-it-runs).
 :::
 
@@ -14,11 +14,11 @@ interface stays up when any of them is off. See
 
 **Settings → Printers → Add a printer.**
 
-| Field     | What it does                                                                                                               |
-| --------- | -------------------------------------------------------------------------------------------------------------------------- |
-| Address   | `printer.local:7125`, an HTTP address, or a full `ws://` address.                                                          |
-| Name      | Optional. Leave it blank and the printer is shown by the name it reports for itself, or by its address if it reports none. |
-| Dashboard | Start blank, or copy the dashboard from a printer you have already set up.                                                 |
+| Field     | What it does                                                                                                             |
+| --------- | ------------------------------------------------------------------------------------------------------------------------ |
+| Address   | `printer.local:7125`, an HTTP address, or a full `ws://` address.                                                        |
+| Name      | Optional. Leave it blank and Alabaster shows the name the printer reports for itself, or its address if it reports none. |
+| Dashboard | Start blank, or copy the dashboard from a printer you have already set up.                                               |
 
 Copying a dashboard suits a second machine of the same model. It brings the
 layout, the modules, and their configuration, including temperature presets,
@@ -34,9 +34,9 @@ The page does not reload. Modules dim, then fill with the new machine's data.
 ## Seeing them all at once
 
 With two or more printers saved, the [Farm](/interface/farm) page appears in the
-sidebar: every machine side by side, live, with the controls you need for the
-one that wants attention. Switching stays where it is — the menu is one click
-from every page, the Farm page is somewhere you go.
+sidebar: every machine side by side, live, with the controls for whichever one
+needs attention. Switching stays where it is: the menu is one click from every
+page. The Farm page is somewhere you go.
 
 If you keep several printers but work on one at a time, turn **Show the Farm
 page** off on this card and the sidebar entry goes away.
@@ -56,8 +56,8 @@ settings belong to you, not to a machine.
 
 ## Identity, not address
 
-Per-printer settings are keyed to the printer's own identity, not to the address
-you reach it at.
+Alabaster keys per-printer settings to the printer's own identity, not to the
+address you reach it at.
 
 A hostname, an IP address, and a tunnel can all reach the same printer. Keyed
 to the address, each would appear as a separate printer with an empty
@@ -96,7 +96,7 @@ default; you switch it on per printer.
 ::: info The printer list itself never syncs
 Your list of printers stays in the browser, even with sync on. The list
 decides _which_ printer's database to read, so a printer cannot store the
-answer to how it is found. The list is also the one setting that is genuinely
+answer to how it is found. The list is also the one setting that is
 per-device: a phone on mobile data and a workshop tablet on the LAN may need
 different addresses for the same machine.
 :::

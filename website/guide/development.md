@@ -86,8 +86,8 @@ npx vitest run src/stores/__tests__/telemetry.spec.ts
 | Styling   | Tailwind CSS over semantic design tokens           |
 | Testing   | Vitest and Vue Test Utils                          |
 
-Transport code is kept free of Vue and Pinia so it can be unit tested without
-mounting anything.
+Alabaster keeps transport code free of Vue and Pinia so it can be unit tested
+without mounting anything.
 
 ## Where the rules live
 

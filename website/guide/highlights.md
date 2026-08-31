@@ -19,15 +19,15 @@ last ten degrees.
 
 Alabaster shows three things a bare reading does not:
 
-- **`~4 min`** — when the heater will reach its target.
-- **`8°/min`** — the current climb rate.
-- **`Not climbing`** — the heater has a target but is not reaching it. This
+- **`~4 min`**: when the heater will reach its target.
+- **`8°/min`**: the current climb rate.
+- **`Not climbing`**: the heater has a target but is not reaching it. This
   can flag a loose thermistor, a failed heater cartridge, or a part fan
-  pointed the wrong way, and the warning appears immediately instead of
-  leaving you to notice it ten minutes later.
+  pointed the wrong way. The warning appears immediately, before you would
+  notice a slow climb on your own.
 
-This does not reproduce Klipper's own control model. It works like a
-stopwatch, not a simulation, so it stays accurate for PID and MPC alike.
+It works like a stopwatch, not a simulation of Klipper's control loop, so it
+stays accurate whether the heater runs PID or MPC.
 
 → [Temperatures](/interface/modules#temperatures)
 
@@ -62,19 +62,19 @@ Maintenance, start anyway, or wait.
 
 The bed mesh renders as a height map, not a grid of coloured squares:
 
-- **Ten projections** — perspective, orthographic, isometric, dimetric,
+- **Ten projections**: perspective, orthographic, isometric, dimetric,
   trimetric, cavalier, cabinet, one-point, two-point, fisheye.
-- **Five render styles** — surface, bars, contour lines, terraced, mosaic.
+- **Five render styles**: surface, bars, contour lines, terraced, mosaic.
 - **A fixed colour scale** as well as a self-scaling one. A fixed scale lets
   you compare two meshes directly; a self-scaling one does not.
 
 Two warnings come from the mesh, and both catch a real problem:
 
-- **Bed range** — the bed varies by more than the amount you called
+- **Bed range**: the bed varies by more than the amount you called
   acceptable.
-- **Probe temperature drift** — the mesh was probed at 60 °C but the bed is
-  now targeting 100 °C. A mesh measured cold and used hot is wrong, and
-  nothing else reports it.
+- **Probe temperature drift**: you probed the mesh at 60 °C but the bed now
+  targets 100 °C. A mesh measured cold and used hot is wrong, and nothing
+  else reports it.
 
 Calibration plots each point as it is probed, so a run that is going wrong is
 visible before it finishes. A scanning probe has no per-point data to plot;
@@ -87,18 +87,19 @@ Calibration states this instead of showing an empty grid.
 Configuration in Alabaster is a linked document, not a plain text box.
 
 - **`[include]` targets are links.** Ctrl+click one to open it.
-- **A missing target offers to be created**, along with its folder if that is
-  missing too, so you can build a configuration downward from its include
-  list.
-- **Moving an included file offers to rewrite the include.** Choose move and
-  update, move only, or don't move. An include pointing at nothing is enough
-  by itself to stop Klipper from starting.
+- **Alabaster offers to create a missing target**, along with its folder if
+  that is missing too, so you can build a configuration downward from its
+  include list.
+- **Alabaster offers to rewrite the include when you move an included
+  file.** Choose move and update, move only, or don't move. An include
+  pointing at nothing is enough by itself to stop Klipper from starting.
 - **Add to printer.cfg** and **Remove from printer.cfg** are on each file's
-  own menu, and files already included are marked in the list.
+  own menu, and the list marks files already included.
 
 Edits survive everything except a browser reload. Each file keeps its own
-buffer for as long as the tab is open, and an unsaved edit is flagged on the
-file, on every folder above it, and in the navigation, visible from any page.
+buffer for as long as the tab is open, and Alabaster flags an unsaved edit on
+the file, on every folder above it, and in the navigation, visible from any
+page.
 
 → [Configuration](/interface/configuration)
 
@@ -112,7 +113,7 @@ before it finishes loading.
   follows the actual path; corners stay corners instead of sliding between
   telemetry samples and cutting across a curve.
 - **Geometry ahead of the print is not drawn**, rather than dimmed, so the
-  frontier matches exactly where printing has reached.
+  frontier matches where printing has reached.
 - **Simulation mode** replays any slice at up to 20×, with a scrubber,
   with no printer connected.
 - **Rendering quality adapts to your device** and reduces detail to keep the
@@ -131,7 +132,7 @@ where it lives, or give you no way to turn them off at all.
 Alabaster lists **every confirmation in the application on one page**, grouped
 by area, each with its own checkbox. Turn off individual confirmations and
 keep the ones you want. A global override turns off all of them, and states
-plainly which individual settings it is overriding.
+which individual settings it overrides.
 
 → [Settings](/interface/settings#confirmations)
 
@@ -154,17 +155,17 @@ rule for which printer states it appears in.
 
 ## Accessibility guarantees
 
-These guarantees are enforced by automated tests that fail the build:
+Automated tests enforce these guarantees and fail the build when one breaks:
 
-| Guarantee                                                                                                    | Enforced by         |
-| ------------------------------------------------------------------------------------------------------------ | ------------------- |
-| Every control variant clears 4.5:1 contrast over every surface it can sit on — at rest, hovered, and pressed | a contrast test     |
-| Chromatic colour never leaves the Okabe-Ito colour-blind-safe palette                                        | a palette test      |
-| Every animation has a reduced-motion fallback                                                                | a motion test       |
-| Every clickable control comes from one button system, and none of them move on hover or press                | an interaction test |
-| Every locale matches the English schema, with no empty messages                                              | a locale test       |
+| Guarantee                                                                                                   | Enforced by         |
+| ----------------------------------------------------------------------------------------------------------- | ------------------- |
+| Every control variant clears 4.5:1 contrast over every surface it can sit on: at rest, hovered, and pressed | a contrast test     |
+| Chromatic colour never leaves the Okabe-Ito colour-blind-safe palette                                       | a palette test      |
+| Every animation has a reduced-motion fallback                                                               | a motion test       |
+| Every clickable control comes from one button system, and none of them move on hover or press               | an interaction test |
+| Every locale matches the English schema, with no empty messages                                             | a locale test       |
 
-In addition, **status is never carried by colour alone**, and
+In addition, **Alabaster never carries status by colour alone**, and
 `window.confirm`, `window.prompt`, and `window.alert` appear nowhere in the
 application. Every confirmation is a real dialog that names what it will
 affect.
@@ -189,9 +190,9 @@ workshop screen read from two metres away and a phone held at arm's length.
   are not covered by any documentation.
 - **Live endstop readout** on Calibration, polled while the printer is idle
   and paused while it prints.
-- **A manual probe brings its own prompt.** When Klipper stops to ask where
-  the bed is, the prompt reaches you on any page, regardless of what started
-  it, and can be dismissed and returned to later without answering it.
+- **A manual probe brings its own prompt.** The prompt reaches you on any
+  page when Klipper stops to ask where the bed is, regardless of what started
+  it, and you can dismiss it and return to it later without answering it.
 - **Input-shaper graphs** read straight from the config folder, so tuning
   results appear in the interface instead of in a folder you have to find
   separately.
@@ -201,15 +202,15 @@ workshop screen read from two metres away and a phone held at arm's length.
 - **Save new config**, summarised. If Klipper is holding a probe offset, a
   heater model, and a mesh, the summary lists which ones, and it waits for
   the print to finish rather than offering to end it.
-- **Repository recovery.** A dirty, invalid, detached, or corrupt update
-  source is offered the specific recovery it needs, rather than a single
+- **Repository recovery.** Alabaster offers a dirty, invalid, detached, or
+  corrupt update source the specific recovery it needs, rather than a single
   generic failure message.
-- **Roll back an update.** A git-tracked source, such as Klipper, Moonraker,
-  or a git-based client, can be reverted to the version it had before its
-  last update. This is guarded the same way an install is.
+- **Roll back an update.** You can revert a git-tracked source, such as
+  Klipper, Moonraker, or a git-based client, to the version it had before its
+  last update. Alabaster guards a rollback the same way it guards an install.
 - **Screen wake lock** for a shop-floor display watching a print.
-- **Logs into a printer that requires it.** Hidden on the trusted-LAN setup
-  most printers use, and appears when a printer is configured to require a
-  login.
+- **Logs into a printer that requires it.** Stays hidden on the trusted-LAN
+  setup most printers use, and appears when a printer is configured to
+  require a login.
 - **Time and date format overrides**, independent of language, so you can
   choose a different clock format than the one your locale implies.

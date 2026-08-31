@@ -1,7 +1,7 @@
 # Console
 
 The console sends any G-code or macro command straight to Klipper, and shows
-exactly what the printer says back. The record survives a reload.
+what the printer says back. The record survives a reload.
 
 The console appears in two places. The dashboard card sends a command and
 shows the response without leaving the Overview page. The Console page reads
@@ -11,8 +11,8 @@ your machine supports, and searches what you have already sent it.
 ## Sending commands
 
 Type a command and press <kbd>Enter</kbd>. The command you sent appears
-immediately. Any response from Klipper — an error, a `RESPOND`, or ordinary
-output — appears underneath. Many commands complete silently; the echoed
+immediately. Any response from Klipper appears underneath: an error, a
+`RESPOND`, or ordinary output. Many commands complete silently; the echoed
 command is the record that it ran.
 
 - <kbd>↑</kbd> and <kbd>↓</kbd> step back through commands you have sent
@@ -23,16 +23,14 @@ command is the record that it ran.
   to choose from. Type `set` and press <kbd>Tab</kbd> to narrow the list
   without typing the full command name.
 - Type a macro's name and a space, and Alabaster shows the next parameter it
-  takes, dimmed, right after the cursor — so you don't need to remember it or
-  look it up. Press <kbd>→</kbd> to fill it in and keep typing its value. If a
-  macro takes more than one parameter, <kbd>Tab</kbd> and
-  <kbd>Shift</kbd>+<kbd>Tab</kbd> step through the ones you haven't filled in
-  yet, in case you want to set them in a different order.
+  takes, dimmed, right after the cursor. Press <kbd>→</kbd> to fill it in and
+  keep typing its value. If a macro takes more than one parameter,
+  <kbd>Tab</kbd> and <kbd>Shift</kbd>+<kbd>Tab</kbd> step through the ones
+  you haven't filled in, so you can set them in any order.
 - <kbd>Shift</kbd>+<kbd>Enter</kbd> adds a line. Use it to send a short script
   in one go instead of one command at a time.
-- Click any command in the transcript to put it back in the prompt. This is
-  useful for a long macro call where you want to adjust one parameter and
-  resend it.
+- Click any command in the transcript to put it back in the prompt. Adjust one
+  parameter of a long macro call and resend it.
 
 ## Looking up what your printer can do
 
@@ -61,24 +59,23 @@ stops following as soon as you scroll up, so reading an error from ten
 minutes ago is not interrupted by new print chatter. Scroll back to the
 bottom to resume following.
 
-Opening the console does not start from nothing. Moonraker keeps its own
-record of recent output, and the console loads it on connect. A browser
-reload does not hide why a job failed.
+Moonraker keeps its own record of recent output, and the console loads it on
+connect, so a browser reload does not hide why a job failed.
 
-Commands you sent, errors, and ordinary printer output are each marked
-distinctly. This makes a failure easy to find when scrolling back through a
-long print.
+The console marks commands you sent, errors, and ordinary printer output
+distinctly, so a failure is easy to find when scrolling back through a long
+print.
 
-A command that takes minutes — heating the bed, calibrating a mesh, a probe
-accuracy run — holds the prompt until the printer answers. The send button
+A command that takes minutes (heating the bed, calibrating a mesh, a probe
+accuracy run) holds the prompt until the printer answers. The send button
 pulses while it waits. Nothing queues behind it: your next line stays in the
 prompt where you typed it, and <kbd>Enter</kbd> sends it as soon as the
 printer is free.
 
 ## Clearing what you have read
 
-**Clear** empties the transcript on this device. This is remembered, so a
-reload does not bring back what you cleared. The printer's own record of
+**Clear** empties the transcript on this device. Alabaster remembers this, so
+a reload does not bring back what you cleared. The printer's own record of
 output from before that point stays hidden too, so Alabaster asks for
 confirmation before clearing. Clearing does not undo anything sent to the
 printer; it only clears your view of it. You can turn off this confirmation,
@@ -92,9 +89,9 @@ you have sent before.
 ## Filtering output
 
 Hiding temperature reports is on by default. Every heat-up, and every `M105`,
-emits a temperature line each second, which buries everything else. A
-filtered line is still sent by the printer; only the view leaves it out. The
-page shows how many lines are hidden, so a missing line is never a mystery.
+emits a temperature line each second, which buries everything else. The
+printer still sends a filtered line; only the view leaves it out. The page
+shows how many lines are hidden.
 
 The other filters and display options are under **Console settings**:
 
@@ -102,7 +99,7 @@ The other filters and display options are under **Console settings**:
 | --------------------------- | ------------------------------------------------------------------------------------------------- |
 | Hide temperature reports    | Removes the per-second heater chatter. On by default.                                             |
 | Hide timelapse commands     | Quiets the macros a timelapse fires on every layer. Appears only if you have timelapse installed. |
-| Show timestamps             | When each line arrived — worth having when correlating with a failure.                            |
+| Show timestamps             | When each line arrived, useful when correlating with a failure.                                   |
 | Compact rows                | Tighter lines, so more history fits in the same space.                                            |
 | Show Klipper's own prefixes | Leaves the raw `!!` and `//` markers in place, for copying a line verbatim into a bug report.     |
 | Autoscroll                  | Turn off to keep your place while a print floods the console.                                     |

@@ -5,8 +5,7 @@ does and what settings are behind it.
 
 Every card has quick settings on the card itself, and a full settings pane
 behind **All settings**. See
-[how a card is built](/interface/overview#how-a-card-is-built) for more
-information.
+[how a card is built](/interface/overview#how-a-card-is-built).
 
 ## Print
 
@@ -24,9 +23,9 @@ The Print card shows the state of the current job and the controls for it.
 
 Drop a G-code file from your desktop onto the card to upload and start it.
 
-When a print fails or is cancelled, the card shows Klipper's own reason for
-it. This is the same message that otherwise only appears in `klippy.log`.
-Select the text and paste it into a search.
+The card shows Klipper's own reason for a failed or cancelled print. This is
+the same message that otherwise only appears in `klippy.log`. Select the
+text and paste it into a search.
 
 ### Remaining time source
 
@@ -43,10 +42,9 @@ The percentage follows whichever source you pick. The figure, the bar, and
 the drift warning always agree, including the percentage shown in the card's
 header when it is collapsed.
 
-**Use the slicer progress (`M73`)** is a separate switch. It applies to
-_Best available_ only. `M73` is a live progress report that your slicer must
-be configured to write. If the file does not carry one, the settings panel
-states this.
+**Use the slicer progress (`M73`)** is a separate switch that applies to
+_Best available_ only. If the file carries no `M73` report, the settings
+panel states this.
 
 ### Drift warning
 
@@ -54,9 +52,9 @@ Alabaster compares actual progress to the slicer's estimate and warns you
 when they diverge, for example **`12% behind the slicer estimate`** (or ahead
 of it).
 
-This warning is on by default and only appears once the print has genuinely
-diverged. Set the percentage threshold in settings, or turn the warning off
-there.
+This warning is on by default and appears only once the print has diverged
+past the threshold. Set the percentage threshold in settings, or turn the
+warning off there.
 
 ### Pause at a layer
 
@@ -73,8 +71,7 @@ does an established Klipper web interface's own macro pack.
 ### Exclude an object
 
 If the file defines objects, **Exclude object** lists them and marks the one
-currently printing. Excluding an object stops Klipper printing it and
-continues with the rest of the plate.
+currently printing.
 
 This action cannot be undone for the current job. The confirmation states
 this.
@@ -134,18 +131,16 @@ its last ten degrees, and works with both PID and MPC.
 
 ### Adjusting one heater
 
-**±5** adjusts an active target by five degrees. It is the one temperature
-control that stays available while a job is running, since adjusting a
-temperature mid-print is normal. **Off** switches that heater off.
+**±5** adjusts an active target by five degrees, and is the one temperature
+control that stays available while a job is running. **Off** switches that
+heater off.
 
 **Off**, the material presets, and **Cooldown** are unavailable while a job
 is loaded, including a paused print. Each of these would end a paused print
 rather than pause it further.
 
-A `temperature_fan` gets the ±5 adjustment but no **Off** control. Klipper
-runs this type of fan whenever its sensor reads above the target, so a
-target of zero would leave the fan running rather than stop it. There is no
-off state to offer.
+A `temperature_fan` gets the ±5 adjustment but no **Off** control, since a
+target of zero would leave the fan running instead of stopping it.
 
 ### Reading the past
 
@@ -190,7 +185,7 @@ specifies the hot end temperature.
 **Calibrate PID** and **Calibrate MPC** run from the card, on the heater and
 at the temperature you choose (usually the material you print most).
 
-The output appears as it runs. When calibration finishes, the new model is
+The output appears as it runs. Once calibration finishes, the new model is
 staged in Klipper and the card prompts you to save the new config to keep
 it.
 
@@ -209,7 +204,7 @@ toolhead.
   combined X and Y home button can be added beside it, for machines where
   re-homing Z is slow or disruptive.
 - **Jogging**: Step sizes are configurable in millimetres. Add, edit, or
-  remove values freely.
+  remove values.
 - **Motors off**: Asks for confirmation first, since the printer forgets its
   position.
 - **Park positions**: Centre and front.
@@ -252,7 +247,7 @@ the nozzle.
 - **Swap Z direction**: For printers whose bed moves rather than the
   gantry, so Z zero is at the top of the slider.
 - **Save offset**: Folds the current adjustment into whatever sets Z zero on
-  the machine — the probe's own Z offset if there is a probe, or the Z
+  the machine: the probe's own Z offset if there is a probe, or the Z
   endstop position if there is not. A printer with neither has no place to
   save it, so the control is not shown.
 
@@ -360,10 +355,9 @@ mid-job, and shows mid-print macros only when they are useful.
 Split a long list into named sections, directly on the card.
 
 A heading is part of the same list as the macros: drag, reorder, or delete
-it with the same controls a macro already uses, so splitting a group into
-sections needs no separate mechanism to learn. **Add heading** stays pinned
-above the available-macros list, reachable without scrolling regardless of
-how long the printer's macro catalogue is.
+it with the same controls a macro already uses. **Add heading** stays
+pinned above the available-macros list, reachable without scrolling
+regardless of how long the printer's macro catalogue is.
 
 An emptied heading still shows as a bare rule rather than disappearing, so
 the card never appears to have dropped something the settings pane still
@@ -430,8 +424,7 @@ in `moonraker.conf`). The card does not appear without it.
 
 ::: info Different source from Temperatures
 Temperatures reads Klipper's own heaters and `temperature_sensor` objects.
-This card reads whatever is configured in `moonraker.conf` instead. The two
-cards use different sources.
+This card reads whatever is configured in `moonraker.conf` instead.
 :::
 
 ::: warning printer.cfg does not populate this card
@@ -479,7 +472,7 @@ There are two modes:
 - **Bed range**: Warns when the bed varies by more than the threshold you
   set. Set the threshold to zero to turn this warning off.
 - **Probe temperature drift**: Warns, for example, _this mesh was probed at
-  60 °C, but the bed is now targeting 100 °C — recalibrate before trusting
+  60 °C, but the bed is now targeting 100 °C. Recalibrate before trusting
   it._ A mesh measured cold and used hot is inaccurate, and this is the only
   warning for it.
 
@@ -522,11 +515,11 @@ lifetime totals.
 
 Add an interval and choose what measures it:
 
-| Measured by | Counted from                                   |
-| ----------- | ---------------------------------------------- |
-| Print time  | Hours the printer has actually spent printing. |
-| Filament    | Metres extruded.                               |
-| Calendar    | Days since you last performed it.              |
+| Measured by | Counted from                          |
+| ----------- | ------------------------------------- |
+| Print time  | Hours the printer has spent printing. |
+| Filament    | Metres extruded.                      |
+| Calendar    | Days since you last performed it.     |
 
 Each interval shows what is left (`in 40h`, `in 120 m`, `in 12d`) or how far
 overdue it is (`18h over`).

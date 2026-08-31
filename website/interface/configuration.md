@@ -6,8 +6,8 @@ shows a split view with the file tree beside the file you are editing.
 Requires `config_path` to be set in `moonraker.conf`. Without it, the page
 does not appear.
 
-Switch between the **Config** and **Logs** roots at the top. Available
-configuration storage is shown next to them.
+Switch between the **Config** and **Logs** roots at the top. The header shows
+available configuration storage next to them.
 
 ## Unsaved changes
 
@@ -19,10 +19,10 @@ you come back. Alabaster does not ask whether to keep it.
 Saving the file, or clicking **Discard changes**, is the only way to clear a
 buffer.
 
-An unsaved edit is marked on the file's row, on every folder above it at any
-depth, and on the Configuration entry in the desktop sidebar and the mobile
-bar, from whatever page you are on. The marker is a badge dot, so it does not
-depend on color alone.
+Alabaster marks an unsaved edit on the file's row, on every folder above it
+at any depth, and on the Configuration entry in the desktop sidebar and the
+mobile bar, from whatever page you are on. The marker is a badge dot, so it
+does not depend on color alone.
 
 **Save all** and **Discard all** act on every unsaved file at once. Both list
 the files they will touch before doing it.
@@ -36,8 +36,8 @@ it.
 
 A target that does not exist yet gets a wavy underline and an offer to create
 it, along with its folder if that is missing too. This lets you build a
-configuration downward from its include list. Globs are left alone, and so is
-any path that would climb out of the configuration root.
+configuration downward from its include list. Alabaster leaves globs alone,
+along with any path that would climb out of the configuration root.
 
 ![A missing include target is underlined with a wavy line](/images/configuration/include-missing-underline.png)
 
@@ -52,13 +52,13 @@ you opened. The explorer names the last file you edited.
 Moving a file that `printer.cfg` includes breaks that include, which is
 enough on its own to stop Klipper from starting. Alabaster detects this and
 offers to rewrite the line: move and update, just move, or don't move. It
-never edits your configuration without asking. A glob include is left alone,
-since it may still cover the file.
+never edits your configuration without asking. Alabaster leaves a glob
+include alone, since it may still cover the file.
 
 ![A dialog asks whether to update the include line to the file's new path, just move it, or not move it](/images/configuration/move-and-update-dialog.png)
 
-The row menu can also add or remove an include. Files that `printer.cfg`
-already includes are marked in the list.
+The row menu can also add or remove an include. The list marks files that
+`printer.cfg` already includes.
 
 ![A file's row menu with Rename, Download, Remove from printer.cfg, and Delete](/images/configuration/row-context-menu.png)
 
@@ -67,23 +67,23 @@ already includes are marked in the list.
 A single syntax highlighter covers Klipper configuration and macros:
 sections, keys, values, booleans, pin names, Jinja templates and their
 comments, `[include]` paths, and `SAVE_CONFIG` autogen markers. It applies to
-`.cfg`, `.conf`, `.cnf`, `.ini`, `.toml`, and `.bkp` files. The active line's
-number is highlighted in the gutter.
+`.cfg`, `.conf`, `.cnf`, `.ini`, `.toml`, and `.bkp` files. The gutter
+highlights the active line's number.
 
 Every other file type, including `.json`, `.md`, and `.gcode`, opens as plain
 text. Klipper's grammar does not describe these formats, and applying it
-would invent structure that is not there. These are also typically the
-largest files, where highlighting is most expensive.
+would invent structure that is not there. These are also often the largest
+files, where highlighting is most expensive.
 
 Images open in their own viewer with zoom: `png`, `jpg`, `gif`, `webp`,
 `bmp`, `svg`, `ico`, `avif`.
 
-The editor can be **maximized** over the explorer or taken **fullscreen**.
+**Maximize** the editor over the explorer, or take it **fullscreen**.
 
 ::: tip No file-type gate
-A file Alabaster cannot place as text or image can still be opened. So can a
-text file over 2 MB or an image over 20 MB. Alabaster asks for confirmation
-first instead of refusing.
+Alabaster still opens a file it cannot place as text or image, a text file
+over 2 MB, or an image over 20 MB. It asks for confirmation first instead of
+refusing.
 :::
 
 ## Line editing commands
@@ -107,7 +107,7 @@ button, or with Ctrl/Cmd+?.
 **Save and restart** saves the current file and restarts Klipper. If it is
 the only file with unsaved edits, this happens immediately. If other files
 also have unsaved edits, Alabaster asks to save them too, and names them, so
-no edit is left only in memory when Klipper restarts.
+no edit stays only in memory when Klipper restarts.
 
 ## Finding a file
 
@@ -118,17 +118,16 @@ Turn on **Search in files** to match file contents as well as names. This
 lets you find the file that sets `rotation_distance` by searching, instead of
 opening files one at a time.
 
-Three switches under **Explorer settings** decide what the list shows at
-all:
+Three switches under **Explorer settings** decide what the list shows:
 
 | Setting              | Default | Hides                                                                                                      |
 | -------------------- | ------- | ---------------------------------------------------------------------------------------------------------- |
 | Show hidden files    | Off     | Names starting with a dot                                                                                  |
-| Show backup files    | Off     | `.bak`, `.bkp`, a trailing `~`, and any name containing "backup" — Klipper's `SAVE_CONFIG` output included |
+| Show backup files    | Off     | `.bak`, `.bkp`, a trailing `~`, and any name containing "backup", including Klipper's `SAVE_CONFIG` output |
 | Show read-only files | **On**  | Nothing by default                                                                                         |
 
-Folders and files sort independently of each other. Folders are always
-listed first.
+Folders and files sort independently of each other. Folders always come
+first.
 
 ## Automatic list updates
 
@@ -147,15 +146,15 @@ Dragging works in both directions. A row dragged onto a folder or onto `..`
 moves there. Files dragged in from your desktop upload into the folder row
 you drop them on, not into whichever folder happens to be open.
 
-Whether a drag is allowed is decided per entry, not per folder. A read-only
-file cannot be dragged, and its Rename and Delete are disabled. A read-only
-folder will not accept a drop. Moonraker would refuse every one of these
-operations; Alabaster says so before you attempt it.
+Alabaster decides whether a drag is allowed per entry, not per folder. A
+read-only file cannot be dragged, and Alabaster disables its Rename and
+Delete. A read-only folder will not accept a drop. Moonraker would refuse
+every one of these operations; Alabaster says so before you attempt it.
 
 ## Save new config
 
-When Klipper is holding changes from a `SAVE_CONFIG`, the header offers to
-save them, and shows a summary of what is being held:
+The header offers to save changes Klipper is holding from a `SAVE_CONFIG`,
+and shows a summary of what is being held:
 
 - **Probe offset**
 - **Heater model · 6 settings**

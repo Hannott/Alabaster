@@ -34,7 +34,7 @@ They open in place, on the card.
 
 **Full settings** holds everything else: presets, step sizes, thresholds, and
 macro selection. Ctrl+click the gear icon, or choose **All settings**. The
-card docks beside its settings pane so you can see the effect of each change.
+card docks beside its settings pane, showing the effect of each change live.
 
 ::: tip Moving settings between layers
 Most modules let you move a setting between the two layers. Put a setting you
@@ -46,16 +46,16 @@ pane.
 
 A collapsed card keeps one value visible in its header:
 
-| Card         | Collapsed reading                                                                                   |
-| ------------ | --------------------------------------------------------------------------------------------------- |
-| Print        | Progress percentage, while something is printing.                                                   |
-| Temperatures | The hot end, or whatever this machine can heat.                                                     |
-| Movement     | The Z height, or `Not homed`.                                                                       |
-| Controls     | The part fan's speed.                                                                               |
-| Extruder     | The extrusion factor, always — this is the value Klipper carries silently from one job to the next. |
-| Spool        | Weight left on the active spool.                                                                    |
-| Bed mesh     | The mesh range, or `Unloaded`, or `No data`.                                                        |
-| Maintenance  | `Overdue`, when anything is.                                                                        |
+| Card         | Collapsed reading                                                                           |
+| ------------ | ------------------------------------------------------------------------------------------- |
+| Print        | Progress percentage, while something is printing.                                           |
+| Temperatures | The hot end, or whatever this machine can heat.                                             |
+| Movement     | The Z height, or `Not homed`.                                                               |
+| Controls     | The part fan's speed.                                                                       |
+| Extruder     | The extrusion factor, always. Klipper carries this value silently from one job to the next. |
+| Spool        | Weight left on the active spool.                                                            |
+| Bed mesh     | The mesh range, or `Unloaded`, or `No data`.                                                |
+| Maintenance  | `Overdue`, when anything is.                                                                |
 
 A card with nothing worth showing displays nothing, rather than a
 placeholder.
@@ -78,8 +78,8 @@ Cards dim in place and keep their last-known values, labelled as such. Cards
 do not each display their own status panel. The header carries the one
 global status.
 
-A control that sends a command is disabled until the command can actually be
-sent. A button that would fail silently is never active.
+A control that sends a command is disabled until the command can be sent. A
+button that would fail silently is never active.
 
 ## Drag and drop uploads
 

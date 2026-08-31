@@ -2,14 +2,14 @@
 
 ## Does it replace my current interface?
 
-No. Alabaster is a static site on its own address and it changes nothing about
-Klipper or Moonraker. Run it alongside whatever you use now, on a different port,
-and switch back whenever you like.
+No. Alabaster is a static site on its own address and changes nothing about
+Klipper or Moonraker. Run it alongside your current interface, on a different
+port, and switch back any time.
 
 ## Does anything run on my printer?
 
 No. There is no Alabaster process, no database, and no scheduled job. Your web
-server serves a folder of files, and the browser does the rest.
+server serves a folder of static files, and the browser renders them.
 
 ## Where are my settings stored?
 
@@ -19,17 +19,16 @@ is written to the printer, so another browser or another device starts fresh.
 Turn on **Sync settings and layout to this printer** under
 [Settings → Backup and sync](/interface/settings#sync-to-this-printer). Your
 settings and that printer's dashboard then move to the printer's own Moonraker
-database, so every device sees the same setup. It stays off until you turn it
-on, and it is set per printer. Your list of printers stays in the browser
-either way.
+database, so every device sees the same setup. It defaults to off and is set
+per printer. Your list of printers stays in the browser either way.
 
 ## Why can it not reach my printer?
 
 Two different failures, and Alabaster tells them apart:
 
-- **"Moonraker could not be reached"** — nothing answered. Check the address, the
+- **"Moonraker could not be reached"**: nothing answered. Check the address, the
   port, and whether the printer is on.
-- **"Something answered, but refused the connection"** — Moonraker is running and
+- **"Something answered, but refused the connection"**: Moonraker is running and
   turned your browser away. Add your browser's address to `cors_domains` in
   `moonraker.conf` and restart Moonraker.
 
@@ -38,8 +37,8 @@ for more information.
 
 ## A page I expect is missing from the navigation
 
-That is deliberate. Pages that need something your Moonraker does not have are
-not shown at all, rather than shown empty:
+That is deliberate. Alabaster hides pages that need something your Moonraker
+does not have, instead of showing them empty:
 
 | Missing page  | What it needs                          |
 | ------------- | -------------------------------------- |
@@ -52,7 +51,7 @@ The Spool dashboard module works the same way, and needs Spoolman.
 
 ## Why did the page not reload when Klipper restarted?
 
-Because it never does for a restart. The screen stays mounted. Values dim
+Alabaster never reloads for a restart. The screen stays mounted. Values dim
 while they are stale. Fresh data crossfades back in once subscriptions
 rebuild.
 
@@ -64,15 +63,15 @@ transcript afterward reloads the page once, to load the new version.
 
 ## I sent a command and the connection dropped. Was it sent?
 
-Alabaster tells you it failed and does not send it again. Automatically
-retrying a heater target or a print start could do the wrong thing, so you
-retry it yourself.
+Alabaster tells you it failed and does not resend it. It does not guess
+whether repeating a heater target or a print start is safe: retry it
+yourself.
 
 ## Why is the remaining time different from my slicer's?
 
-Because you can choose what it is based on. **Print settings → Remaining time
-from** offers the slicer's own `M73` output, the position in the file, filament
-consumed, or the best available source.
+**Print settings → Remaining time from** sets the source: the slicer's own
+`M73` output, the position in the file, filament consumed, or the best
+available source.
 
 Alabaster also compares the two and warns when the print drifts past a
 threshold you set, for example `12% behind the slicer estimate`. See
@@ -128,16 +127,16 @@ named the same way.
 
 Yes, on the [Configuration](/interface/configuration) page. It has syntax
 highlighting, `[include]` targets as links, section navigation, and search
-across every file, not just the current folder.
+across every file, not only the current folder.
 
 Unsaved edits survive navigating away and stay flagged wherever you go. Only
 saving or discarding clears the flag.
 
 ## What happens to a `SAVE_CONFIG` I have not saved?
 
-Klipper holds it, and Alabaster shows a **Save new config** action that
-summarises what is being held, for example a probe offset, a heater model, or
-a mesh and its point count.
+Klipper holds it. Alabaster shows a **Save new config** action summarising
+it, for example a probe offset, a heater model, or a mesh and its point
+count.
 
 If a print is running, saving or discarding would restart Klipper and end the
 print. Both wait until the print finishes instead of interrupting it.

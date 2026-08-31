@@ -1,8 +1,8 @@
 # Project status
 
-Alabaster is an early-stage project, and it is fully released. Versioned
-builds are published from tags. It runs daily against real printers,
-including a published release installed the documented way.
+Alabaster is an early-stage project with versioned releases already shipping.
+Tags trigger the builds, and it runs daily against real printers, including a
+published release installed the documented way.
 
 This page states the current, accurate status of the project. It is kept
 current with the code.
@@ -35,11 +35,11 @@ one card per subject or group.
 
 ## Languages and appearance
 
-- **Languages** — English and Norwegian Bokmål. Adding a language only takes a
+- **Languages**: English and Norwegian Bokmål. Adding a language only takes a
   translation file, not a code change.
-- **Theme packs** — One pack, Alabaster, with independent light and dark modes.
+- **Theme packs**: One pack, Alabaster, with independent light and dark modes.
   Adding a second pack only takes one CSS file and a registry line.
-- **Typefaces** — Five typefaces, including OpenDyslexic. The console can use
+- **Typefaces**: Five typefaces, including OpenDyslexic. The console can use
   a separate typeface from the rest of the interface, and text weight is
   adjustable.
 
@@ -57,11 +57,11 @@ Built, published, and proven on real hardware.
 | Run on 64-bit Raspberry Pi OS from a published release                 | Done. Installed with the one-line installer and running on a real printer.                                                      |
 | Tested on 32-bit Raspberry Pi OS                                       | **Not done.**                                                                                                                   |
 
-The 32-bit row is the remaining gap. The full flow — download, checksum,
-install, run — has been tested through a published release on a real 64-bit
-printer. The 32-bit case has not been tested on real hardware. There, the
-scripts are verified only against a simulated Klipper layout, covering clean
-install, re-install, conflict detection, and uninstall.
+The 32-bit row is the remaining gap. Alabaster has tested the full flow
+(download, checksum, install, run) through a published release on a real
+64-bit printer. The 32-bit case has not been tested on real hardware. There,
+the scripts are verified only against a simulated Klipper layout, covering
+clean install, re-install, conflict detection, and uninstall.
 
 The one-line installer, described in [Installation](/guide/installation),
 fetches the latest published release.

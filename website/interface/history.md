@@ -12,19 +12,18 @@ Five numbers, for the whole life of the printer:
 | Total         |                                                             |
 | ------------- | ----------------------------------------------------------- |
 | Jobs recorded | Every job Moonraker logged.                                 |
-| Time printing | Time actually spent printing.                               |
+| Time printing | Time spent printing.                                        |
 | Time occupied | Including heating, homing, and everything around the print. |
 | Filament used | In metres.                                                  |
 | Longest print | The single longest job.                                     |
 
-The gap between **time printing** and **time occupied** shows the overhead
-around each print: heating, homing, and everything else besides the print
-itself.
+The gap between **time printing** and **time occupied** is the overhead
+around each print.
 
 ## Statistics
 
-Statistics cover a period you choose — **30 days, 90 days, 12 months, or all
-time** — measured in **jobs, filament, or time**.
+Statistics cover a period you choose (**30 days, 90 days, 12 months, or all
+time**), measured in **jobs, filament, or time**.
 
 The header shows how many jobs are in the window, and whether that window is
 complete for the period.
@@ -57,14 +56,12 @@ not set.
 
 ### Print length
 
-The distribution of how long your prints run. This shows what the printer is
-actually used for, which can differ from what you expected when you bought it.
+The distribution of how long your prints run: what the printer is used for.
 
 ## Completed jobs
 
 The full list, newest first, with **Load older jobs** at the end. It pages on
-what was actually returned rather than a count, so nothing is skipped at a
-boundary.
+what was returned rather than a count, so nothing is skipped at a boundary.
 
 Pages you have loaded stay loaded. A print starting or finishing adds it to the
 top of the list you already have, so paging back through a long history is not

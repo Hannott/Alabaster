@@ -15,8 +15,8 @@ This downloads the latest release and verifies its checksum. It asks before
 each change it makes outside its own directory:
 
 1. **Install the macro pack?** Clones `alabaster.cfg` from this same
-   repository and links it in. The clone is pinned to the exact release you
-   are installing. This step is optional. See [Macros](/guide/macros) for more
+   repository, links it in, and pins the clone to the exact release you are
+   installing. This step is optional. See [Macros](/guide/macros) for more
    information.
 2. **Add the include to `printer.cfg`?** Only offered when nothing already
    defines the same macros.
@@ -63,7 +63,7 @@ proxies Moonraker. The browser sees one origin, so nothing needs configuring.
 For example a NAS, an always-on box, or a container. This is the right choice
 for more than one printer, for two reasons:
 
-- Every printer is treated the same. No single printer is privileged by also
+- This treats every printer the same: none gains an advantage by also
   serving the page.
 - The interface stays reachable when a printer is switched off. It does not
   depend on any one printer being on.
@@ -76,8 +76,8 @@ Moonraker directly.
 
 ## Allow the browser to reach Moonraker
 
-Skip this section if Alabaster is served from the same origin as Moonraker.
-The installer's nginx site does exactly that.
+Skip this section when the same origin serves Alabaster and Moonraker. The
+installer's nginx site does that.
 
 Otherwise, add the address you open Alabaster at to every printer's
 `moonraker.conf`:
@@ -96,8 +96,7 @@ Restart Moonraker afterwards.
 ::: tip Connection refused
 If Alabaster reports that something answered but refused the connection,
 Moonraker is running and the address is correct, but your browser's origin is
-not in `cors_domains`. A printer that is switched off produces a different
-message.
+not in `cors_domains`. A switched-off printer produces a different message.
 :::
 
 ## Updating
@@ -112,7 +111,7 @@ Otherwise, run the install command again to update the app. Update the macro
 pack's clone the same way Moonraker would: run `git pull` inside
 `~/alabaster-config`.
 
-Your settings — connection, saved printers, dashboards, theme — live in your
+Your settings (connection, saved printers, dashboards, theme) live in your
 browser, not in the installed folder. An update never touches them.
 `alabaster.cfg` is also unaffected by an app update. It lives in its own
 clone, symlinked into your configuration directory, separate from the
@@ -126,9 +125,9 @@ bash ~/alabaster/scripts/uninstall.sh
 
 Or fetch it the same way as the installer. It lists everything it will touch
 before it starts. It asks separately about the include, the symlink or file,
-the macro pack's clone, the nginx site, and each `moonraker.conf` block. The
-include is removed before the file it points at, so your configuration never
-references a file that has been deleted.
+the macro pack's clone, the nginx site, and each `moonraker.conf` block. It
+removes the include before the file it points at, so your configuration
+never references a deleted file.
 
 Settings stay in the browser until you clear its site data.
 

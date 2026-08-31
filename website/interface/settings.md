@@ -28,8 +28,7 @@ This card lists every printer you have saved and shows which one is active.
 
 Add a printer with its address and an optional name. When adding a printer,
 you can select **copy the dashboard from a printer you already set up** to
-copy its layout, modules, and module configuration. This is useful for a
-second machine of the same model.
+copy its layout, modules, and module configuration.
 
 Rename or remove any saved printer. Removing a printer does not delete its
 configuration: add the printer back and its dashboard returns.
@@ -54,15 +53,13 @@ Toggle a camera on or off from its row. Every Camera dashboard module respects
 this switch. A camera declared directly in `moonraker.conf` is shown but not
 editable, because Moonraker does not allow changing it.
 
-Which cameras a dashboard card shows, and in what arrangement, is set
-separately in the card's own settings. See
-[Camera](/interface/modules#camera).
+A dashboard card's own settings set which cameras it shows and in what
+arrangement. See [Camera](/interface/modules#camera).
 
 ## Users
 
-This category appears only when the printer you are on requires a login. Most
-printers do not configure this, so most people will not see it. Without a
-login configured, Alabaster treats your network as trusted.
+This category appears only when the printer you are on requires a login.
+Without a login configured, Alabaster treats your network as trusted.
 
 If your printer requires a login, log in with a username and password.
 Alabaster remembers the session on this device, so you normally only need to
@@ -72,9 +69,8 @@ Once logged in, you can:
 
 - **Change your password.**
 - **Add another user.** This logs this device in as the account you just
-  created, the same way signing up anywhere else does. Log back in as
-  yourself afterward if you want to keep managing the printer as your own
-  account.
+  created. Log back in as yourself to keep managing the printer under your
+  own account.
 - **Remove another user's account.** You cannot remove your own account;
   Moonraker requires a different logged-in account to do that.
 - **See, copy, and regenerate the API key.** Other Moonraker clients, such as
@@ -87,7 +83,7 @@ for a printer on another host.
 
 ## Language and format
 
-**Interface language** — English and Norwegian Bokmål. You can also change
+**Interface language**: English and Norwegian Bokmål. You can also change
 the language from the header, on any page.
 
 Time and date format are set separately from language:
@@ -102,13 +98,13 @@ time: timestamps, file dates, history, and the console.
 
 ## Appearance
 
-**Mode** — Light, Dark, or System. Independent of the theme pack.
+**Mode**: Light, Dark, or System. Independent of the theme pack.
 
-**Theme pack** — the semantic colour mapping used throughout the interface.
+**Theme pack**: the semantic colour mapping used throughout the interface.
 The built-in pack has complete light and dark modes. Registered packs appear
 here automatically. See [Theming](/theming).
 
-**Typeface** — five typefaces, used everywhere Alabaster renders text:
+**Typeface**: five typefaces, used everywhere Alabaster renders text:
 
 | Typeface        |                                                                  |
 | --------------- | ---------------------------------------------------------------- |
@@ -118,22 +114,22 @@ here automatically. See [Theming](/theming).
 | Public Sans     | The proportional option.                                         |
 | OpenDyslexic    | Dyslexia-friendly, and an explicit choice rather than a default. |
 
-Each option in the picker renders in its own typeface, so you choose by how it
-looks, not by its name.
+Each option in the picker renders in its own typeface, letting you compare
+them directly.
 
-**Text weight** — Light through Bold. Use a heavier weight for a screen viewed
+**Text weight**: Light through Bold. Use a heavier weight for a screen viewed
 from a distance, and a lighter weight for a screen viewed up close.
 
 **Console typeface and weight** are set separately, and can be set to match
 the interface. They apply to the console transcript, its prompt, and its
 command history, on both the dashboard card and the Console page.
 
-**Page headers** — Show or hide every page's title row. Hiding it pulls each
-page's content up under the header. A page with its own action — Timelapse's
-refresh, Dashboard's customize — moves that action into a button in the
+**Page headers**: Show or hide every page's title row. Hiding it pulls each
+page's content up under the header. A page with its own action (Timelapse's
+refresh, Dashboard's customize) moves that action into a button in the
 bottom-right corner; opening it reveals the action rather than losing it.
 
-**Minimalistic sidebar** — Removes the Alabaster mark and name from the
+**Minimalistic sidebar**: Removes the Alabaster mark and name from the
 sidebar and collapses it to icons only. You can still expand it from its
 collapse button; only the mark and name stay hidden.
 
@@ -152,7 +148,7 @@ This setting has two limits:
 
 ## Editor
 
-**Indent width** — 2, 4, or 8 spaces. This sets what <kbd>Tab</kbd> inserts in
+**Indent width**: 2, 4, or 8 spaces. This sets what <kbd>Tab</kbd> inserts in
 the [configuration editor](/interface/configuration), and how far a new line
 indents when it continues a property such as a macro's G-code.
 
@@ -194,19 +190,17 @@ loaded. With nothing running, each action goes ahead without a prompt.
 
 One switch on this page works the other way and has its own section: **Ask
 before starting a print while a maintenance interval is overdue** adds a
-prompt instead of removing one, and is off by default. Because it interrupts
-starting a print, it requires an explicit opt-in rather than being on by
-default.
+prompt instead of removing one, and is off by default.
 
 **Skip all confirmation dialogs** overrides every setting on this card. When
 it is on, each individual setting shows that it is being overridden, instead
 of silently appearing to stop working.
 
-**Dashboard modules** lists every confirmation that belongs to a card instead
-— Print's start, pause, and cancel; Movement's motors off and bed leveling;
-Temperatures' heater calibration; Bed mesh's delete profile. Each of these
-also has its own checkbox on the card's own settings, right beside the action
-it guards; checking either box changes the same setting.
+**Dashboard modules** lists every confirmation that belongs to a card
+instead: Print's start, pause, and cancel; Movement's motors off and bed
+leveling; Temperatures' heater calibration; Bed mesh's delete profile. Each of
+these also has its own checkbox on the card's own settings, right beside the
+action it guards; checking either box changes the same setting.
 
 ::: info Shared across all printers
 Confirmation settings apply to you, not to a printer. The same is true for
@@ -256,6 +250,6 @@ this device only:
 
 - **The printer list itself.** See
   [Several printers](/guide/printers#where-it-is-all-stored).
-- **Device ergonomics** — the screen-awake setting, whether the sidebar is
+- **Device ergonomics**: the screen-awake setting, whether the sidebar is
   collapsed, and which settings category you last had open.
 - **Logins and sessions**, which belong to the device you are on.

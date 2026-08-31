@@ -1,8 +1,7 @@
 # Calibration
 
-Calibration is where you calibrate a printer, start to finish, without leaving
-the page. Each job brings its own controls, its own readings, and the console
-output Klipper answers with.
+This page runs every calibration job for a printer, start to finish, without
+leaving it. Each job has its own controls, readings, and console output.
 
 ## The jobs
 
@@ -27,16 +26,15 @@ any machine with steppers.
 A console sits below the job you are working on, so the lines Klipper answers
 with arrive where you started the command.
 
-It is the [Console page](/interface/console)'s console, not a smaller version of
-it: the same transcript, the same command history, the same filters, and the
-same command browser. A filter or a prompt position set in either place holds in
-both. Its height follows the **Visible lines** setting in its own settings
-panel.
+It is the [Console page](/interface/console)'s own console: the same
+transcript, command history, filters, and command browser. A filter or a
+prompt position set in either place holds in both. Its height follows the
+**Visible lines** setting in its own settings panel.
 
 **Console** in the page heading puts it away and brings it back.
 
 ::: info Config changes are still written from the header
-A calibration stages a change rather than writing it. The header's
+Calibration stages a change instead of writing it. The header's
 [**Save new config**](/interface/configuration) control appears when something
 is waiting, says what would be written, and writes it.
 :::
@@ -44,7 +42,7 @@ is waiting, says what would be written, and writes it.
 ## Watching a mesh being probed
 
 The height map draws each point as it arrives. You can see a probing run go
-wrong while it is still running, not just after it finishes.
+wrong before it finishes.
 
 The point count updates live: _Probing — 34 points so far_.
 
@@ -80,10 +78,9 @@ map, plus projections, render styles, colour scales, and warnings.
 
 ## Manual probing
 
-When Klipper stops to ask where the bed is, a prompt appears wherever you are
-in the interface. This happens regardless of who started the probe.
-`MANUAL_PROBE`, `Z_ENDSTOP_CALIBRATE`, `PROBE_CALIBRATE`, and macros built
-around them all end in the same wait. It does not matter whether the command
+A prompt appears wherever you are in the interface when Klipper stops to ask
+where the bed is. `MANUAL_PROBE`, `Z_ENDSTOP_CALIBRATE`, `PROBE_CALIBRATE`,
+and macros built around them all end in the same wait, whether the command
 came from a macro button here, the console, the printer's own screen, or
 another browser.
 
@@ -101,7 +98,7 @@ in that direction.
 
 Every button shows the distance it will move, including the halving pair.
 That number shrinks automatically as the bracket closes, so you can see how
-much room is left without working it out yourself. Klipper's own notation
+much room is left. Klipper's own notation
 for these two moves (`TESTZ Z=+`, and `++` for the full distance) is still
 available in the console.
 
@@ -109,17 +106,16 @@ The usual run is coarse steps down until the nozzle is close, then halving
 until a sheet of paper is just gripped.
 
 ::: info Closing the prompt does not answer it
-Closing the window, or pressing `Escape`, leaves the probe exactly where it
-is. Only **Accept** and **Abort** end the probe. While a probe is waiting,
-the header shows a **Manual probe** control that brings the prompt back. You
-can heat the nozzle first, or check anything else in the interface, without
-losing your place.
+Closing the window, or pressing `Escape`, leaves the probe where it is. Only
+**Accept** and **Abort** end it. The header shows a **Manual probe** control
+that brings the prompt back while a probe is waiting, so you can heat the
+nozzle first or check anything else in the interface without losing your
+place.
 :::
 
 A halving press never moves more than 0.2 mm. This is Klipper's own limit,
 not Alabaster's, and it means the halving pair cannot reach the bed no
-matter how many times you press it. The step grid has no such limit, so use
-care there.
+matter how many times you press it. The step grid has no such limit.
 
 Whatever requested the height receives it: a probe offset, a Z endstop
 position, or the rest of your macro. If the result staged a config change,
@@ -128,13 +124,13 @@ this and writes it.
 
 ### Bed screws are their own prompt
 
-`BED_SCREWS_ADJUST` is not a manual probe, but it waits the same way: the
-printer drives the nozzle to each screw and stops. It has its own prompt,
-showing the screw's name, the current round, and Klipper's three answers:
-**Accept**, **Adjusted**, and **Abort**. It follows the same rules as manual
-probing, including closing the window: a **Bed screws** control appears in
-the header while a round is waiting. See
-[the Movement module](/interface/modules#bed-levelling) for more information.
+`BED_SCREWS_ADJUST` waits the same way as a manual probe: the printer drives
+the nozzle to each screw and stops. It has its own prompt, showing the
+screw's name, the current round, and Klipper's three answers: **Accept**,
+**Adjusted**, and **Abort**. It follows the same rules as manual probing,
+including closing the window: a **Bed screws** control appears in the header
+while a round is waiting. See
+[the Movement module](/interface/modules#bed-levelling).
 
 ## Homing and levelling
 
@@ -145,12 +141,11 @@ jog, park, run whichever levelling procedure your printer is configured for
 with, and set the Z offset.
 
 These are the same controls as the
-[Movement dashboard module](/interface/modules#movement), sharing its settings —
+[Movement dashboard module](/interface/modules#movement), sharing its settings:
 a jog step or park position changed in either place holds in both.
 
-Jogging matters here for a specific reason: **probe accuracy** probes wherever
-the toolhead currently sits. Positioning the toolhead first is part of that
-check, and it happens on the same page.
+**Probe accuracy** probes wherever the toolhead currently sits, so jogging it
+into position first is part of that check, on the same page.
 
 ## Heater models
 
@@ -160,20 +155,18 @@ drives the heater through its own heat-up cycle for several minutes and the
 climb curve is how you see it behaving.
 
 A bang-bang (`watermark`) heater has no constants to fit, so it is not offered.
-Calibration is refused while a job is loaded, not only while one is printing: the
-heat-up cycle ends a paused print as surely as it ruins a running one.
+Calibration is refused while a job is loaded, not only while one is printing:
+the heat-up cycle ends a paused print or ruins a running one.
 
-The result is staged, not written. Save it from the header.
+The result stays staged until you save it from the header.
 
 ## Endstops
 
-The live state of every endstop the printer reports: **Triggered**,
+Shows the live state of every endstop the printer reports: **Triggered**,
 **Open**, or **Unknown**.
 
 Klipper reports endstop state only when asked. Alabaster asks every couple
 of seconds while the printer is idle. **Read now** asks immediately.
-
-Two behaviors to note:
 
 - **Polling stops during a print.** Querying endstops mid-print is not free,
   so readings pause and are labelled as not current.
@@ -229,9 +222,8 @@ folder.
 
 Open any of them at full size.
 
-Tuning results appear in the interface, on the same destination as the mesh and
-the belts you are comparing them against, instead of in a folder you have to
-locate separately.
+Tuning results appear on the same page as the mesh and the belts you are
+comparing them against.
 
 ::: info Generated by Shake&Tune
 These graphs come from the Shake&Tune tooling. Alabaster reads the files

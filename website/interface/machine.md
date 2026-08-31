@@ -14,35 +14,33 @@ page opened:
 - **Uptime.**
 
 If host status cannot be read, the page keeps showing the previously loaded
-figures and says so. It does not blank out or show zeros.
+figures and says so, instead of blanking out or showing zeros.
 
 ## Controller modules
 
 This section lists every MCU Klipper is talking to, with its chip, firmware
 version, load, and frequency.
 
-A board that has dropped off is marked **Disconnected**. It does not keep
-showing its last-known numbers as current.
+A board that has dropped off is marked **Disconnected**, rather than showing
+its last-known numbers as current.
 
 ## Peripherals
 
-This section lists the serial, USB, and CAN devices actually attached to the
-host.
+This section lists the serial, USB, and CAN devices attached to the host.
 
 Use it to find the `/dev/serial/by-id/...` path for an `[mcu]` or `[probe]`
 section, or the UUID a CAN-connected toolhead's `canbus_uuid:` line wants,
 without an SSH session. The USB list also confirms that a board is
 enumerating, even before it has been given a tty node. A CAN interface is
-listed even with nothing unclaimed on it, which confirms the adapter itself
-is working, not just quiet.
+listed even with nothing unclaimed on it, confirming the adapter is working.
 
 There is no notification for a device being plugged in or unplugged. This
 list is read when the page loads, and again when you choose **Refresh**.
 
 ## Services
 
-This section lists the services Moonraker manages. Each row shows its state —
-**Running**, **Stopped**, or **Failed** — and a link to its web interface,
+This section lists the services Moonraker manages. Each row shows its state
+(**Running**, **Stopped**, or **Failed**) and a link to its web interface,
 where it has one.
 
 **Most services can be started, stopped, or restarted from their own row.** A
@@ -58,8 +56,7 @@ and a link to its web interface, with no Start, Stop, or Restart control.
 
 Restarting Klipper, restarting Moonraker, and rebooting or shutting down the
 host are also available from the header's power menu, on every page. See
-[Restarting things on purpose](/guide/connecting#restarting-things-on-purpose)
-for more information.
+[Restarting things on purpose](/guide/connecting#restarting-things-on-purpose).
 
 ## Software updates
 
@@ -89,46 +86,44 @@ The transcript opens in a window of its own the moment a run starts, with
 room to read the output as it arrives. This is the same `git` or `apt` output
 you would get over SSH.
 
-While a run is in progress, the window **will not close**: not on `Escape`,
-not on a click outside it, not on the close control. This prevents a
-half-finished update from being dismissed and forgotten, which is how a
-stalled or failed update goes unnoticed. Once the run ends, the window closes
-normally by any of those methods. **The Updates panel reopens it** for as
-long as there is a transcript worth reading.
+While a run is in progress, the window stays open regardless of `Escape`, a
+click outside it, or the close control, so a stalled or failed update can't
+be dismissed and forgotten. Once the run ends, the window closes normally by
+any of those methods. **The Updates panel reopens it** for as long as there
+is a transcript worth reading.
 
 If the run updated Alabaster itself, closing the transcript reloads the page
 once, to load the new version.
 
 ::: info Moonraker restarts mid-update
-Moonraker disconnects while it updates itself. This looks like a failure, but
-it is not. Alabaster says so. The work may have finished on the host. Check
-for updates again to find out.
+Moonraker disconnects while it updates itself. Alabaster reports this state
+rather than flagging it as a failure. The work may have finished on the
+host; check for updates again to confirm.
 :::
 
 ::: tip Alabaster's own macro pack is one of these rows
 If you installed [the macro pack](/guide/macros), it appears here as its own
 row, separate from Alabaster itself, because a git clone updates differently
-from a downloaded release. Editing `alabaster.cfg` directly is fine, but it
-turns this row into **Needs attention**, because the clone now has local
-changes. Use the recovery below to keep or discard those changes before the
-next update.
+from a downloaded release. Editing `alabaster.cfg` directly turns this row
+into **Needs attention**, because the clone now has local changes. Use the
+recovery below to keep or discard those changes before the next update.
 :::
 
 ### Rolling back an update
 
-A source Moonraker tracks by its own git history — Klipper, Moonraker, and a
-git-based client — can be reverted to the version it had before its most
-recent update. Use this if a new version turns out to be the problem. The
-rollback control sits beside the row and is confirmed the same way an install
-is: the printer must not be printing. A source updated from packages has no
-previous version for Moonraker to hold onto, so it does not offer this
-control. A row that already needs attention is resolved through the recovery
-below instead, so it does not offer this control either.
+Moonraker tracks Klipper, Moonraker, and a git-based client by their own git
+history, and can revert any of them to the version before its most recent
+update. Use this if a new version turns out to be the problem. The rollback
+control sits beside the row; Alabaster confirms it the same way it confirms
+an install, requiring the printer not be printing. A source updated from
+packages has no previous version for Moonraker to hold onto, so it does not
+offer this control. Use the recovery flow below instead for a row that
+already needs attention; it does not offer this control either.
 
 ## Recovering a broken repository
 
-When Moonraker will not update a repository, it reports why, and the page
-offers what that problem needs:
+Moonraker reports why it will not update a repository, and the page offers
+what that problem needs:
 
 | Reported      | What it means                                            |
 | ------------- | -------------------------------------------------------- |

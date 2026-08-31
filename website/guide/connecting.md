@@ -57,14 +57,11 @@ reconnect after a restart is never reported as a permissions problem.
 
 ## Logging in
 
-A printer can also require a username and password. This is separate from
-the trust settings above, and less common. It is configured with
-`force_logins` in the same `[authorization]` block. Most printers do not turn
-this on.
+A printer can also require a username and password, set with `force_logins`
+in the same `[authorization]` block. Most printers do not turn it on.
 
-`cors_domains` and `trusted_clients` control which browsers Moonraker will
-talk to at all. They do not control who is allowed to act once connected.
-The two settings are independent of each other.
+`cors_domains` and `trusted_clients` control which browsers Moonraker
+accepts. They do not control who can act once connected.
 
 If your printer requires a login, Settings shows a **Users** category.
 Otherwise it stays hidden. See
@@ -107,10 +104,9 @@ Reconnecting re-reads server state and recreates every subscription. It does
 not touch what you were doing.
 
 ::: warning Interrupted Commands Are Not Replayed
-A command that was in flight when the connection dropped fails visibly.
-Alabaster does not send it again on your behalf. A retried heater target or a
-retried print start is not a safe guess. Alabaster tells you it failed, and
-you retry it yourself.
+A command in flight when the connection drops fails visibly. Alabaster does
+not resend it, and does not guess whether a heater target or a print start is
+safe to repeat. Retry it yourself.
 :::
 
 ## Restarting things on purpose

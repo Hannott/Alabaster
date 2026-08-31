@@ -1,7 +1,6 @@
 # The interface
 
-Alabaster is a dashboard plus ten focused pages. This section covers each of
-them.
+Alabaster is a dashboard plus ten focused pages.
 
 ## Pages
 

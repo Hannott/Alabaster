@@ -4,8 +4,8 @@ Alabaster is a web interface for Klipper 3D printers. It runs in your
 browser, connects to Moonraker, and needs nothing installed on the device you
 use to view it.
 
-It is a static site. No Alabaster process runs on your printer, there is no
-database, and there is no account. Point it at Moonraker and it works.
+It is a static site. Alabaster runs no process on your printer, keeps no
+database, and needs no account. Point it at Moonraker and it works.
 
 ## What you can do with it
 
@@ -36,8 +36,8 @@ Updating Alabaster itself is the one exception: closing the update transcript
 afterward reloads the page once, to load the new version.
 
 **It tells you when something failed.** A command interrupted by a disconnect
-does not resend automatically when the connection returns. You are told, and
-you decide whether to send it again.
+does not resend automatically when the connection returns. Alabaster
+notifies you, and you decide whether to send it again.
 
 **It discovers your printer.** Every heater, temperature sensor, fan, output
 pin, and macro comes from what your machine reports. A page that needs a
@@ -45,11 +45,11 @@ Moonraker component you do not have installed does not appear.
 
 ## Requirements
 
-| You need               | Notes                                                                                                                                                                                                                            |
-| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Klipper with Moonraker | Any current release.                                                                                                                                                                                                             |
-| A modern browser       | Chrome, Edge, Firefox, or Safari, on desktop or mobile.                                                                                                                                                                          |
-| WebGL 2                | Needed for the [G-code viewer](/interface/gcode-viewer) and for the map on the [bed mesh module](/interface/modules#bed-mesh). Without it, bed mesh still shows its axis numbers and probed readings, just not the rendered map. |
+| You need               | Notes                                                                                                                                                                                                                           |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Klipper with Moonraker | Any current release.                                                                                                                                                                                                            |
+| A modern browser       | Chrome, Edge, Firefox, or Safari, on desktop or mobile.                                                                                                                                                                         |
+| WebGL 2                | Needed for the [G-code viewer](/interface/gcode-viewer) and for the map on the [bed mesh module](/interface/modules#bed-mesh). Without it, bed mesh still shows its axis numbers and probed readings, but not the rendered map. |
 
 ## Where to go next
 

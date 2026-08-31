@@ -15,14 +15,13 @@ The two settings are independent. Every pack includes both a light mode and a
 dark mode. Switching mode does not change your pack, and switching pack does
 not change your mode.
 
-Both preferences are kept in your browser.
+Your browser keeps both preferences.
 
 ## The bundled pack
 
 Alabaster is the bundled theme pack. It uses high-contrast blue and sky blue.
 Its accent and focus colours reuse the same blue as the interface borders, so
-a focused control reads as part of the same system, not as a separate
-highlight.
+a focused control reads as part of the same system.
 
 ## Typefaces are not part of a pack
 
@@ -31,7 +30,7 @@ is not a colour mapping. Putting it in a pack would force you to choose a
 colour scheme to get a specific typeface.
 
 Five typefaces are available, including OpenDyslexic. See
-[Settings → Appearance](/interface/settings#appearance) for more information.
+[Settings → Appearance](/interface/settings#appearance).
 
 ## The constraints behind a pack
 

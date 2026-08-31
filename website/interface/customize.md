@@ -16,8 +16,8 @@ resizing works with a keyboard and on a touchscreen:
 | Collapse               | Keeps it in place, showing only its header and one reading. |
 
 **Column widths** sets each column separately. Pick a column on the numbered
-ruler, then choose XS, S, M, L, or XL — so XS-XL-XS and L-S-S are both
-yours to build, and the ruler shows the shape you are making.
+ruler, then choose XS, S, M, L, or XL. XS-XL-XS and L-S-S are both valid
+combinations, and the ruler shows the shape you are making.
 
 Each width has a ceiling of its own. Three XS columns stay narrow and sit
 centred with space either side rather than stretching to fill a large monitor,
@@ -66,10 +66,10 @@ own card, with its own name and its own configuration.
 
 The usual **Macros** arrangement is one card per job:
 
-- **Preparation** — home, level, load filament. Shown while idle.
-- **Mid-print** — pause at layer, purge, adjust. Shown while printing and
+- **Preparation**: home, level, load filament. Shown while idle.
+- **Mid-print**: pause at layer, purge, adjust. Shown while printing and
   paused.
-- **Calibration** — PID tuning, test prints, resonance runs.
+- **Calibration**: PID tuning, test prints, resonance runs.
 
 Each macro button can have a colour from the Okabe-Ito palette. Each group
 can be set to appear only while the printer is idle, paused, or printing.
@@ -102,13 +102,13 @@ layer.
 Everything is stored in your browser, keyed to the **printer's identity**
 rather than its network address.
 
-So a printer reached at `printer.local`, at an IP address, and through a
+A printer reached at `printer.local`, at an IP address, and through a
 tunnel is one printer with one dashboard, not three separate ones.
 
 Two consequences:
 
 - **Another browser or device starts fresh.** Each one keeps its own
-  layouts. When you add a second printer, you can copy an existing printer's
-  dashboard to skip setup.
+  layouts. Copy an existing printer's dashboard to skip setup when you add
+  a second printer.
 - **Removing a printer does not delete its dashboard.** Add it back and the
   arrangement returns.

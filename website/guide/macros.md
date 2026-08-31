@@ -41,8 +41,8 @@ Restart Klipper.
 
 ## How it gets onto the printer
 
-The installer clones a second copy of this repository — the same one the
-application itself comes from — into `~/alabaster-config`, pinned to the exact
+The installer clones a second copy of this repository (the same one the
+application itself comes from) into `~/alabaster-config`, pinned to the exact
 release you installed. `alabaster.cfg` in your configuration directory is a
 symlink into that clone, not a plain copy.
 
@@ -58,13 +58,13 @@ Updating one does not require updating the other, and the two can never
 disagree about which version they are.
 
 ::: tip Editing it directly is fine
-Because `alabaster.cfg` is a symlink, editing it — through Alabaster's own
-Configuration page, or by hand — changes the file inside the clone. Moonraker
+Because `alabaster.cfg` is a symlink, editing it (through Alabaster's own
+Configuration page, or by hand) changes the file inside the clone. Moonraker
 then shows that repository as having local changes the next time it checks for
 updates. Use the same
 [recovery flow](/interface/machine#recovering-a-broken-repository) already
-used for Klipper and Moonraker's own update sources. This is the expected
-outcome: it shows you that this copy is no longer identical to what shipped.
+used for Klipper and Moonraker's own update sources: it shows you that this
+copy is no longer identical to what shipped.
 :::
 
 If there is no network at install time, or the repository is unreachable, the
@@ -129,7 +129,7 @@ variable_pause_extruder_off_after: 0
 | `park_at_cancel`           | Whether a cancelled print parks as well as a paused one.                       |
 | `pause_extruder_off_after` | Turn the hotend off this many seconds into a pause. `0` leaves it on.          |
 
-Filament lengths have their own block, `_ALABASTER_FILAMENT` — set
+Filament lengths have their own block, `_ALABASTER_FILAMENT`: set
 `load_length` and `unload_length` to match the distance between your extruder
 and your nozzle.
 
@@ -150,8 +150,8 @@ and `[virtual_sdcard]`. The `[virtual_sdcard]` section sets
 as a manual cancel.
 
 ::: warning A different gcodes path, or an existing [virtual_sdcard]
-If your install uses a different gcodes root — an older `~/gcode_files`, for
-one — edit the `path` line to match, or delete the section entirely and keep
+If your install uses a different gcodes root (an older `~/gcode_files`, for
+one), edit the `path` line to match, or delete the section entirely and keep
 your own. The installer's conflict check catches the common case of
 `[virtual_sdcard]` already being declared somewhere else in your
 configuration, and skips the include rather than leaving Klipper unable to
