@@ -1,0 +1,99 @@
+# Six simulated printers, for developing the Farm rail and anything else that
+# needs more than one machine. Local development only; nothing here is ever
+# part of a release, and none of it goes near a real printer.
+#
+#   docker compose -f compose.fake-printers.yaml up -d
+#
+# Then add each address in Alabaster under Settings → Printers:
+#
+#   ws://localhost:7131/websocket   Voron 2.4      printing, camera, queue of 3
+#   ws://localhost:7132/websocket   Prusa MK4      printing, spool, power switch
+#   ws://localhost:7133/websocket   Ender bench    idle, no camera
+#   ws://localhost:7134/websocket   Bambu-ish      paused mid-print, queue held
+#   ws://localhost:7135/websocket   Trident        Klipper shutdown, camera live
+#   ws://localhost:7136/websocket   Locked down    refuses this page's origin
+#
+# The sixth exists to reproduce the one failure that looks like a printer being
+# switched off but is not: an origin missing from `cors_domains`. Alabaster's
+# farm column tells the two apart by probing HTTP after the socket fails.
+name: alabaster-fake-printers
+
+x-printer: &printer
+  build:
+    context: ./dev/fake-printer
+  init: true
+  restart: unless-stopped
+  stop_grace_period: 2s
+
+services:
+  voron:
+    <<: *printer
+    ports: ['127.0.0.1:7131:7125']
+    environment:
+      PRINTER_NAME: Voron 2.4
+      SCENARIO: printing
+      FILENAME: voron_skirt_v7.gcode
+      MATERIAL: ABS
+      COLOR: '56B4E9'
+      PRINT_SECONDS: '1200'
+      QUEUE: '3'
+
+  mk4:
+    <<: *printer
+    ports: ['127.0.0.1:7132:7125']
+    environment:
+      PRINTER_NAME: Prusa MK4
+      SCENARIO: printing
+      FILENAME: gridfinity_6x3.gcode
+      MATERIAL: PLA
+      COLOR: E69F00
+      PRINT_SECONDS: '2400'
+      LAYERS: '288'
+      QUEUE: '5'
+      SPOOLMAN: 'true'
+      POWER: 'true'
+
+  ender:
+    <<: *printer
+    ports: ['127.0.0.1:7133:7125']
+    environment:
+      PRINTER_NAME: Ender bench
+      SCENARIO: complete
+      FILENAME: calibration_cube.gcode
+      MATERIAL: PETG
+      COLOR: '009E73'
+      CAMERA: 'false'
+      QUEUE: '0'
+
+  bambu:
+    <<: *printer
+    ports: ['127.0.0.1:7134:7125']
+    environment:
+      PRINTER_NAME: Enclosure box
+      SCENARIO: paused
+      FILENAME: duct_left.gcode
+      MATERIAL: ASA
+      COLOR: CC79A7
+      QUEUE: '2'
+      QUEUE_PAUSED: 'true'
+
+  trident:
+    <<: *printer
+    ports: ['127.0.0.1:7135:7125']
+    environment:
+      PRINTER_NAME: Trident
+      SCENARIO: shutdown
+      FILENAME: mount_bracket.gcode
+      MATERIAL: PLA
+      COLOR: D55E00
+      QUEUE: '1'
+
+  refused:
+    <<: *printer
+    ports: ['127.0.0.1:7136:7125']
+    environment:
+      PRINTER_NAME: Locked down
+      SCENARIO: printing
+      # Refuses every websocket, the way a Moonraker whose `cors_domains` does
+      # not list this page does.
+      CORS: none
