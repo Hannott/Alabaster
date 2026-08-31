@@ -1793,10 +1793,7 @@ onBeforeUnmount(() => {
                   <p class="header-menu__section-title">
                     {{ t('configuration.settings.visibility') }}
                   </p>
-                  <label
-                    class="check-row check-row--block header-menu__toggle"
-                    :title="t('configuration.settings.showHiddenFiles.hint')"
-                  >
+                  <label class="check-row check-row--block header-menu__toggle">
                     <input
                       type="checkbox"
                       :checked="showHiddenFiles"
@@ -1815,10 +1812,7 @@ onBeforeUnmount(() => {
                     />
                     <span>{{ t('configuration.settings.showBackupFiles.label') }}</span>
                   </label>
-                  <label
-                    class="check-row check-row--block header-menu__toggle"
-                    :title="t('configuration.settings.showReadOnlyFiles.hint')"
-                  >
+                  <label class="check-row check-row--block header-menu__toggle">
                     <input
                       type="checkbox"
                       :checked="showReadOnlyFiles"

@@ -492,31 +492,16 @@
     "collapse": "Skjul hva Klipper meldte"
   },
   "dashboard": {
-    "connect": "Koble til skriver",
-    "connectionSettings": "Tilkoblingsinnstillinger",
-    "telemetryTitle": "Direkte telemetri",
-    "telemetryDescription": "Verdiene vises når Moonraker er tilkoblet.",
-    "transport": "Moonraker / WS",
     "hotend": "Dyse",
     "bed": "Bed",
-    "fan": "Delekjøling",
     "temperatureUnit": "°C",
     "percentUnit": "%",
     "weightUnit": "g",
     "lengthUnit": "m",
     "unavailableValue": "—",
-    "targetValue": "Mål {value}{unit}",
-    "rpmValue": "{value} o/min",
-    "activityTitle": "Maskinaktivitet",
-    "activityDescription": "Hendelsesstrømmen vises her.",
-    "activityEmpty": "Venter på den første skriverhendelsen",
-    "activityHint": "Statusendringer bruker symbol og tekst, aldri bare farge.",
-    "quickActionsTitle": "Hurtighandlinger",
-    "loadFile": "Velg fil",
     "emergencyStop": "Nødstopp",
     "emergencyStopShort": "Stopp",
     "emergencyStopConfirm": "Stoppe skriveren umiddelbart? Varmeelementer og bevegelser blir slått av.",
-    "unavailableAction": "Tilgjengelig når en skriver er tilkoblet",
     "operationalTitle": "Kontrollpanel",
     "cancel": "Avbryt",
     "commandFailed": "Kommandoen kunne ikke fullføres. Kontroller skriveren og prøv igjen.",
@@ -1247,7 +1232,7 @@
   },
   "excludeObject": {
     "title": "Ekskluder et objekt",
-    "description": "Klipper slutter å skrive ut det valgte objektet og fortsetter med resten av platen. Dette kan ikke angres for den pågående utskriften.",
+    "description": "Resten av platen fortsetter å skrives ut. Dette kan ikke angres for den pågående utskriften.",
     "close": "Lukk",
     "empty": "Denne filen definerer ingen objekter som kan ekskluderes.",
     "printingNow": "Skrives ut nå",
@@ -1344,7 +1329,7 @@
     },
     "empty": {
       "title": "Velg en G-kodefil",
-      "description": "Last inn en fil fra Moonraker eller denne enheten for å undersøke lag og verktøybane."
+      "description": "Last inn fra Moonraker, eller fra denne enheten."
     },
     "loading": {
       "title": "Strømmer og behandler",
@@ -1650,16 +1635,14 @@
       "open": "Innstillinger for utforskeren",
       "visibility": "Filsynlighet",
       "showHiddenFiles": {
-        "label": "Vis skjulte filer",
-        "hint": "Viser filer og mapper hvis navn starter med et punktum."
+        "label": "Vis skjulte filer"
       },
       "showBackupFiles": {
         "label": "Vis sikkerhetskopier",
         "hint": "Viser sikkerhetskopifiler og -mapper, som Klippers SAVE_CONFIG-kopier."
       },
       "showReadOnlyFiles": {
-        "label": "Vis skrivebeskyttede filer",
-        "hint": "Viser filer og mapper du ikke har rettigheter til å redigere."
+        "label": "Vis skrivebeskyttede filer"
       },
       "search": "Søk",
       "searchInFileContents": {
@@ -1935,13 +1918,11 @@
   "language": {
     "eyebrow": "Språk",
     "title": "Språk og format",
-    "description": "Språk er også tilgjengelig fra toppfeltet, uansett hvor du er i Alabaster. Tid- og datoformat gjelder overalt Alabaster viser et av dem — tidsstempler, fildatoer, historikk og konsollen.",
     "selectLabel": "Grensesnittspråk"
   },
   "theme": {
     "eyebrow": "Utseende",
     "title": "Temapakke",
-    "description": "Velg den semantiske fargefordelingen som brukes i hele Alabaster. Lys og mørk modus er tilgjengelig for alle pakker.",
     "modeLabel": "Modus",
     "mode": {
       "light": "Lys",
@@ -1949,12 +1930,10 @@
       "system": "System"
     },
     "packLabel": "Aktiv temapakke",
-    "packHint": "Installerte temapakker vises her automatisk når de er registrert.",
     "packs": {
       "alabaster": "Alabaster"
     },
     "fontLabel": "Skrifttype",
-    "fontHint": "Gjelder overalt der Alabaster viser tekst.",
     "fonts": {
       "sourceCodePro": "Source Code Pro",
       "robotoMono": "Roboto Mono",
@@ -1989,7 +1968,7 @@
   "display": {
     "eyebrow": "Skjerm",
     "title": "Hold skjermen våken",
-    "description": "Nyttig på en skjerm i verkstedet eller et nettbrett som følger med på en utskrift. Dette gjelder bare mens fanen er åpen og aktiv — å bytte bort eller la skjermen låse seg opphever det til du kommer tilbake.",
+    "description": "Dette gjelder bare mens fanen er åpen og aktiv — å bytte bort eller la skjermen låse seg opphever det til du kommer tilbake.",
     "toggle": "Hold skjermen våken mens denne fanen er åpen",
     "unsupportedBrowser": "Nettleseren din støtter ikke å holde skjermen våken.",
     "requiresSecureContext": "Ikke tilgjengelig over en vanlig http://-adresse som en lokal IP eller et vertsnavn. Dette fungerer når Alabaster er installert på maskinen du ser den fra (localhost), eller nås over HTTPS – for eksempel via OctoEverywhere eller en lignende relétjeneste.",
@@ -2050,7 +2029,7 @@
   "printers": {
     "eyebrow": "Skrivere",
     "title": "Lagrede skrivere",
-    "description": "Hvilken skriver som er tilkoblet, og alle du har lagret. Bytt herfra eller fra toppfeltet.",
+    "description": "Bytt herfra eller fra toppfeltet.",
     "empty": "Ingen skrivere lagret enda. Koble til en ovenfor, eller legg til adressen nedenfor.",
     "active": "Aktiv",
     "switch": "Bytt",
@@ -2170,7 +2149,7 @@
     },
     "login": {
       "title": "Logg inn",
-      "description": "Logg inn som deg selv eller en annen konto på denne skriveren. Alabaster husker økten på denne enheten, så dette trengs vanligvis bare én gang — eller igjen etter å ha opprettet en bruker, som logger denne enheten inn som kontoen den nettopp opprettet.",
+      "description": "Alabaster husker økten på denne enheten, så dette trengs vanligvis bare én gang.",
       "usernameLabel": "Brukernavn",
       "passwordLabel": "Passord",
       "sourceLabel": "Autentiseringskilde",
@@ -2194,7 +2173,7 @@
     },
     "add": {
       "title": "Legg til en bruker",
-      "description": "Å opprette en bruker logger denne enheten inn som dem med det samme. Logg inn som deg selv igjen etterpå hvis du skulle fortsette å administrere denne skriveren.",
+      "description": "Logger denne enheten inn som den nye brukeren med det samme. Logg inn som deg selv igjen etterpå for å fortsette å administrere denne skriveren.",
       "usernameLabel": "Brukernavn",
       "passwordLabel": "Passord",
       "submit": "Legg til bruker",
@@ -2216,7 +2195,7 @@
   "confirmations": {
     "eyebrow": "Sikkerhet",
     "title": "Bekreftelser",
-    "description": "Alle bekreftelsesdialoger i Alabaster, på ett sted. Å hake av en boks hopper over den ene dialogen fra nå av, på samme måte på hver skriver — denne innstillingen er ikke knyttet til en bestemt skriver.",
+    "description": "Å hake av en boks hopper over den ene dialogen fra nå av, på samme måte på hver skriver — denne innstillingen er ikke knyttet til en bestemt skriver.",
     "skipAll": "Hopp over alle bekreftelsesdialoger",
     "globalOverride": "Overstyrt av global innstilling",
     "groups": {
@@ -2283,7 +2262,7 @@
   "backup": {
     "eyebrow": "Sikkerhetskopi",
     "title": "Sikkerhetskopi og synkronisering",
-    "description": "Lagre alle innstillinger og denne skriverens dashbordoppsett til en fil, gjenopprett fra en, eller tilbakestill alt til standard.",
+    "description": "Alle innstillinger og denne skriverens dashbordoppsett.",
     "export": "Eksporter",
     "import": "Importer",
     "importError": "Denne filen kunne ikke leses som en sikkerhetskopi av Alabaster-innstillinger.",
@@ -2294,7 +2273,7 @@
     "resetConfirmDescription": "Innstillinger for tema, språk, format, bekreftelser og dashbordoppsett går alle tilbake til hvordan Alabaster starter. Skriverne du har lagt til, og eventuelle innlogginger, påvirkes ikke.",
     "sync": {
       "title": "Synkroniser til denne skriveren",
-      "description": "Holder innstillingene over, og denne skriverens dashbordoppsett, i skriverens egen Moonraker-database — slik at de følger deg tilbake hit fra en annen nettleser eller enhet. Av som standard.",
+      "description": "Holder innstillingene over, og denne skriverens dashbordoppsett, i skriverens egen Moonraker-database — slik at de følger deg tilbake hit fra en annen nettleser eller enhet.",
       "toggle": "Synkroniser innstillinger og oppsett til denne skriveren",
       "lastSynced": "Sist synkronisert {value}",
       "neverSynced": "Ikke synkronisert enda",

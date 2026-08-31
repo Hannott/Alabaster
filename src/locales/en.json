@@ -492,31 +492,16 @@
     "collapse": "Hide what Klipper reported"
   },
   "dashboard": {
-    "connect": "Connect printer",
-    "connectionSettings": "Connection settings",
-    "telemetryTitle": "Live telemetry",
-    "telemetryDescription": "Values will appear when Moonraker is connected.",
-    "transport": "Moonraker / WS",
     "hotend": "Hotend",
     "bed": "Bed",
-    "fan": "Part cooling",
     "temperatureUnit": "°C",
     "percentUnit": "%",
     "weightUnit": "g",
     "lengthUnit": "m",
     "unavailableValue": "—",
-    "targetValue": "Target {value}{unit}",
-    "rpmValue": "{value} rpm",
-    "activityTitle": "Machine activity",
-    "activityDescription": "The event stream will be shown here.",
-    "activityEmpty": "Waiting for the first printer event",
-    "activityHint": "Status changes include a symbol and text, never color alone.",
-    "quickActionsTitle": "Quick actions",
-    "loadFile": "Choose file",
     "emergencyStop": "Emergency stop",
     "emergencyStopShort": "Stop",
     "emergencyStopConfirm": "Immediately stop the printer? Heaters and motion will be shut down.",
-    "unavailableAction": "Available after a printer connects",
     "operationalTitle": "Dashboard",
     "cancel": "Cancel",
     "commandFailed": "The command could not be completed. Check the printer and try again.",
@@ -1247,7 +1232,7 @@
   },
   "excludeObject": {
     "title": "Exclude an object",
-    "description": "Klipper stops printing the chosen object and moves on to the rest of the plate. This cannot be undone for the current print.",
+    "description": "The rest of the plate keeps printing. This cannot be undone for the current print.",
     "close": "Close",
     "empty": "This file defines no objects to exclude.",
     "printingNow": "Printing now",
@@ -1344,7 +1329,7 @@
     },
     "empty": {
       "title": "Choose a G-code file",
-      "description": "Load a file from Moonraker or this device to inspect its layers and toolpath."
+      "description": "Load from Moonraker, or from this device."
     },
     "loading": {
       "title": "Streaming and processing",
@@ -1650,16 +1635,14 @@
       "open": "Explorer settings",
       "visibility": "File visibility",
       "showHiddenFiles": {
-        "label": "Show hidden files",
-        "hint": "Shows files and folders whose name starts with a dot."
+        "label": "Show hidden files"
       },
       "showBackupFiles": {
         "label": "Show backup files",
         "hint": "Shows backup files and folders, such as Klipper's SAVE_CONFIG backups."
       },
       "showReadOnlyFiles": {
-        "label": "Show read-only files",
-        "hint": "Shows files and folders you don't have permission to edit."
+        "label": "Show read-only files"
       },
       "search": "Search",
       "searchInFileContents": {
@@ -1935,13 +1918,11 @@
   "language": {
     "eyebrow": "Language",
     "title": "Language and format",
-    "description": "Language is also available from the header, wherever you are in Alabaster. Time and date format applies everywhere Alabaster shows one — timestamps, file dates, history, and the console.",
     "selectLabel": "Interface language"
   },
   "theme": {
     "eyebrow": "Appearance",
     "title": "Theme pack",
-    "description": "Choose the semantic color mapping used throughout Alabaster. Light and dark modes remain available for every pack.",
     "modeLabel": "Mode",
     "mode": {
       "light": "Light",
@@ -1949,12 +1930,10 @@
       "system": "System"
     },
     "packLabel": "Active theme pack",
-    "packHint": "Installed theme packs appear here automatically after they are registered.",
     "packs": {
       "alabaster": "Alabaster"
     },
     "fontLabel": "Typeface",
-    "fontHint": "Applies everywhere Alabaster renders text.",
     "fonts": {
       "sourceCodePro": "Source Code Pro",
       "robotoMono": "Roboto Mono",
@@ -1989,7 +1968,7 @@
   "display": {
     "eyebrow": "Display",
     "title": "Keep the screen awake",
-    "description": "Useful on a shop-floor screen or tablet watching a print. This only holds while the tab is open and in front — switching away or letting the screen lock releases it until you return.",
+    "description": "This only holds while the tab is open and in front — switching away or letting the screen lock releases it until you return.",
     "toggle": "Keep the screen awake while this tab is open",
     "unsupportedBrowser": "Your browser doesn't support keeping the screen awake.",
     "requiresSecureContext": "Not available over a plain http:// address such as a LAN IP or hostname. This works when Alabaster is installed on the machine you're viewing it from (localhost), or reached over HTTPS — for example through OctoEverywhere or a similar relay.",
@@ -2050,7 +2029,7 @@
   "printers": {
     "eyebrow": "Printers",
     "title": "Saved printers",
-    "description": "Which printer is connected, and every one you've saved. Switch from here or from the header.",
+    "description": "Switch from here or from the header.",
     "empty": "No printers saved yet. Connect to one above, or add its address below.",
     "active": "Active",
     "switch": "Switch",
@@ -2170,7 +2149,7 @@
     },
     "login": {
       "title": "Log in",
-      "description": "Log in as yourself or another account on this printer. Alabaster remembers the session on this device, so this is normally only needed once — or again after creating a user, which logs this device in as the account it just created.",
+      "description": "Alabaster remembers the session on this device, so this is normally only needed once.",
       "usernameLabel": "Username",
       "passwordLabel": "Password",
       "sourceLabel": "Authentication source",
@@ -2194,7 +2173,7 @@
     },
     "add": {
       "title": "Add a user",
-      "description": "Creating a user logs this device in as them immediately. Log back in as yourself afterward if you meant to keep managing this printer.",
+      "description": "Logs this device in as the new user immediately. Log back in as yourself afterward to keep managing this printer.",
       "usernameLabel": "Username",
       "passwordLabel": "Password",
       "submit": "Add user",
@@ -2216,7 +2195,7 @@
   "confirmations": {
     "eyebrow": "Safety",
     "title": "Confirmations",
-    "description": "Every confirmation dialog in Alabaster, in one place. Checking a box skips that one dialog from now on, the same way on every printer — this preference is not scoped per printer.",
+    "description": "Checking a box skips that one dialog from now on, the same way on every printer — this preference is not scoped per printer.",
     "skipAll": "Skip all confirmation dialogs",
     "globalOverride": "Global setting override",
     "groups": {
@@ -2283,7 +2262,7 @@
   "backup": {
     "eyebrow": "Backup",
     "title": "Backup and sync",
-    "description": "Save every setting and this printer's dashboard layout to a file, restore from one, or reset everything back to defaults.",
+    "description": "Every setting and this printer's dashboard layout.",
     "export": "Export",
     "import": "Import",
     "importError": "That file couldn't be read as an Alabaster settings backup.",
@@ -2294,7 +2273,7 @@
     "resetConfirmDescription": "Theme, language, format, confirmation, and dashboard-layout settings all return to how Alabaster starts out. The printers you've added, and any logins, are not affected.",
     "sync": {
       "title": "Sync to this printer",
-      "description": "Keeps the settings above, and this printer's dashboard layout, in that printer's own Moonraker database — so they follow you back here from another browser or device. Off by default.",
+      "description": "Keeps the settings above, and this printer's dashboard layout, in that printer's own Moonraker database — so they follow you back here from another browser or device.",
       "toggle": "Sync settings and layout to this printer",
       "lastSynced": "Last synced {value}",
       "neverSynced": "Not synced yet",

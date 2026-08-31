@@ -1321,9 +1321,6 @@ const lastSyncedDisplay = computed(() => {
               {{ t('language.eyebrow') }}
             </p>
             <h2 class="mt-2 text-section-title">{{ t('language.title') }}</h2>
-            <p class="mt-2 max-w-2xl text-sm leading-6 text-muted">
-              {{ t('language.description') }}
-            </p>
 
             <label for="language-select" class="mt-7 block text-group-title">
               {{ t('language.selectLabel') }}
@@ -1422,9 +1419,6 @@ const lastSyncedDisplay = computed(() => {
               {{ t('theme.eyebrow') }}
             </p>
             <h2 class="mt-2 text-section-title">{{ t('theme.title') }}</h2>
-            <p class="mt-2 max-w-2xl text-sm leading-6 text-muted">
-              {{ t('theme.description') }}
-            </p>
 
             <p class="mt-7 text-group-title">{{ t('theme.modeLabel') }}</p>
             <div class="check-set mt-2">
@@ -1442,13 +1436,9 @@ const lastSyncedDisplay = computed(() => {
             <label for="theme-pack-select" class="mt-7 block text-group-title">
               {{ t('theme.packLabel') }}
             </label>
-            <p id="theme-pack-hint" class="mt-2 text-sm leading-6 text-muted">
-              {{ t('theme.packHint') }}
-            </p>
             <select
               id="theme-pack-select"
               :value="themePack"
-              aria-describedby="theme-pack-hint"
               class="field field--block mt-5 sm:max-w-sm"
               @change="changeThemePack"
             >
@@ -1460,13 +1450,9 @@ const lastSyncedDisplay = computed(() => {
             <label for="font-select" class="mt-7 block text-group-title">
               {{ t('theme.fontLabel') }}
             </label>
-            <p id="font-hint" class="mt-2 text-sm leading-6 text-muted">
-              {{ t('theme.fontHint') }}
-            </p>
             <select
               id="font-select"
               :value="fontId"
-              aria-describedby="font-hint"
               class="field field--block mt-5 sm:max-w-sm"
               @focus="ensureAllFontsLoaded"
               @change="changeFont"
