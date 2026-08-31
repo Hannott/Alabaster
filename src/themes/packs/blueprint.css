@@ -1,0 +1,342 @@
+/*
+ * Blueprint drafting: a cyanotype blueprint (white/cyan ink on deep navy
+ * paper) in dark mode, a whiteprint drafting vellum (navy ink on cool paper)
+ * in light mode. Exempt from the Okabe-Ito and WCAG floors under
+ * src/themes/README.md's "Custom packs may break every other rule" -- every
+ * value below is a raw literal chosen for period-correct hue, not derived
+ * from palette.css or measured for contrast.
+ *
+ * The axis colours below follow the red/green/blue convention CAD viewports
+ * have used for X/Y/Z since the trade had a word for it, and the bed mesh
+ * height map reads as a topographic contour map (blue low ground, tan mid,
+ * amber/red peaks) for the same reason: both are borrowed vocabularies a
+ * drafting-themed pack gets to reach for that the canonical pack does not.
+ */
+:root[data-theme-pack='blueprint'][data-theme='dark'] {
+  color-scheme: dark;
+  --surface-canvas: #0d2b52;
+  --surface-canvas-glass: rgba(13, 43, 82, 0.86);
+  --surface-raised: #123a68;
+  --surface-soft: #163f70;
+  --surface-strong: #061627;
+  --surface-on-strong-soft: rgba(255, 255, 255, 0.12);
+  --viewer-surface: #0d2b52;
+  --viewer-grid: rgba(191, 230, 255, 0.16);
+  --viewer-shadow: rgba(0, 0, 0, 0.5);
+  --viewer-nozzle: #ffcc00;
+  --viewer-extrusion: #bfe6ff;
+  --viewer-progress: #ffcc00;
+  --viewer-seam: #c77dff;
+  --viewer-axis-x: #ff3b30;
+  --viewer-axis-y: #2ecc71;
+  --viewer-axis-z: #4fd8ff;
+  --viewer-accent: #4fd8ff;
+  --viewer-feature-perimeter-outer: #4fd8ff;
+  --viewer-feature-perimeter-inner: #2d8fd1;
+  --viewer-feature-infill: #ffcc00;
+  --viewer-feature-infill-solid: #ff8a00;
+  --viewer-feature-bridge: #2ecc71;
+  --viewer-feature-support: #c77dff;
+  --viewer-feature-skirt: #f5e663;
+  --viewer-feature-other: #6c88a8;
+  --viewer-feed-slow: #4fd8ff;
+  --viewer-feed-fast: #ff3b30;
+  --mesh-low-deep: #052038;
+  --mesh-low: #2d8fd1;
+  --mesh-middle: #c9b385;
+  --mesh-high: #ffcc00;
+  --mesh-high-deep: #ff3b30;
+  --mesh-plane: rgba(191, 230, 255, 0.25);
+  --text-primary: #eaf4ff;
+  --text-muted: rgba(234, 244, 255, 0.6);
+  --text-on-strong: #eaf4ff;
+  --text-on-strong-muted: rgba(234, 244, 255, 0.68);
+  --text-on-strong-faint: rgba(234, 244, 255, 0.4);
+  --border-subtle: rgba(234, 244, 255, 0.18);
+  --action-primary: #4fd8ff;
+  --action-on-primary: #06182b;
+  --accent-primary: var(--action-primary);
+  --focus-ring: #ffcc00;
+  --interaction-veil: rgba(234, 244, 255, 0.08);
+  --interaction-veil-strong: rgba(234, 244, 255, 0.13);
+  --status-offline: rgba(160, 180, 200, 0.5);
+  --status-available: #2ecc71;
+  --status-recovering: #ffcc00;
+  --status-danger: #ff3b30;
+  --status-danger-soft: rgba(255, 59, 48, 0.16);
+  --status-danger-text: #ff6b60;
+  --status-danger-strong: #b3261e;
+  --status-on-danger: #fff5f4;
+  --status-danger-border: #ff3b30;
+  --status-caution-text: #ffcc00;
+  --status-caution-border: #ffcc00;
+  --status-caution-veil: rgba(255, 204, 0, 0.18);
+}
+
+:root[data-theme-pack='blueprint'][data-theme='light'] {
+  color-scheme: light;
+  --surface-canvas: #eef3f8;
+  --surface-canvas-glass: rgba(238, 243, 248, 0.88);
+  --surface-raised: #ffffff;
+  --surface-soft: #e3ebf2;
+  --surface-strong: #12233c;
+  --surface-on-strong-soft: rgba(255, 255, 255, 0.14);
+  --viewer-surface: #eef3f8;
+  --viewer-grid: rgba(18, 35, 60, 0.16);
+  --viewer-shadow: rgba(18, 35, 60, 0.2);
+  --viewer-nozzle: #c77b00;
+  --viewer-extrusion: #1c5f99;
+  --viewer-progress: #c77b00;
+  --viewer-seam: #7a3f9d;
+  --viewer-axis-x: #c0392b;
+  --viewer-axis-y: #1e8449;
+  --viewer-axis-z: #1c5f99;
+  --viewer-accent: #1c5f99;
+  --viewer-feature-perimeter-outer: #1c5f99;
+  --viewer-feature-perimeter-inner: #123a68;
+  --viewer-feature-infill: #c77b00;
+  --viewer-feature-infill-solid: #a34700;
+  --viewer-feature-bridge: #1e8449;
+  --viewer-feature-support: #7a3f9d;
+  --viewer-feature-skirt: #8a7a1e;
+  --viewer-feature-other: #5c7086;
+  --viewer-feed-slow: #1c5f99;
+  --viewer-feed-fast: #c0392b;
+  --mesh-low-deep: #123a68;
+  --mesh-low: #1c5f99;
+  --mesh-middle: #b79b65;
+  --mesh-high: #c77b00;
+  --mesh-high-deep: #a3221b;
+  --mesh-plane: rgba(28, 95, 153, 0.25);
+  --text-primary: #12233c;
+  --text-muted: rgba(18, 35, 60, 0.62);
+  --text-on-strong: #eef3f8;
+  --text-on-strong-muted: rgba(238, 243, 248, 0.68);
+  --text-on-strong-faint: rgba(238, 243, 248, 0.4);
+  --border-subtle: rgba(18, 35, 60, 0.18);
+  --action-primary: #1c5f99;
+  --action-on-primary: #eef3f8;
+  --accent-primary: var(--action-primary);
+  --focus-ring: #c77b00;
+  --interaction-veil: rgba(18, 35, 60, 0.06);
+  --interaction-veil-strong: rgba(18, 35, 60, 0.1);
+  --status-offline: rgba(18, 35, 60, 0.45);
+  --status-available: #1e8449;
+  --status-recovering: #c77b00;
+  --status-danger: #c0392b;
+  --status-danger-soft: rgba(192, 57, 43, 0.14);
+  --status-danger-text: #a3291d;
+  --status-danger-strong: #7a1913;
+  --status-on-danger: #eef3f8;
+  --status-danger-border: #c0392b;
+  --status-caution-text: #8a6000;
+  --status-caution-border: #c77b00;
+  --status-caution-veil: rgba(199, 123, 0, 0.16);
+}
+
+/*
+ * Component reshaping, not just recoloring, per README's "Custom packs may
+ * break every other rule": a custom pack may override spacing, radius,
+ * typography, or button and dialog shape for itself. Every selector below is
+ * scoped by the `[data-theme-pack='blueprint']` attribute, which outranks the
+ * single-class rules in main.css/app-field.css/app-slider.css it replaces, so
+ * nothing here needs `!important`.
+ */
+
+/*
+ * Squared, monospaced, and uppercase applies to every button regardless of
+ * size -- the drafting-lettering treatment reads fine at any scale.
+ */
+[data-theme-pack='blueprint'] .button {
+  border-radius: 0;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* The solid variants gain an inset ink-impression ring, like a rubber stamp's own edge. */
+[data-theme-pack='blueprint'] .button--primary,
+[data-theme-pack='blueprint'] .button--critical {
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, currentColor 25%, transparent);
+}
+
+/*
+ * Every text and number field is drawn on graph paper: a faint grid behind the
+ * value, at the same scale the console's own grid uses at its finest tier.
+ */
+[data-theme-pack='blueprint'] .field,
+[data-theme-pack='blueprint'] .app-field__box,
+[data-theme-pack='blueprint'] .app-slider__entry {
+  border-radius: 0;
+  background-image:
+    repeating-linear-gradient(
+      to right,
+      color-mix(in srgb, var(--border-subtle) 55%, transparent) 0,
+      color-mix(in srgb, var(--border-subtle) 55%, transparent) 1px,
+      transparent 1px,
+      transparent 8px
+    ),
+    repeating-linear-gradient(
+      to bottom,
+      color-mix(in srgb, var(--border-subtle) 55%, transparent) 0,
+      color-mix(in srgb, var(--border-subtle) 55%, transparent) 1px,
+      transparent 1px,
+      transparent 8px
+    );
+}
+
+[data-theme-pack='blueprint'] .app-field__label,
+[data-theme-pack='blueprint'] .app-slider__label {
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+[data-theme-pack='blueprint'] .app-slider__reset,
+[data-theme-pack='blueprint'] .app-slider__stepper,
+[data-theme-pack='blueprint'] .app-field__reset,
+[data-theme-pack='blueprint'] .app-field__stepper,
+[data-theme-pack='blueprint'] .app-slider__reset:focus-visible,
+[data-theme-pack='blueprint'] .app-slider__stepper:focus-visible .app-slider__stepper-icon,
+[data-theme-pack='blueprint'] .app-field__reset:focus-visible .app-field__reset-icon,
+[data-theme-pack='blueprint'] .app-field__stepper:focus-visible .app-field__stepper-icon {
+  border-radius: 0;
+}
+
+/*
+ * The track reads as a ruler: fine graduated ticks along its unfilled length,
+ * the same 8px scale the fields' own graph paper uses, with the filled span
+ * drawn as a solid inked line -- the measured length against the ruler's own
+ * unmeasured scale. The thumb becomes a downward caliper arrow rather than a
+ * round knob, still centered on the (now thicker) track by the same
+ * margin-top technique app-slider.css already uses, and stays tinted at rest
+ * rather than only on interaction -- a caliper mark is a permanent reference,
+ * not a hover affordance.
+ */
+[data-theme-pack='blueprint'] .app-slider__track::-webkit-slider-runnable-track,
+[data-theme-pack='blueprint'] .app-slider__track::-moz-range-track {
+  block-size: 0.3rem;
+  background-color: transparent;
+  background-image: repeating-linear-gradient(
+    to right,
+    var(--border-subtle) 0,
+    var(--border-subtle) 1px,
+    transparent 1px,
+    transparent 8px
+  );
+}
+
+[data-theme-pack='blueprint'] .app-slider__track::-webkit-slider-thumb {
+  width: 0.7rem;
+  height: 0.6rem;
+  margin-top: calc((0.3rem - 0.6rem) / 2);
+  border-radius: 0;
+  clip-path: polygon(50% 100%, 0 0, 100% 0);
+  background-color: var(--action-primary);
+}
+
+[data-theme-pack='blueprint'] .app-slider__track::-moz-range-thumb {
+  width: 0.7rem;
+  height: 0.6rem;
+  border-radius: 0;
+  clip-path: polygon(50% 100%, 0 0, 100% 0);
+  background-color: var(--action-primary);
+}
+
+[data-theme-pack='blueprint'] .app-slider__track:hover::-webkit-slider-thumb,
+[data-theme-pack='blueprint'] .app-slider__track:active::-webkit-slider-thumb,
+[data-theme-pack='blueprint'] .app-slider__track:focus-visible::-webkit-slider-thumb {
+  width: 0.85rem;
+  height: 0.72rem;
+  margin-top: calc((0.3rem - 0.72rem) / 2);
+}
+
+[data-theme-pack='blueprint'] .app-slider__track:hover::-moz-range-thumb,
+[data-theme-pack='blueprint'] .app-slider__track:active::-moz-range-thumb,
+[data-theme-pack='blueprint'] .app-slider__track:focus-visible::-moz-range-thumb {
+  width: 0.85rem;
+  height: 0.72rem;
+}
+
+/*
+ * The console transcript as a technical drawing sheet: a fine graph-paper
+ * grid at a coarser scale than the fields' own, a ruled margin frame set in
+ * from the edge, and corner registration marks -- the alignment ticks printed
+ * in the corner of a real drafting sheet so a set of sheets registers to the
+ * same point. Unlike Terminal's CRT screen, both modes get this treatment:
+ * a drafting sheet is what the transcript is in either polarity, negative
+ * (blueprint) or positive (whiteprint), where a CRT has no light-mode
+ * equivalent to be.
+ *
+ * Scoped to the transcript's own class rather than a page or route, so it
+ * applies identically wherever the transcript renders -- the Console page,
+ * the dashboard card, and the Calibration bench -- without a second rule per
+ * host. `:root[data-theme-pack='blueprint'][data-theme='<mode>']` rather than
+ * a single attribute, matching `packs/terminal.css`'s own reasoning: the page
+ * and module hosts set `background: none` on this class at two classes deep
+ * (`.console-main .gcode-console`, `.console-module__body .gcode-console`),
+ * which ties this rule's specificity at one attribute. Two attributes plus
+ * the class outranks both outright, regardless of CSS import order.
+ */
+:root[data-theme-pack='blueprint'][data-theme='light'] .gcode-console,
+:root[data-theme-pack='blueprint'][data-theme='dark'] .gcode-console {
+  position: relative;
+  border-radius: 0;
+  background-image:
+    linear-gradient(to right, var(--text-muted) 12px, transparent 12px),
+    linear-gradient(to bottom, var(--text-muted) 12px, transparent 12px),
+    linear-gradient(to left, var(--text-muted) 12px, transparent 12px),
+    linear-gradient(to bottom, var(--text-muted) 12px, transparent 12px),
+    linear-gradient(to right, var(--text-muted) 12px, transparent 12px),
+    linear-gradient(to top, var(--text-muted) 12px, transparent 12px),
+    linear-gradient(to left, var(--text-muted) 12px, transparent 12px),
+    linear-gradient(to top, var(--text-muted) 12px, transparent 12px),
+    repeating-linear-gradient(
+      to right,
+      var(--border-subtle) 0,
+      var(--border-subtle) 1px,
+      transparent 1px,
+      transparent 20px
+    ),
+    repeating-linear-gradient(
+      to bottom,
+      var(--border-subtle) 0,
+      var(--border-subtle) 1px,
+      transparent 1px,
+      transparent 20px
+    );
+  background-repeat:
+    no-repeat, no-repeat, no-repeat, no-repeat, no-repeat, no-repeat, no-repeat, no-repeat, repeat,
+    repeat;
+  background-size:
+    12px 1px,
+    1px 12px,
+    12px 1px,
+    1px 12px,
+    12px 1px,
+    1px 12px,
+    12px 1px,
+    1px 12px,
+    20px 20px,
+    20px 20px;
+  background-position:
+    top 0.5rem left 0.5rem,
+    top 0.5rem left 0.5rem,
+    top 0.5rem right 0.5rem,
+    top 0.5rem right 0.5rem,
+    bottom 0.5rem left 0.5rem,
+    bottom 0.5rem left 0.5rem,
+    bottom 0.5rem right 0.5rem,
+    bottom 0.5rem right 0.5rem,
+    0 0,
+    0 0;
+}
+
+:root[data-theme-pack='blueprint'][data-theme='light'] .gcode-console::before,
+:root[data-theme-pack='blueprint'][data-theme='dark'] .gcode-console::before {
+  content: '';
+  position: absolute;
+  inset: 6px;
+  border: 1px solid var(--border-subtle);
+  pointer-events: none;
+}

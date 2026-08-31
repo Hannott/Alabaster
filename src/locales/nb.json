@@ -1931,7 +1931,8 @@
     "packLabel": "Aktiv temapakke",
     "packs": {
       "alabaster": "Alabaster",
-      "terminal": "Terminal"
+      "terminal": "Terminal",
+      "blueprint": "Blueprint"
     },
     "fontLabel": "Skrifttype",
     "fonts": {

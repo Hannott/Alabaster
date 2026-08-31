@@ -76,6 +76,33 @@ selected pack, and both preferences persist in local storage.
   `app-slider.css`, or the components themselves. The pack also adds one rule
   outside the token contract entirely, a static scanline overlay (`::after` on
   `:root[data-theme-pack='terminal']`).
+- `Blueprint` is a non-canonical pack reproducing a technical drawing sheet: a
+  cyanotype blueprint (white/cyan ink on deep navy paper) in dark mode, a
+  whiteprint drafting vellum (navy ink on cool paper) in light mode. Unlike
+  Terminal, both modes get the pack's full component treatment rather than one
+  mode being a plain fallback — a drafting sheet is what every surface is in
+  either polarity. `AppButton` turns square and monospaced, and the solid
+  `primary`/`critical` variants gain an inset ink-impression ring, like a
+  rubber stamp's own edge; `AppField` and `AppSlider`'s entry box lose their
+  rounded corners and gain a faint graph-paper grid behind the value.
+  `AppSlider`'s track becomes a ruler — graduated ticks along the unfilled
+  length, a solid inked line where filled — and its thumb a downward caliper
+  arrow, tinted at rest rather than only on interaction, since a caliper mark
+  is a permanent reference and not a hover affordance. The console transcript
+  (`.gcode-console`) becomes a full technical drawing sheet in both modes: a
+  coarser graph-paper grid, a ruled margin frame inset from the edge, and
+  corner registration marks — the alignment ticks a real drafting sheet prints
+  in its corners so a set of sheets registers to the same point. All of it
+  lives in rules scoped to `[data-theme-pack='blueprint']` in
+  `packs/blueprint.css`; the console rule doubles the `data-theme` attribute
+  alongside `data-theme-pack` to outrank `.console-main .gcode-console` and
+  `.console-module__body .gcode-console`'s `background: none` regardless of
+  CSS import order, the same technique Terminal's own console override uses.
+  The bed mesh height map and G-code viewer axes also borrow real drafting and
+  CAD vocabulary rather than inventing pack-specific hues: the mesh reads as a
+  topographic contour map (blue low ground, tan mid, amber/red peaks), and the
+  viewer's X/Y/Z axes follow the red/green/blue convention CAD viewports have
+  used since the trade had a word for it.
 
 A pack that is removed by product decision is dropped from `themePacks`
 entirely; `registry.ts`'s `isThemePackId` migrates anyone who still has it

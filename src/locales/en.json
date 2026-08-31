@@ -1931,7 +1931,8 @@
     "packLabel": "Active theme pack",
     "packs": {
       "alabaster": "Alabaster",
-      "terminal": "Terminal"
+      "terminal": "Terminal",
+      "blueprint": "Blueprint"
     },
     "fontLabel": "Typeface",
     "fonts": {
