@@ -118,6 +118,10 @@ Turn on **Search in files** to match file contents as well as names. This
 lets you find the file that sets `rotation_distance` by searching, instead of
 opening files one at a time.
 
+Opening a file while a search is active highlights every match inside it —
+the line and the exact word — so you land on why it matched instead of
+rereading the whole file to find it.
+
 Three switches under **Explorer settings** decide what the list shows:
 
 | Setting              | Default | Hides                                                                                                      |

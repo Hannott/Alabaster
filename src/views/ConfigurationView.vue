@@ -43,8 +43,9 @@ import {
 import {
   isConfigSyntaxFile,
   isEmptyPropertyLine,
+  splitTokensForSearch,
   tokenizeMachineLine,
-  type MachineSyntaxToken,
+  type MachineSyntaxMatchSegment,
 } from '@/features/machine/syntax'
 import {
   isBackupEntryName,
@@ -460,21 +461,34 @@ const highlightsSyntax = computed(
     isConfigSyntaxFile(machineFiles.currentFile?.name ?? ''),
 )
 /**
+ * The explorer's search box, ready to highlight in the open file — a term
+ * that found this file by name or by content is the same term worth marking
+ * once the reader is actually inside it. Trimmed so a box that is empty, or
+ * holds only whitespace, highlights nothing.
+ */
+const editorSearchQuery = computed(() => search.value.trim())
+/**
  * Each rendered row carries its own absolute line number: the window's array
  * index is not the line, and every consumer here — the current-line tint, the
  * gutter, the include hotlinks, the hit test against the textarea's pixel grid
- * — is talking about a line in the file.
+ * — is talking about a line in the file. `matched` is precomputed here rather
+ * than re-scanned in the template so the row tint and the per-token mark share
+ * one pass over the line.
  */
 const highlightedLines = computed(() => {
   const { start, end } = renderedLineWindow.value
   const lines = editorLines.value
   const colored = highlightsSyntax.value
-  const rows: Array<{ line: number; tokens: MachineSyntaxToken[] }> = []
+  const query = editorSearchQuery.value
+  const rows: Array<{ line: number; tokens: MachineSyntaxMatchSegment[]; matched: boolean }> = []
   for (let index = start; index < end; index += 1) {
     const text = lines[index] ?? ''
+    const tokens = colored ? tokenizeMachineLine(text) : [{ kind: 'plain' as const, text }]
+    const segments = splitTokensForSearch(tokens, query)
     rows.push({
       line: index,
-      tokens: colored ? tokenizeMachineLine(text) : [{ kind: 'plain', text }],
+      tokens: segments,
+      matched: query.length > 0 && segments.some((segment) => segment.matched),
     })
   }
   return rows
@@ -2401,7 +2415,10 @@ onBeforeUnmount(() => {
                     v-for="row in highlightedLines"
                     :key="row.line"
                     class="machine-code-line"
-                    :class="{ 'machine-code-line--current': currentEditorLine === row.line + 1 }"
+                    :class="{
+                      'machine-code-line--current': currentEditorLine === row.line + 1,
+                      'machine-code-line--search-match': row.matched,
+                    }"
                   ><span
                     v-for="(token, tokenIndex) in row.tokens"
                     :key="tokenIndex"
@@ -2414,6 +2431,7 @@ onBeforeUnmount(() => {
                           token.kind === 'includePath' &&
                           hoveredIncludeLink?.line === row.line &&
                           !deadIncludeLines.has(row.line),
+                        'machine-syntax-match': token.matched,
                       },
                     ]"
                   >{{ token.text }}</span></span></code></pre>

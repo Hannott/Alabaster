@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import {
   isConfigSyntaxFile,
   isEmptyPropertyLine,
+  splitTokensForSearch,
   tokenizeMachineConfig,
   tokenizeMachineLine,
 } from '@/features/machine/syntax'
@@ -152,6 +153,46 @@ describe('Klipper configuration syntax highlighting', () => {
     expect(isEmptyPropertyLine('kinematics: limited_cartesian')).toBe(false)
     expect(isEmptyPropertyLine('[stepper_x]')).toBe(false)
     expect(isEmptyPropertyLine('')).toBe(false)
+  })
+})
+
+describe('splitTokensForSearch', () => {
+  it('leaves tokens untouched, but still marked unmatched, when the query is empty', () => {
+    expect(splitTokensForSearch(tokenizeMachineLine('speed: 100'), '')).toEqual([
+      { kind: 'key', text: 'speed:', matched: false },
+      { kind: 'value', text: ' 100', matched: false },
+    ])
+  })
+
+  it('carves the matched substring out of a token while keeping its syntax kind', () => {
+    expect(splitTokensForSearch(tokenizeMachineLine('speed: 100'), 'spe')).toEqual([
+      { kind: 'key', text: 'spe', matched: true },
+      { kind: 'key', text: 'ed:', matched: false },
+      { kind: 'value', text: ' 100', matched: false },
+    ])
+  })
+
+  it('matches case-insensitively', () => {
+    expect(splitTokensForSearch(tokenizeMachineLine('[stepper_x]'), 'STEPPER')).toEqual([
+      { kind: 'section', text: '[', matched: false },
+      { kind: 'section', text: 'stepper', matched: true },
+      { kind: 'section', text: '_x]', matched: false },
+    ])
+  })
+
+  it('marks every occurrence on a line, including more than one inside the same token', () => {
+    expect(splitTokensForSearch(tokenizeMachineLine('# hot hot'), 'hot')).toEqual([
+      { kind: 'comment', text: '# ', matched: false },
+      { kind: 'comment', text: 'hot', matched: true },
+      { kind: 'comment', text: ' ', matched: false },
+      { kind: 'comment', text: 'hot', matched: true },
+    ])
+  })
+
+  it('leaves a token unmatched entirely when the query does not appear in it', () => {
+    expect(splitTokensForSearch(tokenizeMachineLine('G28'), 'heater')).toEqual([
+      { kind: 'command', text: 'G28', matched: false },
+    ])
   })
 })
 

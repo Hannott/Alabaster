@@ -10825,6 +10825,37 @@ body.machine-editor-fullscreen-open {
 }
 
 /*
+ * A faint whole-row tint for any line the explorer's search box currently
+ * matches, so a reader scrolling a long file can spot which rows to look at
+ * before reading a single character. Declared after `--current` so the two
+ * resolve to this tint on a line that happens to be both — the point of
+ * typing into the search box is to look at matches, so that intent wins.
+ */
+.machine-code-line--search-match {
+  background: color-mix(in srgb, var(--color-data-yellow) 8%, transparent);
+}
+
+/*
+ * The word-level mark inside a matched row: a wash plus an underline, not a
+ * solid fill with a forced text color. The syntax palette spans green, blue,
+ * orange, purple, and red (see the `.machine-syntax--*` rules below, which
+ * this can't safely sit after in the cascade without also out-specificity-ing
+ * every one of them individually), and there is no single foreground color
+ * that stays legible over a strongly saturated yellow fill for all of them at
+ * once — an earlier version tried `color: var(--text-primary)` here and it
+ * both lost the cascade to the kind-specific colors declared later in this
+ * file and, on the dark pack, would have put white text on yellow either way.
+ * A thin underline only has to contrast against the page, never against
+ * whatever color the matched text already is, which is what makes it work
+ * uniformly.
+ */
+.machine-syntax-match {
+  border-radius: 0.1rem;
+  background: color-mix(in srgb, var(--color-data-yellow) 20%, transparent);
+  box-shadow: inset 0 -0.125rem 0 0 var(--color-data-yellow);
+}
+
+/*
  * Holds the place of the lines above the rendered window in both the gutter and
  * the highlight layer, so the mounted rows sit where the textarea has put the
  * text. Its height is the only thing either layer knows about the rest of the

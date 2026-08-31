@@ -197,6 +197,57 @@ export function tokenizeMachineConfig(content: string): MachineSyntaxToken[][] {
   return content.split('\n').map(tokenizeMachineLine)
 }
 
+export interface MachineSyntaxMatchSegment extends MachineSyntaxToken {
+  matched: boolean
+}
+
+/**
+ * Splits every token whose text contains `query` (case-insensitively) into
+ * matched and unmatched segments, each keeping its token's own `kind` — a
+ * search highlight marks a substring, never a whole token, so `description:`
+ * still colors as a key even when only `desc` inside it matched. This is the
+ * same technique `splitValueWord` and `splitParameters` already use to carve
+ * a token further; a search match is one more reason a token's boundaries
+ * don't have to land on a whole word.
+ *
+ * `query` empty is the common case — nothing is being searched for most of
+ * the time an editor is open — so it short-circuits to one allocation-free
+ * pass rather than running an empty-needle search against every token.
+ */
+export function splitTokensForSearch(
+  tokens: MachineSyntaxToken[],
+  query: string,
+): MachineSyntaxMatchSegment[] {
+  if (!query) return tokens.map((token) => ({ ...token, matched: false }))
+  const needle = query.toLocaleLowerCase()
+  const segments: MachineSyntaxMatchSegment[] = []
+  for (const token of tokens) {
+    const haystack = token.text.toLocaleLowerCase()
+    let cursor = 0
+    let at = haystack.indexOf(needle, cursor)
+    if (at === -1) {
+      segments.push({ kind: token.kind, text: token.text, matched: false })
+      continue
+    }
+    while (at !== -1) {
+      if (at > cursor) {
+        segments.push({ kind: token.kind, text: token.text.slice(cursor, at), matched: false })
+      }
+      segments.push({
+        kind: token.kind,
+        text: token.text.slice(at, at + needle.length),
+        matched: true,
+      })
+      cursor = at + needle.length
+      at = haystack.indexOf(needle, cursor)
+    }
+    if (cursor < token.text.length) {
+      segments.push({ kind: token.kind, text: token.text.slice(cursor), matched: false })
+    }
+  }
+  return segments
+}
+
 export function isEmptyPropertyLine(line: string): boolean {
   return EMPTY_KEY_LINE.test(line.trim())
 }
