@@ -1483,9 +1483,6 @@ const lastSyncedDisplay = computed(() => {
             <label for="console-font-select" class="mt-7 block text-group-title">
               {{ t('theme.consoleFontLabel') }}
             </label>
-            <p id="console-font-hint" class="mt-2 text-sm leading-6 text-muted">
-              {{ t('theme.consoleFontHint') }}
-            </p>
             <select
               id="console-font-select"
               :value="consoleFont"
@@ -1539,9 +1536,6 @@ const lastSyncedDisplay = computed(() => {
               />
               <span>{{ t('theme.minimalisticSidebar') }}</span>
             </label>
-            <p class="mt-2 text-sm leading-6 text-muted">
-              {{ t('theme.minimalisticSidebarHint') }}
-            </p>
           </section>
 
           <section v-if="showCategory('display')" class="page-card">

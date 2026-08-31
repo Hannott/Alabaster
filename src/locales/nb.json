@@ -1950,7 +1950,6 @@
       "bold": "Fet"
     },
     "consoleFontLabel": "Skrifttype for konsoll",
-    "consoleFontHint": "Gjelder konsollens logg, kommandofeltet og kommandohistorikken — på dashbordkortet og på Konsoll-siden.",
     "consoleFontMatch": "Følg grensesnittets skrifttype",
     "consoleWeightLabel": "Tykkelse for konsoll",
     "consoleWeight": {
@@ -1962,8 +1961,7 @@
       "show": "Vis",
       "hide": "Skjul"
     },
-    "minimalisticSidebar": "Minimalistisk sidepanel",
-    "minimalisticSidebarHint": "Sammenslå-knappen utvider det fortsatt — bare merket og navnet forblir skjult."
+    "minimalisticSidebar": "Minimalistisk sidepanel"
   },
   "display": {
     "eyebrow": "Skjerm",

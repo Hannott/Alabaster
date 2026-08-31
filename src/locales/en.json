@@ -1950,7 +1950,6 @@
       "bold": "Bold"
     },
     "consoleFontLabel": "Console typeface",
-    "consoleFontHint": "Applies to the console transcript, the command prompt, and its command history — on the dashboard card and on the Console page.",
     "consoleFontMatch": "Match interface typeface",
     "consoleWeightLabel": "Console weight",
     "consoleWeight": {
@@ -1962,8 +1961,7 @@
       "show": "Show",
       "hide": "Hide"
     },
-    "minimalisticSidebar": "Minimalistic sidebar",
-    "minimalisticSidebarHint": "The collapse button still expands it — only the mark and name stay hidden."
+    "minimalisticSidebar": "Minimalistic sidebar"
   },
   "display": {
     "eyebrow": "Display",
