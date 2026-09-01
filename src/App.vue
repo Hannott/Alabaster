@@ -23,6 +23,7 @@ import { useHiddenDestinations } from '@/composables/useHiddenDestinations'
 import { useMinimalisticSidebar } from '@/composables/useMinimalisticSidebar'
 import { useSelectValueOnFocus } from '@/composables/useSelectValueOnFocus'
 import { useSidebar } from '@/composables/useSidebar'
+import { useTheme } from '@/composables/useTheme'
 import { useTextWeight } from '@/composables/useTextWeight'
 import { useWakeLock } from '@/composables/useWakeLock'
 import {
@@ -47,7 +48,7 @@ import { usePrinterConfigStore } from '@/stores/printerConfig'
 import { useServerCapabilitiesStore } from '@/stores/serverCapabilities'
 import { useServerWarningsStore, type ServerNotice } from '@/stores/serverWarnings'
 
-const { t } = useI18n({ useScope: 'global' })
+const { t, locale } = useI18n({ useScope: 'global' })
 // Only Settings reads the rest of this composable's return value, but the
 // module-level effect that actually holds the lock has to be live from the
 // moment the app boots, on whichever page that happens to be — not deferred
@@ -55,12 +56,16 @@ const { t } = useI18n({ useScope: 'global' })
 useWakeLock()
 // Same reasoning as the wake lock above: the chosen typeface has to apply to
 // the whole document from boot, not only once Settings happens to be visited.
-useFont()
-useTextWeight()
+// The reactive handles are kept (rather than calling these for their side
+// effect alone, as before) because the sidebar-width measurement below has to
+// re-run on exactly the changes these two report.
+const { fontId } = useFont()
+const { mode: textWeightMode } = useTextWeight()
 useConsoleFont()
 useConsoleWeight()
 const { isSidebarCollapsed, toggleSidebar } = useSidebar()
 const { isMinimalisticSidebar } = useMinimalisticSidebar()
+const { themePack } = useTheme()
 const hiddenDestinations = useHiddenDestinations()
 const { availability: printerAvailability, messageKey: printerAvailabilityMessageKey } =
   useAvailability('klipper')
@@ -290,6 +295,78 @@ const supportedDestinations = computed(() =>
     ),
   ),
 )
+
+/*
+ * The desktop rail's expanded widths in components.css used to be fixed rem
+ * guesses sized against one label ("Utskriftsfiler") at the default typeface
+ * and weight — so a wider font, a heavier weight, or a theme pack's own
+ * label transform (Terminal renders nav labels bold, uppercase, and
+ * letter-spaced) could all render text wider than the guess and clip it
+ * against `.sidebar-nav-label`'s `overflow: hidden`. `--sidebar-label-width`
+ * replaces the guess with the actual rendered width of the widest label, so
+ * the CSS `max()` floor in components.css only ever grows the rail, never
+ * shrinks it below today's calibrated minimum. `scrollWidth` reports a
+ * label's true laid-out width regardless of the clipping that would
+ * otherwise hide the overflow, because `white-space: nowrap` keeps it on one
+ * line rather than wrapping into a smaller box.
+ *
+ * `.sidebar-measuring` (components.css) brackets the write: switching from
+ * Public Sans to OpenDyslexic live (no reload) updates the custom property
+ * correctly but otherwise leaves `.desktop-sidebar`'s rendered `inline-size`
+ * pinned at whatever it last resolved to, clipping every label — Blink does
+ * not re-resolve a `transition`-listed property's used value from a `var()`
+ * dependency changing on its own, only from a matching class/attribute
+ * change. Adding the class, forcing a synchronous layout with the new value
+ * in effect, then removing the class makes the browser apply that value as a
+ * plain style recalculation instead of a transition target that never gets
+ * asked to move. This also matches AGENTS.md's general rule against
+ * animating responsive geometry: a font/theme swap correcting the rail's
+ * width is not the explicit collapse/expand action ADR 0004 sanctions
+ * animating, so it should snap instead of ease regardless of the browser
+ * quirk this works around.
+ */
+function measureSidebarLabelWidth(): void {
+  const labels = document.querySelectorAll<HTMLElement>('.sidebar-nav-label')
+  let widest = 0
+  labels.forEach((label) => {
+    if (label.scrollWidth > widest) widest = label.scrollWidth
+  })
+  const root = document.documentElement
+  root.classList.add('sidebar-measuring')
+  root.style.setProperty('--sidebar-label-width', `${widest}px`)
+  void document.querySelector('.desktop-sidebar')?.getBoundingClientRect()
+  root.classList.remove('sidebar-measuring')
+}
+
+/**
+ * Deferred a tick so measurement runs after the label text that triggered it
+ * has actually rendered, and again once `document.fonts.ready` resolves —
+ * a freshly picked font is lazy-loaded (`ensureFontLoaded`) and the browser
+ * still measures the fallback face until the real one finishes downloading.
+ */
+function scheduleSidebarLabelMeasure(): void {
+  void nextTick(measureSidebarLabelWidth)
+  void document.fonts.ready.then(measureSidebarLabelWidth)
+}
+
+onMounted(scheduleSidebarLabelMeasure)
+watch(supportedDestinations, scheduleSidebarLabelMeasure)
+watch(fontId, scheduleSidebarLabelMeasure)
+watch(textWeightMode, scheduleSidebarLabelMeasure)
+watch(themePack, scheduleSidebarLabelMeasure)
+watch(locale, scheduleSidebarLabelMeasure)
+
+/*
+ * The desktop rail is itself `display: none` below the responsive breakpoint
+ * (`.desktop-sidebar`, components.css), and a `display: none` ancestor zeroes
+ * every descendant's layout measurements — so a reader who opens Alabaster in
+ * a narrow window measures every label at `0`, same as an empty list. None of
+ * the watchers above fire on a plain window resize, so widening back past the
+ * breakpoint needs its own trigger or `--sidebar-label-width` stays parked at
+ * that stale `0` and the rail silently falls back to its static floor.
+ */
+window.addEventListener('resize', scheduleSidebarLabelMeasure)
+onBeforeUnmount(() => window.removeEventListener('resize', scheduleSidebarLabelMeasure))
 
 const mobileBarDestinations = computed(() =>
   supportedDestinations.value.filter((destination) => destination.mobile === 'bar'),

@@ -1623,15 +1623,30 @@ input[type='number']::-webkit-inner-spin-button {
   transition-behavior: allow-discrete;
 }
 
+/*
+ * `17rem` is the calibrated rail width for the default typeface, weight, and
+ * theme pack. `--sidebar-label-width` (set by App.vue's
+ * `measureSidebarLabelWidth`) is the actual rendered width, in px, of the
+ * widest nav label currently on screen — a font, a heavier text weight, or a
+ * theme pack's own label transform (Terminal renders nav labels bold,
+ * uppercase, and letter-spaced) can all make that wider than the default
+ * calibration assumed. `7.625rem` is every non-text part of a rail row at
+ * this width: the aside's own `1.75rem`-a-side padding, the link's
+ * `0.8125rem`-a-side padding and `1px` border, its icon, and the `1rem` gap
+ * between icon and label, plus a small rounding buffer — see the `13rem`
+ * comment below for the same sum worked out for minimal mode's tighter
+ * padding. `max()` means the measurement can only ever widen the rail past
+ * `17rem`, never narrow it below the calibrated minimum.
+ */
 .desktop-sidebar {
   position: sticky;
   top: 0;
-  inline-size: 17rem;
+  inline-size: max(17rem, calc(var(--sidebar-label-width, 0px) + 7.625rem));
   block-size: 100dvh;
   min-block-size: 100dvh;
   max-block-size: 100dvh;
   display: none;
-  flex: 0 0 17rem;
+  flex: 0 0 max(17rem, calc(var(--sidebar-label-width, 0px) + 7.625rem));
   align-self: flex-start;
   opacity: 0;
   overflow: hidden;
@@ -1651,6 +1666,28 @@ input[type='number']::-webkit-inner-spin-button {
 .sidebar-nav-label {
   transition-duration: var(--motion-duration-standard);
   transition-timing-function: var(--motion-ease-standard);
+}
+
+/*
+ * Set for exactly one synchronous style recalculation by App.vue's
+ * `measureSidebarLabelWidth`, bracketing its write to `--sidebar-label-width`.
+ * `.desktop-sidebar`'s `inline-size`/`flex-basis` and `.sidebar-nav-label`'s
+ * `max-inline-size` both read that variable inside a `max()`/`calc()`, and
+ * both are in their element's own `transition-property` list for the
+ * sanctioned collapse/expand animation (ADR 0004) — which means a change to
+ * the variable alone, with no accompanying class or attribute change, does
+ * not make the browser re-resolve either property's rendered value: it stays
+ * pinned at whatever it last transitioned to, clipping every label, until
+ * something else changes that value through a route the transition system
+ * does notice. Suspending the transition applies the corrected width as a
+ * plain style change instead. This also matches the general rule against
+ * animating responsive geometry: a font, weight, theme pack, or locale swap
+ * correcting the rail's width is not the explicit user action ADR 0004
+ * sanctions animating, so it snaps rather than eases regardless.
+ */
+.sidebar-measuring .desktop-sidebar,
+.sidebar-measuring .sidebar-nav-label {
+  transition: none;
 }
 
 .sidebar-brand {
@@ -1738,13 +1775,28 @@ input[type='number']::-webkit-inner-spin-button {
 
 .sidebar-copy,
 .sidebar-nav-label {
-  max-inline-size: 12rem;
   overflow: hidden;
   white-space: nowrap;
   opacity: 1;
   transition:
     max-inline-size var(--motion-duration-standard) var(--motion-ease-emphasized),
     opacity var(--motion-duration-fast) var(--motion-ease-standard);
+}
+
+.sidebar-copy {
+  max-inline-size: 12rem;
+}
+
+/*
+ * The nav label's own cap has to grow in step with `.desktop-sidebar`'s width
+ * above: once the rail widens to fit a wider font, weight, or theme pack (see
+ * the rail's own comment), a label still capped at the old `12rem` would clip
+ * again even though the rail around it now has the room. `.sidebar-copy` (the
+ * brand name) keeps the static cap — it is one short, fixed string, never the
+ * thing that was clipping.
+ */
+.sidebar-nav-label {
+  max-inline-size: max(12rem, var(--sidebar-label-width, 0px));
 }
 
 .app-shell[data-sidebar-collapsed='true'] .desktop-sidebar {
@@ -1811,19 +1863,30 @@ input[type='number']::-webkit-inner-spin-button {
 /*
  * Expanded-and-minimal does not inherit the ordinary `17rem` rail either —
  * that width is sized for the shared case (a brand row, room to grow into),
- * and minimal mode has neither. `13rem` is sized against the longest nav
- * label actually shipped, `Utskriftsfiler` (Norwegian "Print files"), at the
- * default typeface: aside padding (`0.5rem` a side) + the link's own border
- * and padding + the icon + its `1rem` gap + the label's own measured width
- * comes to just over `12.6rem`, and `13rem` is that plus a small rounding
- * buffer, not an exact fit — unlike the collapsed rail above, there is no
- * icon position to protect here, so there is no reason to size this to the
- * pixel. A future label longer than today's longest would need this number
- * revisited; it is not derived from anything that keeps itself in sync.
+ * and minimal mode has neither. `13rem` is `Utskriftsfiler` (Norwegian
+ * "Print files"), the longest nav label actually shipped, at the default
+ * typeface and weight, plus a small rounding buffer: aside padding (`0.5rem`
+ * a side) + the link's own border and padding + the icon + its `1rem` gap +
+ * that label's rendered width came to just over `12.6rem`.
+ *
+ * That number used to be the whole rule, and it broke the moment a reader
+ * picked a wider font, a heavier text weight, or a theme pack that reshapes
+ * nav labels — Terminal renders them bold, uppercase, and letter-spaced,
+ * which alone can push `Utskriftsfiler` well past `12.6rem`. Past that width
+ * the label clips instead of the rail growing, because the rail's own size
+ * was the thing pinning it, not the label's `12rem` cap (see
+ * `.sidebar-nav-label` above) — minimal mode's tighter padding leaves less
+ * spare room than the ordinary rail does. `--sidebar-label-width` (measured
+ * by App.vue's `measureSidebarLabelWidth`, same mechanism as the ordinary
+ * rail's comment above) is the actual rendered width of the widest label on
+ * screen right now, so `4.375rem` — the same chrome sum as `12.6rem` minus
+ * its label term, rounded up — plus that measurement reproduces `13rem`
+ * exactly for today's calibration and only grows past it when a real
+ * font/weight/pack combination needs more.
  */
 .app-shell[data-sidebar-minimal='true'][data-sidebar-collapsed='false'] .desktop-sidebar {
-  inline-size: 13rem;
-  flex-basis: 13rem;
+  inline-size: max(13rem, calc(var(--sidebar-label-width, 0px) + 4.375rem));
+  flex-basis: max(13rem, calc(var(--sidebar-label-width, 0px) + 4.375rem));
 }
 
 .mobile-brand,
