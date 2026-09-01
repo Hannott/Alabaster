@@ -285,7 +285,7 @@ describe('the editor indents with spaces', () => {
 
   /*
    * The preference governs what the editor inserts, never what it rewrites: a
-   * file opened to read one value out of must not have its neighbouring lines
+   * file opened to read one value out of must not have its neighboring lines
    * re-indented to a width chosen after they were written.
    */
   it('repeats an existing tab indent rather than converting it', async () => {

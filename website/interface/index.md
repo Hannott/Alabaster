@@ -36,7 +36,7 @@ The header appears on every page. It holds what you need from any page.
 | Emergency stop    | Shuts down heaters and motion immediately. Asks first, unless you have turned that off.                            |
 
 **Save new config** appears in the header when Klipper is holding changes. It
-summarises what the changes are.
+summarizes what the changes are.
 
 A component Moonraker could not load at startup shows at the top of
 Notifications, ahead of announcements and recent activity. An example is a

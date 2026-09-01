@@ -12,7 +12,7 @@ export const machineCardDefaults = {
    * established way to fix a quality problem without reslicing, not a mistake
    * this card should guard against on every printer. Locking the fields is an
    * opt-in for whoever wants that guard rail rather than the card's ordinary
-   * behaviour.
+   * behavior.
    */
   lockDuringPrint: false,
 } as const

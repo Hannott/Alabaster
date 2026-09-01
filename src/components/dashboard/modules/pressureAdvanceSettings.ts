@@ -65,7 +65,7 @@ function isPressureAdvanceKey(key: string): boolean {
 /**
  * The prefix four of the seven keys share, elided from their labels because the
  * block's own heading already says it. Only the form with the trailing
- * underscore is stripped, which leaves the bare `pressure_advance` key labelled
+ * underscore is stripped, which leaves the bare `pressure_advance` key labeled
  * in full rather than reduced to nothing.
  */
 const redundantLabelPrefix = 'pressure_advance_'

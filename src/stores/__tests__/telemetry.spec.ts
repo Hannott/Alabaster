@@ -190,7 +190,7 @@ describe('telemetry store', () => {
     vi.spyOn(moonraker, 'onNotification').mockImplementation(() => () => undefined)
     // The real client emits the subscription's opening snapshot before this
     // promise resolves, which is what gives the seeded samples an eventtime to
-    // be dated back from. Modelling that ordering is the point of the mock.
+    // be dated back from. Modeling that ordering is the point of the mock.
     vi.spyOn(moonraker, 'setObjectSubscription').mockImplementation(() => {
       snapshotHandler?.({
         eventtime: 1_000,

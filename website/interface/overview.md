@@ -74,7 +74,7 @@ A module with nothing to work with does not display an empty card:
 
 ## When a service is unavailable
 
-Cards dim in place and keep their last-known values, labelled as such. Cards
+Cards dim in place and keep their last-known values, labeled as such. Cards
 do not each display their own status panel. The header carries the one
 global status.
 

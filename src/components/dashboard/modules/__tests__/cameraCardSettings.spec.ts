@@ -43,7 +43,7 @@ describe('Camera card settings', () => {
     expect(cameraCardSettings({ columns: 'three' }).columns).toBe(2)
   })
 
-  it('falls back to side by side for a stacking value it does not recognise', () => {
+  it('falls back to side by side for a stacking value it does not recognize', () => {
     expect(cameraCardSettings({ stacking: 'vertical' }).stacking).toBe('vertical')
     expect(cameraCardSettings({ stacking: 'diagonal' }).stacking).toBe('horizontal')
     expect(cameraCardSettings({ stacking: 3 }).stacking).toBe('horizontal')
@@ -77,7 +77,7 @@ describe('Camera card settings', () => {
     expect(shown.map((entry) => entry.uid)).toEqual(['a'])
   })
 
-  it('honours the enabled switch, whose whole job is to stop a camera streaming', () => {
+  it('honors the enabled switch, whose whole job is to stop a camera streaming', () => {
     const shown = selectedCameras(cameraCardSettings({ cameras: ['a'] }), [camera('a', false)])
     expect(shown).toEqual([])
   })

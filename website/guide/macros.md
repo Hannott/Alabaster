@@ -123,7 +123,7 @@ variable_pause_extruder_off_after: 0
 | -------------------------- | ------------------------------------------------------------------------------ |
 | `park_enabled`             | `False` pauses in place without moving at all.                                 |
 | `park_x`, `park_y`         | Where to park, in millimetres. `-1` uses the middle of your bed.               |
-| `park_lift`                | How far Z rises before travelling. Never goes past the top of your Z axis.     |
+| `park_lift`                | How far Z rises before traveling. Never goes past the top of your Z axis.      |
 | `retract`                  | How much filament pulls back on pause, so it does not ooze while you are away. |
 | `travel_speed`             | Speed for parking and for the move back, in mm/s.                              |
 | `park_at_cancel`           | Whether a cancelled print parks as well as a paused one.                       |

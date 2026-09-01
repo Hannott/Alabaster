@@ -12,7 +12,7 @@ import { usePrinterConfigStore } from '@/stores/printerConfig'
  * its own `shaketune_config.py` declares them. `result_folder` defaults to
  * `~/printer_data/config/K-ShakeTune_results` but is a plain `[shaketune]`
  * config option, so a printer carried over from the project's pre-rename
- * `Shake-Tune_results` days, or one that just customised the path, writes
+ * `Shake-Tune_results` days, or one that just customized the path, writes
  * somewhere else entirely — hard-coding the default left every one of those
  * printers with a gallery that never finds its own images. The base folder is
  * therefore read from `configfile.settings` the same way every other machine

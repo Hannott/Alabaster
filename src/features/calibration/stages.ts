@@ -4,7 +4,7 @@
  *
  * The page used to be a wall of panels that each gated themselves, which made
  * every printer's page a different length and none of them a sequence. A stage
- * is the unit a calibration sitting is actually organised in — you square the
+ * is the unit a calibration sitting is actually organized in — you square the
  * frame before you map the bed, and you map the bed before you chase a
  * resonance peak — so the rail that lists them is what tells a first-time
  * visitor what the destination is for, without a standing description under the

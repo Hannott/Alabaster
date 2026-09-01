@@ -1104,7 +1104,7 @@ describe('TemperaturesModule', () => {
   })
 
   /*
-   * The ladder was 4/7/10rem when the chart was three unlabelled gridlines. A
+   * The ladder was 4/7/10rem when the chart was three unlabeled gridlines. A
    * value axis and a row of times do not fit in 4rem, and the compact card is
    * the one that has to stay readable.
    */

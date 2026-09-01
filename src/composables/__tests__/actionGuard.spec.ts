@@ -158,7 +158,7 @@ describe('useActionGuard', () => {
 /*
  * The drift these catch is silent in both directions: a confirmation nobody can
  * switch off, and a setting row for a dialog that no longer opens. Neither
- * shows up as a broken build or a failing behaviour, so a structural assertion
+ * shows up as a broken build or a failing behavior, so a structural assertion
  * is the only thing that sees them.
  */
 describe('the guard system covers every control that needs it', () => {

@@ -59,7 +59,7 @@ describe('confirmations store', () => {
     }
   })
 
-  it('ignores unrecognised keys from a future or hand-edited profile', () => {
+  it('ignores unrecognized keys from a future or hand-edited profile', () => {
     window.localStorage.setItem(
       'alabaster.confirmations.v1',
       JSON.stringify({ skipAll: false, skipByKey: { notARealKey: true, removePrinter: true } }),

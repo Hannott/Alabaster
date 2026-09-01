@@ -108,7 +108,7 @@ const dateFormatter = computed(
 )
 
 /** Every label would collide on a 90-bucket window; a handful spread across it reads fine. */
-const labelledIndexes = computed(() => {
+const labeledIndexes = computed(() => {
   const count = props.buckets.length
   if (count === 0) return new Set<number>()
   const target = Math.min(5, count)
@@ -258,7 +258,7 @@ const tooltip = computed(() => {
           :height="column.notCompletedHeight"
         />
         <text
-          v-if="labelledIndexes.has(index)"
+          v-if="labeledIndexes.has(index)"
           class="history-trend__tick-label"
           :x="column.x + columnWidth.gap / 2 + columnWidth.width / 2"
           :y="height - 6"

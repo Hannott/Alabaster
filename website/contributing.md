@@ -112,6 +112,6 @@ Alabaster's design draws on [Mainsail](https://github.com/mainsail-crew/mainsail
 and [Fluidd](https://github.com/fluidd-core/fluidd). Both interfaces have years
 of production use, and they already settled much of what a Moonraker client
 needs to get right. Alabaster's own design documents came from a survey of
-both. Referencing what either does, for Moonraker behaviour or for
+both. Referencing what either does, for Moonraker behavior or for
 UI patterns worth carrying over, is welcome. Copying their Vue 2 / Vuex /
 Vuetify implementation is not.

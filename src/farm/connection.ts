@@ -361,7 +361,7 @@ export class FarmConnection {
    *
    * `printer.info` rather than `machine.system_info`: Moonraker answers it from
    * its own host information, so it survives a Klipper that is down — the
-   * column that most needs telling apart from its neighbours — and its result
+   * column that most needs telling apart from its neighbors — and its result
    * is a handful of fields rather than the several kilobytes of CPU,
    * distribution and network detail the system call returns for every printer
    * on the wall.

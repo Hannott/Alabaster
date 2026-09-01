@@ -89,7 +89,7 @@ function submit(): void {
         <label class="prompt-dialog__label" :for="fieldId">{{ label }}</label>
         <!--
           The value is a file or folder name, never an identity field, but a
-          text input labelled "Name" reads as one to password managers. The
+          text input labeled "Name" reads as one to password managers. The
           opt-out attributes keep 1Password, LastPass, and Bitwarden from
           offering to fill the user's actual name into it.
         -->

@@ -49,7 +49,7 @@ const printerConfig = usePrinterConfigStore()
 
 /*
  * Off by default — see `machineCardSettings.ts` for why locking is an opt-in
- * rather than the ordinary behaviour. Not stated in a sentence on the card:
+ * rather than the ordinary behavior. Not stated in a sentence on the card:
  * the fields simply go `disabled`, the same posture Extruder's own
  * printing-gated buttons take, where "a sentence repeating a fact the buttons
  * already show is noise, not information."

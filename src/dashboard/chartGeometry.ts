@@ -19,7 +19,7 @@ export interface ValueScale {
 
 export interface TimeTick {
   eventtime: number
-  /** Seconds past midnight, for labelling. */
+  /** Seconds past midnight, for labeling. */
   wallSeconds: number
 }
 
@@ -35,7 +35,7 @@ export interface TimeScale {
  * gets two gridlines. The extra rungs are the ones a thermometer is read in.
  */
 const valueSteps = [1, 2, 5, 10, 20, 25, 50, 100, 200, 250, 500] as const
-/** Wall-clock rungs: a chart labelled every 90 seconds reads as broken. */
+/** Wall-clock rungs: a chart labeled every 90 seconds reads as broken. */
 const timeSteps = [15, 30, 60, 120, 300, 600, 900, 1800] as const
 
 /**

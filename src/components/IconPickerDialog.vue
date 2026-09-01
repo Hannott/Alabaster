@@ -10,7 +10,7 @@ import { type AppIconName } from '@/components/AppIcon.vue'
  * Shape 4 (`FilamentCatalogueDialog`) minus the search box: that shape's
  * debounce and three empty states exist for a live, potentially-large
  * *remote* result set, and this one is neither. What carries over unchanged
- * is the behaviour that made Shape 4 right for this in the first place:
+ * is the behavior that made Shape 4 right for this in the first place:
  * clicking a tile *is* the decision, so there is no confirm/cancel action
  * track, and the only way to leave without picking is Escape or the close
  * button.

@@ -165,7 +165,7 @@ function estopIconSvg(): SVGSVGElement | undefined {
  * `emergencyStop`'s draw-in is SMIL (`<animate>`), not CSS, so it sits outside
  * main.css's blanket `prefers-reduced-motion` rule — that rule only collapses
  * `animation`/`transition` durations, a different mechanism than an SVG's own
- * SMIL timeline. Reduced motion is honoured by hand instead: parked at its
+ * SMIL timeline. Reduced motion is honored by hand instead: parked at its
  * final frame on mount rather than left to play, and never rewound on hover
  * or focus.
  */

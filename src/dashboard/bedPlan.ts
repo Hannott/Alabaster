@@ -111,7 +111,7 @@ export function planCoordinate(point: PlanPoint, extents: BedExtents): BedCoordi
  *
  * The keyboard path onto the plot. It steps in millimetres rather than in
  * fractions of the box so that one press means the same distance whatever
- * size the card is — the same reason the jog buttons are labelled with
+ * size the card is — the same reason the jog buttons are labeled with
  * distances rather than with proportions of an axis.
  */
 export function nudgeCoordinate(

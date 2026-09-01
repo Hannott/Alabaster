@@ -60,7 +60,7 @@ export function defaultSensorColorKey(objectName: string): SensorColorKey {
   return assignableColors[hash % assignableColors.length] as SensorColorKey
 }
 
-/** The CSS variable for a sensor, honouring the card's own choice if it has one. */
+/** The CSS variable for a sensor, honoring the card's own choice if it has one. */
 export function sensorColorVariable(
   objectName: string,
   overrides: Record<string, string> = {},

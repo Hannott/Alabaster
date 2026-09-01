@@ -11,7 +11,7 @@
  * way to make the open list match the rest of the interface.
  *
  * This is the headless-primitive exception `AGENTS.md` allows: the native
- * element cannot be themed, and real listbox keyboard behaviour (arrow keys,
+ * element cannot be themed, and real listbox keyboard behavior (arrow keys,
  * Home/End, typeahead) is implemented rather than assumed.
  */
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'

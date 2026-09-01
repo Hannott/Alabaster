@@ -62,7 +62,7 @@ describe('shake&tune results store', () => {
     expect(shakeTune.resultsByCategory.inputShaper).toEqual([])
   })
 
-  it('reads a customised result_folder from configfile.settings instead of the default', async () => {
+  it('reads a customized result_folder from configfile.settings instead of the default', async () => {
     const printerConfig = usePrinterConfigStore()
     vi.spyOn(printerConfig, 'section').mockImplementation((name) =>
       name === 'shaketune' ? { result_folder: '~/printer_data/config/ShakeTune_results' } : null,

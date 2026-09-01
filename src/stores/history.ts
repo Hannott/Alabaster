@@ -454,7 +454,7 @@ export const useHistoryStore = defineStore('history', () => {
    * server can recompute — the same reason `deleteJob` re-reads them — and
    * they are two hundred bytes rather than a window. A payload this cannot
    * read falls back to the full pair of reads, so an unexpected Moonraker
-   * shape degrades to the old behaviour instead of to a stale page.
+   * shape degrades to the old behavior instead of to a stale page.
    */
   function handleHistoryChanged(notification: JsonRpcNotification): void {
     const change = readHistoryChange(notification)

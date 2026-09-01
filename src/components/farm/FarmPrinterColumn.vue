@@ -54,7 +54,7 @@ let observer: IntersectionObserver | null = null
 onMounted(() => {
   if (typeof IntersectionObserver === 'undefined' || !root.value) {
     // No observer means no gating: every column connects, which is the
-    // behaviour a small farm has anyway.
+    // behavior a small farm has anyway.
     emit('visibility', true)
     return
   }

@@ -70,7 +70,7 @@ export const consoleDefaultQuickKeys = [
 
 /**
  * Spool: its one setting, shown by default. Unlike Movement's confirmations or
- * Print's reset-on-finish choices, this is a safety behaviour worth surfacing
+ * Print's reset-on-finish choices, this is a safety behavior worth surfacing
  * on the card itself rather than leaving it two clicks deep in the surface —
  * there is no "what the card showed before" here, since the module never had
  * this setting until it existed, so the default is a judgement rather than a

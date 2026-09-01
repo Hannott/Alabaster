@@ -287,7 +287,7 @@ describe('MovementBedPlan', () => {
 
   /**
    * Arrow keys step in millimetres, so one press is the same distance whatever
-   * size the card is — the same reason the jog buttons are labelled with
+   * size the card is — the same reason the jog buttons are labeled with
    * distances rather than proportions of an axis.
    */
   it('nudges from the nozzle by the keyboard step, and commits on Enter', async () => {

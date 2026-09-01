@@ -89,7 +89,7 @@ describe('settings surface', () => {
     expect((dialog.element as HTMLDialogElement).open).toBe(true)
 
     // And its slot keeps a hollow shell, so nothing below it moves.
-    // Empty rather than labelled: it reads as the card's own content having
+    // Empty rather than labeled: it reads as the card's own content having
     // faded to nothing, not as a second, differently-shaped box.
     const shell = movementShell(wrapper)
     expect(shell.attributes('aria-hidden')).toBe('true')

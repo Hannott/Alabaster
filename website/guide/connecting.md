@@ -96,7 +96,7 @@ While a service is unavailable:
 
 - **The page stays exactly as it is.** No reload, no route change, no empty
   frame.
-- **Values stay on screen, dimmed**, and are labelled as last-known rather
+- **Values stay on screen, dimmed**, and are labeled as last-known rather
   than current.
 - **Fresh data crossfades back in** when subscriptions are rebuilt.
 

@@ -395,7 +395,7 @@ function ticksAtStep(low: number, high: number, step: number): number[] {
   const values: number[] = []
   for (let value = first; value <= high + step * 1e-6; value += step) {
     // Snapped, because repeated addition of 0.1 arrives at 0.30000000000000004
-    // and a tick labelled that is worse than no tick at all. Adding zero
+    // and a tick labeled that is worse than no tick at all. Adding zero
     // collapses negative zero with it, which every number formatter renders as
     // "-0" — a tick that reads as a mistake in the axis.
     values.push(Math.round(value / step) * step + 0)
@@ -740,7 +740,7 @@ export function buildMeshScene(input: MeshSceneInput): MeshScene | null {
   const yValues = ticksAtStep(bed.minY, bed.maxY, groundStep)
   const zValues = ticksAcross(-zMax, zMax, 4)
 
-  // The labelled edges are the ones at the front of the box for this camera, so
+  // The labeled edges are the ones at the front of the box for this camera, so
   // turning the bed moves the numbers to whichever side is legible.
   const nearY = depthAt(bed.minX, bed.minY, -zMax) > depthAt(bed.minX, bed.maxY, -zMax)
   const nearX = depthAt(bed.minX, bed.minY, -zMax) > depthAt(bed.maxX, bed.minY, -zMax)
@@ -820,7 +820,7 @@ function signedArea(a: [number, number], b: [number, number], c: [number, number
  * corners averaged into one depth is not that — it is one number standing
  * in for a whole cell, and comparing a marker against it rather than
  * against the true depth at the marker's own screen position is exactly
- * what let a cell average a slope's higher neighbours into "in front of"
+ * what let a cell average a slope's higher neighbors into "in front of"
  * a marker nowhere near being covered by anything.
  */
 function triangleDepthAt(
@@ -839,7 +839,7 @@ function triangleDepthAt(
   const weightC = 1 - weightA - weightB
   // A hair of tolerance for a point that lands exactly on a shared edge —
   // its own probe's corner, most often — rather than missing both
-  // neighbouring triangles by a rounding error.
+  // neighboring triangles by a rounding error.
   const edge = -1e-9
   if (weightA < edge || weightB < edge || weightC < edge) return null
   return weightA * depthA + weightB * depthB + weightC * depthC

@@ -178,7 +178,7 @@ let explorerResizeTimer: ReturnType<typeof setTimeout> | null = null
 let contentSearchTimer: ReturnType<typeof setTimeout> | null = null
 /*
  * Passed to setDragImage in onDragStart to suppress the browser's own drag
- * image (a snapshot of the whole row, columns and all) in favour of the
+ * image (a snapshot of the whole row, columns and all) in favor of the
  * `.machine-drag-ghost` pill rendered below, which needs a real element to
  * react to the current drop target — a native drag image is fixed at
  * dragstart and neither Chrome nor Safari redraws it afterwards. An
@@ -837,7 +837,7 @@ async function onExternalDrop(event: DragEvent): Promise<void> {
 }
 
 function onDragStart(event: DragEvent, entry: MachineFileEntry): void {
-  // The draggable attribute is a hint the platform will honour loosely, so the
+  // The draggable attribute is a hint the platform will honor loosely, so the
   // permission check is repeated where the drag actually starts.
   if (!isWritable(entry) || entry.kind !== 'file') {
     event.preventDefault()
@@ -1370,7 +1370,7 @@ function handleWindowKeydown(event: KeyboardEvent): void {
  * at all.
  *
  * Buttons 3 and 4 are "browser back" and "browser forward". Chromium delivers
- * them as ordinary mouse events and honours `preventDefault()` on the
+ * them as ordinary mouse events and honors `preventDefault()` on the
  * `mousedown`; Firefox handles them in its own chrome and may not deliver them
  * to the page at all, in which case this is inert there rather than wrong — the
  * header arrows and the file history remain the way back on every browser.

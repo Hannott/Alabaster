@@ -500,7 +500,7 @@ describe('PrintModule', () => {
     expect(run).toHaveBeenCalledWith('SET_PAUSE_NEXT_LAYER', { ENABLE: '1', MACRO: 'PAUSE' })
   })
 
-  it('reaches Exclude object as an icon button, not a labelled row, once the plate defines one', async () => {
+  it('reaches Exclude object as an icon button, not a labeled row, once the plate defines one', async () => {
     const { printer, wrapper, pinia } = mountModule()
     startPrinting(printer)
     const excludeObject = useExcludeObjectStore(pinia)

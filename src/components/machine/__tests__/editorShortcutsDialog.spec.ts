@@ -96,7 +96,7 @@ describe('the editor’s keyboard reference', () => {
     expect(wrapper.emitted('close')).toBeUndefined()
   })
 
-  it('is labelled by its own title for assistive technology', () => {
+  it('is labeled by its own title for assistive technology', () => {
     const wrapper = mountDialog()
     const labelledBy = wrapper.find('dialog').attributes('aria-labelledby')
 

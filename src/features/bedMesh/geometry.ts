@@ -62,7 +62,7 @@ export interface MeshGeometryInput {
  *
  * Bars are thin enough to read as separate columns with the bed visible
  * between them. Terraces are nearly full width so they read as one stepped
- * solid — but not *exactly* full width, because neighbouring blocks would then
+ * solid — but not *exactly* full width, because neighboring blocks would then
  * share their side faces exactly, and two coincident faces at the same depth
  * flicker against each other as the camera turns.
  */
@@ -71,7 +71,7 @@ const terraceFootprint = 0.9
 /**
  * Mosaic exists to read as a seamless grid — the flat heat map with a number
  * in every cell — so its footprint goes further than a terrace's, right to
- * the edge its neighbour also stops short of. Not exactly 1: two neighbouring
+ * the edge its neighbor also stops short of. Not exactly 1: two neighboring
  * tiles would then share a side face exactly, and two coincident faces at the
  * same depth flicker against each other as the camera turns, the same problem
  * terraces stop short of at 0.9.
@@ -193,7 +193,7 @@ export function pushBox(
 /**
  * One flat-topped column per probed point, at a given fraction of its cell.
  * Bars and mosaic are the same shape at two different footprints — a thin
- * column that stands apart from its neighbours, or one pushed edge to edge
+ * column that stands apart from its neighbors, or one pushed edge to edge
  * with them — so they share this rather than each carrying their own copy of
  * an identical loop.
  */

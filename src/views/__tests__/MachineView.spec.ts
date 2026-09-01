@@ -104,7 +104,7 @@ function actionByLabel(wrapper: VueWrapper, label: string) {
   const button = wrapper
     .findAll('.machine-panel-heading__actions .button')
     .find((candidate) => candidate.text().includes(label))
-  if (!button) throw new Error(`No panel action labelled ${label}`)
+  if (!button) throw new Error(`No panel action labeled ${label}`)
   return button
 }
 
@@ -427,7 +427,7 @@ describe('MachineView', () => {
     ]
     await flushPromises()
 
-    // The transcript itself — role, focusability, scroll behaviour, the
+    // The transcript itself — role, focusability, scroll behavior, the
     // running/finished state chip — is `MachineUpdateConsoleDialog`'s own
     // contract, covered by that component's spec; this only checks the two
     // surfaces stay wired together.

@@ -71,7 +71,7 @@ describe('dashboard profile normalization', () => {
     expect(profile.columnWidths.mobile).toEqual(['normal'])
   })
 
-  it('renames the width names that were called after their neighbours', () => {
+  it('renames the width names that were called after their neighbors', () => {
     expect(
       normalizeDashboardProfile({ columnWidths: { desktop: ['narrow', 'normal', 'wide'] } })
         .columnWidths.desktop,
@@ -284,7 +284,7 @@ describe('dashboard layout store', () => {
     expect(visibleColumn(layout, 0)).toEqual(['movement', 'console', 'print'])
   })
 
-  it('leaves a hidden card beside the neighbour it was stored next to', () => {
+  it('leaves a hidden card beside the neighbor it was stored next to', () => {
     const layout = useDashboardLayoutStore()
     // bedMesh is hidden and stored directly after console in column 0. Moving
     // print to the end must not jump it over bedMesh, or restoring bedMesh from

@@ -45,7 +45,7 @@ describe('G-code viewer performance architecture', () => {
    * the raw parse buffers. Building per-segment geometry on the CPU instead is
    * how a viewer ends up rebuilding megabytes of vertices on every state
    * change; the endpoint offsets are what keep a move one width from start to
-   * finish instead of tapering into its neighbours.
+   * finish instead of tapering into its neighbors.
    */
   it('renders instanced pill geometry straight from the parse buffers', () => {
     expect(renderer).toContain('drawArraysInstanced')

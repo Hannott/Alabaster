@@ -193,8 +193,8 @@ export function useDashboardCardDrag(options: CardDragOptions): CardDragSession 
     pointer = { x: event.clientX, y: event.clientY }
 
     if (pending) {
-      const travelled = Math.hypot(event.clientX - pending.x, event.clientY - pending.y)
-      if (travelled < dragThresholdPx) return
+      const traveled = Math.hypot(event.clientX - pending.x, event.clientY - pending.y)
+      if (traveled < dragThresholdPx) return
       instanceId.value = pending.instanceId
       ghostOffset = { x: pending.offsetX, y: pending.offsetY }
       ghostWidth = pending.width

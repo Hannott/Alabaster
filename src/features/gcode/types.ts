@@ -81,7 +81,7 @@ export const enum GcodeMoveKind {
  * when looking at a print ("is the outside wall clean", "where are the
  * bridges"), not the full vocabulary any one slicer happens to emit. Every
  * unrecognized type lands on `Other` rather than being invented into a
- * neighbouring category, so an unknown slicer degrades to honest grey instead
+ * neighboring category, so an unknown slicer degrades to honest grey instead
  * of a confident lie.
  */
 export const enum GcodeFeature {
@@ -240,7 +240,7 @@ export interface GcodeRenderOptions {
   progressStyle: 'standard' | 'live-layer'
   /** Fallback bead width for moves that declared no extrusion volume. */
   extrusionWidth: number
-  /** Multiplies every bead's rendered width so neighbours overlap. */
+  /** Multiplies every bead's rendered width so neighbors overlap. */
   widthScale: number
   beadProfile: GcodeBeadProfile
   /**

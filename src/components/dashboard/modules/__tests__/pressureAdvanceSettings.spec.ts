@@ -52,7 +52,7 @@ describe('pressureAdvanceSettings', () => {
    * the scalar every guide calls "pressure advance", and reducing it to an empty
    * label to satisfy the rule above would be the rule misapplied.
    */
-  it('keeps the bare key labelled in full', () => {
+  it('keeps the bare key labeled in full', () => {
     expect(formatPressureAdvanceLabel('pressure_advance')).toBe('Pressure Advance')
     expect(formatPressureAdvanceLabel('pressure_advance_')).toBe('Pressure Advance')
   })

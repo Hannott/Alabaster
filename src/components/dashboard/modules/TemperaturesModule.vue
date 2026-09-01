@@ -642,7 +642,7 @@ const hasJobLoaded = computed(() => printer.hasActivePrint)
       <div v-if="listedSensors.length > 0" class="module-table temperature-table">
         <!--
         No head row at all. Every column here names itself: the reading and its
-        target are one labelled field, and the sensor's own name is the row.
+        target are one labeled field, and the sensor's own name is the row.
         `Name` over a column of names was a label restating its contents, and it
         cost a row of caps at the top of the densest card on the dashboard.
 

@@ -42,7 +42,7 @@ function filesBelow(directory: string): string[] {
  * A regex alone cannot do this: `<AppButton ... />` beside `<AppButton>...
  * </AppButton>` makes any lazy `</AppButton>` match run across the sibling and
  * report the next element's children as this one's. Self-closing tags are
- * recognised explicitly instead, and quoted attribute values are skipped so a
+ * recognized explicitly instead, and quoted attribute values are skipped so a
  * `>` inside one does not end the tag early.
  */
 function appButtons(source: string): { attrs: string; body: string }[] {
@@ -559,7 +559,7 @@ describe('interaction and iconography contract', () => {
     // An embedded label cannot spend the trailing space occupied by reset. The
     // start-aligned notch narrows before the target, and an end-aligned notch
     // moves its anchor before it; the action itself stays above the notch as a
-    // final defence against browser text scaling.
+    // final defense against browser text scaling.
     expect(appFieldStyles).toMatch(
       /\.app-field--label-embed \.app-field__box--has-reset \.app-field__label\s*\{[^}]*max-width:\s*calc\(100% - 3\.1rem\)/,
     )

@@ -86,7 +86,7 @@ describe('type scale', () => {
    * values, and the reader has to work out which one they came to read. The unit
    * borrowed `--text-meta-size` until that was inflated to `0.9rem` — the same
    * commit, the same kind of silent change — which put it level with the value
-   * and later mapped both onto neighbouring steps of the closed scale.
+   * and later mapped both onto neighboring steps of the closed scale.
    */
   it('keeps a field unit a step below the value it qualifies', () => {
     expect(roleFactor('text-field-unit-size')).toBeLessThan(roleFactor('control-field-sm-size'))

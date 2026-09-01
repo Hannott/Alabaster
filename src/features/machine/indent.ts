@@ -67,7 +67,7 @@ export function softTabInsertion(lineBeforeCursor: string, width: IndentWidth): 
  *
  * The line's own leading whitespace, verbatim — tabs included. The width
  * preference governs what the editor inserts, never what it rewrites: a file
- * opened to read one value out of must not have its neighbouring lines
+ * opened to read one value out of must not have its neighboring lines
  * re-indented to a width chosen after they were written, and a saved config is
  * what a printer boots from.
  *

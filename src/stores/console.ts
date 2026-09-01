@@ -235,7 +235,7 @@ export const useConsoleStore = defineStore('console', () => {
     try {
       persistConsoleClearedAt(printers.activeScopeKeys, clearedAt)
     } catch {
-      // A full or unavailable store costs the reload-survives-clear behaviour,
+      // A full or unavailable store costs the reload-survives-clear behavior,
       // not the clear itself: the transcript is still empty right now.
     }
   }

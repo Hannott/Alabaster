@@ -52,7 +52,7 @@ const zoomMax = 4
  *
  * A pan with no limit can carry the mesh entirely off the card, at which point
  * the only thing on screen that says why is the reset chip — and the chip is
- * only there because a pan happened, so a user who did not realise they had
+ * only there because a pan happened, so a user who did not realize they had
  * panned reads a blank stage as a card that broke. Less than a full stage of
  * travel keeps part of the box in view at every magnification.
  */
@@ -1082,7 +1082,7 @@ function toggleLock(): void {
 
 /**
  * Scrolling over the card is instinctive, and a `<canvas>` has no native scroll
- * behaviour of its own to claim the gesture — so without this the page behind
+ * behavior of its own to claim the gesture — so without this the page behind
  * it scrolls instead, which reads as the card flying off under the pointer.
  * Zooming works in both views: unlike the orbit, magnifying the flat map to
  * see a value more closely is still a meaningful thing to want.

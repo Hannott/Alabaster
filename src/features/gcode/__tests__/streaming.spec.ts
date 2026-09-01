@@ -107,7 +107,7 @@ describe('streamed parsing', () => {
   /**
    * The holdback rule. A batch may only end where the next move does not
    * continue the current path; otherwise the join would be built from a
-   * truncated neighbour and the wall would gain a cap in its middle.
+   * truncated neighbor and the wall would gain a cap in its middle.
    */
   it('never cuts a batch in the middle of a connected path', () => {
     const { batches } = streamParse(perimeterLoop)

@@ -47,7 +47,7 @@ export function defaultOutputIcon(kind: OutputKind): OutputIconToken | null {
 }
 
 /**
- * The icon for a row, honouring its card's own choice if it has one — the
+ * The icon for a row, honoring its card's own choice if it has one — the
  * same shape as `temperatureSensors.ts`'s `sensorColorKey`, one level over
  * (icon instead of color). An override naming something outside
  * `outputIconTokens` and not the `NONE_ICON` sentinel (a hand-edited profile,

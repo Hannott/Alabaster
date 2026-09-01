@@ -375,7 +375,7 @@ describe('TemperatureChart', () => {
     const dots = wrapper.findAll('.temperature-chart__cursor-dot')
     expect(dots).toHaveLength(2)
     // The bed held 60° throughout, so its dot has to sit at the height 60°
-    // projects to — which it cannot if it was read off a neighbour's sample.
+    // projects to — which it cannot if it was read off a neighbor's sample.
     const heights = dots.map((dot) => Number(dot.attributes('cy')))
     expect(heights[1]).toBeGreaterThan(heights[0]!)
   })

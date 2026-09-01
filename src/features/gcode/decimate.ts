@@ -24,7 +24,7 @@ import {
  * - **Only within one connected path**, using the same predicate the path
  *   builder uses, so a merge can never bridge a travel move or a layer change.
  * - **Only at equal bead width and height**, because a merged run renders with
- *   a single width and a wider or thinner neighbour would visibly change size.
+ *   a single width and a wider or thinner neighbor would visibly change size.
  * - **Only while the merged chord stays within a fraction of one bead width**
  *   of every point it replaces, which is what bounds the visible error.
  * - **Never more than `maximumRunSegments`**, because one merged instance
@@ -55,7 +55,7 @@ export interface GcodeDecimationSettings {
  * reasoning that a tier engages only once a bead is sub-pixel, so a deviation of
  * a pixel or two could not be seen. The render disproved it. One displaced bead
  * is indeed invisible — but a surface is made of many parallel beads, and
- * displacing each by up to three bead widths makes neighbours cross. The model
+ * displacing each by up to three bead widths makes neighbors cross. The model
  * then reads as a field of speckle rather than a solid object, which is the very
  * failure the voxel mode was replaced for.
  *

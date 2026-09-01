@@ -498,7 +498,7 @@ describe('G-code viewer view', () => {
       stage.dispatchEvent(finger('pointermove', pointerId, clientX, clientY))
     }
 
-    function travelled(before?: GcodeCameraSnapshot, after?: GcodeCameraSnapshot): number {
+    function traveled(before?: GcodeCameraSnapshot, after?: GcodeCameraSnapshot): number {
       return Math.hypot(
         (after?.targetX ?? 0) - (before?.targetX ?? 0),
         (after?.targetY ?? 0) - (before?.targetY ?? 0),
@@ -537,7 +537,7 @@ describe('G-code viewer view', () => {
       stage.dispatchEvent(finger('pointermove', 2, 620, 300))
 
       const after = renderer?.cameras.at(-1)
-      expect(travelled(before, after)).toBeGreaterThan(0)
+      expect(traveled(before, after)).toBeGreaterThan(0)
       expect(after?.distance).toBeCloseTo(before?.distance ?? 0, 4)
       expect(after?.yaw).toBeCloseTo(before?.yaw ?? 0, 6)
       expect(after?.pitch).toBeCloseTo(before?.pitch ?? 0, 6)
@@ -557,7 +557,7 @@ describe('G-code viewer view', () => {
       stage.dispatchEvent(finger('pointermove', 1, 360, 300))
 
       const after = renderer?.cameras.at(-1)
-      expect(travelled(before, after)).toBeGreaterThan(0)
+      expect(traveled(before, after)).toBeGreaterThan(0)
       expect(after?.yaw).toBeCloseTo(before?.yaw ?? 0, 6)
       expect(after?.pitch).toBeCloseTo(before?.pitch ?? 0, 6)
     })

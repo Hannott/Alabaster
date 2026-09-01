@@ -33,7 +33,7 @@
  *   out at each site, and at some sites only half of it was.
  *
  * The component is deliberately thin everywhere else. It adds no state, no
- * focus management, and no keyboard behaviour, because a button needs none —
+ * focus management, and no keyboard behavior, because a button needs none —
  * `AGENTS.md`'s preference for small native elements is satisfied by rendering
  * exactly one native `<button>` with everything the caller passed on it.
  *

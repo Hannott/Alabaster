@@ -18,7 +18,7 @@ import { movementDefaultQuickKeys } from '@/dashboard/quickSettingDefaults'
 import { useQuickSettings } from '@/dashboard/quickSettings'
 
 /**
- * What the jog and offset buttons are labelled with, rendered once and shared
+ * What the jog and offset buttons are labeled with, rendered once and shared
  * verbatim between the full settings pane and the card's own quick layer — see
  * `docs/design/settings-surface.md` and `MovementCardSettingsFields` for the
  * `mode` contract these two share.

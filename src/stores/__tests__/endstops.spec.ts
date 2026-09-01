@@ -42,7 +42,7 @@ describe('endstops store', () => {
     ])
   })
 
-  it('reports an unrecognised answer as unknown rather than guessing', async () => {
+  it('reports an unrecognized answer as unknown rather than guessing', async () => {
     const moonraker = useMoonrakerStore()
     vi.spyOn(moonraker, 'rpcCall').mockResolvedValue({ x: 'weird', y: 42 } as never)
     const endstops = useEndstopsStore()

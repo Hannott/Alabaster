@@ -113,7 +113,7 @@ describe('control contrast contract', () => {
         // receives one either.
         //
         // `primary` and `critical` receive no veil at all: they hover and press
-        // by `filter: brightness()`, asserted separately below. Modelling them
+        // by `filter: brightness()`, asserted separately below. Modeling them
         // with the veil is what capped --status-danger-strong at 78%, because
         // dark mode's white veil lightened a fill that carries a white label.
         const applicable = solidFill(name)

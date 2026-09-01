@@ -28,7 +28,7 @@ export type LevelingMethod =
  * Every section name a probe can be declared under. Shared by the two
  * questions that need it — where the probe sits, and whether there is one at
  * all — so a printer using one of the less common sections cannot be
- * recognised by one and missed by the other.
+ * recognized by one and missed by the other.
  */
 const probeSections = [
   'probe',
@@ -266,7 +266,7 @@ export const usePrinterConfigStore = defineStore('printerConfig', () => {
    * `position_endstop` (the Cartesian with a physical Z endstop), or delta
    * kinematics, where the three towers' endstops are adjusted together. A
    * printer with neither — a CoreXY whose Z endstop *is* its probe, configured
-   * as `probe:z_virtual_endstop` with no probe section Alabaster recognises —
+   * as `probe:z_virtual_endstop` with no probe section Alabaster recognizes —
    * has no way to make a babystepped offset permanent, and the honest answer
    * there is to offer nothing rather than a button that errors.
    */
@@ -362,7 +362,7 @@ export const usePrinterConfigStore = defineStore('printerConfig', () => {
    */
   /**
    * The raw configuration Klipper reports for one heater. Exposed so the heat
-   * model can fingerprint a heater's control behaviour without this store
+   * model can fingerprint a heater's control behavior without this store
    * having to know which of those values matter — that judgement belongs with
    * the model, and it differs between PID and MPC.
    */

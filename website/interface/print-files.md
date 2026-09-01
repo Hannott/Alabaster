@@ -52,7 +52,7 @@ limits.
 Slicer estimates assume the slicer's idea of your machine. This uses the
 machine's.
 
-It is safe to run on a file that was already analysed on upload. Moonraker
+It is safe to run on a file that was already analyzed on upload. Moonraker
 reports this and changes nothing.
 
 ## Starting a print

@@ -141,7 +141,7 @@ const columnTemplate = computed(() =>
  * `--dashboard-column-width` and stops there, so a row of narrow columns keeps
  * its own modest total instead of stretching to whatever three columns of any
  * width would have filled — which is the difference between a narrow column and
- * a column that is merely narrower than its neighbour.
+ * a column that is merely narrower than its neighbor.
  */
 const columnUnits = computed(() =>
   columnWidthUnits(layout.columnWidthsFor(displayedViewport.value), displayedViewport.value),

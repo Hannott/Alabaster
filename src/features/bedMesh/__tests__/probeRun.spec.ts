@@ -68,7 +68,7 @@ describe('probe run parsing', () => {
     }
   })
 
-  it('recognises the command that starts a run, however it was sent', () => {
+  it('recognizes the command that starts a run, however it was sent', () => {
     expect(isMeshCalibrateCommand('BED_MESH_CALIBRATE')).toBe(true)
     expect(isMeshCalibrateCommand('bed_mesh_calibrate PROFILE="textured"')).toBe(true)
     // The console echoes a sent command with its own marker.

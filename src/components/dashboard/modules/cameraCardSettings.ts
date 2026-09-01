@@ -90,7 +90,7 @@ export function cameraCardSettings(config: Record<string, unknown>): CameraCardS
  * visible and fixable.
  *
  * Disabled cameras are dropped for the same reason. "Enabled" is the switch
- * whose whole purpose is to stop a camera being streamed, and honouring it only
+ * whose whole purpose is to stop a camera being streamed, and honoring it only
  * in the settings list would leave the card streaming from a camera its owner
  * switched off.
  */

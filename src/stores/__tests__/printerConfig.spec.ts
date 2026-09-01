@@ -116,7 +116,7 @@ describe('printer configuration store', () => {
    * `position_endstop`, or delta kinematics, where the three towers are adjusted
    * together and there is no `[stepper_z]` section to read at all.
    */
-  it('recognises both machines that can write a Z endstop offset, and the one that cannot', async () => {
+  it('recognizes both machines that can write a Z endstop offset, and the one that cannot', async () => {
     mockQuery({ eventtime: 1, status: { configfile: { settings } } })
     const printerConfig = usePrinterConfigStore()
     await printerConfig.refresh()

@@ -1230,7 +1230,7 @@ defineProps<{ name: AppIconName }>()
       `reset` and `undo`. The two were never actually distinct: `reset` lived
       only inside AppField/AppSlider's own revert-to-configured button, while
       `undo` already covered every other revert/discard action in the
-      product, including a control literally labelled "reset" (Movement's Z
+      product, including a control literally labeled "reset" (Movement's Z
       offset). One glyph for one concept, named twice for two call sites that
       each read naturally with their own word.
     -->

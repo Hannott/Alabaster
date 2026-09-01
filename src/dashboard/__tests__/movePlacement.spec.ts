@@ -70,7 +70,7 @@ describe('movePlacement', () => {
     expect(visible(moved, 0)).toEqual(['a', 'c', 'b'])
   })
 
-  it('keeps a hidden card beside the neighbour it was stored next to', () => {
+  it('keeps a hidden card beside the neighbor it was stored next to', () => {
     const list = placements('a:v0 hidden:h0 b:v0')
     const moved = movePlacement(list, 'desktop', 'b', { column: 0, index: 0 })
 

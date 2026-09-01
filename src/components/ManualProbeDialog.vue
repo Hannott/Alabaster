@@ -40,7 +40,7 @@ import { usePrinterStore, type ManualProbeStep } from '@/stores/printer'
  *
  * Labels come from Movement's babystep formatter rather than a second copy of
  * the same rule, for the reason that function documents: a row of fixed
- * magnitudes is read against its neighbours, where telling `.05` from `.005` at
+ * magnitudes is read against its neighbors, where telling `.05` from `.005` at
  * a glance matters more than matching the surrounding prose. The magnitudes
  * themselves are this dialog's own — a babystep row deliberately stops at
  * 0.1mm, and a probe five millimetres above the bed cannot.
@@ -65,7 +65,7 @@ const bisectMax = 0.2
  * applies to both, so the two forms move the same distance until the gap is
  * narrower than twice the clamp — with nothing tried in that direction, which is
  * how every probe starts, all four move exactly 0.2mm. Four buttons that mostly
- * do two things, labelled with a notation the user has to be taught, bought
+ * do two things, labeled with a notation the user has to be taught, bought
  * nothing that the ladder below does not already offer; and once each button
  * carries the distance it will move, the duplicates would have been two pairs of
  * identical labels. The one thing halving genuinely adds — a step that gets finer
@@ -125,7 +125,7 @@ function stepLabel(millimetres: number): string {
  * `isSpent` is the end of the bisection: enough halvings and the remaining gap
  * rounds away below the three decimals Klipper itself reports, at which point
  * the press would move nothing and the honest thing is to say so rather than
- * offer a button labelled `+0`.
+ * offer a button labeled `+0`.
  */
 const halveControls = computed(() =>
   ([1, -1] as const).map((direction) => {

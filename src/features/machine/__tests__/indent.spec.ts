@@ -91,7 +91,7 @@ describe('what a newline carries over', () => {
   /*
    * The width preference governs what the editor inserts, never what it
    * rewrites: a file opened to read one value out of must not have its
-   * neighbouring lines re-indented to a width chosen after they were written.
+   * neighboring lines re-indented to a width chosen after they were written.
    */
   it('repeats an existing tab rather than converting it', () => {
     expect(continuationIndent('\tstep_pin: X_STEP', 4, false)).toBe('\t')

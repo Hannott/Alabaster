@@ -113,7 +113,7 @@ describe('buildMeshGeometry', () => {
     it('leaves the columns standing apart rather than merging into a slab', () => {
       const geometry = build({ style: 'bars', matrix: ramp(3, 3) })
       const xs = [...new Set(verticesOf(geometry).map((point) => point.x))].sort((a, b) => a - b)
-      // Two faces per column, and a gap between neighbouring columns: the
+      // Two faces per column, and a gap between neighboring columns: the
       // right face of one never coincides with the left face of the next.
       expect(new Set(xs).size).toBe(6)
     })
@@ -139,19 +139,19 @@ describe('buildMeshGeometry', () => {
       expect(heights).toEqual([-0.1, 0, 0.2, 0.3])
     })
 
-    it('leaves next to no gap between neighbours, unlike bars’ narrower footprint', () => {
+    it('leaves next to no gap between neighbors, unlike bars’ narrower footprint', () => {
       const matrix = ramp(3, 3)
       // The two faces where one column's tile ends and the next one's begins,
       // clear of the area's own edge — the gap a seamless grid must not have.
-      const neighbourGap = (style: 'bars' | 'mosaic'): number => {
+      const neighborGap = (style: 'bars' | 'mosaic'): number => {
         const xs = [...new Set(verticesOf(build({ style, matrix })).map((point) => point.x))]
           .filter((x) => x > area.minX && x < area.maxX)
           .sort((a, b) => a - b)
         return (xs[1] ?? 0) - (xs[0] ?? 0)
       }
       const stepX = 50
-      expect(neighbourGap('mosaic')).toBeLessThan(neighbourGap('bars'))
-      expect(neighbourGap('mosaic')).toBeLessThan(stepX * 0.1)
+      expect(neighborGap('mosaic')).toBeLessThan(neighborGap('bars'))
+      expect(neighborGap('mosaic')).toBeLessThan(stepX * 0.1)
     })
 
     it('draws its outer tiles whole, past the probed area rather than clipped to it', () => {

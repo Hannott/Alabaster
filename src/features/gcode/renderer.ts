@@ -72,7 +72,7 @@ const float PI = 3.141592653589793;
  *
  * On a real print the beads fuse and the valley fills in. A fraction this small
  * keeps a corner that still reads as rounded up close (a fifth of the bead's
- * height) while the flat tops of neighbouring beads meet and, with the overlap
+ * height) while the flat tops of neighboring beads meet and, with the overlap
  * scale applied, overlap — which is what makes two adjacent extrusions read as
  * one surface instead of two lines.
  */
@@ -133,7 +133,7 @@ ProfilePoint square_profile(int index, int face, float width, float height) {
  * from up to sideways — but the reduced profile is only six points, and its arc
  * lands exactly on the axes, so it carries no in-between normals to average.
  * What actually speckles is *which face of which bead* wins a sub-pixel depth
- * test: a top face and a side face of two neighbouring beads land in adjacent
+ * test: a top face and a side face of two neighboring beads land in adjacent
  * pixels, and the two are lit very differently.
  *
  * So snapping each normal to its nearest axis does nothing whatsoever — that is
@@ -167,7 +167,7 @@ uniform mat4 u_view_projection;
 uniform vec2 u_resolution;
 uniform float u_travel_line_width;
 uniform float u_extrusion_width;
-// Widens every bead so neighbours overlap instead of leaving a hairline gap.
+// Widens every bead so neighbors overlap instead of leaving a hairline gap.
 uniform float u_width_scale;
 // 0 while a bead is wide enough to resolve its curvature, rising to 1 as it
 // approaches pixel size. See normalFlattenFor for why this moves the normal
@@ -246,7 +246,7 @@ void main() {
     float along = corner >= 2 ? 1.0 : 0.0;
     float across = (corner == 1 || corner == 3) ? 1.0 : 0.0;
     float layer_height = max(0.01, a_extrusion_height);
-    // A move owns one width from start to finish. Its neighbour's direction and
+    // A move owns one width from start to finish. Its neighbor's direction and
     // extrusion volume must not taper or flare this segment at either endpoint.
     float extrusion_width =
       (a_path_width.x > 0.0 ? a_path_width.x : u_extrusion_width) * u_width_scale;
@@ -306,7 +306,7 @@ layout(location = 3) in float a_extrusion_width;
 
 uniform mat4 u_view_projection;
 uniform float u_extrusion_width;
-// Widens every bead so neighbours overlap instead of leaving a hairline gap.
+// Widens every bead so neighbors overlap instead of leaving a hairline gap.
 uniform float u_width_scale;
 uniform float u_normal_flatten;
 uniform float u_bead_profile;
@@ -588,7 +588,7 @@ layout(location = 6) in float a_extrusion_width;
 
 uniform mat4 u_view_projection;
 uniform float u_extrusion_width;
-// Widens every bead so neighbours overlap instead of leaving a hairline gap.
+// Widens every bead so neighbors overlap instead of leaving a hairline gap.
 uniform float u_width_scale;
 uniform float u_bed_z;
 
@@ -1439,7 +1439,7 @@ export class GcodeRenderer {
    * bead lit from its own orientation) to the ceiling below.
    *
    * Every bead is lit from its own orientation, and a real toolpath wanders, so
-   * neighbouring beads differ slightly in brightness. Close up that reads as the
+   * neighboring beads differ slightly in brightness. Close up that reads as the
    * surface texture of a print, which is exactly right. Once beads reach pixel
    * size it is high-frequency detail sampled once per pixel, and the model reads
    * as speckle rather than as a solid object — see flatten_profile_normal for
@@ -1659,7 +1659,7 @@ export class GcodeRenderer {
      * from their own screen-space direction rather than from an absolute axis,
      * so a move drawn either way round presents the same face. The state is
      * scoped to the two programs that draw solids, leaving the grid, the
-     * contact shadow, and the pick pass with their own behaviour.
+     * contact shadow, and the pick pass with their own behavior.
      *
      * The test that matters here is not "does something render" — an inverted
      * winding still renders the tube's inner wall. It is that culling must not

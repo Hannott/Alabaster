@@ -19,7 +19,7 @@ describe('output icons', () => {
     expect(outputIcon('interior_light', 'pin', {})).toBeNull()
   })
 
-  it('lets a card override the default, and ignores an override it cannot honour', () => {
+  it('lets a card override the default, and ignores an override it cannot honor', () => {
     expect(outputIcon('interior_light', 'pin', { interior_light: 'bulb' })).toBe('bulb')
     expect(outputIcon('probe_enable', 'pin', { probe_enable: 'probe' })).toBe('probe')
 

@@ -92,7 +92,7 @@ describe('G-code perspective camera', () => {
    * and is exactly why the renderer passes its own storage for the scene
    * matrix, which the overlay keeps reading between scene renders.
    */
-  it('reuses one matrix by default and honours caller-owned storage', () => {
+  it('reuses one matrix by default and honors caller-owned storage', () => {
     const camera = fittedCamera(bounds)
 
     const first = projectionFor(bounds, camera, 800, 600)

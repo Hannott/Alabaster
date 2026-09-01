@@ -47,7 +47,7 @@ export type DashboardPlacements = Record<DashboardViewport, DashboardPlacement[]
  * column it sits in.
  */
 /*
- * The ladder is labelled XS · S · M · L · XL, but the middle rung's key stays
+ * The ladder is labeled XS · S · M · L · XL, but the middle rung's key stays
  * `normal`: it is the reference every ratio is expressed against and the width a
  * fresh profile fills itself with, and a key named for the label would hide that
  * behind a letter. The label is an i18n string; this is storage.
@@ -95,7 +95,7 @@ export const columnWidthRatios: Readonly<Record<DashboardColumnWidth, number>> =
 /**
  * Width names that have been stored under an earlier one. The ladder grew from
  * three rungs to five, and its outer two were named for the comparison they made
- * with their neighbours rather than for a size — a name that stops working the
+ * with their neighbors rather than for a size — a name that stops working the
  * moment there is a rung outside it. An unrecognized name falls back to `normal`
  * and silently flattens a layout, so a rename without an entry here is a rename
  * that loses somebody's dashboard.
@@ -201,7 +201,7 @@ export interface DashboardDropTarget {
  * The list is flat and interleaved: a hidden card keeps its slot between two
  * visible ones, so a visible index is not a list index. Translating between
  * them is the whole job, and it is what keeps a hidden card beside the
- * neighbours it was stored next to instead of drifting to the end of the list
+ * neighbors it was stored next to instead of drifting to the end of the list
  * every time something visible moves past it.
  */
 export function movePlacement(

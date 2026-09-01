@@ -1,4 +1,4 @@
-// A V6-style brass nozzle modelled as a solid of revolution with a hexagonal
+// A V6-style brass nozzle modeled as a solid of revolution with a hexagonal
 // nut, drawn as the live toolhead marker. The mesh is generated once at module
 // load and consumed by the viewer overlay, which projects and shades it per
 // frame; keeping it off the WebGL scene preserves the throttled-toolpath /

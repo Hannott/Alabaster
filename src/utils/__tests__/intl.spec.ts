@@ -6,7 +6,7 @@ import { dateTimeFormat, numberFormat } from '@/utils/intl'
  * The point of this module is that the same request returns the same object —
  * constructing an `Intl` formatter is roughly fifty times the cost of using
  * one, and a list that builds one per row pays that per row. Identity is
- * therefore the behaviour under test, not an implementation detail.
+ * therefore the behavior under test, not an implementation detail.
  */
 describe('memoized Intl formatters', () => {
   it('returns one instance for the same locale and options', () => {

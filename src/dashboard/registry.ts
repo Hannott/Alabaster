@@ -418,7 +418,7 @@ export const dashboardModuleRegistry: readonly DashboardModuleDefinition[] = [
     settingsComponent: markRaw(BedMeshSettingsPane),
     // How far the bed strays is the reason this card is on the dashboard at
     // all, and it is the one figure that still means something without the map
-    // beside it. Labelled "Range:" rather than bare, since a bare number in the
+    // beside it. Labeled "Range:" rather than bare, since a bare number in the
     // header has no unit or context to say what it is a range of.
     //
     // A printer that has never been probed and one that has a saved mesh it is

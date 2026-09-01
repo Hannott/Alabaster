@@ -51,7 +51,7 @@ export const movementCardDefaults = {
    * `Z_TILT_ADJUST`, whatever `primaryLevelingMethod` in `MovementModule.vue`
    * resolves to — for a check run often enough between prints that a
    * full-width row buried below the jog matrix was an extra scroll every
-   * time. Always labelled "Level bed" so the button reads the same across
+   * time. Always labeled "Level bed" so the button reads the same across
    * every printer; the tooltip names the actual macro.
    *
    * Defaults on, unlike the other switches on this card: this is the

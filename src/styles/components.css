@@ -1231,7 +1231,7 @@ input[type='number']::-webkit-inner-spin-button {
  *
  * Instances that compose on top of this — `.header-menu__toggle`,
  * `.gcode-settings-option`, `.gcode-check-row` — add chrome or type and nothing
- * else. The cursor, the selection behaviour, and the box size come from here.
+ * else. The cursor, the selection behavior, and the box size come from here.
  */
 .check-row {
   /* Block-level, then shrunk. `inline-flex` would put consecutive rows on one
@@ -2447,7 +2447,7 @@ input[type='number']::-webkit-inner-spin-button {
  * in size while what they set is a size, which reads as though a button were
  * showing the width it stands for. Equal tracks say the opposite, and they keep
  * the one-letter rungs clear of the 24px target minimum they otherwise sit
- * barely above. It is also why the middle rung is labelled `M` rather than
+ * barely above. It is also why the middle rung is labeled `M` rather than
  * spelling out its `normal` key: at 64px across five rungs the ladder pushed the
  * edit banner onto a second row at 1920px. `grid-auto-columns` rather than a
  * track count, so a sixth rung needs no CSS.
@@ -2852,7 +2852,7 @@ input[type='number']::-webkit-inner-spin-button {
  * - **A numeric column is sized by its heading, not by its values.** The
  *   heading is the wider of the two and it is the one that cannot ellipsize:
  *   `Current °C` needs 67px where `215.3` needs 45, so tracks cut to the values
- *   let a `nowrap` heading overflow into its neighbour. That shipped, and it is
+ *   let a `nowrap` heading overflow into its neighbor. That shipped, and it is
  *   what a column of numbers looks like when nobody measured the words above it.
  * - **Row height comes from `module-table__name`**, which every row has,
  *   rather than from whichever cell happens to be tallest. A text-only row and
@@ -2891,7 +2891,7 @@ input[type='number']::-webkit-inner-spin-button {
 
 /* A seam between readings, drawn by the row rather than by an element between
    rows: a divider that is its own grid item has to be placed around whatever
-   secondary lines its neighbours happen to have. */
+   secondary lines its neighbors happen to have. */
 .module-table__row:not(:last-child) {
   border-block-end: 1px solid color-mix(in srgb, var(--border-subtle) 55%, transparent);
 }
@@ -3302,7 +3302,7 @@ input[type='number']::-webkit-inner-spin-button {
 }
 
 /* A preset is a name and the two temperatures it sets, so it edits as one row
-   rather than as a labelled form. */
+   rather than as a labeled form. */
 .preset-row {
   display: grid;
   min-width: 0;
@@ -3938,7 +3938,7 @@ input.z-axis__slider {
  * motors-off in the second, in that order, so "between home-all and
  * motors-off" is simply document order inside one flex row. Unlike
  * `.jog-steps`, these do not divide evenly — every button here is a
- * text-labelled action of its own natural width, not a ladder of magnitudes
+ * text-labeled action of its own natural width, not a ladder of magnitudes
  * read against each other, so each keeps its own content width and the row
  * packs them from the start instead of stretching either to match.
  *
@@ -4164,7 +4164,7 @@ input.z-axis__slider {
  * a user has to read, because the pane it stands for is already on screen and
  * the control already carries the ARIA state.
  *
- * That ARIA state is the whole selector, deliberately: a cog-labelled control
+ * That ARIA state is the whole selector, deliberately: a cog-labeled control
  * is pressed or expanded exactly when its settings are open, and the rail's
  * Settings link carries `router-link-active` exactly while that page is the
  * one being viewed. A turning modifier on the icon would be a second copy of
@@ -4536,7 +4536,7 @@ input.z-axis__slider {
  * The heading owns the space beneath it rather than relying on whatever follows
  * to provide it. A section whose first child is a hint looked fine because the
  * hint carried a top margin; one whose first child is a control sat flush against
- * its own heading, which reads as the heading labelling the section above it.
+ * its own heading, which reads as the heading labeling the section above it.
  */
 .surface-section__title {
   margin-block-end: 0.35rem;
@@ -5294,7 +5294,7 @@ input.z-axis__slider {
 
 /*
  * The gradient never carries a reading on its own: both ends of the bar are
- * labelled with the deviation they stand for, and the card states the lowest,
+ * labeled with the deviation they stand for, and the card states the lowest,
  * highest and total range in text beneath it.
  */
 .mesh-status {
@@ -6630,7 +6630,7 @@ input.z-axis__slider {
    *
    * Rounding rather than hard-coding pixels, so the transcript still scales with
    * a reader's own default font size; the plain `calc()` first is the fallback
-   * for anything without `round()`, which lands back on today's behaviour rather
+   * for anything without `round()`, which lands back on today's behavior rather
    * than on nothing.
    */
   --console-line-box: calc(var(--console-font-size) * var(--console-line-height));
@@ -7239,7 +7239,7 @@ input.z-axis__slider {
 /*
  * A touch screen has no hover to reveal the bar with, and no mouse-driven
  * scrollbar affordance to begin with — so the fade is a desktop-pointer
- * behaviour only, matching `.camera-tile__actions`' own `(hover: none)` rule.
+ * behavior only, matching `.camera-tile__actions`' own `(hover: none)` rule.
  */
 @media (hover: none) {
   .console-module__body .gcode-console {
@@ -9963,7 +9963,7 @@ body.machine-editor-fullscreen-open {
   gap: 0.9rem;
   /* 1rem, matching the breadcrumbs and the column strip below. The header's own
      0.75rem is the outlier in this stack, and following it here would put this
-     band out of line with both of its neighbours to gain alignment with one. */
+     band out of line with both of its neighbors to gain alignment with one. */
   padding-inline: 1rem;
   border-block-end: 1px solid var(--border-subtle);
 }
@@ -12174,7 +12174,7 @@ body.machine-editor-fullscreen-open {
  * Gated on the map actually being there, and the two beside it are *placed by
  * auto-flow* rather than pinned to a row each. Both matter for the same reason:
  * all three cards are capability-gated, and pinning a card to a cell is a
- * promise about a grid its neighbours might not be in. A mesh-only printer has
+ * promise about a grid its neighbors might not be in. A mesh-only printer has
  * no probe card, and a `grid-row: 2` on the profile list left an empty cell
  * above it; a probe-only printer has no map at all, and pinning the probe card
  * to the second track stranded it in the right half of an otherwise empty
@@ -13339,7 +13339,7 @@ body.machine-editor-fullscreen-open {
 
 /*
  * Expanded puts the preview beside its data rather than above it. Two reading
- * distances — a thumbnail recognised across a room, a queue read close up —
+ * distances — a thumbnail recognized across a room, a queue read close up —
  * and stacking them made the eye cross the whole column to answer either
  * question. It is also what gives the queue the vertical run it needs.
  */

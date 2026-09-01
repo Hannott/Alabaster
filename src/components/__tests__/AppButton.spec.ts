@@ -69,7 +69,7 @@ describe('AppButton', () => {
     /*
      * Vue hands every component a `default` slot function whether or not the
      * call site wrote children, so "does the slot exist" reported every icon
-     * button as labelled and left it an oblong. The question has to be what the
+     * button as labeled and left it an oblong. The question has to be what the
      * slot renders — including a `v-if` that went false, which leaves a comment
      * placeholder behind rather than nothing.
      */

@@ -27,7 +27,7 @@ import { usePrinterStore } from '@/stores/printer'
  * anyone navigated: the printer keeps probing whether or not a page is watching,
  * so leaving and coming back lost the run and left the viewer with nothing to
  * draw. Reading the transcript on demand means the state is a function of what
- * the printer has said, which no amount of navigating can desynchronise.
+ * the printer has said, which no amount of navigating can desynchronize.
  *
  * Points are held as a flat list positioned by their own coordinates, never as a
  * grid indexed by arrival order. Adaptive meshing and faulty regions both change

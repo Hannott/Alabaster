@@ -758,7 +758,7 @@ function screwInstruction(screw: (typeof screwResults.value)[number]): string {
         The name is present but not drawn. The icon is decorative and the unit
         is only a unit, so read aloud this was "40 mm/s" — a number with
         nothing saying what it measures, the one reading on the card whose
-        neighbour states its own name ("Position: Absolute"). A visible label
+        neighbor states its own name ("Position: Absolute"). A visible label
         would cost width the corner does not have at 305px, and `sr-only` is
         what closes that without spending any.
       -->
@@ -959,7 +959,7 @@ function screwInstruction(screw: (typeof screwResults.value)[number]): string {
             >
               <!--
               The ordinary way to reach leveling, beside home-all rather than
-              buried in the full-width row below. Always labelled "Level bed"
+              buried in the full-width row below. Always labeled "Level bed"
               regardless of which command it actually runs, so the button
               reads the same on every printer; the tooltip and aria-label
               carry the real macro name via `primaryLevelingMethod`. Turning

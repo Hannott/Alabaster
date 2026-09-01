@@ -106,7 +106,7 @@ function draftNumber(value: unknown): string {
  * A draft as the card will store it. An empty field is stored as null — the
  * preset leaves that heater as it is — rather than as the zero it used to
  * become, which turned the heater off instead. `Number('')` is `0`, so the
- * blank has to be recognised before the conversion rather than after it.
+ * blank has to be recognized before the conversion rather than after it.
  */
 export function presetFromDraft(draft: TemperaturePresetDraft): TemperaturePreset {
   return {

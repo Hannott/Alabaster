@@ -1901,7 +1901,7 @@ onBeforeUnmount(() => {
           </AppSlider>
           <!--
             The floor of the same range. At zero this is exactly the old "show
-            previous layers" behaviour; raised, it cuts a cross-section that no
+            previous layers" behavior; raised, it cuts a cross-section that no
             single-thumb slider could express.
           -->
           <AppSlider

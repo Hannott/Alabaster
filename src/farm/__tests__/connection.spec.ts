@@ -8,7 +8,7 @@ import {
 } from '@/services/moonraker/__tests__/mockSocket'
 
 /**
- * A farm connection against a mock socket. Everything here is a behaviour the
+ * A farm connection against a mock socket. Everything here is a behavior the
  * rail depends on and that no other spec covers: it is the only client in the
  * product that is not the one the application drives.
  */
@@ -104,7 +104,7 @@ describe('a farm connection', () => {
    * than its address, so the name has to be asked for. `printer.info` rather
    * than `machine.system_info`: Moonraker answers it from its own host
    * information, so a printer whose Klipper is down — the column most in need
-   * of being told apart from its neighbours — still has a name.
+   * of being told apart from its neighbors — still has a name.
    */
   it('asks the printer what it calls itself', async () => {
     const harness = createHarness()

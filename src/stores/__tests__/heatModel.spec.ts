@@ -137,7 +137,7 @@ describe('heat model bands', () => {
   })
 
   /*
-   * A gap is never interpolated over. A band invented from its neighbours
+   * A gap is never interpolated over. A band invented from its neighbors
    * produces a number indistinguishable from a measured one, and being
    * indistinguishable from a measurement is the one thing it must not be.
    */
@@ -375,7 +375,7 @@ describe('heat curve identity', () => {
   }
 
   /*
-   * The behaviour a recalibration should have: not invalidation, but a new
+   * The behavior a recalibration should have: not invalidation, but a new
    * table. Restoring the old constants restores the measurements taken under
    * them, which falls out of storing the curve under this rather than checking
    * it against this.

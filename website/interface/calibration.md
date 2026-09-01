@@ -169,7 +169,7 @@ Klipper reports endstop state only when asked. Alabaster asks every couple
 of seconds while the printer is idle. **Read now** asks immediately.
 
 - **Polling stops during a print.** Querying endstops mid-print is not free,
-  so readings pause and are labelled as not current.
+  so readings pause and are labeled as not current.
 - **A failed read does not clear the last good reading.** If a read fails,
   the previous values stay on screen, and the page states that the last read
   failed.

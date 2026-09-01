@@ -201,7 +201,7 @@ workshop screen read from two metres away and a phone held at arm's length.
 - **Peripherals.** Lists the serial, USB, and CAN devices attached to the
   host, so finding the right `/dev/serial/by-id` path or CAN UUID takes a
   page instead of an SSH session.
-- **Save new config**, summarised. If Klipper is holding a probe offset, a
+- **Save new config**, summarized. If Klipper is holding a probe offset, a
   heater model, and a mesh, the summary lists which ones, and it waits for
   the print to finish rather than offering to end it.
 - **Repository recovery.** Alabaster offers a dirty, invalid, detached, or

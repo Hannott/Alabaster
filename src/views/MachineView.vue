@@ -497,7 +497,7 @@ const alabasterReloadDue = ref(false)
 
 /*
  * Opens itself the moment a run starts, the same continuation-of-the-user's-
- * own-gesture behaviour as the confirmation dialog it follows — the user just
+ * own-gesture behavior as the confirmation dialog it follows — the user just
  * confirmed Update now (or Investigate's own reset/re-clone), so this is not
  * an unprompted popup. It stays open across the whole run and does not force
  * itself back open if the reader dismisses it early; `openConsole` in the

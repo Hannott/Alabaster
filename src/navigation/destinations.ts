@@ -53,7 +53,7 @@ export interface NavigationDestination {
   icon: AppIconName
   /**
    * Numbered in tens so a gated or future destination slots in without
-   * renumbering its neighbours. Position, not array order, is authoritative.
+   * renumbering its neighbors. Position, not array order, is authoritative.
    */
   position: number
   capability?: DestinationCapability

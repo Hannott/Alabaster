@@ -18,7 +18,7 @@ import {
  * Four services do their signalling four different ways — a JSON POST dance,
  * a websocket, WHEP over HTTP verbs, and Janus's own plugin protocol — but
  * once a track arrives they are identical. Sharing everything after that point
- * is what keeps a fix to reconnect behaviour from having to be applied four
+ * is what keeps a fix to reconnect behavior from having to be applied four
  * times, which in the reference implementation is exactly where the four
  * copies have drifted apart.
  *

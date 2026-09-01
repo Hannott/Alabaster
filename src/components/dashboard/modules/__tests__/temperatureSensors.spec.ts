@@ -49,7 +49,7 @@ describe('sensor colors', () => {
     }
   })
 
-  it('lets a card override the default, and ignores an override it cannot honour', () => {
+  it('lets a card override the default, and ignores an override it cannot honor', () => {
     expect(sensorColorKey('extruder', { extruder: 'green' })).toBe('green')
     expect(sensorColorVariable('extruder', { extruder: 'green' })).toBe('var(--color-data-green)')
 

@@ -856,7 +856,7 @@ function requestPause(): void {
 
         <!--
         Two stable groups, ordered by consequence. Pause/resume and Cancel are
-        the job controls and stay labelled; optional print tools are quiet
+        the job controls and stay labeled; optional print tools are quiet
         icon controls because this footer is the context that explains them.
         The groups wrap as units, so a narrow card never leaves one advanced
         action orphaned beside a full-width Pause button.

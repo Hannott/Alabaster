@@ -107,14 +107,14 @@ function fold(existing: HeatSample | undefined, seconds: number): HeatSample {
 }
 
 /**
- * An identity for a heater's control behaviour, built from the values Klipper
+ * An identity for a heater's control behavior, built from the values Klipper
  * reports for it.
  *
  * A curve is stored under this rather than being invalidated by it, which is
  * what makes a recalibration non-destructive: new constants start a new table,
  * and putting the old constants back brings the old table with them. Nothing
- * here is used to compute anything — only to tell one heater's behaviour apart
- * from the same heater's behaviour after it was changed.
+ * here is used to compute anything — only to tell one heater's behavior apart
+ * from the same heater's behavior after it was changed.
  */
 export function fingerprintFor(settings: Record<string, unknown> | null | undefined): string {
   if (!settings) return 'unknown'
@@ -396,7 +396,7 @@ function nearestApproach(curve: HeatCurve, target: number): ApproachSample | nul
  * Seconds to climb from `from` to `to`, or null when the curve cannot answer.
  *
  * **Every band across the span must have been measured.** A gap is not
- * interpolated over, because a band invented from its neighbours produces a
+ * interpolated over, because a band invented from its neighbors produces a
  * number indistinguishable from a real one — and the whole value of this model
  * is that its numbers were observed. Declining sends the caller back to the
  * fitted rate, which is honest about being a guess.
