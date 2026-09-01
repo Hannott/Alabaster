@@ -91,7 +91,7 @@ onBeforeUnmount(() => {
 })
 
 /**
- * Drives both the header text and its colour, per the "not by color alone"
+ * Drives both the header text and its color, per the "not by color alone"
  * rule: `running` is always reachable mid-run, `failed` only once the run
  * that just ended reported `updateFailed`/`updateInterrupted`, and
  * `finished` otherwise — the dialog is only ever reachable with `running`

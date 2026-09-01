@@ -1,18 +1,18 @@
 <script setup lang="ts">
 /**
- * A crosshair drawn over the centre of a camera's frame, marking where the
+ * A crosshair drawn over the center of a camera's frame, marking where the
  * nozzle sits in the picture.
  *
  * What it is for: aligning a camera so the nozzle is actually in shot, and
  * judging a first layer against a fixed reference instead of against the
- * frame's edges. It marks the frame's centre, not the nozzle's real position —
+ * frame's edges. It marks the frame's center, not the nozzle's real position —
  * nothing here knows where the toolhead is relative to the lens — so it is
  * useful precisely because the camera is aimed to put the nozzle on it.
  *
  * It sits inside the transformed frame rather than over the untransformed box,
  * so a flipped or rotated camera keeps the crosshair on the same physical
- * point. Its colour is the user's own pick from the shared seven-hue palette —
- * a crosshair the same colour as the print is invisible, so this is one of the
+ * point. Its color is the user's own pick from the shared seven-hue palette —
+ * a crosshair the same color as the print is invisible, so this is one of the
  * cases `dashboard/colorTokens.ts` exists for.
  */
 import { computed } from 'vue'
@@ -25,9 +25,9 @@ const props = defineProps<{ camera: Camera }>()
 const crosshair = computed(() => cameraCrosshair(props.camera))
 
 /**
- * `undefined` rather than a fallback colour, so the stylesheet's own default
+ * `undefined` rather than a fallback color, so the stylesheet's own default
  * applies. That default is a palette token, which is what keeps a crosshair
- * nobody has recoloured coherent with the rest of the theme pack.
+ * nobody has recolored coherent with the rest of the theme pack.
  */
 const color = computed(() => crosshairColorValue(crosshair.value) ?? undefined)
 

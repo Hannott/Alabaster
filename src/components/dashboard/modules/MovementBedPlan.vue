@@ -8,7 +8,7 @@ import { usePrinterStore } from '@/stores/printer'
 
 /**
  * A top-down picture of the build volume, the nozzle on it, and a drag that
- * names somewhere to send the nozzle. It replaces the X/Y "min / centre / max"
+ * names somewhere to send the nozzle. It replaces the X/Y "min / center / max"
  * step mode, which asked a spatial question and answered it with three numbers
  * that never fitted the buttons drawing them.
  *
@@ -247,7 +247,7 @@ function commitFromControl(): void {
       @keydown.esc.prevent="target = null"
     >
       <!--
-        Only the centre lines are drawn in SVG. They are the one thing
+        Only the center lines are drawn in SVG. They are the one thing
         `preserveAspectRatio="none"` cannot spoil — a line stretched along its
         own axis is the same line — while anything with a shape of its own
         comes out distorted by however far the bed is from square: a circle

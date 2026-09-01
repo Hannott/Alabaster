@@ -7,9 +7,9 @@ import {
   sensorColorVariable,
 } from '@/components/dashboard/modules/temperatureSensors'
 
-describe('sensor colours', () => {
+describe('sensor colors', () => {
   it('offers only the palette this product has', () => {
-    // A full hex picker cannot ship here: new chromatic colour is restricted to
+    // A full hex picker cannot ship here: new chromatic color is restricted to
     // the Okabe-Ito hues so the themes stay coherent and every one keeps its
     // measured contrast.
     expect(sensorColorTokens).toHaveLength(7)
@@ -24,12 +24,12 @@ describe('sensor colours', () => {
   })
 
   /*
-   * The failure this replaced: colours were indexed by where a sensor sat in
-   * the discovery order, so plugging in one new thermistor silently recoloured
-   * every sensor after it. A chart whose colours mean something different today
-   * than yesterday is worse than one with no colours at all.
+   * The failure this replaced: colors were indexed by where a sensor sat in
+   * the discovery order, so plugging in one new thermistor silently recolored
+   * every sensor after it. A chart whose colors mean something different today
+   * than yesterday is worse than one with no colors at all.
    */
-  it('gives a sensor the same colour whatever else the printer reports', () => {
+  it('gives a sensor the same color whatever else the printer reports', () => {
     const chamber = defaultSensorColorKey('temperature_sensor chamber')
     const stepper = defaultSensorColorKey('temperature_sensor y_stepper')
 
@@ -53,7 +53,7 @@ describe('sensor colours', () => {
     expect(sensorColorKey('extruder', { extruder: 'green' })).toBe('green')
     expect(sensorColorVariable('extruder', { extruder: 'green' })).toBe('var(--color-data-green)')
 
-    // A hand-edited profile naming a colour that is not in the palette falls
+    // A hand-edited profile naming a color that is not in the palette falls
     // back rather than producing an empty stroke.
     expect(sensorColorKey('extruder', { extruder: '#ff0000' })).toBe('orange')
     expect(sensorColorVariable('extruder', { extruder: 'chartreuse' })).toBe(

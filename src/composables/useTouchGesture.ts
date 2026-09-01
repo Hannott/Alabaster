@@ -47,8 +47,8 @@ export interface TouchGestureStep {
   /** How much the fingers spread since the previous step. Exactly 1 when unchanged. */
   scale: number
   /** The midpoint now, in client coordinates, for anchoring a zoom between the fingers. */
-  centreX: number
-  centreY: number
+  centerX: number
+  centerY: number
 }
 
 export interface TouchGesture {
@@ -75,7 +75,7 @@ export interface TouchGesture {
 export function useTouchGesture(): TouchGesture {
   const engaged = ref(false)
   const pointers = new Map<number, { x: number; y: number }>()
-  let previous: { centreX: number; centreY: number; spread: number } | null = null
+  let previous: { centerX: number; centerY: number; spread: number } | null = null
 
   /**
    * The midpoint, and the mean distance from it. Mean distance rather than the
@@ -83,7 +83,7 @@ export function useTouchGesture(): TouchGesture {
    * neither ends the gesture nor makes the magnification jump: for exactly two
    * fingers it is half the separation, and half of a ratio is the same ratio.
    */
-  function measure(): { centreX: number; centreY: number; spread: number } {
+  function measure(): { centerX: number; centerY: number; spread: number } {
     const count = Math.max(1, pointers.size)
     let sumX = 0
     let sumY = 0
@@ -91,13 +91,13 @@ export function useTouchGesture(): TouchGesture {
       sumX += point.x
       sumY += point.y
     }
-    const centreX = sumX / count
-    const centreY = sumY / count
+    const centerX = sumX / count
+    const centerY = sumY / count
     let spread = 0
     for (const point of pointers.values()) {
-      spread += Math.hypot(point.x - centreX, point.y - centreY)
+      spread += Math.hypot(point.x - centerX, point.y - centerY)
     }
-    return { centreX, centreY, spread: spread / count }
+    return { centerX, centerY, spread: spread / count }
   }
 
   function isTouch(event: PointerEvent): boolean {
@@ -127,11 +127,11 @@ export function useTouchGesture(): TouchGesture {
     const scale =
       before.spread > minimumSpread && next.spread > minimumSpread ? next.spread / before.spread : 1
     return {
-      panX: next.centreX - before.centreX,
-      panY: next.centreY - before.centreY,
+      panX: next.centerX - before.centerX,
+      panY: next.centerY - before.centerY,
       scale,
-      centreX: next.centreX,
-      centreY: next.centreY,
+      centerX: next.centerX,
+      centerY: next.centerY,
     }
   }
 

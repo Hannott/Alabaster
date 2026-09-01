@@ -22,7 +22,7 @@ import { MeshGlRenderer, type MeshGlDraw, type MeshGlLayer } from '@/features/be
 import type { MeshRenderStyle } from '@/features/bedMesh/geometry'
 import { liveMeshGrid } from '@/features/bedMesh/probeRun'
 import { buildVoyageFrame } from '@/features/bedMesh/voyage'
-import { meshColourRange, meshHeightLimits, type MeshScale } from '@/features/bedMesh/scale'
+import { meshColorRange, meshHeightLimits, type MeshScale } from '@/features/bedMesh/scale'
 import {
   meshOrientationAt,
   meshOrientationFor,
@@ -48,7 +48,7 @@ const probeReach = 14
 const zoomMin = 0.5
 const zoomMax = 4
 /**
- * How far the map may be dragged off centre, as a fraction of the stage.
+ * How far the map may be dragged off center, as a fraction of the stage.
  *
  * A pan with no limit can carry the mesh entirely off the card, at which point
  * the only thing on screen that says why is the reset chip — and the chip is
@@ -124,10 +124,10 @@ const viewportSize = ref({ width: 0, height: 0 })
 const reading = ref<MeshProbeMarker | null>(null)
 /** An orbit in progress, which overrides the saved orientation until released. */
 const dragged = ref<MeshOrientation | null>(null)
-/** Magnification about the mesh's own centre. Ephemeral, like the orbit. */
+/** Magnification about the mesh's own center. Ephemeral, like the orbit. */
 const zoom = ref(1)
 /**
- * How far the map is carried off the centre it is fitted to, in CSS pixels.
+ * How far the map is carried off the center it is fitted to, in CSS pixels.
  * Ephemeral in exactly the same way, and reset by the same chip: framing is a
  * look around, not a decision, and only the lock makes one durable.
  */
@@ -222,7 +222,7 @@ const temperatureFormatter = computed(
  * Changing the gradient must not change how far the bed appears to stray.
  */
 const scale = computed<MeshScale>(() => {
-  if (scaleToMesh.value) return meshColourRange(bedMesh.values)
+  if (scaleToMesh.value) return meshColorRange(bedMesh.values)
   const limit = Math.max(0.005, fixedLimit.value)
   return { low: -limit, high: limit }
 })
@@ -286,7 +286,7 @@ const liveMarkers = computed<MeshProbeMarker[]>(() => {
 })
 
 /*
- * The colour-filled surface between probed points, appearing once there is
+ * The color-filled surface between probed points, appearing once there is
  * something to interpolate between: two finished rows. `liveMeshGrid` does the
  * actual grouping into rows — see `features/bedMesh/probeRun.ts` for why rows
  * rather than a running triangulation — so this only converts its absolute
@@ -438,9 +438,9 @@ const layers = computed<MeshGlLayer[]>(() => {
   //
   // Probed, not mesh: the flat map is read like a spreadsheet, one number per
   // cell, and the number an overlay label prints has always been the probed
-  // reading (see `probeMarkers`) — so the tile under it has to be coloured for
+  // reading (see `probeMarkers`) — so the tile under it has to be colored for
   // that same reading. Mesh is Klipper's interpolation between probed points,
-  // so colouring the flat map from it would show a tile disagreeing with the
+  // so coloring the flat map from it would show a tile disagreeing with the
   // very number sitting on top of it. Mesh stands in only when a profile
   // carries no probed points to fall back on.
   if (showMeshLayer.value || showProbedLayer.value) {
@@ -734,17 +734,17 @@ function paintVoyage(now: number): void {
     // The cool half of the ramp and nothing else, so the swell runs deep blue
     // to white without ever reaching the warm end the ramp keeps for a bed
     // that is high where it should be level.
-    colour: { trough: scale.value.low, crest: 0 },
+    color: { trough: scale.value.low, crest: 0 },
   })
 
   renderer.setGeometry('voyage-sea', built.sea)
   renderer.setGeometry('voyage-boat', built.boat)
   voyageDraws.value = [
     // The sea takes the deviation ramp, so crests run warm and troughs cool and
-    // the swell is legible as colour as well as as shape.
+    // the swell is legible as color as well as as shape.
     { key: 'voyage-sea', opacity: 1, wireframe: false },
-    // The boat does not: on a pale sea a hull coloured by its own height would
-    // vanish into it. One flat colour nothing else in the card uses, with every
+    // The boat does not: on a pale sea a hull colored by its own height would
+    // vanish into it. One flat color nothing else in the card uses, with every
     // voxel outlined so the shape reads as a shape rather than a silhouette.
     { key: 'voyage-boat', opacity: built.boatOpacity, neutral: true, wireframe: true },
   ]
@@ -942,7 +942,7 @@ function panBy(deltaX: number, deltaY: number): void {
   }
 }
 
-/** Magnifies about the mesh's own centre, the one anchor the wheel also uses. */
+/** Magnifies about the mesh's own center, the one anchor the wheel also uses. */
 function zoomBy(factor: number): void {
   zoom.value = Math.min(zoomMax, Math.max(zoomMin, zoom.value * factor))
 }
@@ -991,7 +991,7 @@ function startDrag(event: PointerEvent): void {
 
 /**
  * A two-finger step: the midpoint's travel pans, the fingers' spread magnifies.
- * The zoom is anchored on the mesh's centre rather than between the fingers,
+ * The zoom is anchored on the mesh's center rather than between the fingers,
  * which is the anchor the wheel uses and the reason an orbit turns in place —
  * and with pan in the same gesture the hand corrects for it in one movement.
  */

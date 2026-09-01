@@ -104,7 +104,7 @@ export function voyageWaveAt(across: number, along: number, seconds: number): nu
   return ((first * 0.44 + second * 0.28 + cross * 0.28) * waveHeight) / 2
 }
 
-/** The deepest the sum above can reach, for normalising a colour against. */
+/** The deepest the sum above can reach, for normalising a color against. */
 const waveReach = waveHeight / 2
 
 /**
@@ -135,7 +135,7 @@ export interface VoyageInput {
    */
   stillness?: boolean
   /**
-   * Where on the deviation ramp the sea is coloured from: the value a trough
+   * Where on the deviation ramp the sea is colored from: the value a trough
    * takes and the value a crest takes.
    *
    * The ramp is diverging — deep blue through white to orange — because that is
@@ -144,7 +144,7 @@ export interface VoyageInput {
    * the ramp and nothing else, which is a smooth run from deep blue to white
    * without ever crossing into the warm end.
    */
-  colour?: { trough: number; crest: number }
+  color?: { trough: number; crest: number }
 }
 
 function clamp(value: number, low: number, high: number): number {
@@ -189,8 +189,8 @@ export function buildVoyageFrame(input: VoyageInput): VoyageFrame {
   // One hue getting deeper, not the diverging ramp: a trough takes the far end
   // of the blue and a crest comes back to the neutral middle, so the swell
   // reads as water rather than as a bed that is wrong in two directions.
-  const trough = input.colour?.trough ?? -1
-  const crest = input.colour?.crest ?? 0
+  const trough = input.color?.trough ?? -1
+  const crest = input.color?.crest ?? 0
   const inkFor = (top: number): number => {
     const reach = waveReach * voxel.z
     const risen = reach > 0 ? clamp((top + reach) / (reach * 2), 0, 1) : 0.5
@@ -208,10 +208,10 @@ export function buildVoyageFrame(input: VoyageInput): VoyageFrame {
 
   const boat = emptyGeometry()
   if (boatOpacity > 0) {
-    const centreX = (area.minX + area.maxX) / 2
-    const centreY = (area.minY + area.maxY) / 2
-    const originX = centreX - (boatSize.x / 2) * voxel.x
-    const originY = centreY - (boatSize.y / 2) * voxel.y
+    const centerX = (area.minX + area.maxX) / 2
+    const centerY = (area.minY + area.maxY) / 2
+    const originX = centerX - (boatSize.x / 2) * voxel.x
+    const originY = centerY - (boatSize.y / 2) * voxel.y
     // A hull does not balance on the water under its middle: it sits on the
     // average of everything under it, and leans with the average slope. Taking
     // the height at the bow and at the stern instead is what it looks like when
@@ -235,7 +235,7 @@ export function buildVoyageFrame(input: VoyageInput): VoyageFrame {
       const offsetX = (step / (floatSamplesAlong - 1) - 0.5) * lengthwise
       for (let lane = 0; lane < floatSamplesAcross; lane += 1) {
         const offsetY = (lane / (floatSamplesAcross - 1) - 0.5) * abeam
-        const height = surfaceAt(centreX + offsetX, centreY + offsetY)
+        const height = surfaceAt(centerX + offsetX, centerY + offsetY)
         sumHeight += height
         sumAlong += offsetX * height
         sumAlongSquared += offsetX * offsetX
@@ -253,7 +253,7 @@ export function buildVoyageFrame(input: VoyageInput): VoyageFrame {
     for (const cell of boatVoxels) {
       const x = originX + (cell.x + 0.5) * voxel.x
       const y = originY + (cell.y + 0.5) * voxel.y
-      const lift = float + (x - centreX) * pitch + (y - centreY) * roll
+      const lift = float + (x - centerX) * pitch + (y - centerY) * roll
       const bottom = lift + (cell.z - boatWaterline) * voxel.z
       pushBox(
         boat,

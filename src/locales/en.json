@@ -805,7 +805,7 @@
       "zAxisNozzleAt": "Z axis. Nozzle at Z {z}.",
       "zAxisNotHomed": "Z axis. The nozzle height is unknown until Z is homed.",
       "park": {
-        "center": "Park centre",
+        "center": "Park center",
         "front": "Park front"
       },
       "zOffsetApply": "Save offset",
@@ -909,8 +909,8 @@
         "red": "Vermillion",
         "yellow": "Yellow"
       },
-      "colorNone": "No colour",
-      "colorCycle": "{macro} colour: {color}. Click to change.",
+      "colorNone": "No color",
+      "colorCycle": "{macro} color: {color}. Click to change.",
       "groupVisibilityTitle": "Show this card while the printer is",
       "visibility": {
         "standby": "Show while idle",
@@ -1104,7 +1104,7 @@
       "highest": "Highest",
       "range": "Range",
       "outOfTolerance": "The bed varies by {range} mm, past the {limit} mm you set as acceptable.",
-      "scaleToMesh": "Scale colours to this mesh",
+      "scaleToMesh": "Scale colors to this mesh",
       "showProbes": "Show probed points",
       "layers": "Show",
       "layerMesh": "Mesh",
@@ -1183,7 +1183,7 @@
       "nameEmpty": "Give the profile a name.",
       "nameAscii": "Use plain letters, digits and punctuation only.",
       "nameTaken": "A profile with that name already exists.",
-      "scaleTitle": "Colour scale",
+      "scaleTitle": "Color scale",
       "fixedLimit": "Fixed scale (± mm)",
       "rangeWarning": "Bed range (mm)",
       "rangeWarningHint": "The card warns once the bed's total range passes this; zero turns it off.",
@@ -1374,18 +1374,18 @@
       "appearance": "Appearance",
       "orbitMode": {
         "label": "Rotation pivot",
-        "center": "Centre of the view",
-        "centerHint": "Rotates around the point the centre of the view hits.",
+        "center": "Center of the view",
+        "centerHint": "Rotates around the point the center of the view hits.",
         "pointer": "Pointer position",
         "pointerHint": "Rotates around the point under the pointer where the drag starts."
       },
       "snapToCenter": {
-        "label": "Snap to centre",
-        "hint": "Slides the point you click into the centre of the view first."
+        "label": "Snap to center",
+        "hint": "Slides the point you click into the center of the view first."
       },
       "highlightSeams": {
         "label": "Highlight seams",
-        "hint": "Colours the first and last millimetre of every extrusion path."
+        "hint": "Colors the first and last millimetre of every extrusion path."
       },
       "extrusion": "Extrusion",
       "nozzle": {
@@ -1413,7 +1413,7 @@
       "stateSquareBeads": "Extrusions are drawn square rather than rounded."
     },
     "color": {
-      "title": "Colour",
+      "title": "Color",
       "modes": {
         "single": "Single",
         "feature": "Feature",
@@ -2088,9 +2088,9 @@
     "enableAudio": "Request audio",
     "hideFrameRate": "Hide the measured frame rate",
     "crosshairTitle": "Nozzle crosshair",
-    "crosshairHint": "Marks the centre of the frame.",
+    "crosshairHint": "Marks the center of the frame.",
     "crosshairEnable": "Draw a crosshair",
-    "crosshairColor": "Colour",
+    "crosshairColor": "Color",
     "colors": {
       "orange": "Orange",
       "sky": "Sky blue",

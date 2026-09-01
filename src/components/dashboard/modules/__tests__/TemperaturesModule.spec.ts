@@ -650,10 +650,10 @@ describe('TemperaturesModule', () => {
     expect(notches().slice(0, 2)).toEqual(['[25.0]', '[24.0]'])
     expect(passiveReading()).toBe('20.0')
 
-    // A reading read out of the past takes its own sensor's colour, not the
+    // A reading read out of the past takes its own sensor's color, not the
     // shared accent the caption uses — so three simultaneous readings stay told
     // apart the same way the chart already tells its lines apart. Which part of
-    // the field that colours is the modifier's job: colouring the notch on both
+    // the field that colors is the modifier's job: coloring the notch on both
     // kinds tinted a passive row's `Reports only` as though the phrase were
     // itself a reading from four minutes ago.
     for (const cell of cells()) expect(cell.classes()).toContain('temperature-cell--scrubbed')
@@ -692,8 +692,8 @@ describe('TemperaturesModule', () => {
     await flushPromises()
     expect(bedStat()?.text()).toContain('10%')
     // The same substitution the Current column gets: the figure takes the
-    // sensor's own colour while it is reading out a moment from the chart,
-    // rather than staying the plain text colour it is while live.
+    // sensor's own color while it is reading out a moment from the chart,
+    // rather than staying the plain text color it is while live.
     expect(bedPowerFigure()?.attributes('style')).toContain('var(--color-data-sky)')
 
     wrapper.findComponent({ name: 'TemperatureChart' }).vm.$emit('update:cursorEventtime', null)
@@ -740,7 +740,7 @@ describe('TemperaturesModule', () => {
     expect(names).toEqual(['Hotend', 'Bed'])
   })
 
-  it('draws each sensor in its own colour, and the card may choose it', async () => {
+  it('draws each sensor in its own color, and the card may choose it', async () => {
     const byDefault = mountModule()
     await flushPromises()
     const rails = () =>
@@ -893,11 +893,11 @@ describe('TemperaturesModule', () => {
   /*
    * The bulb is the one part of the rail that never goes blank: a heater
    * sitting at 0% power (the extruder here, with no target and no reported
-   * power) still needs its colour on screen, or the card loses its key to
+   * power) still needs its color on screen, or the card loses its key to
    * that line the moment the heater is off — the exact moment someone is
    * most likely to be scanning the rails to tell two heaters apart.
    */
-  it('keeps the bulb coloured even when a heater is off and its stem is empty', async () => {
+  it('keeps the bulb colored even when a heater is off and its stem is empty', async () => {
     const { wrapper } = mountModule()
     await flushPromises()
 

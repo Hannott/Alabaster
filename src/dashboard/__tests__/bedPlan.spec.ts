@@ -64,7 +64,7 @@ describe('planPoint', () => {
     expect(planPoint({ x: 0, y: 0 }, square)).toEqual({ x: 0, y: 1 })
   })
 
-  it('puts the centre in the centre', () => {
+  it('puts the center in the center', () => {
     expect(planPoint({ x: 117.5, y: 117.5 }, square)).toEqual({ x: 0.5, y: 0.5 })
   })
 

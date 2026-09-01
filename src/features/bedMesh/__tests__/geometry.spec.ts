@@ -42,7 +42,7 @@ describe('buildMeshGeometry', () => {
   })
 
   it('keeps every vertex inside the area it was given', () => {
-    // A column is centred on its point and would otherwise hang over the edge
+    // A column is centered on its point and would otherwise hang over the edge
     // of the probed area, putting readings on bed that was never measured.
     // Mosaic is the deliberate exception — see its own describe block below —
     // so it is left out of this loop rather than made to satisfy it.
@@ -95,8 +95,8 @@ describe('buildMeshGeometry', () => {
       expect(heights).toEqual([-0.1, 0, 0.2, 0.3])
     })
 
-    it('colours a whole column for the reading at its top', () => {
-      // Colouring a foot by its own height would run a gradient up every
+    it('colors a whole column for the reading at its top', () => {
+      // Coloring a foot by its own height would run a gradient up every
       // column, showing a spread of values the printer never reported.
       const geometry = build({
         style: 'bars',
@@ -123,7 +123,7 @@ describe('buildMeshGeometry', () => {
     it('keeps each tile at its own exact reading, not a band or an average', () => {
       // Terraced averages a cell's four corners and snaps the result; mosaic's
       // whole point is that the number printed over a tile is the reading that
-      // tile is coloured for, so it must never be banded or averaged away.
+      // tile is colored for, so it must never be banded or averaged away.
       const geometry = build({
         style: 'mosaic',
         bandStep: 0.1,
@@ -169,7 +169,7 @@ describe('buildMeshGeometry', () => {
   })
 
   describe('terraced', () => {
-    it('snaps every block to the band interval, height and colour together', () => {
+    it('snaps every block to the band interval, height and color together', () => {
       const geometry = build({
         style: 'terraced',
         bandStep: 0.1,

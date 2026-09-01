@@ -44,7 +44,7 @@ on the same printer sees any camera you add or change here, and a camera
 either of them added appears here as soon as you open this card.
 
 Select **Add a camera** to add one. Set its name, its stream, and how it
-draws: rotation, flip, target frame rate, and a crosshair with its own colour
+draws: rotation, flip, target frame rate, and a crosshair with its own color
 and size. The fields shown depend on the streaming service you choose, so you
 only see controls that apply. A live preview appears beside the form while you
 set it up.
@@ -100,7 +100,7 @@ time: timestamps, file dates, history, and the console.
 
 **Mode**: Light, Dark, or System. Independent of the theme pack.
 
-**Theme pack**: the semantic colour mapping used throughout the interface.
+**Theme pack**: the semantic color mapping used throughout the interface.
 The built-in pack has complete light and dark modes. Registered packs appear
 here automatically. See [Theming](/theming).
 

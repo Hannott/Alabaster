@@ -74,7 +74,7 @@ A mesh that has only been calibrated is not saved. It is lost on the next
 restart, and the page warns you before that happens.
 
 See the [Bed mesh dashboard module](/interface/modules#bed-mesh) for the same
-map, plus projections, render styles, colour scales, and warnings.
+map, plus projections, render styles, color scales, and warnings.
 
 ## Manual probing
 

@@ -200,7 +200,7 @@ defineProps<{ name: AppIconName }>()
       </path>
     </g>
     <!--
-      line-md's "bell-alert-loop" glyph (MIT licensed), recoloured rather than
+      line-md's "bell-alert-loop" glyph (MIT licensed), recolored rather than
       left monochrome: the bell keeps `bellTwotone`'s fill but is forced to
       the app's own blue accent, and the exclamation mark to its upper right —
       line-md's own glyph for "alert," two short strokes rather than a
@@ -380,7 +380,7 @@ defineProps<{ name: AppIconName }>()
       it by swapping to a second icon name would remount the SVG and lose the
       glyph mid-toggle. Rotating the whole element rather than the six segments
       is indistinguishable, because the ring left behind is a circle about the
-      same centre.
+      same center.
     -->
     <g v-else-if="name === 'settings'">
       <path
@@ -558,7 +558,7 @@ defineProps<{ name: AppIconName }>()
       />
     </g>
     <!--
-      A GPS-style crosshair — a circle, a centre dot, and four ticks standing
+      A GPS-style crosshair — a circle, a center dot, and four ticks standing
       clear of it — for the positioning-mode readout, distinct from `home`
       (the endstop-origin icon already used for the axis pivots) and from
       `pin` (a place saved on the bed plan).
@@ -704,7 +704,7 @@ defineProps<{ name: AppIconName }>()
       stroked like the outline it replaces — its rounded fold and bracket
       chevrons don't survive this file's 1.8 stroke at 14-16px. The `< >`
       brackets stay `currentColor`, same as the page and fold: this glyph
-      carries no accent of its own. The Configuration file tree recolours the
+      carries no accent of its own. The Configuration file tree recolors the
       brackets alone through `.icon-status-accent`, so a file's wiring into
       `printer.cfg` or an unsaved edit reads on the one detail that already
       means "code" rather than tinting the whole icon — see
@@ -1010,7 +1010,7 @@ defineProps<{ name: AppIconName }>()
       see README's third-party credits) — Spoolman's own mark, for the card
       that is entirely a Spoolman integration rather than a generic reel of
       filament. Native 512x512 box scaled to this file's shared 24x24
-      viewBox; its source hardcodes white, recoloured here to `currentColor`
+      viewBox; its source hardcodes white, recolored here to `currentColor`
       like every other icon in this set.
     -->
     <g v-else-if="name === 'spool'" fill="currentColor" stroke="none" transform="scale(0.046875)">
@@ -1049,7 +1049,7 @@ defineProps<{ name: AppIconName }>()
       Print card's own icon, replacing a generic office printer with a
       silhouette that is actually a 3D printer's gantry and nozzle. Its
       source draws to the full 24x24 edge with no margin, unlike every other
-      icon in this set; scaled to 20x20 and centred so it keeps the same ~2px
+      icon in this set; scaled to 20x20 and centered so it keeps the same ~2px
       clearance the rest already have, rather than reading as the one icon
       with no breathing room.
     -->
@@ -1161,7 +1161,7 @@ defineProps<{ name: AppIconName }>()
       FormKit's "submit" glyph (MIT licensed). Native 15x16 box scaled 1.5x
       into this file's shared 24x24 viewBox, the same treatment `fan` already
       gives a non-24 native size — the 1.5px the width falls short of 24
-      reads as centred at every size this renders at.
+      reads as centered at every size this renders at.
     -->
     <g v-else-if="name === 'send'" fill="currentColor" stroke="none" transform="scale(1.5)">
       <path
@@ -1211,7 +1211,7 @@ defineProps<{ name: AppIconName }>()
       />
     </g>
     <!--
-      The shackle carries the state, not the body: closed and centred when
+      The shackle carries the state, not the body: closed and centered when
       locked, swung clear of the keyway when open. The body stays put between
       the two so the pair reads as one padlock changing rather than two icons
       swapping, and the difference survives the 1rem the xs and sm tiers draw
@@ -1266,8 +1266,8 @@ defineProps<{ name: AppIconName }>()
       Griddy Icons' "file-upload" glyph (MIT licensed), filled like `fileCode`
       above rather than the arrow-and-tray outline it replaces. The upward
       arrow used to carry `--accent-primary` as this icon's one accent — see
-      button-system.md's "Accent-coloured icon details" — but that made it the
-      one base icon that arrived already coloured everywhere it appeared.
+      button-system.md's "Accent-colored icon details" — but that made it the
+      one base icon that arrived already colored everywhere it appeared.
       Base icons default to plain `currentColor`; retired along with `sunMoon`'s
       accent below.
     -->
@@ -1288,7 +1288,7 @@ defineProps<{ name: AppIconName }>()
       than replacing `moon`. The diagonal splits the icon into a moon half
       (two crescent arcs) and a sun half (three ray ticks); the ticks used to
       carry `--accent-primary` as this icon's one accent — see
-      button-system.md's "Accent-coloured icon details" — but base icons
+      button-system.md's "Accent-colored icon details" — but base icons
       default to plain `currentColor`, so the split is retired.
     -->
     <g v-else-if="name === 'sunMoon'">
@@ -1312,14 +1312,14 @@ defineProps<{ name: AppIconName }>()
       icon-only. Now it sits beside the word "Off", so the label carries the
       meaning the ring used to, and the bolt only has to be recognisable as
       power. Same path the ring used to frame, without the ring or its
-      `--accent-primary` fill: that colour deviation was recorded in
+      `--accent-primary` fill: that color deviation was recorded in
       `button-system.md` for the icon-only case this no longer is.
     -->
     <path v-else-if="name === 'bolt'" d="M13.8 4.6 8.2 12.6h3.2l-1.2 6.8 5.6-8h-3.2z" />
     <!--
       Ant Design's "plus-circle" outlined glyph (MIT licensed), scaled from its
       native 1024-unit grid to this file's 24-unit one with a plain
-      `scale(24/1024)` — the path already sits centred on that grid, so no
+      `scale(24/1024)` — the path already sits centered on that grid, so no
       translate is needed the way `collapse` above needs one. Pairs with
       `minusCircleOutlined` below: the floating trigger `PageHeading.vue`
       renders in place of its inline action once "Page headers" is set to

@@ -84,7 +84,7 @@ describe('MovementSettingsPane', () => {
 
     expect(
       wrapper.findAll('.step-group .settings-row__label').map((label) => label.text()),
-      // `min / centre / max` is gone — the bed plan answers that question now.
+      // `min / center / max` is gone — the bed plan answers that question now.
     ).toEqual(['X and Y step size', 'Z step size', 'Z offset step'])
 
     expect(stepValues(wrapper, 'X and Y step size')).toEqual(['1', '10', '100'])

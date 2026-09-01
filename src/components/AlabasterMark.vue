@@ -255,8 +255,8 @@ function onAnimationEnd(): void {
 /*
  * The mark leaves a 14-unit gap between the two gantry stubs and parks the
  * 12-unit carriage in it, so the beam only ever looks continuous because the
- * carriage is standing there. The moment the head leaves centre the gap is
- * exposed, so the inner edges meet at the centre line early — by 15%, while
+ * carriage is standing there. The moment the head leaves center the gap is
+ * exposed, so the inner edges meet at the center line early — by 15%, while
  * the carriage is still covering them — and part again only at 83%, once the
  * head is on its way back. The outer edges keep the frame's own schedule.
  */

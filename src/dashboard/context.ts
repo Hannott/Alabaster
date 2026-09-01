@@ -209,7 +209,7 @@ export function configOptionalStringList(
 
 /**
  * A map of short strings, for a per-thing choice a module stores against an
- * identifier it did not invent — a sensor's colour against its Klipper object
+ * identifier it did not invent — a sensor's color against its Klipper object
  * name. Entries that are not strings are dropped rather than trusted, so a
  * hand-edited profile degrades to the defaults for those keys alone.
  */

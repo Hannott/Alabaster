@@ -62,12 +62,12 @@ Maintenance, start anyway, or wait.
 
 ## Bed mesh view
 
-The bed mesh renders as a height map, not a grid of coloured squares:
+The bed mesh renders as a height map, not a grid of colored squares:
 
 - **Ten projections**: perspective, orthographic, isometric, dimetric,
   trimetric, cavalier, cabinet, one-point, two-point, fisheye.
 - **Five render styles**: surface, bars, contour lines, terraced, mosaic.
-- **A fixed colour scale** as well as a self-scaling one. A fixed scale lets
+- **A fixed color scale** as well as a self-scaling one. A fixed scale lets
   you compare two meshes directly; a self-scaling one does not.
 
 Two warnings come from the mesh, and both catch a real problem:
@@ -150,7 +150,7 @@ printer to a new hostname, reaching it through a tunnel, or connecting by IP
 address instead keeps the same dashboard.
 
 Modules that support it can appear more than once, for example one Macros
-card per group. Each card has its own name, colour-coded buttons, and its own
+card per group. Each card has its own name, color-coded buttons, and its own
 rule for which printer states it appears in.
 
 → [Customizing the dashboard](/interface/customize)
@@ -162,12 +162,12 @@ Automated tests enforce these guarantees and fail the build when one breaks:
 | Guarantee                                                                                                   | Enforced by         |
 | ----------------------------------------------------------------------------------------------------------- | ------------------- |
 | Every control variant clears 4.5:1 contrast over every surface it can sit on: at rest, hovered, and pressed | a contrast test     |
-| Chromatic colour never leaves the Okabe-Ito colour-blind-safe palette                                       | a palette test      |
+| Chromatic color never leaves the Okabe-Ito color-blind-safe palette                                         | a palette test      |
 | Every animation has a reduced-motion fallback                                                               | a motion test       |
 | Every clickable control comes from one button system, and none of them move on hover or press               | an interaction test |
 | Every locale matches the English schema, with no empty messages                                             | a locale test       |
 
-In addition, **Alabaster never carries status by colour alone**, and
+In addition, **Alabaster never carries status by color alone**, and
 `window.confirm`, `window.prompt`, and `window.alert` appear nowhere in the
 application. Every confirmation is a real dialog that names what it will
 affect.
@@ -181,7 +181,7 @@ workshop screen read from two metres away and a phone held at arm's length.
 ## Additional features
 
 - **Pause at a layer.** Arm a pause at layer 47, or pause when the current
-  layer finishes. Useful for colour changes and embedded magnets.
+  layer finishes. Useful for color changes and embedded magnets.
 - **Bed plan.** Click a spot on a picture of your bed to send the nozzle
   there.
 - **Z offset in micrometres**, with a legend showing which direction is

@@ -169,7 +169,7 @@
    * vermillion a ~11px bold label can carry here. 62% lands on 4.52:1, a hair
    * off the floor. Do not push further looking for a bigger visual jump --
    * vermillion mixed toward white desaturates fast, and the jump has to come
-   * from --status-danger-border or a non-colour cue instead.
+   * from --status-danger-border or a non-color cue instead.
    */
   --status-danger-text: color-mix(in srgb, var(--ito-vermillion) 60%, var(--neutral-white));
   /* 88% for the reason the light block states: brightness, not the veil. */

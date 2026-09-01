@@ -67,7 +67,7 @@ which page you are on. An edit is never lost without your knowledge.
   `window.alert` are never used. Every confirmation is a dialog that names
   what it will touch, and each one can be turned off individually in
   [Settings](/interface/settings#confirmations).
-- **Status is never colour alone.** Anything a colour says is also said in
+- **Status is never color alone.** Anything a color says is also said in
   text or a distinct shape.
 - **Every string is translated**, including accessible names, titles,
   placeholders, and validation text.

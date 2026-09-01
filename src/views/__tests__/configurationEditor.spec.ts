@@ -149,7 +149,7 @@ describe('the code editor renders a window, not a file', () => {
   })
 
   /**
-   * A log is not a Klipper config file, and colouring it against that grammar
+   * A log is not a Klipper config file, and coloring it against that grammar
    * invents structure: a capitalized first word becomes a command, `key: value`
    * inside a stack trace becomes a property.
    */
@@ -164,12 +164,12 @@ describe('the code editor renders a window, not a file', () => {
     expect(view.find('.machine-code-highlight').text()).toContain('G1 X0 Y0')
   })
 
-  it('colours a config file in the config root', async () => {
+  it('colors a config file in the config root', async () => {
     const view = await openConfigFile()
 
     expect(view.find('.machine-syntax--section').text()).toBe('[stepper_x]')
     expect(view.find('.machine-syntax--key').exists()).toBe(true)
-    // An inverted pin keeps its own colour — the safety-relevant token.
+    // An inverted pin keeps its own color — the safety-relevant token.
     expect(view.find('.machine-syntax--pin').text()).toBe('!X_EN')
   })
 

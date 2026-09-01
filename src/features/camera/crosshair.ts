@@ -5,13 +5,13 @@ import type { Camera } from './camera'
 /**
  * The crosshair overlay's stored settings.
  *
- * The colour is stored twice, on purpose, and each copy has one owner:
+ * The color is stored twice, on purpose, and each copy has one owner:
  *
  * - **`alabasterCrosshairColor`** holds one of the seven Okabe-Ito keys from
  *   `dashboardColorTokens`. This is what Alabaster reads and what the swatch
  *   picker writes, and it is a *key* rather than a value so the drawn crosshair
  *   follows the active theme pack — the same reason every other user-chosen
- *   colour in the product is stored as a key.
+ *   color in the product is stored as a key.
  * - **`nozzleCrosshairColor`** holds the resolved hex. Nothing here reads it
  *   unless the key is absent; it exists so a crosshair configured in Alabaster
  *   still appears in Mainsail, which stores a free hex in that field and would
@@ -19,7 +19,7 @@ import type { Camera } from './camera'
  *
  * Reading in that order is what makes a crosshair configured in *either*
  * interface work in both: Mainsail's own hex has no key beside it and is drawn
- * as the literal colour the user picked there, which is the honest reading of
+ * as the literal color the user picked there, which is the honest reading of
  * it.
  */
 export interface CameraCrosshairSettings {
@@ -57,7 +57,7 @@ export function cameraCrosshair(camera: Camera): CameraCrosshairSettings {
   }
 }
 
-/** The CSS colour to draw with, or null to leave the stylesheet's own default. */
+/** The CSS color to draw with, or null to leave the stylesheet's own default. */
 export function crosshairColorValue(settings: CameraCrosshairSettings): string | null {
   if (settings.colorKey !== null) {
     return dashboardColorTokens.find((token) => token.key === settings.colorKey)?.variable ?? null
@@ -67,12 +67,12 @@ export function crosshairColorValue(settings: CameraCrosshairSettings): string |
 
 /**
  * The `#rrggbb` the browser computes for a palette token, so the hex written
- * for other interfaces is the colour Alabaster actually drew rather than a
+ * for other interfaces is the color Alabaster actually drew rather than a
  * second, hand-maintained copy of the palette.
  *
  * Null where custom properties cannot be resolved at all — a test environment,
  * or a call made before the theme stylesheet has applied. The caller then
- * leaves the interoperability field alone rather than writing a wrong colour
+ * leaves the interoperability field alone rather than writing a wrong color
  * into it.
  */
 export function resolveTokenHex(variable: string): string | null {

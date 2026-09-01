@@ -23,7 +23,7 @@ function job(overrides: Partial<HistoryJob> = {}): HistoryJob {
 }
 
 describe('HistoryJobRow', () => {
-  it('states the outcome as a word beside its icon, never colour alone', () => {
+  it('states the outcome as a word beside its icon, never color alone', () => {
     const wrapper = mount(HistoryJobRow, {
       props: { job: job({ outcome: 'error' }), selected: false },
       global: { plugins: [i18n] },

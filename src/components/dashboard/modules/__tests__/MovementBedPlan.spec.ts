@@ -362,7 +362,7 @@ describe('MovementBedPlan', () => {
     expect(wrapper.find('.bed-plan__readout').exists()).toBe(false)
   })
 
-  it('marks a previewed axis so the card can colour it apart from a live reading', async () => {
+  it('marks a previewed axis so the card can color it apart from a live reading', async () => {
     const { printer, wrapper } = mountPlan({
       axesReadout: [
         { code: 'X', value: '75.0', preview: true },

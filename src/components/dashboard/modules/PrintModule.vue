@@ -68,7 +68,7 @@ const { config, isSettingsOpen } = useDashboardModule('print')
  *
  * Quiet rather than a status-hued fill, matching that same rule — the
  * warning icon's shape is what distinguishes it from Settings beside it, not
- * colour. If Print ever wants a second, frequent header action of its own,
+ * color. If Print ever wants a second, frequent header action of its own,
  * this conditional one wins the single slot while it has something to say;
  * see the header-action contract's own doc comment in `dashboard/context.ts`.
  */

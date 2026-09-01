@@ -468,9 +468,9 @@ describe('TemperaturesSettingsPane', () => {
   /*
    * The swatch's selected marker was a floppy disk: `save` is the icon every
    * real write in the product uses, and `check` — which existed and was
-   * reached by nothing — is what a chosen colour means.
+   * reached by nothing — is what a chosen color means.
    */
-  it('marks the chosen colour with a check rather than a save glyph', async () => {
+  it('marks the chosen color with a check rather than a save glyph', async () => {
     const { wrapper } = mountPane()
     await flushPromises()
 

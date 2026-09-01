@@ -1,9 +1,9 @@
 /**
  * The two scales a height map is read against, kept apart on purpose.
  *
- * The **colour** scale decides what the gradient covers. The **height** scale
+ * The **color** scale decides what the gradient covers. The **height** scale
  * decides how tall the surface stands. Sharing them — which this module did
- * once — means recolouring the map reshapes the bed, and invites the user to
+ * once — means recoloring the map reshapes the bed, and invites the user to
  * read a change in their printer out of a change to a legend.
  */
 
@@ -31,9 +31,9 @@ export function meshScalePosition(deviation: number, scale: MeshScale): number {
 }
 
 /**
- * The colour range when the gradient is scaled to the mesh.
+ * The color range when the gradient is scaled to the mesh.
  *
- * Centred on the mean deviation rather than the plane, with its reach set from
+ * Centered on the mean deviation rather than the plane, with its reach set from
  * the mean absolute deviation rather than the literal lowest/highest point.
  * A single bad probe point sits far from every other value, so a min/max range
  * stretched to cover it compresses the rest of the mesh into a sliver near the
@@ -43,7 +43,7 @@ export function meshScalePosition(deviation: number, scale: MeshScale): number {
  * clamps at the saturated end instead (`meshScalePosition`), same as any other
  * value past the ends of a fixed scale.
  */
-export function meshColourRange(values: readonly number[]): MeshScale {
+export function meshColorRange(values: readonly number[]): MeshScale {
   if (values.length === 0) return { low: 0, high: 0 }
   const mean = values.reduce((total, value) => total + value, 0) / values.length
   const meanAbsoluteDeviation =

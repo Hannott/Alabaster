@@ -1,9 +1,9 @@
 import { dashboardColorTokens, type DashboardColorKey } from '@/dashboard/colorTokens'
 
 /**
- * A macro's colour is optional and defaults to none — unlike a temperature
+ * A macro's color is optional and defaults to none — unlike a temperature
  * sensor, which always needs one to stay distinguishable on a chart, a macro
- * is already distinguished by its label. Recolouring one is personalisation a
+ * is already distinguished by its label. Recoloring one is personalisation a
  * user opts into, not a requirement every macro is assigned by default; an
  * auto-assigned hue on every button would change the look of every existing
  * dashboard the moment this shipped, for a card that never asked for it.
@@ -24,7 +24,7 @@ export function macroColorVariable(name: string, overrides: Record<string, strin
 }
 
 /**
- * One click cycles to the next colour and wraps back to none, mirroring the
+ * One click cycles to the next color and wraps back to none, mirroring the
  * cycle-through-the-list interaction established Klipper interfaces use for
  * the same job — a swatch row needs no separate "clear" control when cycling
  * already passes through "none" on its way round.

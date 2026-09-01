@@ -14,7 +14,7 @@
  * 3. **Contact shadow** — dropped last, because losing it flattens the scene.
  *
  * What it never touches: the reveal semantics, the rule that the active layer
- * stays segment-exact, the overlay's frame rate, and colour. A viewer that
+ * stays segment-exact, the overlay's frame rate, and color. A viewer that
  * changed what "printed so far" means under load would be lying to save time.
  */
 

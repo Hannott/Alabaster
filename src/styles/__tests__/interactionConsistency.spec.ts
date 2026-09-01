@@ -435,7 +435,7 @@ describe('interaction and iconography contract', () => {
 
   it('recolors a border, insets a ring, or tightens an outline on focus — never a floating ring', () => {
     // Every bordered control already carries a real border in its box model
-    // (`button--quiet` only makes that border's colour transparent, it never
+    // (`button--quiet` only makes that border's color transparent, it never
     // removes it), so `:focus-visible` just recolors it. No outline, no
     // offset, no width added outside the box.
     const [, borderRecolorSelectors] =
@@ -460,7 +460,7 @@ describe('interaction and iconography contract', () => {
 
     // Filled boxes with no border of their own move the ring inside instead
     // of floating it outside, so it still reads as that box's own edge. Each
-    // of these three also shares its `:focus-visible` with a colour-only
+    // of these three also shares its `:focus-visible` with a color-only
     // `:hover` rule, so the match picks the block that actually declares the
     // ring rather than the first (hover-shared) occurrence of the selector.
     for (const selector of [
@@ -526,8 +526,8 @@ describe('interaction and iconography contract', () => {
 
     // The complete AppField owns one measured height per size. Every label
     // position uses this same root rule. Equal clearance on both sides keeps
-    // the input box geometrically centred; the embedded label merely occupies
-    // part of the already-reserved upper half and cannot move that centre line.
+    // the input box geometrically centered; the embedded label merely occupies
+    // part of the already-reserved upper half and cannot move that center line.
     const [, appFieldRule] = appFieldStyles.match(/^\.app-field\s*\{([^}]*)\}/m) ?? []
     expect(appFieldRule, 'the complete AppField geometry rule is missing').toBeDefined()
     expect(appFieldRule).toContain('--app-field-box-block-size: 2.25rem')
@@ -587,7 +587,7 @@ describe('interaction and iconography contract', () => {
 
     // Hover paints the arrow only. The full target never gains the shared
     // button veil, and the glyph moves from light grey to the interactive text
-    // colour without changing the target's geometry.
+    // color without changing the target's geometry.
     expect(appFieldStyles).toMatch(
       /\.app-field__stepper:hover:not\(:disabled, \[aria-disabled='true'\]\)[\s\S]*?\{[^}]*background-color:\s*transparent;[^}]*background-image:\s*none;/,
     )
@@ -678,7 +678,7 @@ describe('interaction and iconography contract', () => {
 
     // Anchored to the start of a line so it finds the component's own rule
     // rather than the first selector that happens to end in this class: a
-    // caller may scope a colour to `.some-cell .app-field__input`, and an
+    // caller may scope a color to `.some-cell .app-field__input`, and an
     // unanchored match read that rule and reported the shared chrome missing.
     const [, fieldInputRule] = appFieldStyles.match(/^\.app-field__input\s*\{([^}]*)\}/m) ?? []
     expect(fieldInputRule).toContain('border: 0')

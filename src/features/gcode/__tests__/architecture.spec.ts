@@ -225,7 +225,7 @@ describe('G-code viewer performance architecture', () => {
    * with different layer bands, so "which band may this draw paint" and "which
    * layer is the active one" are different questions. They were once the same
    * uniform, and the tier pass then painted its own top layer in the active
-   * layer's colour — two blue layers instead of one, at any zoom where a tier
+   * layer's color — two blue layers instead of one, at any zoom where a tier
    * engaged. Every layer-aware fragment shader must therefore bound its draw
    * with the pass band and decide the active layer from the visible range.
    */

@@ -425,7 +425,7 @@ export const dashboardModuleRegistry: readonly DashboardModuleDefinition[] = [
     // simply not using right now look identical if both collapse to nothing —
     // the second is running unlevelled after having known better, which is
     // worth a word even collapsed. "Unloaded" and "No data" fit the header; the
-    // full warning colour and icon live only in the expanded card, which this
+    // full warning color and icon live only in the expanded card, which this
     // slot has no room for. Explicit rather than null for the never-calibrated
     // case too: this module's collapsed line is read as "status of the last
     // calibration," and silence there reads as a card that has not finished

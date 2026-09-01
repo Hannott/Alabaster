@@ -158,7 +158,7 @@ the English schema with no empty messages.
 
 ## Can I add a theme?
 
-Yes. A new theme needs one CSS file implementing every semantic colour token
+Yes. A new theme needs one CSS file implementing every semantic color token
 in light and dark, one registry line, and a label in each translation file. It
 appears in the picker automatically. See
 [Theming](/theming#writing-your-own-pack) for more information.

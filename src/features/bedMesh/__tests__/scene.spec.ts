@@ -204,7 +204,7 @@ describe('buildMeshScene', () => {
     expect(built?.yTicks.map((tick) => tick.value)).toEqual([0, 50, 100, 150, 200])
   })
 
-  it('turns in place: an orbit changes no scale and no centre', () => {
+  it('turns in place: an orbit changes no scale and no center', () => {
     // Fitting to the camera being drawn means a rotating box rescales, because
     // its bounding box does. The distance between two given corners is allowed
     // to change as they foreshorten — that is what turning looks like — but the
@@ -219,7 +219,7 @@ describe('buildMeshScene', () => {
         fitOrientation: resting,
         viewport,
       })
-    // The height axis at the box's own centre foreshortens with the tilt only,
+    // The height axis at the box's own center foreshortens with the tilt only,
     // so under one fit it is the same length however far the bed is turned.
     const axisLength = (built: ReturnType<typeof turned>) => {
       const top = built?.place(125, 125, 0.5) ?? [0, 0]
@@ -475,7 +475,7 @@ describe('buildMeshScene', () => {
     expect(isometric?.quads.map((q) => q.points)).toEqual(orthographic?.quads.map((q) => q.points))
   })
 
-  it('bends fisheye outward from the centre, unlike orthographic', () => {
+  it('bends fisheye outward from the center, unlike orthographic', () => {
     const settings = {
       bed,
       layers: [layer(tilted(5, 5))],
@@ -483,9 +483,9 @@ describe('buildMeshScene', () => {
       orientation: meshOrientationPresets.rightFront,
       viewport,
     }
-    const centre = { x: (bed.minX + bed.maxX) / 2, y: (bed.minY + bed.maxY) / 2 }
+    const center = { x: (bed.minX + bed.maxX) / 2, y: (bed.minY + bed.maxY) / 2 }
     const cornerDistance = (built: ReturnType<typeof scene>) => {
-      const mid = built?.place(centre.x, centre.y, 0) ?? [0, 0]
+      const mid = built?.place(center.x, center.y, 0) ?? [0, 0]
       const corner = built?.place(bed.maxX, bed.maxY, 0) ?? [0, 0]
       return Math.hypot(corner[0] - mid[0], corner[1] - mid[1])
     }
@@ -494,10 +494,10 @@ describe('buildMeshScene', () => {
     expect(cornerDistance(bent)).toBeGreaterThan(cornerDistance(flat))
   })
 
-  it('zooms about the mesh centre, so the middle holds still while the edges move', () => {
-    const centre = { x: (bed.minX + bed.maxX) / 2, y: (bed.minY + bed.maxY) / 2 }
+  it('zooms about the mesh center, so the middle holds still while the edges move', () => {
+    const center = { x: (bed.minX + bed.maxX) / 2, y: (bed.minY + bed.maxY) / 2 }
     const at = (zoom: number) => scene({ zoom })
-    const middleAt = (zoom: number) => at(zoom)?.place(centre.x, centre.y, 0) ?? [0, 0]
+    const middleAt = (zoom: number) => at(zoom)?.place(center.x, center.y, 0) ?? [0, 0]
     const edgeAt = (zoom: number) => at(zoom)?.place(bed.maxX, bed.maxY, 0) ?? [0, 0]
 
     const unzoomed = middleAt(1)
@@ -531,9 +531,9 @@ describe('buildMeshScene', () => {
     // A pan has to move the picture exactly as far as the finger did, at every
     // magnification — which is why it is applied in CSS pixels after the fit
     // rather than as a translation of the bed.
-    const centre = { x: (bed.minX + bed.maxX) / 2, y: (bed.minY + bed.maxY) / 2 }
+    const center = { x: (bed.minX + bed.maxX) / 2, y: (bed.minY + bed.maxY) / 2 }
     const at = (pan: { x: number; y: number }, zoom = 1) =>
-      scene({ pan, zoom })?.place(centre.x, centre.y, 0) ?? [0, 0]
+      scene({ pan, zoom })?.place(center.x, center.y, 0) ?? [0, 0]
 
     const rest = at({ x: 0, y: 0 })
     const panned = at({ x: 40, y: -25 })

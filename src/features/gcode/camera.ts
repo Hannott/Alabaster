@@ -421,7 +421,7 @@ function rotateAround(value: Vector3, axis: Vector3, angle: number): [number, nu
   ]
 }
 
-// Orbits around an arbitrary world point instead of the screen centre: the same
+// Orbits around an arbitrary world point instead of the screen center: the same
 // yaw and pitch delta is applied to the camera, and the eye is swung rigidly
 // around the pivot by that delta, which leaves the pivot fixed on screen.
 export function orbitCameraAround(

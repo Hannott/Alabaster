@@ -51,7 +51,7 @@ describe('ConsoleTranscript', () => {
   })
 
   it('names the kinds that change a line’s meaning for a screen reader', () => {
-    // The gutter marker is decorative, so colour and glyph both fail assistive
+    // The gutter marker is decorative, so color and glyph both fail assistive
     // technology; the two kinds that matter say so in text.
     const wrapper = mountTranscript()
     const lines = wrapper.findAll('.gcode-console__line')

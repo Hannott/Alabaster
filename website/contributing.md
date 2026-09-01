@@ -44,7 +44,7 @@ These fail the build. They are not review preferences.
 | Rule                                                                                               |                           |
 | -------------------------------------------------------------------------------------------------- | ------------------------- |
 | Every control variant clears 4.5:1 contrast over every surface, at rest, hovered, and pressed      | Composited, not eyeballed |
-| Chromatic colour comes only from the Okabe-Ito palette, and no component carries a colour literal  |                           |
+| Chromatic color comes only from the Okabe-Ito palette, and no component carries a color literal    |                           |
 | Every animation has a reduced-motion fallback                                                      |                           |
 | Every clickable control uses a documented button variant and size, and none move on hover or press |                           |
 | Every routed page uses one of two documented page shells                                           |                           |
@@ -56,9 +56,9 @@ These fail the build. They are not review preferences.
 - **No literal user-facing text in a component.** Add an English key, mirror it
   in every locale, render it through Vue I18n. This includes `aria-label`,
   `title`, placeholders, validation, and notification text.
-- **No colour literals.** Components use semantic tokens. Palette primitives
+- **No color literals.** Components use semantic tokens. Palette primitives
   live only in the theme sources.
-- **Colour is never the only carrier of status.** Pair it with text or a distinct
+- **Color is never the only carrier of status.** Pair it with text or a distinct
   shape.
 - **No `window.confirm`, `window.prompt`, or `window.alert`.** Every confirmation
   is a real dialog that names what it will touch. The

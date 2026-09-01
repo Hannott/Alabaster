@@ -229,7 +229,7 @@ export interface MoonrakerWebcamExtraData {
   /** Fraction of the frame's smaller side, 0.01–1. */
   nozzleCrosshairSize?: number
   /**
-   * Alabaster's own crosshair colour: one of `dashboardColorTokens`' keys
+   * Alabaster's own crosshair color: one of `dashboardColorTokens`' keys
    * rather than a hex, so it follows the active theme pack. Namespaced because
    * it is not a field Mainsail knows — `nozzleCrosshairColor` above stays
    * written beside it for exactly that reason. See `features/camera/crosshair.ts`.

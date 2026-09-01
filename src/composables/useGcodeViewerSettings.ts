@@ -4,7 +4,7 @@ import type { GcodeQualityMode } from '@/features/gcode/quality'
 
 /**
  * Where the orbit pivot is placed when a rotation drag starts: on the point the
- * centre of the view hits, or on the point under the pointer.
+ * center of the view hits, or on the point under the pointer.
  */
 export type GcodeOrbitMode = 'center' | 'pointer'
 

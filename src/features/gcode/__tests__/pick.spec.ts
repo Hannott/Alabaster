@@ -19,7 +19,7 @@ function axisCamera(): GcodeCamera {
 }
 
 describe('G-code orbit pivot', () => {
-  it('lands the centre ray on the bed plane beyond the model', () => {
+  it('lands the center ray on the bed plane beyond the model', () => {
     const camera = fittedCamera(bounds, 800, 600)
     const hit = bedPlaneHit(camera, 400, 300, 800, 600, bed)
     expect(hit).not.toBeNull()
@@ -28,7 +28,7 @@ describe('G-code orbit pivot', () => {
     // The bed is further away than the fitted pivot floating inside the model.
     const depth = axialDepth(camera, hit)
     expect(depth).toBeGreaterThan(camera.distance)
-    // And the hit sits on the centre ray rather than merely on the plane.
+    // And the hit sits on the center ray rather than merely on the plane.
     const eye = cameraPosition(camera)
     const forward = cameraForward(camera)
     expect(hit[0]).toBeCloseTo(eye[0] + forward[0] * depth, 3)

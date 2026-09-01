@@ -280,7 +280,7 @@ const parkPositions = computed(() => {
   if (minimumX === null || minimumY === null || maximumX === null || maximumY === null) return []
   return [
     { key: 'center', target: { x: (minimumX + maximumX) / 2, y: (minimumY + maximumY) / 2 } },
-    // Front and centre with the gantry lifted: the position you want when
+    // Front and center with the gantry lifted: the position you want when
     // reaching into the machine rather than watching it.
     { key: 'front', target: { x: (minimumX + maximumX) / 2, y: minimumY, z: serviceParkZ } },
   ]
@@ -753,7 +753,7 @@ function screwInstruction(screw: (typeof screwResults.value)[number]): string {
         readout that vanished read as broken rather than as "not moving", and
         `motion_report` settles to a small non-zero value anyway, so zero is
         not even the number rest actually reports. `--idle` only mutes the
-        colour — the number itself is the state, never the colour alone.
+        color — the number itself is the state, never the color alone.
 
         The name is present but not drawn. The icon is decorative and the unit
         is only a unit, so read aloud this was "40 mm/s" — a number with
@@ -1083,7 +1083,7 @@ function screwInstruction(screw: (typeof screwResults.value)[number]): string {
         thick at one end. Klipper reports it as `applied` on the alignment object
         itself, and it says nothing while all is well — so this line appears only
         when there is something to do about it, directly under the button that
-        does it. Icon plus words, never the colour alone.
+        does it. Icon plus words, never the color alone.
       -->
         <p v-for="notice in unappliedLeveling" :key="notice" class="movement-actions__notice">
           <AppIcon name="warning" class="size-3.5 shrink-0" aria-hidden="true" />

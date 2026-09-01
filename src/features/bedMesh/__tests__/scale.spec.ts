@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { meshRampColor, type MeshPalette } from '@/features/bedMesh/painter'
 import {
-  meshColourRange,
+  meshColorRange,
   meshHeightLimits,
   meshScalePosition,
   thinMeshMatrix,
@@ -28,14 +28,14 @@ describe('meshScalePosition', () => {
   })
 })
 
-describe('meshColourRange', () => {
-  it('centres on the mean rather than the plane', () => {
-    expect(meshColourRange([0.1, 0.1, 0.1, 0.1])).toEqual({ low: 0.1, high: 0.1 })
+describe('meshColorRange', () => {
+  it('centers on the mean rather than the plane', () => {
+    expect(meshColorRange([0.1, 0.1, 0.1, 0.1])).toEqual({ low: 0.1, high: 0.1 })
   })
 
   it('sets its reach from the mean absolute deviation, not the raw span', () => {
     // Mean 0, deviations [0.1, 0.1, 0.1, 0.1] average to 0.1, so reach is 0.2.
-    expect(meshColourRange([-0.1, 0.1, -0.1, 0.1])).toEqual({ low: -0.2, high: 0.2 })
+    expect(meshColorRange([-0.1, 0.1, -0.1, 0.1])).toEqual({ low: -0.2, high: 0.2 })
   })
 
   it('lets one outlier clamp instead of stretching the whole scale', () => {
@@ -44,13 +44,13 @@ describe('meshColourRange', () => {
     // sliver near zero. Mean absolute deviation only feels a nineteenth of
     // that spike, so the scale stays a small fraction of the outlier's size.
     const values = [...Array<number>(19).fill(0), 20]
-    const { low, high } = meshColourRange(values)
+    const { low, high } = meshColorRange(values)
     expect(high).toBeLessThan(10)
     expect(low).toBeGreaterThan(-10)
   })
 
   it('is a point at zero with nothing measured', () => {
-    expect(meshColourRange([])).toEqual({ low: 0, high: 0 })
+    expect(meshColorRange([])).toEqual({ low: 0, high: 0 })
   })
 })
 
@@ -105,15 +105,15 @@ describe('meshRampColor', () => {
   })
 
   it('reaches full saturation at the midpoint of each half, not only at the ends', () => {
-    // Five stops rather than three: a straight lerp from a colour to white
+    // Five stops rather than three: a straight lerp from a color to white
     // spends most of its travel looking merely pale, which is what made the
-    // centre read as wider than it is. Reaching `low`/`high` at the halfway
-    // mark puts real colour on the surface sooner.
+    // center read as wider than it is. Reaching `low`/`high` at the halfway
+    // mark puts real color on the surface sooner.
     expect(meshRampColor(-0.05, scale, palette)).toEqual([0, 0, 255])
     expect(meshRampColor(0.05, scale, palette)).toEqual([255, 0, 0])
   })
 
-  it('reaches the deep colour only at the true end of the scale', () => {
+  it('reaches the deep color only at the true end of the scale', () => {
     expect(meshRampColor(-0.1, scale, palette)).toEqual([0, 0, 128])
     expect(meshRampColor(0.1, scale, palette)).toEqual([128, 0, 0])
   })

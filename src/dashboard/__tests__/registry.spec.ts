@@ -95,7 +95,7 @@ describe('dashboard module registry', () => {
   it('tells a never-calibrated bed apart from one with an unloaded mesh, collapsed', () => {
     // Both look identical if either collapses to nothing — the second is
     // running unlevelled after having known better, which the header owes a
-    // word to even collapsed. The full warning colour and icon live only in
+    // word to even collapsed. The full warning color and icon live only in
     // the expanded card; this slot is plain text with no room for either.
     const summary = summaryFor('bedMesh')
     const bedMesh = useBedMeshStore()

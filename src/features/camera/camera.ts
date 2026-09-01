@@ -165,7 +165,7 @@ export function normalizeCamera(webcam: MoonrakerWebcam, websocketEndpoint: stri
  * ratio.
  *
  * The leading `translate(-50%, -50%)` is not decoration: the frame is
- * positioned from the tile's centre so that rotating it keeps it centred, and
+ * positioned from the tile's center so that rotating it keeps it centered, and
  * dropping the translate leaves it hanging off the bottom-right corner.
  */
 export interface CameraFrameLayout {

@@ -69,7 +69,7 @@ describe('page layout contract', () => {
     // markup. That used to be hand-rolled per view: the row's height came out
     // different on a route with an action button than on one without (nothing
     // reserved the space), Settings nested its copy inside the width-capped
-    // `page-column` measure so its title sat narrower and off-centre from every
+    // `page-column` measure so its title sat narrower and off-center from every
     // other route's, and workspace-page routes used to rely on a visually
     // hidden h1 with a workspace pane's own title standing in for the visible
     // name — which stopped working once more than one workspace route reused
@@ -104,7 +104,7 @@ describe('page layout contract', () => {
     // address field a monitor-width long is unreadable — but that measure
     // belongs to `.settings-page` alone. Nesting `PageHeading` inside it, the
     // way this route once nested its own hand-rolled header, would narrow and
-    // centre the title along with the body instead of leaving it full-width
+    // center the title along with the body instead of leaving it full-width
     // like every other route's.
     const settings = source('views/SettingsView.vue')
     expect(

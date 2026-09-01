@@ -833,7 +833,7 @@ async function discardPendingConfig(): Promise<void> {
           <!--
             Text, not a button — outlier 1 in button-system.md. The one control
             that has to be found before it is read, so shape (all caps, the
-            brake-alert glyph) and a fixed danger colour carry that instead of
+            brake-alert glyph) and a fixed danger color carry that instead of
             button chrome. Still a real `<button>` for click, keyboard, and
             `:disabled`; named in full rather than abbreviated to "Stop" for the
             same reason as before — the row wraps now, so there is no width to

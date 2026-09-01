@@ -92,7 +92,7 @@ export interface MeshGlPalette {
 export interface MeshGlDraw {
   key: string
   opacity: number
-  /** Drawn in the flat-plane colour rather than from the deviation ramp. */
+  /** Drawn in the flat-plane color rather than from the deviation ramp. */
   neutral?: boolean
   /** Reads the ramp from its opposite end, to separate near-coincident layers. */
   invertRamp?: boolean
@@ -113,7 +113,7 @@ export interface MeshGlLayer extends MeshGlDraw {
 export interface MeshGlFrame {
   camera: MeshCamera
   palette: MeshGlPalette
-  /** The colour scale, which is not the height scale. */
+  /** The color scale, which is not the height scale. */
   scale: { low: number; high: number }
   /** Box grid lines, in bed coordinates. */
   guides: readonly (readonly [number, number, number])[]
@@ -128,12 +128,12 @@ const vertexSource = `#version 300 es
 precision highp float;
 
 layout(location = 0) in vec3 a_bed;
-// The reading this vertex is coloured for, which is not always its own height:
+// The reading this vertex is colored for, which is not always its own height:
 // a bar's foot sits on the zero plane and still belongs to the value at its
 // top. Sharing one attribute drew every column with a gradient up it.
 layout(location = 1) in float a_deviation;
 
-uniform vec2 u_centre;
+uniform vec2 u_center;
 uniform float u_longest;
 uniform float u_zMax;
 uniform float u_boxHeight;
@@ -173,8 +173,8 @@ out float v_deviation;
 void main() {
   // The identical arithmetic to projectWithCamera in scene.ts. Any change here
   // is a change there.
-  float ux = (a_bed.x - u_centre.x) / u_longest;
-  float uy = -((a_bed.y - u_centre.y) / u_longest);
+  float ux = (a_bed.x - u_center.x) / u_longest;
+  float uy = -((a_bed.y - u_center.y) / u_longest);
   float uz = (clamp(a_bed.z, -u_zMax, u_zMax) / u_zMax) * (u_boxHeight * 0.5);
 
   float rotatedX = ux * u_cosBeta - uy * u_sinBeta;
@@ -251,13 +251,13 @@ void main() {
   float position = reach <= 0.0 ? 0.0 : clamp((v_deviation - middle) / reach, -1.0, 1.0);
   if (u_invert > 0.5) position = -position;
 
-  vec3 colour;
-  if (position < -0.5) colour = mix(u_low, u_lowDeep, (-position - 0.5) / 0.5);
-  else if (position < 0.0) colour = mix(u_middle, u_low, -position / 0.5);
-  else if (position < 0.5) colour = mix(u_middle, u_high, position / 0.5);
-  else colour = mix(u_high, u_highDeep, (position - 0.5) / 0.5);
+  vec3 color;
+  if (position < -0.5) color = mix(u_low, u_lowDeep, (-position - 0.5) / 0.5);
+  else if (position < 0.0) color = mix(u_middle, u_low, -position / 0.5);
+  else if (position < 0.5) color = mix(u_middle, u_high, position / 0.5);
+  else color = mix(u_high, u_highDeep, (position - 0.5) / 0.5);
 
-  out_color = vec4(colour, u_opacity);
+  out_color = vec4(color, u_opacity);
 }`
 
 function compile(gl: WebGL2RenderingContext, type: number, source: string): WebGLShader {
@@ -283,7 +283,7 @@ interface LayerBuffers {
   linesAreTheDrawing: boolean
 }
 
-/** Floats per vertex: three of position, one of colour. */
+/** Floats per vertex: three of position, one of color. */
 const vertexStride = 4
 
 export class MeshGlRenderer {
@@ -424,7 +424,7 @@ export class MeshGlRenderer {
   private cameraUniforms(frame: MeshGlFrame): void {
     const gl = this.gl
     const { camera } = frame
-    gl.uniform2f(this.location('u_centre'), camera.centreX, camera.centreY)
+    gl.uniform2f(this.location('u_center'), camera.centerX, camera.centerY)
     gl.uniform1f(this.location('u_longest'), camera.longest)
     gl.uniform1f(this.location('u_zMax'), camera.zMax)
     gl.uniform1f(this.location('u_boxHeight'), camera.boxHeight)
@@ -445,8 +445,8 @@ export class MeshGlRenderer {
     gl.uniform2f(this.location('u_resolution'), frame.width, frame.height)
 
     const { palette } = frame
-    const rgb = (name: string, colour: MeshRgb): void => {
-      gl.uniform3f(this.location(name), colour[0] / 255, colour[1] / 255, colour[2] / 255)
+    const rgb = (name: string, color: MeshRgb): void => {
+      gl.uniform3f(this.location(name), color[0] / 255, color[1] / 255, color[2] / 255)
     }
     rgb('u_lowDeep', palette.lowDeep)
     rgb('u_low', palette.low)
@@ -481,7 +481,7 @@ export class MeshGlRenderer {
       gl.vertexAttribPointer(1, 1, gl.FLOAT, false, vertexStride * bytes, 3 * bytes)
     }
 
-    // The box grid is positions only. Its colour is a uniform, so the deviation
+    // The box grid is positions only. Its color is a uniform, so the deviation
     // attribute is switched off and given a constant rather than being padded
     // into the buffer — a leftover pointer here would read the guide's own y as
     // a deviation the moment the shader stopped ignoring it.

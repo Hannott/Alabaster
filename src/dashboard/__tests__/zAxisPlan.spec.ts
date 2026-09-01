@@ -35,7 +35,7 @@ describe('zFraction', () => {
     expect(zFraction(0, travel)).toBe(1)
   })
 
-  it('puts the centre in the centre', () => {
+  it('puts the center in the center', () => {
     expect(zFraction(125, travel)).toBe(0.5)
   })
 

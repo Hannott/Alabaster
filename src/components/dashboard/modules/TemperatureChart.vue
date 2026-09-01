@@ -469,7 +469,7 @@ const gridLines = computed(() =>
 )
 
 /**
- * Every label is centred on its own gridline, with no special case at either
+ * Every label is centered on its own gridline, with no special case at either
  * end. The edges used to re-anchor a label to `start` or `end` within 14px of
  * them, to keep it from hanging off the card — which is right for a static
  * axis and wrong for one that scrolls, because the flip fires mid-slide and

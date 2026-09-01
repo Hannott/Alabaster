@@ -61,7 +61,7 @@ warning off there.
 Two options, both under the card's actions:
 
 - **Pause at a layer**: Name the layer and the print pauses as it starts.
-- **Pause when this layer finishes**: Use this for a colour change decided
+- **Pause when this layer finishes**: Use this for a color change decided
   mid-print.
 
 Both options appear only on a printer whose configuration defines the macros
@@ -159,7 +159,7 @@ Turn on the history chart and choose what it draws.
 | Setting                  | What it does                                                  |
 | ------------------------ | ------------------------------------------------------------- |
 | Sensors                  | Which sensors appear in the list, in the chart, or both.      |
-| Colour                   | Each sensor's colour, from the Okabe-Ito palette.             |
+| Color                    | Each sensor's color, from the Okabe-Ito palette.              |
 | Height                   | Compact, standard, or tall.                                   |
 | Time window              | How far back it goes.                                         |
 | Draw target temperatures | The setpoint each trace is climbing toward, as a dashed line. |
@@ -207,7 +207,7 @@ toolhead.
   remove values.
 - **Motors off**: Asks for confirmation first, since the printer forgets its
   position.
-- **Park positions**: Centre and front.
+- **Park positions**: Center and front.
 - **Speed factor**: Includes a reset to 100%.
 - **Position mode**: Shows absolute or relative, as reported by the printer.
 - **Live speed**: Shows the toolhead's live speed, so a slow move and a
@@ -333,7 +333,7 @@ The Macros card shows the macros you choose, as buttons.
 
 - **Search and pick** from everything the printer reports.
 - **Order** the buttons the way you use them.
-- **Colour each button** from the Okabe-Ito palette.
+- **Color each button** from the Okabe-Ito palette.
 - **Run with parameters**: A macro that takes arguments opens a small form.
   An empty field lets the macro apply its own default.
 - **Missing macros are marked** rather than silently dropped, and can be
@@ -452,20 +452,20 @@ The Bed mesh card shows the measured bed as a map.
 - **Probed points**, the mesh, and a level reference: Each can be shown or
   hidden.
 - **Readout**: Shows X, Y, and height wherever you point.
-- **Lowest, highest, and range**: Shown as numbers, not only as colours.
+- **Lowest, highest, and range**: Shown as numbers, not only as colors.
 
 ![A bed mesh rendered as a 3D surface, with the active profile, projection, and lowest/highest/range readout](/images/modules/bed-mesh-3d-view.png)
 
-![The Bed mesh quick settings, toggling the mesh/probed/level layers, the wireframe, probed points, and per-mesh colour scaling](/images/modules/bed-mesh-quick-settings.png)
+![The Bed mesh quick settings, toggling the mesh/probed/level layers, the wireframe, probed points, and per-mesh color scaling](/images/modules/bed-mesh-quick-settings.png)
 
-### The colour scale
+### The color scale
 
 There are two modes:
 
-- **Scaled to this mesh**: Uses the full colour range for a single mesh.
+- **Scaled to this mesh**: Uses the full color range for a single mesh.
 - **Fixed scale**: Set a fixed value so two meshes can be compared directly.
   Two meshes each scaled to themselves cannot be compared, since their
-  colour ranges differ.
+  color ranges differ.
 
 ### Two warnings
 
@@ -506,7 +506,7 @@ settings, so a quiet card and a verbose page is a valid combination.
 The Activity card shows what the printer has been doing: state changes,
 prints starting and finishing, and commands sent.
 
-Every event is shown with a symbol and text, never colour alone.
+Every event is shown with a symbol and text, never color alone.
 
 ## Maintenance
 

@@ -20,7 +20,7 @@ const props = defineProps<{
   isMissing: boolean
   isRunning: boolean
   params: readonly MacroParameter[]
-  /** A CSS colour reference (`var(--color-data-*)`), or null for no accent. */
+  /** A CSS color reference (`var(--color-data-*)`), or null for no accent. */
   colorVariable: string | null
   /** True while this card is docked to its own settings surface. The run
    * segment and Send are withheld so reordering or recoloring macros there

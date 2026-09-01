@@ -358,8 +358,8 @@ defineExpose({ scrollToNewest })
       </span>
       <!--
         The marker is decorative, so the kind it stands for has to reach assistive
-        technology some other way. Colour and a glyph both fail there, and "do not
-        communicate state by colour alone" is as true for a screen reader as for a
+        technology some other way. Color and a glyph both fail there, and "do not
+        communicate state by color alone" is as true for a screen reader as for a
         monitor — so the two kinds that change what a line *means* name themselves
         in text that is only read aloud.
       -->

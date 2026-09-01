@@ -636,7 +636,7 @@ export class GcodeParser {
     } else this.travelCount += 1
     // Extrusion feedrates only. Travels run far faster than any bead is laid
     // down, so including them stretches the reported range until every
-    // extrusion colours to the same end of a feed-rate ramp.
+    // extrusion colors to the same end of a feed-rate ramp.
     if (extrusion && end.feedrate > 0) {
       this.minimumFeedrate = Math.min(this.minimumFeedrate, end.feedrate)
       this.maximumFeedrate = Math.max(this.maximumFeedrate, end.feedrate)

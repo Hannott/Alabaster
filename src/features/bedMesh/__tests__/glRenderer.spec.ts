@@ -33,8 +33,8 @@ function shaderProject(
   z: number,
 ): [number, number] {
   const clamp = (value: number, low: number, high: number) => Math.min(high, Math.max(low, value))
-  const ux = (x - camera.centreX) / camera.longest
-  const uy = -((y - camera.centreY) / camera.longest)
+  const ux = (x - camera.centerX) / camera.longest
+  const uy = -((y - camera.centerY) / camera.longest)
   const uz = (clamp(z, -camera.zMax, camera.zMax) / camera.zMax) * (camera.boxHeight * 0.5)
 
   const rotatedX = ux * camera.cosBeta - uy * camera.sinBeta
@@ -143,14 +143,14 @@ describe('the vertex shader and the CPU camera', () => {
   it('keeps the shader ramp in step with the five stops the legend draws', () => {
     // The gradient exists twice — once in meshRampColor for the legend and the
     // probed number ink, once in the fragment shader for the surface itself.
-    expect(source).toContain('if (position < -0.5) colour = mix(u_low, u_lowDeep,')
-    expect(source).toContain('else if (position < 0.0) colour = mix(u_middle, u_low,')
-    expect(source).toContain('else if (position < 0.5) colour = mix(u_middle, u_high,')
-    expect(source).toContain('else colour = mix(u_high, u_highDeep,')
+    expect(source).toContain('if (position < -0.5) color = mix(u_low, u_lowDeep,')
+    expect(source).toContain('else if (position < 0.0) color = mix(u_middle, u_low,')
+    expect(source).toContain('else if (position < 0.5) color = mix(u_middle, u_high,')
+    expect(source).toContain('else color = mix(u_high, u_highDeep,')
   })
 
-  it("draws the wireframe in a fixed black, never the theme's line colour", () => {
-    // A wireframe that changed colour with the theme read as UI chrome tinted
+  it("draws the wireframe in a fixed black, never the theme's line color", () => {
+    // A wireframe that changed color with the theme read as UI chrome tinted
     // to match the card around it, rather than a feature of the surface
     // itself — the one thing a wireframe most needs to look like.
     const wireframeBlock =

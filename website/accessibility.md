@@ -8,26 +8,26 @@ enforces each one, so it holds even when someone is in a hurry.
 | Guarantee                                                                                                       | Test                             |
 | --------------------------------------------------------------------------------------------------------------- | -------------------------------- |
 | Every control variant clears **4.5:1** contrast over every surface it can sit on, at rest, hovered, and pressed | `controlContrast.spec.ts`        |
-| Chromatic colour never leaves the Okabe-Ito palette, and no component carries a colour literal                  | `palette.spec.ts`                |
+| Chromatic color never leaves the Okabe-Ito palette, and no component carries a color literal                    | `palette.spec.ts`                |
 | Every animation has a reduced-motion fallback                                                                   | `motion.spec.ts`                 |
 | Every clickable control comes from one button system, and none of them move on hover or press                   | `interactionConsistency.spec.ts` |
 | Every routed page uses one of two documented page shells                                                        | `pageLayout.spec.ts`             |
 | Every locale matches the English schema, with no empty messages                                                 | `locales.spec.ts`                |
 | Every theme pack implements the full token contract in both light and dark                                      | `themes.spec.ts`                 |
 
-## Colour
+## Color
 
-Chromatic colour comes only from the
+Chromatic color comes only from the
 [Okabe-Ito palette](https://jfly.uni-koeln.de/color/). The palette stays
-distinguishable across the common forms of colour blindness. Neutral
+distinguishable across the common forms of color blindness. Neutral
 variation uses only black and white with opacity.
 
-Colour never carries status alone. Text or a distinct shape always repeats
-what a colour says: a state, a warning, an unsaved file, or a disconnected
+Color never carries status alone. Text or a distinct shape always repeats
+what a color says: a state, a warning, an unsaved file, or a disconnected
 board. A status stays readable in greyscale, on a washed-out monitor, or to
 someone who cannot see the hue at all.
 
-Alabaster computes control colours from contrast requirements, not by eye. A
+Alabaster computes control colors from contrast requirements, not by eye. A
 test composites each variant over each surface it can appear on and checks
 the result.
 

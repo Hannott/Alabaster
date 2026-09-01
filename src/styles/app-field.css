@@ -25,10 +25,10 @@
   /*
    * The input box keeps the product-wide field tier. The complete component
    * adds one small, fixed envelope around it: equal 0.5rem clearance above and
-   * below keeps the box geometrically centred, while the upper half contains
+   * below keeps the box geometrically centered, while the upper half contains
    * the embedded label that rises over the border. Because the envelope belongs
    * here rather than to `label-embed`, front, embed, and back all measure and
-   * centre exactly the same.
+   * center exactly the same.
    *
    * `block-size`, rather than `min-block-size`, is intentional. An outside
    * label that wraps must not turn label placement into a hidden height prop;
@@ -153,7 +153,7 @@
  * leaving a visible patch on the other.
  *
  * The label is anchored to the box, which is why the box is the positioning
- * context: `top: 0` plus a half-height translate centres the notch on the box's
+ * context: `top: 0` plus a half-height translate centers the notch on the box's
  * own top border at every size. Hanging it off the outer field made an end
  * label measure from a box that also holds the steppers or their reserved
  * footprint, landing the label past the value it names.

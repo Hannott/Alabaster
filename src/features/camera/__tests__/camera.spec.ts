@@ -187,7 +187,7 @@ describe('the nozzle crosshair', () => {
     expect(crosshairColorValue(crosshair)).toBe('#123456')
   })
 
-  it('leaves the colour to the stylesheet when nothing was ever chosen', () => {
+  it('leaves the color to the stylesheet when nothing was ever chosen', () => {
     expect(crosshairColorValue(cameraCrosshair(camera()))).toBeNull()
   })
 

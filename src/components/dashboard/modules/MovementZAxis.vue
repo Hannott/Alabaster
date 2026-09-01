@@ -8,7 +8,7 @@ import { usePrinterStore } from '@/stores/printer'
 /**
  * A vertical Z slider standing beside the bed plan at the same height. The
  * same control the Part Fan slider is — a native `input[type=range]`,
- * coloured by `accent-color` and committed on release — rotated into the one
+ * colored by `accent-color` and committed on release — rotated into the one
  * dimension Z has, rather than a bespoke pointer surface like the plan beside
  * it.
  */

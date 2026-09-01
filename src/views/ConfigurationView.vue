@@ -564,7 +564,7 @@ const hotlinkTooltip = computed(() => {
 })
 /*
  * The outline is the config file's own sections, so it is built only for a file
- * whose sections mean something — the same predicate that decides colouring.
+ * whose sections mean something — the same predicate that decides coloring.
  * A `[...]` line in a log or a sliced file is not a section, and scanning for
  * them cost a regex per line across the largest files in the workspace to
  * produce a list of things that are not there.
@@ -1196,7 +1196,7 @@ function handleEditorOutdent(event: KeyboardEvent, textarea: HTMLTextAreaElement
  * do.
  *
  * All of them are gated on `highlightsSyntax`, which is the same predicate that
- * decides whether the file is coloured: the config root, and only the formats
+ * decides whether the file is colored: the config root, and only the formats
  * `syntax.ts` describes. Every one of these commands asserts something about
  * Klipper's format — `#` is its comment marker, a continuation block is its
  * indentation rule — and a `.json` or `.txt` sitting in the config root is not
@@ -1422,7 +1422,7 @@ function handleWindowAuxClick(event: MouseEvent): void {
  * than by their own scroll offset. Only a window of lines is mounted in either,
  * so their scrollable extent is a screenful and no longer the file's — and a
  * scroll offset set past that extent is silently clamped, which would slide the
- * colouring off the text it belongs to. A transform has no extent to clamp
+ * coloring off the text it belongs to. A transform has no extent to clamp
  * against, and is the property ADR 0004 asks movement to use.
  */
 function syncEditorScroll(): void {

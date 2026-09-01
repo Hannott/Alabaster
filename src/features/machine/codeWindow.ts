@@ -18,7 +18,7 @@
  * `line-height: 1.5rem` in main.css at the default root font size. Callers that
  * have a mounted editor must measure instead, because that rem scales with the
  * root font size and with browser zoom, and a spacer computed from a stale
- * height drifts the highlight off the text it is colouring.
+ * height drifts the highlight off the text it is coloring.
  */
 export const DEFAULT_CODE_LINE_HEIGHT = 24
 

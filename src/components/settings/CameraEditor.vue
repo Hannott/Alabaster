@@ -74,7 +74,7 @@ interface Draft {
   crosshair: boolean
   /**
    * One of the shared palette's seven keys, or null for "whatever the theme
-   * draws". Not a hex: the stored colour follows the theme pack, and the hex
+   * draws". Not a hex: the stored color follows the theme pack, and the hex
    * written alongside it for other interfaces is derived from this — see
    * `features/camera/crosshair.ts`.
    */
@@ -505,7 +505,7 @@ async function runTest(): Promise<void> {
         <div v-if="draft.crosshair" class="mt-3 flex flex-wrap items-center gap-4">
           <!--
             Seven swatches rather than a hex picker. `dashboard/colorTokens.ts`
-            holds the reason: new chromatic colour in this product is restricted
+            holds the reason: new chromatic color in this product is restricted
             to the Okabe-Ito palette so every theme pack stays coherent and
             every hue keeps its measured contrast. A free picker is what the
             reference interfaces offer here, and it is exactly the thing that

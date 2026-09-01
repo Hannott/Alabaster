@@ -55,7 +55,7 @@ const when = computed(() => {
     :aria-current="selected ? 'true' : undefined"
     @click="$emit('select')"
   >
-    <!-- Word and shape, never the colour alone. -->
+    <!-- Word and shape, never the color alone. -->
     <span class="history-job__outcome" :class="`history-job__outcome--${job.outcome}`">
       <AppIcon :name="historyOutcomeIcon(job.outcome)" class="size-3.5" aria-hidden="true" />
       {{ t(`history.outcome.${job.outcome}`) }}

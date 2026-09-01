@@ -17,7 +17,7 @@ import { usePrinterStore } from '@/stores/printer'
 
 /**
  * Bed mesh's full configuration, in four groups by what each one is about: what
- * the height map draws, what its colours are measured against, when the card
+ * the height map draws, what its colors are measured against, when the card
  * speaks up, and the saved profiles themselves.
  *
  * The first two live in fields components shared with the card's own quick

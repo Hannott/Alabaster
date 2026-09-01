@@ -31,7 +31,7 @@ import { buildGcodeChunkSupergroups, type GcodeChunkSupergroup } from '@/feature
  * can never miss however small they get. What actually opens up is a region
  * that is *sparse* — infill — where the gaps are real, and closing those needs
  * beads several pixels wide, not merely one. Three is where the measured
- * colour-boundary density on a 115 MB model stops falling appreciably.
+ * color-boundary density on a 115 MB model stops falling appreciably.
  */
 const subPixelBeadWidth = 3
 
@@ -105,7 +105,7 @@ float graded_lighting(vec3 surface_normal) {
  * instead of smooth-shading into one another the way an arc's points do.
  *
  * The top sits at y = 0 and the bottom at y = -height, matching pill_profile,
- * because the caller places the centreline at the top of the layer.
+ * because the caller places the centerline at the top of the layer.
  */
 ProfilePoint square_profile(int index, int face, float width, float height) {
   float half_width = max(0.01, width) * 0.5;
@@ -415,7 +415,7 @@ uniform float u_layer_max;
  * the full-resolution stream draws the active layer itself, so the two passes
  * have different pass bands and the same visible range. Deriving "is this the
  * active layer" from the pass band instead made the tier pass treat its own top
- * layer as active and paint it in the active colour.
+ * layer as active and paint it in the active color.
  */
 uniform float u_pass_min;
 uniform float u_pass_max;
@@ -455,7 +455,7 @@ float seam_strength() {
 
 /*
  * What an extrusion wears when nothing is overriding it. Feature and feed-rate
- * are *inspection* colours: they describe the file, so the follow-mode reveal
+ * are *inspection* colors: they describe the file, so the follow-mode reveal
  * rules below still win over them.
  */
 vec3 inspection_color() {
@@ -488,9 +488,9 @@ void main() {
       : vec4(u_progress_color.rgb, 1.0);
   } else if (u_color_mode != 0 && has_print_progress) {
     /*
-     * Simulation with an inspection colour on: recolouring what is printed
+     * Simulation with an inspection color on: recoloring what is printed
      * would drown the very distinction the user turned on, so the reveal
-     * inverts. Printed geometry keeps its feature or feed-rate colour and
+     * inverts. Printed geometry keeps its feature or feed-rate color and
      * unprinted geometry drops to a faint shell — the frontier still reads,
      * and so does the mode.
      */
@@ -526,7 +526,7 @@ uniform float u_layer_max;
  * the full-resolution stream draws the active layer itself, so the two passes
  * have different pass bands and the same visible range. Deriving "is this the
  * active layer" from the pass band instead made the tier pass treat its own top
- * layer as active and paint it in the active colour.
+ * layer as active and paint it in the active color.
  */
 uniform float u_pass_min;
 uniform float u_pass_max;
@@ -626,7 +626,7 @@ uniform float u_layer_max;
  * the full-resolution stream draws the active layer itself, so the two passes
  * have different pass bands and the same visible range. Deriving "is this the
  * active layer" from the pass band instead made the tier pass treat its own top
- * layer as active and paint it in the active colour.
+ * layer as active and paint it in the active color.
  */
 uniform float u_pass_min;
 uniform float u_pass_max;
@@ -1358,7 +1358,7 @@ export class GcodeRenderer {
    * The bead overlap to draw with, widened where beads have fallen below a pixel
    * so a surface made of them closes up again.
    *
-   * Point sampling a sub-pixel bead is a lottery: it takes a pixel's centre or
+   * Point sampling a sub-pixel bead is a lottery: it takes a pixel's center or
    * it misses, so a surface is drawn with holes it does not have and the layer
    * below shows through them. Growing the bead until it spans a pixel restores
    * the coverage — and the amount it grows by is itself sub-pixel, so nothing
@@ -1855,7 +1855,7 @@ export class GcodeRenderer {
   }
 
   /**
-   * Normalised device depth of a bounds centre. Taken from the matrix rather
+   * Normalised device depth of a bounds center. Taken from the matrix rather
    * than from the camera's own angles so it stays right whatever convention
    * yaw and pitch use, and whatever the scene matrix does on top of them.
    */

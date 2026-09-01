@@ -96,7 +96,7 @@ describe('the voyage', () => {
     expect(nearEdge).not.toBeCloseTo(farEdge, 3)
   })
 
-  it('colours the sea along one hue rather than across the diverging ramp', () => {
+  it('colors the sea along one hue rather than across the diverging ramp', () => {
     // The bed's ramp runs deep blue through white to orange, because a bed can
     // be wrong in two directions. A sea cannot, and a swell that went orange at
     // the crests would read as a fault rather than as water.
@@ -105,7 +105,7 @@ describe('the voyage', () => {
       zMax,
       boxHeight,
       elapsed: 4000,
-      colour: { trough: -0.1, crest: 0 },
+      color: { trough: -0.1, crest: 0 },
     })
     expect(built.sea.deviations.length).toBeGreaterThan(0)
     for (const ink of built.sea.deviations) {
@@ -123,9 +123,9 @@ describe('the voyage', () => {
       zMax,
       boxHeight,
       elapsed: 4000,
-      colour: { trough: -0.1, crest: 0 },
+      color: { trough: -0.1, crest: 0 },
     })
-    // Every box carries one height and one colour, eight corners each.
+    // Every box carries one height and one color, eight corners each.
     let lowest = { top: Infinity, ink: 0 }
     let highest = { top: -Infinity, ink: 0 }
     for (let index = 0; index < built.sea.deviations.length; index += 8) {
@@ -234,7 +234,7 @@ describe('the voyage', () => {
   it('kept the features that survive being voxelised at this size', () => {
     // The model is sampled from the real thing, so these are checks that the
     // sampling did not smooth away what makes it recognisable — not a
-    // description of a shape anyone chose. A centre-only test drops every wall
+    // description of a shape anyone chose. A center-only test drops every wall
     // thinner than a voxel and produces a hull with no cabin on it, which is
     // exactly the failure that would still pass a "does it have some voxels"
     // assertion.

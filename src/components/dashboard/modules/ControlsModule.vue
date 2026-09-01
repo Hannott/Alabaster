@@ -46,7 +46,7 @@ const hasFansShown = computed(() => showMonitoredFans.value && monitoredFans.val
 // Keyed by objectName, read and written by ControlsSettingsPane.vue's own
 // "Icons" section through the same `config.outputIcons` map — see
 // `controlsIcons.ts` for why this needs no per-row-kind spread the way a
-// sensor's colour default does.
+// sensor's color default does.
 const outputIcons = computed(() => configStringMap(config.value, 'outputIcons'))
 
 function iconFor(objectName: string, kind: OutputKind) {

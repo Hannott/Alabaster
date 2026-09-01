@@ -342,7 +342,7 @@ function pending(command: string): boolean {
         <span v-if="showsHost" class="farm-column__host">{{ printer.host }}</span>
       </span>
       <!--
-        Text and a fixed danger colour rather than button chrome — the emergency
+        Text and a fixed danger color rather than button chrome — the emergency
         stop is outlier 5 in `button-system.md`, and this is its second
         instance. It stays on a *collapsed* column deliberately: the reason to
         have it here at all is spotting a crash on a machine nobody is driving,
@@ -548,7 +548,7 @@ function pending(command: string): boolean {
         Homing is `G28` — a native Klipper command on every machine, which is
         why it can be here at all on a page that discovers nothing about a
         printer's configuration. Each button says whether its axis is already
-        homed in its accessible name rather than by colour, and the row states
+        homed in its accessible name rather than by color, and the row states
         the machine's homed state in words above it.
       -->
       <div class="farm-home">

@@ -910,7 +910,7 @@ function startPlannedFollow(): void {
 }
 
 // Whatever the ray through this viewport position hits first, the printed
-// surface or the bed, falling back to the model centre when it hits nothing.
+// surface or the bed, falling back to the model center when it hits nothing.
 function pivotAt(screenX: number, screenY: number): GcodePoint | null {
   const file = loaded.value
   if (!renderer || !file) return null
@@ -1071,8 +1071,8 @@ function applyTouchGesture(step: TouchGestureStep): void {
     dollyCameraAt(
       camera,
       step.scale,
-      step.centreX - bounds.left,
-      step.centreY - bounds.top,
+      step.centerX - bounds.left,
+      step.centerY - bounds.top,
       bounds.width,
       bounds.height,
     )
@@ -2112,7 +2112,7 @@ onBeforeUnmount(() => {
             <!--
               Swatches are painted from the same resolved tokens the renderer
               uploads. They used to be Tailwind palette utilities that only
-              coincidentally matched, so a theme pack changing a viewer colour
+              coincidentally matched, so a theme pack changing a viewer color
               made the legend quietly wrong.
             -->
             <div v-if="loaded" class="gcode-viewer-legend" aria-hidden="true">

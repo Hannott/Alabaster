@@ -30,7 +30,7 @@ import { usePrinterConfigStore } from '@/stores/printerConfig'
  *
  * Lists every fan and pin regardless of `showOutputPins`/`showMonitoredFans`
  * — hiding a section from the card is not the same as not wanting its icon
- * configured for whenever it comes back, and Temperatures' own sensor-colour
+ * configured for whenever it comes back, and Temperatures' own sensor-color
  * section makes the same choice (gated only on sensors existing at all, not
  * on any card-visibility toggle).
  */

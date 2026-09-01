@@ -303,7 +303,7 @@ describe('BedMeshModule', () => {
     const { wrapper } = mountLoaded({ scaleToMesh: true })
     await wrapper.vm.$nextTick()
 
-    // Centred on the mean of loadMesh's nine points (~0.038) with reach set
+    // Centered on the mean of loadMesh's nine points (~0.038) with reach set
     // from their mean absolute deviation, not the raw -0.03..0.1 span.
     expect(wrapper.findAll('.mesh-legend__value').map((node) => node.text())).toEqual([
       '-0.029',
@@ -705,7 +705,7 @@ describe('BedMeshModule', () => {
 
   it('takes the pan alone as reason enough for the reset chip', async () => {
     // The chip appeared for an orbit and a zoom but not for a pan, so a map
-    // dragged off centre at the resting angle had no way back at all.
+    // dragged off center at the resting angle had no way back at all.
     stubCanvas()
     const { wrapper } = mountLoaded({ showSurface: false, lockedPanX: 0 })
     await wrapper.vm.$nextTick()
@@ -1029,11 +1029,11 @@ describe('BedMeshModule', () => {
     })
 
     /**
-     * The second complaint this fixes: the colour-filled surface between
+     * The second complaint this fixes: the color-filled surface between
      * points, appearing once there is something to interpolate between — two
      * finished rows — rather than waiting for the whole mesh to complete.
      */
-    it('draws the colour-filled surface once a second row finishes', async () => {
+    it('draws the color-filled surface once a second row finishes', async () => {
       const { gcodeConsole, wrapper } = mountModule({}, { liveProbing: true })
       await wrapper.vm.$nextTick()
 

@@ -227,7 +227,7 @@ export function decimateGcodeSegments(
     // The run is revealed when its last move has printed, never earlier.
     output[target + gcodeSegment.progress] = field(segments, end, gcodeSegment.progress)
     // Length-weighted so a merged bead reports the speed it was mostly printed
-    // at; feed-rate colouring reads this at every tier.
+    // at; feed-rate coloring reads this at every tier.
     output[target + gcodeSegment.feedrate] =
       totalLength > 0
         ? weightedFeedrate / totalLength

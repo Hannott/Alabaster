@@ -4,7 +4,7 @@
  *
  * A native `<select>` cannot be fully themed: the closed control takes
  * `background`/`color`, but most browsers render the open option list with
- * their own colours, and a page that sets `color` on the control without also
+ * their own colors, and a page that sets `color` on the control without also
  * setting it on `<option>` gets light text on the browser's own light popup —
  * unreadable in a dark theme. Firefox goes the other way and mostly ignores
  * author styling on the popup outright. Either way there is no cross-browser

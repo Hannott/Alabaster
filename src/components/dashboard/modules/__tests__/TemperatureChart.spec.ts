@@ -106,7 +106,7 @@ describe('TemperatureChart', () => {
   })
 
   /*
-   * Colour names the sensor and the dash pattern names the quantity, so a
+   * Color names the sensor and the dash pattern names the quantity, so a
    * reading and the setpoint it is climbing toward read as one heater. The old
    * chart dashed every odd-indexed series, which encoded its own array order.
    */
@@ -625,7 +625,7 @@ describe('TemperatureChart', () => {
    * which fires mid-slide on a scrolling axis and jumps the label half its own
    * width away from the gridline it names. The fade band replaced it.
    */
-  it('centres every time label on its own gridline, at both edges too', async () => {
+  it('centers every time label on its own gridline, at both edges too', async () => {
     const wrapper = await mountChart()
     const anchors = wrapper
       .findAll('text.temperature-chart__label')

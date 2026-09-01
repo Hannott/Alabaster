@@ -250,7 +250,7 @@ export interface GcodeRenderOptions {
   subPixelStrategy: GcodeSubPixelStrategy
   highlightSeams: boolean
   colorMode: GcodeColorMode
-  /** Feed-rate colour range, in mm/min, matching the parser's stored units. */
+  /** Feed-rate color range, in mm/min, matching the parser's stored units. */
   feedrateRange: readonly [number, number]
   /**
    * True while follow or simulation is showing a moving frontier. The selected
@@ -264,7 +264,7 @@ export interface GcodeRenderOptions {
   contactShadow: boolean
 }
 
-// How far the seam colour reaches from the start and end of an extrusion path,
+// How far the seam color reaches from the start and end of an extrusion path,
 // in millimetres.
 export const gcodeSeamLength = 1
 

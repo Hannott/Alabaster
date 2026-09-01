@@ -10,9 +10,9 @@ import {
 } from '@/features/gcode/types'
 
 /**
- * Feature colouring is only worth having if it is right across the slicers
+ * Feature coloring is only worth having if it is right across the slicers
  * people actually use. The reference Klipper viewer defaults to this mode and
- * renders an entire OrcaSlicer print in one flat colour because its table has
+ * renders an entire OrcaSlicer print in one flat color because its table has
  * no entry for that vocabulary — so these tests cover each supported slicer's
  * own words, and pin that anything unrecognized stays visibly unclassified.
  */
@@ -127,7 +127,7 @@ G1 X10 Y0 E1
 describe('feed-rate range', () => {
   /**
    * Travels run far faster than any bead is laid down. Including them stretched
-   * the reported range until every extrusion coloured to the same end of the
+   * the reported range until every extrusion colored to the same end of the
    * ramp — the mode was on, and said nothing.
    */
   it('spans the speeds extrusions use, not the travels between them', () => {

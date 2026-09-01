@@ -1,7 +1,7 @@
 # Theming
 
-A theme pack remaps every colour role in Alabaster. Components read roles, not
-colours, so a pack changes the whole interface without touching a single
+A theme pack remaps every color role in Alabaster. Components read roles, not
+colors, so a pack changes the whole interface without touching a single
 component.
 
 ## Choosing a theme
@@ -9,7 +9,7 @@ component.
 Set the theme in Settings → Appearance.
 
 - **Mode**: Light, Dark, or System.
-- **Theme pack**: the colour mapping.
+- **Theme pack**: the color mapping.
 
 The two settings are independent. Every pack includes both a light mode and a
 dark mode. Switching mode does not change your pack, and switching pack does
@@ -20,14 +20,14 @@ Your browser keeps both preferences.
 ## The bundled pack
 
 Alabaster is the bundled theme pack. It uses high-contrast blue and sky blue.
-Its accent and focus colours reuse the same blue as the interface borders, so
+Its accent and focus colors reuse the same blue as the interface borders, so
 a focused control reads as part of the same system.
 
 ## Typefaces are not part of a pack
 
 Typeface, text weight, and the console typeface are separate settings. A font
-is not a colour mapping. Putting it in a pack would force you to choose a
-colour scheme to get a specific typeface.
+is not a color mapping. Putting it in a pack would force you to choose a
+color scheme to get a specific typeface.
 
 Five typefaces are available, including OpenDyslexic. See
 [Settings → Appearance](/interface/settings#appearance).
@@ -38,8 +38,8 @@ Three rules keep packs interchangeable, not just different-looking. Tests
 enforce all three: the first two for every pack, the third for the bundled
 pack only. See [when a pack may break them](#a-pack-that-wants-to-be-something-else).
 
-**Only Okabe-Ito chromatic colours.** Every chromatic value comes from the
-[Okabe-Ito colour-blind-safe palette](https://jfly.uni-koeln.de/color/).
+**Only Okabe-Ito chromatic colors.** Every chromatic value comes from the
+[Okabe-Ito color-blind-safe palette](https://jfly.uni-koeln.de/color/).
 Neutral variation uses only black and white with opacity. A pack can combine
 these with `color-mix()` and transparency without breaking the constraint.
 
@@ -47,23 +47,23 @@ these with `color-mix()` and transparency without breaking the constraint.
 vermillion, but no component asks for vermillion. It asks for danger. This
 lets a pack change what danger looks like without changing any component.
 
-**WCAG AA contrast, checked by compositing.** Control colours come from
+**WCAG AA contrast, checked by compositing.** Control colors come from
 contrast requirements, not visual judgment. A test composites every button
 variant over every surface it can appear on, at rest, hovered, and pressed.
 The build fails below 4.5:1 for normal text or 3:1 for boundaries. This test
 runs against the bundled `alabaster` pack, which is the baseline every other
 interface rule is written against.
 
-Colour is never the only signal for status. Every colour-coded state also
+Color is never the only signal for status. Every color-coded state also
 appears in text or a distinct shape. This keeps a state readable regardless of
-the pack, colour blindness, or a badly calibrated monitor.
+the pack, color blindness, or a badly calibrated monitor.
 
 ## What a pack covers
 
 A pack covers more than backgrounds and text. Every pack defines the full
 token contract:
 
-| Group                   | What it colours                                                      |
+| Group                   | What it colors                                                       |
 | ----------------------- | -------------------------------------------------------------------- |
 | Canvas and surfaces     | Page, cards, raised and soft surfaces.                               |
 | Text                    | Primary, muted, and text over strong surfaces.                       |
@@ -72,11 +72,11 @@ token contract:
 | Control interaction     | The hover and press veils.                                           |
 | Availability and safety | Offline, available, recovering, danger, and caution.                 |
 | G-code viewer           | Its surface, grid, shadow, nozzle, extrusion, seams, and axes.       |
-| G-code feature colours  | Perimeters, infill, bridges, support, skirt, and the feed-rate ramp. |
+| G-code feature colors   | Perimeters, infill, bridges, support, skirt, and the feed-rate ramp. |
 | Bed mesh height map     | Five height bands plus the level plane.                              |
 
 Every token is declared in both modes, even when the value is the same, so a
-pack never inherits an accidental colour from another pack.
+pack never inherits an accidental color from another pack.
 
 Chart data series and brand artwork are the exception. Their hues are values,
 not roles, so they do not change per pack.
@@ -113,9 +113,9 @@ for the full authoring guide and the complete token table.
 
 ## A pack that wants to be something else
 
-Everything above describes a pack that remaps colour. A pack that reproduces
+Everything above describes a pack that remaps color. A pack that reproduces
 someone else's visual identity, such as a printer firmware's or a person's
-own, usually needs more than colour changes. Requiring it to follow the
+own, usually needs more than color changes. Requiring it to follow the
 bundled pack's rules would prevent that identity from being reproduced.
 
 A non-bundled pack is exempt from the rest of the design system: the contrast
@@ -129,7 +129,7 @@ The exemption is scoped:
   A pack cannot write a rule that reaches outside itself, edits shared CSS, or
   affects another pack.
 - **Every pack still assigns every token in both modes** and still uses
-  `palette.css` variables instead of raw colour values. These two rules keep
+  `palette.css` variables instead of raw color values. These two rules keep
   a pack switchable, and the build checks both for every pack.
 - **The bundled `alabaster` pack is not exempt from anything.** It stays the
   fully conformant baseline, and the contrast test measures against it.

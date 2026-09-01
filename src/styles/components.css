@@ -306,12 +306,12 @@ input[type='radio']::before {
  * position is what says where the switch is standing.
  *
  * The knob's position is computed by the browser, not by hand. A previous
- * version centred it vertically with a fixed top inset and a fixed height,
+ * version centered it vertically with a fixed top inset and a fixed height,
  * which is only correct if the track's padding box is exactly the height it
  * was calculated against — a `border-box`/`content-box` distinction that is
  * easy to get wrong and, unlike a layout the browser solves itself, wrong in
  * a way nothing catches before it ships crooked. `inset-block: 0` with
- * `margin-block: auto` is the standard absolute-centring pair: the browser
+ * `margin-block: auto` is the standard absolute-centering pair: the browser
  * splits whatever space is actually left between the two margins, so the
  * knob sits in the middle of the track's real padding box regardless of
  * border width or which box-sizing is in effect. The horizontal position
@@ -356,7 +356,7 @@ input[type='checkbox'].switch::before {
   transform: none;
   border-radius: 999px;
   background-color: var(--action-primary);
-  /* Depth, not a second colour: the knob is the one piece of this control
+  /* Depth, not a second color: the knob is the one piece of this control
      that visibly moves, so a soft drop shadow is what tells the eye it sits
      above the track rather than being painted flush with it. */
   box-shadow: 0 1px 2px color-mix(in srgb, var(--ito-black) 35%, transparent);
@@ -372,7 +372,7 @@ input[type='checkbox'].switch::before {
  * this switch too — the track still says "on" by turning `--action-primary`,
  * exactly as a checked checkbox does — but its border-color is the same
  * accent, and a solid-fill pill does not need its own edge picked out in the
- * same colour. The ring stays the ordinary `--border-subtle` in both states
+ * same color. The ring stays the ordinary `--border-subtle` in both states
  * so the knob's hole (below) has a constant frame to be read against.
  */
 input[type='checkbox'].switch:checked {
@@ -380,7 +380,7 @@ input[type='checkbox'].switch:checked {
 }
 
 /*
- * The knob does not turn a second colour on top of the track's own — it
+ * The knob does not turn a second color on top of the track's own — it
  * turns `--surface-raised`, the surface the switch itself sits on, so it
  * reads as a hole letting that surface show through the filled track rather
  * than a second dot competing with the fill for attention.
@@ -392,9 +392,9 @@ input[type='checkbox'].switch:checked::before {
 
 /*
  * Sliders filled the width of their container in four families out of five and
- * disagreed only about which name for the same colour to reach for. The fifth,
+ * disagreed only about which name for the same color to reach for. The fifth,
  * the simulation scrubber, is a genuine exception: it reports playback position
- * on the viewer stage and takes that surface's own progress colour.
+ * on the viewer stage and takes that surface's own progress color.
  */
 input[type='range'] {
   width: 100%;
@@ -501,7 +501,7 @@ option {
  * A translucent veil is a blend toward black or white, so on a saturated fill
  * the amount needed to be visible is also the amount that stops the fill
  * looking like itself: doubling the veil moved `primary`'s light blue by 18
- * units out of 178 and still read as the same colour. `filter: brightness()`
+ * units out of 178 and still read as the same color. `filter: brightness()`
  * scales the fill's own channels instead, so only its light or dark extreme
  * moves. The two solid variants are therefore excluded here and handled below.
  */
@@ -518,7 +518,7 @@ option {
  * variant's own label, so none of them has a ceiling to respect — only a check
  * that the extreme still reads as the same hue.
  *
- * `primary` is the one control whose label colour flips with the theme: white
+ * `primary` is the one control whose label color flips with the theme: white
  * on blue in light mode, black on sky blue in dark. So it darkens in one and
  * lightens in the other.
  */
@@ -558,7 +558,7 @@ option {
  * A control that opens a dialog rather than acting says so in its label. The
  * convention is older than the web and needs no legend, and it is the
  * non-chromatic half of the signal: `AGENTS.md` forbids communicating state by
- * colour alone, and Alabaster's own deployment target is a tablet beside the
+ * color alone, and Alabaster's own deployment target is a tablet beside the
  * printer where there is no hover to carry a hue.
  *
  * It also inverts correctly. Switching a confirmation off *removes* the
@@ -593,7 +593,7 @@ option {
  *
  * Only ever applied while a print is active, because that is the only state in
  * which the action is disruptive at all — which is also what keeps the
- * dashboard from wearing caution colours permanently. `useActionGuard` decides
+ * dashboard from wearing caution colors permanently. `useActionGuard` decides
  * that; this rule only draws it.
  */
 .button[data-tier='disruptive']:hover:not(:disabled, [aria-disabled='true']) {
@@ -636,8 +636,8 @@ option {
 /*
  * Focus recolors a control's own edge instead of drawing a second ring
  * outside it. Every one of these already has a real 1px border in its box
- * model — `button--quiet` and its relatives just make that border's colour
- * transparent at rest — so turning the colour to `--focus-ring` on
+ * model — `button--quiet` and its relatives just make that border's color
+ * transparent at rest — so turning the color to `--focus-ring` on
  * `:focus-visible` is enough: no outset ring, no offset gap, no width added
  * anywhere. The four value-field selectors share the border defined for
  * `.field` in the rule below but are not `.field` themselves, so they are
@@ -665,7 +665,7 @@ input[type='radio']:focus-visible,
 
 /*
  * `file-select` and `text-action` are two of the patterns that opt out of the
- * button system's chrome — bare coloured text with no border and no fill, so
+ * button system's chrome — bare colored text with no border and no fill, so
  * there is no edge to recolor. `brand-trigger` opts out for a different
  * reason (its size is the mark's own artwork, not a task-density tier) but
  * has the same absence of a border to recolor. `header-estop` (outlier 1 in
@@ -1026,7 +1026,7 @@ input[type='radio']:focus-visible,
  * Text actions are the third and quietest control pattern: a path segment, a
  * column header — a word the user can click, not a box. They inherit their
  * type from whatever they sit in, so they read as part of that text rather than
- * as chrome dropped into it, and they signal interactivity with colour alone.
+ * as chrome dropped into it, and they signal interactivity with color alone.
  *
  * Reach for this only where the surrounding context already frames the control
  * (a breadcrumb trail, a table header). A standalone action is a `button`.
@@ -1065,8 +1065,8 @@ input[type='radio']:focus-visible,
  * chrome — no fill, no border, no radius, no height off the size scale.
  *
  * Unlike `text-action`, it does not read as part of surrounding text — nothing
- * frames it, so all caps and a fixed danger colour have to say "find this
- * fast" on their own. There is no hover or focus colour change: the response
+ * frames it, so all caps and a fixed danger color have to say "find this
+ * fast" on their own. There is no hover or focus color change: the response
  * is `AppIcon`'s `emergencyStop` glyph replaying its draw-in animation once
  * (`App.vue`'s `replayEstopIcon`), which already says "something happened
  * here" without a second, unvalidated red next to one already at rest.
@@ -1114,7 +1114,7 @@ input[type='radio']:focus-visible,
  *
  * Geometry therefore comes from the same three-tier scale as the button system,
  * so a field and the button beside it line up without either being nudged, and
- * the focus colour comes from the one shared `:focus-visible` selector above,
+ * the focus color comes from the one shared `:focus-visible` selector above,
  * which recolors this border rather than drawing a ring outside it. A wrapper
  * that holds a field — the File Explorer's search box is a `<label>` around an
  * icon and a borderless input — takes the recolor through `:has()` rather than
@@ -2875,7 +2875,7 @@ input[type='number']::-webkit-inner-spin-button {
  * cell's line box happened to be. Same 2.4rem it always was — a text-only row
  * and a row holding an `sm` field still match without either knowing the other
  * exists — but a name is now free to be one line or two inside it, and both are
- * centred in the row instead of one of them sitting high in a box the text does
+ * centered in the row instead of one of them sitting high in a box the text does
  * not fill. Take this off and a wrapped name is the only thing setting the
  * height of the row it wraps in, which is the coupling that made every name in
  * every one of these tables a single line.
@@ -2992,9 +2992,9 @@ input[type='number']::-webkit-inner-spin-button {
  *
  * The card's own surface behind it, since it overlaps a plot and may land on a
  * trace or a duty label. A reading from four minutes ago must not be mistaken
- * for the live one, so this takes the accent colour while every reading in the
+ * for the live one, so this takes the accent color while every reading in the
  * table takes its own sensor's — one accent for "these are not now", the series
- * colours for "and this is which".
+ * colors for "and this is which".
  */
 .temperature-chart-frame {
   position: relative;
@@ -3010,7 +3010,7 @@ input[type='number']::-webkit-inner-spin-button {
    * dashboard column can be narrower than that — measured, it spilled past the
    * card's left edge at the narrowest column this layout produces. Clipped it
    * loses the minutes rather than the card's geometry, and the readings below
-   * have already changed colour to say they are not now.
+   * have already changed color to say they are not now.
    */
   max-width: 100%;
   overflow: hidden;
@@ -3024,7 +3024,7 @@ input[type='number']::-webkit-inner-spin-button {
 
 /*
  * The padding and the surface arrive with the text, so an empty region paints
- * nothing — a 0.35rem box of card colour sitting on the plot corner at rest
+ * nothing — a 0.35rem box of card color sitting on the plot corner at rest
  * would be a smudge nobody could name.
  */
 .temperature-reading-at--active {
@@ -3045,14 +3045,14 @@ input[type='number']::-webkit-inner-spin-button {
 }
 
 /*
- * A reading read out of the past takes its own sensor's colour, never the
+ * A reading read out of the past takes its own sensor's color, never the
  * shared accent the caption above the table uses — three simultaneous readings
  * have to stay told apart the same way the chart tells its lines apart.
  *
- * Which part of the field that colours is what the two modifiers say, and they
+ * Which part of the field that colors is what the two modifiers say, and they
  * are not interchangeable: a heater's reading is the notch, and a sensor that
  * only reports holds its reading in the box while its notch holds the words
- * `Reports only`. Colouring the notch on both — one selector, since both are
+ * `Reports only`. Coloring the notch on both — one selector, since both are
  * `AppField`s — tinted that label as though the phrase itself were a reading
  * from four minutes ago.
  *
@@ -3068,14 +3068,14 @@ input[type='number']::-webkit-inner-spin-button {
 
 /*
  * The rail is the heater's power, not decoration: a stem filled from the
- * bottom in that sensor's own chart colour, rising out of a bulb in the same
- * colour — a thermometer, not a bare gauge. It replaces a numeric State column
- * the card has no width for, and it makes the colour key earn its place by
+ * bottom in that sensor's own chart color, rising out of a bulb in the same
+ * color — a thermometer, not a bare gauge. It replaces a numeric State column
+ * the card has no width for, and it makes the color key earn its place by
  * reporting something. Power stays readable as a figure on the detail line, so
- * this is never colour or shape alone.
+ * this is never color or shape alone.
  *
  * The bulb is never empty, even at 0% power or with the heater off: it is the
- * only place on the card that always shows a sensor's colour, so a heater that
+ * only place on the card that always shows a sensor's color, so a heater that
  * has cooled all the way down does not lose its key. `--meter-value` at 0%
  * only empties the stem above it.
  */
@@ -3085,7 +3085,7 @@ input[type='number']::-webkit-inner-spin-button {
   height: 1.9rem;
 }
 
-/* Narrower than the bulb beneath it, and centred over it: the neck of the
+/* Narrower than the bulb beneath it, and centered over it: the neck of the
    thermometer, in the same rounded pill the rail used to be on its own. */
 .temperature-rail__stem {
   position: absolute;
@@ -3122,7 +3122,7 @@ input[type='number']::-webkit-inner-spin-button {
 }
 
 /* A passive sensor has no power to report, so it gets the bulb alone —
-   centred on the row rather than pinned to a stem it does not have. */
+   centered on the row rather than pinned to a stem it does not have. */
 .temperature-rail--passive .temperature-rail__bulb {
   top: 50%;
   bottom: auto;
@@ -3314,7 +3314,7 @@ input[type='number']::-webkit-inner-spin-button {
 
 /*
  * One sensor per row, answering both questions about it at once: whether the
- * card lists it, whether the chart draws it, and in which colour. They are the
+ * card lists it, whether the chart draws it, and in which color. They are the
  * same question asked of the same thing, and splitting them into three lists
  * would make the reader match names across three places.
  */
@@ -3357,8 +3357,8 @@ input[type='number']::-webkit-inner-spin-button {
  * the selected-state affordance below is exactly the kind of thing that drifts
  * when copied.
  *
- * Two instances: a chart series' colour in Temperatures' settings pane, and a
- * camera's crosshair colour in the Settings route's camera editor. Add to this
+ * Two instances: a chart series' color in Temperatures' settings pane, and a
+ * camera's crosshair color in the Settings route's camera editor. Add to this
  * list when a third appears. It was `sensor-swatch` while there was only one.
  */
 .palette-swatches {
@@ -3368,10 +3368,10 @@ input[type='number']::-webkit-inner-spin-button {
 
 /*
  * Not a button-system variant: a swatch has no label of its own and its whole
- * job is to show one palette colour, so it cannot take the shared fill. It is
+ * job is to show one palette color, so it cannot take the shared fill. It is
  * the size of a checkbox rather than of a control tier, for the same reason
  * the checkbox is — it sits in a row of them. The selected one carries a tick
- * as well as a ring, because a set of swatches distinguished only by colour is
+ * as well as a ring, because a set of swatches distinguished only by color is
  * unusable to whoever most needs to choose between them.
  */
 .palette-swatch {
@@ -3544,7 +3544,7 @@ input[type='number']::-webkit-inner-spin-button {
 }
 
 /*
- * Idle mutes the colour rather than hiding the readout — the figure is always
+ * Idle mutes the color rather than hiding the readout — the figure is always
  * on, so a jog that never took effect no longer looks identical to one that
  * did. The number itself is what says "moving" or "not"; this only softens
  * it at rest, never the sole signal.
@@ -3573,16 +3573,16 @@ input[type='number']::-webkit-inner-spin-button {
  * rather than being padding.
  */
 /*
- * Capped and centred on the same 26rem as the jog matrix, so the two line up
- * as one control rather than a stamp floating above a centred grid. Without
+ * Capped and centered on the same 26rem as the jog matrix, so the two line up
+ * as one control rather than a stamp floating above a centered grid. Without
  * the cap a wide card left the plot at its height-limited size with 480px of
  * empty row either side of it.
  *
- * The centring lives here rather than on `.bed-plan` itself, because this is
+ * The centering lives here rather than on `.bed-plan` itself, because this is
  * now the box the plot and the Z slider share, and a `margin-inline: auto` on
  * `.bed-plan` alone would fight a shared flex row — an auto margin on one
- * flex item among several centres that item in the leftover space rather
- * than centring the row.
+ * flex item among several centers that item in the leftover space rather
+ * than centering the row.
  *
  * `align-items: flex-start` rather than `stretch`: a rotated `input[type=
  * range]` reports its intrinsic size into the flex line's own cross-size
@@ -3677,7 +3677,7 @@ input[type='number']::-webkit-inner-spin-button {
 
 /*
  * The commit control, in the one corner nothing else claims: the readout holds
- * the bottom left and the centre lines cross the middle, so the top right is
+ * the bottom left and the center lines cross the middle, so the top right is
  * free at every bed aspect the plot can draw. An overlay rather than a control
  * beside the plot — that is what makes it cost no width, which is the whole
  * reason the first `Go` was removed.
@@ -3714,9 +3714,9 @@ input[type='number']::-webkit-inner-spin-button {
 
 /*
  * A hovered value stands in for the machine's own position rather than
- * reporting it, so it takes the accent colour rather than the plain text
- * colour the actual reading uses — the same distinction a placed target's
- * colour makes against the nozzle's, just applied to the corner numbers
+ * reporting it, so it takes the accent color rather than the plain text
+ * color the actual reading uses — the same distinction a placed target's
+ * color makes against the nozzle's, just applied to the corner numbers
  * instead of the markers.
  */
 .bed-plan__readout-axis--preview {
@@ -3791,7 +3791,7 @@ input[type='number']::-webkit-inner-spin-button {
 /*
  * The Z axis slider: the one-axis sibling of the bed plan, standing beside it
  * at the same height rather than adding a row of its own. The same control
- * the Part Fan slider is — a native `input[type=range]`, coloured by
+ * the Part Fan slider is — a native `input[type=range]`, colored by
  * `accent-color` and committed on release — rotated into the one dimension Z
  * has, not a bespoke pointer surface like the plan beside it.
  */
@@ -3877,7 +3877,7 @@ input.z-axis__slider {
  * matrix to the plan's own footprint so the two read as one control, but
  * a docked settings card can dwarf the 860px card that cap was measured
  * against — several times the width the plan and its height-limited plot
- * ever grow into — and centring a capped grid inside a column that wide
+ * ever grow into — and centering a capped grid inside a column that wide
  * left most of the card's own width doing nothing on either side of it,
  * exactly the defect this rule prevents on the unpaired side. The jog rows
  * fill their column at every width now, on both sides of `--paired`, and
@@ -3982,7 +3982,7 @@ input.z-axis__slider {
 
 /*
  * The pivot homes its own axis and shows whether that axis is homed. The dot
- * is a shape rather than a second colour, so the state is not carried by hue
+ * is a shape rather than a second color, so the state is not carried by hue
  * alone; the accessible name states it in words.
  *
  * The icon sits beside the letter rather than above it: this is what lets the
@@ -4087,7 +4087,7 @@ input.z-axis__slider {
  * An alignment the machine has not run this session, stated under the button
  * that runs it. The same caution treatment `.trim__pending` uses — both say the
  * same kind of thing, that something is outstanding rather than wrong — and it
- * carries an icon as well as the colour, since the colour alone may not be seen.
+ * carries an icon as well as the color, since the color alone may not be seen.
  */
 .movement-actions__notice {
   display: flex;
@@ -4296,7 +4296,7 @@ input.z-axis__slider {
  * split: it asks for a compositor layer up front, so the transform written
  * sixty times a second by `applyScroll` never becomes a repaint. Black and
  * transparent above are a mask's coverage rather than paint — the neutral the
- * theme rules already allow — and nothing here is a colour.
+ * theme rules already allow — and nothing here is a color.
  */
 .temperature-chart__layer {
   position: absolute;
@@ -4347,7 +4347,7 @@ input.z-axis__slider {
  * borderless, and only its children carry chrome.
  *
  * `margin: 0` is load-bearing. Tailwind's preflight zeroes every margin, which
- * removes the `margin: auto` a dialog relies on to centre itself — which is
+ * removes the `margin: auto` a dialog relies on to center itself — which is
  * how this first rendered jammed into the top-left corner. Filling the
  * viewport outright sidesteps the question.
  */
@@ -4394,12 +4394,12 @@ input.z-axis__slider {
 }
 
 /*
- * Two equal tracks, so the boundary between pane and card falls on the centre
+ * Two equal tracks, so the boundary between pane and card falls on the center
  * of the screen: the pane ends there and the card begins there, whatever
  * width either happens to be.
  */
 /*
- * The pair sits in the vertical centre of the screen, and its two halves are
+ * The pair sits in the vertical center of the screen, and its two halves are
  * top-aligned to each other as though they shared a container: `align-content`
  * places the row, `align-items` places them within it. `safe` so a pair taller
  * than the viewport falls back to the start rather than overflowing off the
@@ -4639,7 +4639,7 @@ input.z-axis__slider {
  * its settings surface — the card fades onto it and back over it. Hollow, and
  * shaped like the card rather than marked with the dashed "this is where the
  * thing goes" language layout editing uses elsewhere: a box of a different
- * shape and colour appearing as the card fades reads as a flash, where an
+ * shape and color appearing as the card fades reads as a flash, where an
  * empty copy of the card's own shell reads as its contents having faded to
  * nothing.
  */
@@ -4841,7 +4841,7 @@ input.z-axis__slider {
 }
 
 /*
- * Colour names the sensor; the dash pattern names the quantity. The old chart
+ * Color names the sensor; the dash pattern names the quantity. The old chart
  * dashed every odd-indexed series, which encoded its own array order and
  * nothing about the printer — two sensors could swap appearance because a third
  * was plugged in. Solid is what the sensor read, dashed is what it was asked
@@ -5182,7 +5182,7 @@ input.z-axis__slider {
 /*
  * The height map draws itself to fit whatever box it is given, so the stage
  * fixes one aspect for every bed instead of growing a tall card for a deep one
- * or a wide one for a long one. A mesh narrower than the stage sits centred
+ * or a wide one for a long one. A mesh narrower than the stage sits centered
  * inside it rather than being stretched to the edges.
  */
 .mesh-stage {
@@ -5325,7 +5325,7 @@ input.z-axis__slider {
   /* The `background` shorthand resets repeat to its initial `repeat`. Left at
    * that, a fractional flex-item width (near-guaranteed by `flex: 1`) tiles a
    * sliver of a second copy of the gradient at each edge — which paints one
-   * device pixel of the opposite end's deep colour onto this one. */
+   * device pixel of the opposite end's deep color onto this one. */
   background: linear-gradient(
     to right,
     var(--mesh-low-deep),
@@ -5674,7 +5674,7 @@ input.z-axis__slider {
  * The height, and the two heights already tried either side of it. Three cells
  * rather than one line of prose, because the bounds are the same kind of number
  * as the height between them and reading them as a row is what makes "halve the
- * gap" mean anything. `1fr auto 1fr` keeps the height centred whatever the
+ * gap" mean anything. `1fr auto 1fr` keeps the height centered whatever the
  * bounds say, so the one number the dialog is about does not slide sideways as
  * they fill in.
  */
@@ -5828,7 +5828,7 @@ input.z-axis__slider {
 /*
  * Pass, screw, and progress. `1fr auto 1fr` for the reason the probe's readout
  * uses it: the screw's own name is what the prompt is about, and it stays
- * centred rather than sliding sideways as the counters either side of it change
+ * centered rather than sliding sideways as the counters either side of it change
  * width.
  */
 .bed-screws-dialog__readout {
@@ -6273,12 +6273,12 @@ input.z-axis__slider {
 }
 
 /*
- * A chosen colour tints the border only — never the fill, per the rule that a
+ * A chosen color tints the border only — never the fill, per the rule that a
  * control fill is never a translucent tint of its own label's hue — so the
  * label stays on its normal, always-legible `--text-primary`/mono styling
  * regardless of which of the seven hues is picked. The dot beside the label
- * is what actually carries the colour somewhere a border's 1px can be easy to
- * miss, and it is`aria-hidden`: the colour is personalisation a sighted user
+ * is what actually carries the color somewhere a border's 1px can be easy to
+ * miss, and it is`aria-hidden`: the color is personalisation a sighted user
  * chose to see, not state anyone needs announced.
  */
 .macro-control__run--accent {
@@ -6286,7 +6286,7 @@ input.z-axis__slider {
 }
 
 /*
- * The caret is the same macro's control, so a chosen colour borders it too —
+ * The caret is the same macro's control, so a chosen color borders it too —
  * `--macro-accent-color` is set once on the shared `.macro-control` wrapper
  * and inherits into both children, so this needs no style binding of its own.
  */
@@ -6407,7 +6407,7 @@ input.z-axis__slider {
 }
 
 /*
- * A section heading row carries no macro identity — no colour, no
+ * A section heading row carries no macro identity — no color, no
  * visibility toggles, no missing badge — so its only content control is the
  * text field itself. `flex: 1 1 auto` is what tells the two apart from the
  * far side too: a macro row's name only ever takes the space its text needs
@@ -6446,7 +6446,7 @@ input.z-axis__slider {
 }
 
 /*
- * Quiet at rest, unlike the colour swatch, the visibility toggles, and the
+ * Quiet at rest, unlike the color swatch, the visibility toggles, and the
  * delete button beside it: those are reached for regardless of input device,
  * so they stay visible the way `main.css` already visible chrome does. These
  * two are only the keyboard and touch path for a reorder a mouse now does by
@@ -6704,10 +6704,10 @@ input.z-axis__slider {
    * `scrollbar-color` (Firefox, and Chromium/Edge since 121) and the
    * `::-webkit-scrollbar-*` pseudo-elements below (Safari, and older Chromium)
    * are two names for the same override: together they replace the OS-drawn
-   * bar's colour with a themed one on every engine, without a hand-built thumb
+   * bar's color with a themed one on every engine, without a hand-built thumb
    * element to keep in sync with scroll position, dragging, resize, and
    * keyboard/touch scrolling ourselves. `--text-muted` is the token, so a
-   * theme pack that recolours it recolours the scrollbar too, and it stays the
+   * theme pack that recolors it recolors the scrollbar too, and it stays the
    * default here — always visible — because the console page's transcript
    * fills the whole workspace and has no "unfocused" state to fade against.
    * `.console-module__body` below overrides both properties to transparent so
@@ -6788,7 +6788,7 @@ input.z-axis__slider {
  * line. `mask-image` rather than a fading overlay element, so the fade needs
  * no extra markup and tracks the transcript's own background — the panel or
  * card behind it, per the two `.gcode-console { background: none }` rules
- * above — instead of hard-coding a colour of its own that would drift the
+ * above — instead of hard-coding a color of its own that would drift the
  * moment either surface's background changed.
  *
  * The gradient's own two stops are stated in the line-box unit so `compact`
@@ -7209,7 +7209,7 @@ input.z-axis__slider {
  * On the dashboard card, the scrollbar itself is chrome: worth having while the
  * reader is actually working the transcript, a distraction on a card sitting
  * quietly on the Overview grid otherwise. It starts transparent and the hover
- * and focus-within rules below restore the same themed colour the page's copy
+ * and focus-within rules below restore the same themed color the page's copy
  * carries permanently — never a change to `overflow` or the webkit scrollbar's
  * `width`, which is what keeps its track reserved at every state instead of the
  * content reflowing as the thumb appears.
@@ -7461,12 +7461,12 @@ input.z-axis__slider {
 }
 
 /*
- * A plain block, not a centring grid. It was `display: grid; place-items:
+ * A plain block, not a centering grid. It was `display: grid; place-items:
  * center`, and the consequence was a stream shrunk to a small box in the middle
  * of a wide card: `justify-items: center` gives a grid item its *content* width,
  * and a tile whose only child is absolutely positioned has no content width — so
  * the tile fell back to its `min-height` and derived a width from its aspect
- * ratio. Centring belongs to the empty state, which is the only child that
+ * ratio. Centering belongs to the empty state, which is the only child that
  * wants it.
  */
 .camera-stage {
@@ -7512,12 +7512,12 @@ input.z-axis__slider {
 /*
  * The dot reports the stream's own state, and never alone: `stalled` also writes
  * the word beside it and a failure replaces the picture with a notice, so the
- * colour is reinforcement rather than the message. `connecting` is the
+ * color is reinforcement rather than the message. `connecting` is the
  * recovering tone rather than a spinner — ADR 0004 rules out a spinner that
  * flashes for a few hundred milliseconds on every card that scrolls into view.
  *
  * Qualified by the element, not written as a bare class: `.camera-stage__label
- * i` above already sets the available colour and is the more specific of the
+ * i` above already sets the available color and is the more specific of the
  * two, so a bare `.camera-stage__label-dot--error` lost to it and every dot
  * stayed green whatever the stream was doing.
  */
@@ -7546,7 +7546,7 @@ input.z-axis__slider {
 }
 
 /*
- * Positioned from the centre because the frame is rotated about its own middle;
+ * Positioned from the center because the frame is rotated about its own middle;
  * see `cameraFrameLayout`, which supplies the matching `translate(-50%, -50%)`
  * and — for a quarter turn — the transposed width and height.
  */
@@ -7658,9 +7658,9 @@ input.z-axis__slider {
 
 /*
  * The palette's vermillion is the default, overridden inline once the user
- * picks a hue. A token rather than a literal so an unrecoloured crosshair still
+ * picks a hue. A token rather than a literal so an unrecolored crosshair still
  * belongs to the active theme pack, and so this obeys the same
- * one-palette-for-user-chosen-colour rule as macro colours and sensor traces.
+ * one-palette-for-user-chosen-color rule as macro colors and sensor traces.
  */
 .camera-crosshair__arm {
   position: absolute;
@@ -7738,7 +7738,7 @@ input.z-axis__slider {
  * --- The Camera pane's picker ---
  *
  * Deliberately not `.macro-row` and friends. The two lists merely look alike:
- * a macro row carries a colour swatch, three print-state toggles and a drag
+ * a macro row carries a color swatch, three print-state toggles and a drag
  * handle, and is draggable; a camera row carries a name and a reorder pair.
  * Sharing the class would mean every change made for one silently reshaping
  * the other, which is the line this codebase already draws between a set that
@@ -8601,7 +8601,7 @@ input.z-axis__slider {
 /*
  * The one `AppSlider` whose accent is not the shared blue: it reports playback
  * position on the viewer stage, so it takes that surface's own progress
- * colour instead — see `--app-slider-accent` in app-slider.css.
+ * color instead — see `--app-slider-accent` in app-slider.css.
  */
 .gcode-simulation-scrubber {
   --app-slider-accent: var(--viewer-progress);
@@ -10339,7 +10339,7 @@ body.machine-editor-fullscreen-open {
  * cards. Dims what is underneath and repeats the affordance as a centered
  * box, so the surface reads as a drop target wherever the drag is looked at,
  * rather than relying on a thin edge like the file list's own ring. Dashed in
- * the accent colour, matching this product's one dashed language elsewhere
+ * the accent color, matching this product's one dashed language elsewhere
  * (dashboard editing, a row mid-drag) rather than inventing a second one. The
  * host needs `position: relative`; `.dashboard-module` and `.print-card`
  * already clip their own overflow, so this never escapes the card.
@@ -10377,7 +10377,7 @@ body.machine-editor-fullscreen-open {
 }
 
 /*
- * Unlike other file selects, these rows switch their hover colour instantly
+ * Unlike other file selects, these rows switch their hover color instantly
  * instead of fading it. Navigating a folder patches the row under the pointer
  * in place (see the list comment in FileExplorerView), so when a ".." row
  * shifts the list by one position the pointer momentarily lands on a different
@@ -10428,23 +10428,23 @@ body.machine-editor-fullscreen-open {
 }
 
 /*
- * Folders carry no colour of their own at rest — only the hover rule below
+ * Folders carry no color of their own at rest — only the hover rule below
  * and the caution fill two rules down (an unsaved file somewhere inside)
- * recolour one. A permanently tinted folder left hover nothing to show; see
+ * recolor one. A permanently tinted folder left hover nothing to show; see
  * interface-standards.md's Configuration contract.
  */
 
 /*
- * `.icon-status-accent` is the one detail `fileCode` recolours (AppIcon.vue)
+ * `.icon-status-accent` is the one detail `fileCode` recolors (AppIcon.vue)
  * — every other file icon stays plain `currentColor`. Reuses
- * `--status-available`, the header connection pill's "on" colour: printer.cfg
+ * `--status-available`, the header connection pill's "on" color: printer.cfg
  * wiring is its own kind of "live," not a reason to add a new hue.
  */
 .machine-file-icon--included .icon-status-accent {
   fill: var(--status-available);
 }
 
-/* Takes precedence over the included colour above when both apply: unsaved
+/* Takes precedence over the included color above when both apply: unsaved
    edits are the more actionable status of the two. Source order after
    `--included` settles the tie, since both selectors match with equal
    specificity. */
@@ -10462,10 +10462,10 @@ body.machine-editor-fullscreen-open {
 }
 
 /*
- * The interactive affordance every clickable row gives, recolouring the base
+ * The interactive affordance every clickable row gives, recoloring the base
  * shape only — never `.icon-status-accent` above, so hovering an included or
- * dirty file never fights its status colour. Dirty is excluded entirely: that
- * caution colour holds regardless of hover, the same precedence the rule
+ * dirty file never fights its status color. Dirty is excluded entirely: that
+ * caution color holds regardless of hover, the same precedence the rule
  * above gives it over included.
  */
 .machine-file-row:hover:not(:disabled) .machine-file-icon-hover svg:not(.machine-file-icon--dirty) {
@@ -11651,7 +11651,7 @@ body.machine-editor-fullscreen-open {
 }
 
 /*
- * The outcome carries an icon and a word. Colour is the third statement, never
+ * The outcome carries an icon and a word. Color is the third statement, never
  * the only one — a failed job and a completed one must not be told apart by hue.
  */
 .history-job__outcome {
@@ -11856,10 +11856,10 @@ body.machine-editor-fullscreen-open {
  * `docs/design/interface-standards.md`'s `module-table` section, which keeps
  * a list of every instance current. Five columns: the outcome (icon and word,
  * reusing `.history-job__outcome` so this table and the job list beneath it
- * visibly agree), jobs, share, filament, time. No separate colour-filled
+ * visibly agree), jobs, share, filament, time. No separate color-filled
  * proportion bar sits beside it — this surface's own convention is icon and
- * word carrying the outcome, colour only ever the third statement, and a
- * second, larger colour-filled area would either repeat that with new tokens
+ * word carrying the outcome, color only ever the third statement, and a
+ * second, larger color-filled area would either repeat that with new tokens
  * or reach for a solid danger fill, which `button-system.md` reserves for the
  * emergency-stop pill alone.
  */
@@ -11888,7 +11888,7 @@ body.machine-editor-fullscreen-open {
  * Transparent, but not `fill: none` — SVG only registers pointer events on a
  * painted fill, and `none` would make the hit target invisible to the mouse
  * as well as the eye. It has neither a border nor a visible fill of its own
- * to recolour on focus, so its `:focus-visible` joins the bare-text outline
+ * to recolor on focus, so its `:focus-visible` joins the bare-text outline
  * group above (`.file-select`, `.tab-select`, `.text-action`) rather than
  * inventing a fourth focus model.
  */
@@ -12005,8 +12005,8 @@ body.machine-editor-fullscreen-open {
 
 /*
  * Maintenance. One row per interval, icon and word carrying its status the
- * same way `history-job__outcome` does — colour is the third statement here
- * too, never the only one, and "overdue" gets no stronger a colour than "due
+ * same way `history-job__outcome` does — color is the third statement here
+ * too, never the only one, and "overdue" gets no stronger a color than "due
  * soon": both are `--status-caution-text`, distinguished by their own word.
  */
 .maintenance-list {
@@ -12322,7 +12322,7 @@ body.machine-editor-fullscreen-open {
 }
 
 /*
- * The mark is a shape before it is a colour: a triggered endstop is filled, an
+ * The mark is a shape before it is a color: a triggered endstop is filled, an
  * open one is an outline, and the word beside it says which either way. Nothing
  * here is legible by hue alone.
  */
@@ -12398,7 +12398,7 @@ body.machine-editor-fullscreen-open {
   color: var(--text-muted);
 }
 
-/* Shape before colour, the same rule the endstop mark beside this panel follows. */
+/* Shape before color, the same rule the endstop mark beside this panel follows. */
 .calibration-sensor__mark {
   inline-size: 0.6rem;
   block-size: 0.6rem;
@@ -12677,7 +12677,7 @@ body.machine-editor-fullscreen-open {
 }
 
 /*
- * Composed on `file-select`, which owns the type, colour, hover, and focus of
+ * Composed on `file-select`, which owns the type, color, hover, and focus of
  * every row the user picks a file out of. This class adds the grid and nothing
  * else — the same division the File Explorer's rows use, so the two lists cannot
  * drift apart in everything except their columns.
@@ -12774,7 +12774,7 @@ body.machine-editor-fullscreen-open {
   font-size: var(--text-meta-size);
 }
 
-/* A real filament's own reported colour, not a theme token — the same case `.spool-swatch` below is. */
+/* A real filament's own reported color, not a theme token — the same case `.spool-swatch` below is. */
 .filament-chip__swatch {
   width: 0.65rem;
   height: 0.65rem;
@@ -13094,7 +13094,7 @@ body.machine-editor-fullscreen-open {
 /*
  * Aligned to the first line, not to the box.
  *
- * Expanding a column adds the address under its name, and centring the row
+ * Expanding a column adds the address under its name, and centering the row
  * against a name that is sometimes one line and sometimes two moved the chevron
  * and the emergency stop down by half a line as the card opened — the control
  * the reader had just clicked, sliding out from under the pointer. So the name
@@ -13163,7 +13163,7 @@ body.machine-editor-fullscreen-open {
 
 /*
  * The emergency stop, outlier 5 in `button-system.md` and its second instance.
- * Not an `AppButton`: it is found before it is read, so a fixed danger colour
+ * Not an `AppButton`: it is found before it is read, so a fixed danger color
  * and the brake glyph carry that instead of button chrome. It stays on a
  * *collapsed* column deliberately — the reason to have it here at all is
  * spotting a crash on a machine nobody is driving, and expanding first would be
@@ -13205,7 +13205,7 @@ body.machine-editor-fullscreen-open {
 }
 
 /*
- * State is never colour alone: the chip's word is the state, and the tone only
+ * State is never color alone: the chip's word is the state, and the tone only
  * reinforces it.
  */
 .farm-chip[data-tone='printing'],
@@ -13563,7 +13563,7 @@ body.machine-editor-fullscreen-open {
 
 /*
  * Homed is the unremarkable state, so it recedes; not-homed is the one worth
- * noticing. Both say which they are in words — the colour only reinforces it.
+ * noticing. Both say which they are in words — the color only reinforces it.
  */
 .farm-home__state[data-homed='true'] {
   color: var(--text-muted);

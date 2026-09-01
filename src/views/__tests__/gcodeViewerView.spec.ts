@@ -212,7 +212,7 @@ describe('G-code viewer view', () => {
   it('shows the control cards and the empty stage before any file loads', async () => {
     const view = await mountView()
 
-    // Load, Layers and tracking, Colour, Rendering quality. View is gone: its
+    // Load, Layers and tracking, Color, Rendering quality. View is gone: its
     // reset and zoom live on the stage now. File statistics appears with a file.
     expect(view.findAll('.gcode-control-card').length).toBe(4)
     expect(view.find('.gcode-viewer-empty').exists()).toBe(true)

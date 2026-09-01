@@ -310,7 +310,7 @@
 /*
  * The accent is `--action-primary` by default — the same blue `AppField`'s own
  * border already uses, not a hue invented for this component. `--app-slider-accent`
- * exists only so a caller embedded in a surface with its own progress colour
+ * exists only so a caller embedded in a surface with its own progress color
  * (the G-code viewer's playback scrubber, which takes `--viewer-progress` to
  * match the stage around it) can override it in one scoped rule rather than
  * this component growing a second "which color" prop.

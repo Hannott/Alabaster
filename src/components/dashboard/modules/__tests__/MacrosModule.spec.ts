@@ -128,7 +128,7 @@ describe('MacrosModule', () => {
     expect(panel?.querySelector('button[type="submit"]')).toHaveProperty('disabled', true)
   })
 
-  it('tints a coloured macro with its chosen accent, and leaves an uncoloured one alone', async () => {
+  it('tints a colored macro with its chosen accent, and leaves an uncolored one alone', async () => {
     const { macros, wrapper } = mountModule({
       macros: ['LOAD_FILAMENT', 'UNLOAD_FILAMENT'],
       colors: { LOAD_FILAMENT: 'sky' },
@@ -138,14 +138,14 @@ describe('MacrosModule', () => {
     await flushPromises()
 
     const buttons = wrapper.findAll('.macro-control__run')
-    const coloured = buttons.find((button) => button.text() === 'Load Filament')!
+    const colored = buttons.find((button) => button.text() === 'Load Filament')!
     const plain = buttons.find((button) => button.text() === 'Unload Filament')!
 
-    expect(coloured.classes()).toContain('macro-control__run--accent')
+    expect(colored.classes()).toContain('macro-control__run--accent')
     // The custom property is set once on the shared `.macro-control` wrapper
     // and inherits into the run button, rather than being repeated on it.
-    expect(coloured.element.parentElement?.getAttribute('style')).toContain('--color-data-sky')
-    expect(coloured.find('.macro-control__accent-dot').exists()).toBe(true)
+    expect(colored.element.parentElement?.getAttribute('style')).toContain('--color-data-sky')
+    expect(colored.find('.macro-control__accent-dot').exists()).toBe(true)
 
     expect(plain.classes()).not.toContain('macro-control__run--accent')
     expect(plain.find('.macro-control__accent-dot').exists()).toBe(false)

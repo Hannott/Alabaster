@@ -59,7 +59,7 @@ const timeFormatter = computed(() => createTimeFormatter(locale.value))
       <li v-for="reading in endstops.readings" :key="reading.name" class="calibration-endstop">
         <span class="calibration-endstop__name">{{ reading.name }}</span>
         <!--
-          Shape and word, never colour alone: a triggered endstop reads as
+          Shape and word, never color alone: a triggered endstop reads as
           filled with the word beside it, an open one as an outline.
         -->
         <span

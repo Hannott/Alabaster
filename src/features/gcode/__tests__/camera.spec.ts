@@ -131,7 +131,7 @@ describe('G-code perspective camera', () => {
     }
   })
 
-  it('aims the centre ray straight at the orbit target', () => {
+  it('aims the center ray straight at the orbit target', () => {
     const camera = fittedCamera(bounds, 800, 600)
     const ray = cameraViewRay(camera, 400, 300, 800, 600)
     const forward = cameraForward(camera)
@@ -161,7 +161,7 @@ describe('G-code perspective camera', () => {
     expect(camera.targetZ).toBeCloseTo(reference.targetZ, 3)
   })
 
-  it('keeps an off-centre pivot pinned to its pixel while orbiting around it', () => {
+  it('keeps an off-center pivot pinned to its pixel while orbiting around it', () => {
     const camera = fittedCamera(bounds, 800, 600)
     const pivot: [number, number, number] = [40, 160, 30]
     const eye = cameraPosition(camera)

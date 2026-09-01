@@ -167,9 +167,9 @@ onMounted(() => {
       </p>
       <p v-else class="mt-1 flex items-center gap-1.5 text-card-title">
         <!--
-          The swatch renders the filament's own reported colour, not a theme
+          The swatch renders the filament's own reported color, not a theme
           token — real-world spool data, the same category as a user-picked
-          avatar colour, not a semantic UI role.
+          avatar color, not a semantic UI role.
         -->
         <span
           v-if="swatchColor"

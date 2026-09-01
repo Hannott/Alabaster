@@ -10,7 +10,7 @@ import type { GcodeBounds, GcodeCamera } from '@/features/gcode/types'
 export type GcodePoint = readonly [number, number, number]
 
 // How far past the bed edge a plane hit may still land, as a multiple of the bed
-// extent. Looking down at a tall model puts the centre ray outside the bed by a
+// extent. Looking down at a tall model puts the center ray outside the bed by a
 // fair margin, which is still a sensible pivot, while grazing views hitting the
 // plane hundreds of metres out are not.
 const bedMargin = 2

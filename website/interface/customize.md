@@ -20,7 +20,7 @@ ruler, then choose XS, S, M, L, or XL. XS-XL-XS and L-S-S are both valid
 combinations, and the ruler shows the shape you are making.
 
 Each width has a ceiling of its own. Three XS columns stay narrow and sit
-centred with space either side rather than stretching to fill a large monitor,
+centered with space either side rather than stretching to fill a large monitor,
 and an XL column keeps growing long after an XS one has stopped.
 
 Hidden cards are listed under **Available modules**, ready to add back.
@@ -71,7 +71,7 @@ The usual **Macros** arrangement is one card per job:
   paused.
 - **Calibration**: PID tuning, test prints, resonance runs.
 
-Each macro button can have a colour from the Okabe-Ito palette. Each group
+Each macro button can have a color from the Okabe-Ito palette. Each group
 can be set to appear only while the printer is idle, paused, or printing.
 
 The usual **Camera** arrangement is one card per subject: for example, "the

@@ -57,7 +57,7 @@ const hasResonanceTester = computed(() => printerConfig.hasSection('resonance_te
  * These are power-spectral-density means, not a physical unit with an
  * established "too high" threshold Klipper documents anywhere Alabaster could
  * cite — so this only formats them for reading, at the same precision Klipper's
- * own `%.6f` prints, rather than judging or colouring them as good or bad on a
+ * own `%.6f` prints, rather than judging or coloring them as good or bad on a
  * threshold nobody has confirmed.
  */
 const noiseFormatter = computed(

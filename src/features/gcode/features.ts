@@ -11,8 +11,8 @@ import { GcodeFeature } from '@/features/gcode/types'
  *   and "Internal infill" differ by one word and belong in different
  *   categories; a substring match on "infill" would silently merge them.
  * - **Unknown labels become `Other`.** The established Klipper web interface's
- *   viewer defaults to feature colouring and renders an entire OrcaSlicer print
- *   in one flat colour because its table has no entry for it — a mode that
+ *   viewer defaults to feature coloring and renders an entire OrcaSlicer print
+ *   in one flat color because its table has no entry for it — a mode that
  *   silently means nothing is worse than an obvious grey.
  */
 

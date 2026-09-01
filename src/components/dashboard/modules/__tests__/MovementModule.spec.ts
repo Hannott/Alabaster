@@ -181,7 +181,7 @@ describe('MovementModule', () => {
     expect(pivots).toHaveLength(3)
     expect(pivots[0]?.classes()).toContain('jog-pivot--homed')
     expect(pivots[2]?.classes()).not.toContain('jog-pivot--homed')
-    // A shape, so the state is not carried by colour alone.
+    // A shape, so the state is not carried by color alone.
     expect(pivots[0]?.find('.jog-pivot__dot').exists()).toBe(false)
     expect(pivots[2]?.find('.jog-pivot__dot').exists()).toBe(true)
     expect(pivots[2]?.attributes('aria-label')).toBe('Z is not homed — home it')
@@ -198,7 +198,7 @@ describe('MovementModule', () => {
 
     const gated = () => [
       wrapper.findAll('.jog-matrix:not(.jog-matrix--machine)')[0]?.findAll('button').at(0),
-      buttonNamed(wrapper, 'Park centre'),
+      buttonNamed(wrapper, 'Park center'),
       wrapper.find('.jog-leveling-shortcut'),
       // Every offset control issues MOVE=1, which Klipper refuses on an
       // unhomed axis — these used to be enabled and fail with a command error.
@@ -224,7 +224,7 @@ describe('MovementModule', () => {
 
     const gated = [
       wrapper.findAll('.jog-matrix:not(.jog-matrix--machine)')[0]?.findAll('button').at(0), // X, already homed
-      buttonNamed(wrapper, 'Park centre'),
+      buttonNamed(wrapper, 'Park center'),
       wrapper.find('.jog-leveling-shortcut'),
       wrapper.findAll('.trim__steps button').at(0),
     ]
@@ -255,8 +255,8 @@ describe('MovementModule', () => {
     expect(wrapper.find('.jog-matrix--machine').exists()).toBe(false)
     expect(wrapper.find('.jog-leveling-shortcut').exists()).toBe(false)
 
-    const parkCentre = buttonNamed(wrapper, 'Park centre')
-    expect(parkCentre?.attributes('disabled')).toBeDefined()
+    const parkCenter = buttonNamed(wrapper, 'Park center')
+    expect(parkCenter?.attributes('disabled')).toBeDefined()
 
     const zOffsetControls = [
       wrapper.findAll('.trim__steps button').at(0),
@@ -269,7 +269,7 @@ describe('MovementModule', () => {
     expect(wrapper.findAll('.jog-matrix:not(.jog-matrix--machine)')).toHaveLength(3)
     expect(wrapper.find('.jog-matrix--machine').exists()).toBe(true)
     expect(wrapper.find('.jog-leveling-shortcut').exists()).toBe(true)
-    expect(buttonNamed(wrapper, 'Park centre')?.attributes('disabled')).toBeUndefined()
+    expect(buttonNamed(wrapper, 'Park center')?.attributes('disabled')).toBeUndefined()
   })
 
   /**
@@ -440,7 +440,7 @@ describe('MovementModule', () => {
    * A slow Z move and a command that was silently refused looked identical
    * before this, and `motion_report.live_velocity` was already subscribed and
    * rendered nowhere. The readout is always visible — it mutes to the idle
-   * colour rather than disappearing, so it never reads as broken.
+   * color rather than disappearing, so it never reads as broken.
    */
   it('says the toolhead is moving, and settles back to idle once it stops', async () => {
     const { printer, wrapper } = mountModule()
@@ -513,7 +513,7 @@ describe('MovementModule', () => {
     readyToMove(printer)
     await flushPromises()
 
-    for (const label of ['Motors off', 'Park centre']) {
+    for (const label of ['Motors off', 'Park center']) {
       expect(buttonNamed(wrapper, label)?.attributes('title')).toBeUndefined()
     }
     expect(
@@ -608,7 +608,7 @@ describe('MovementModule', () => {
     readyToMove(printer)
     await flushPromises()
 
-    await buttonNamed(wrapper, 'Park centre')?.trigger('click')
+    await buttonNamed(wrapper, 'Park center')?.trigger('click')
     expect(moveTo).toHaveBeenCalledWith({ x: 150, y: 150 })
   })
 
@@ -1157,7 +1157,7 @@ describe('MovementModule', () => {
   })
 
   /**
-   * The `min / centre / max` mode is gone: it asked a spatial question and
+   * The `min / center / max` mode is gone: it asked a spatial question and
    * answered it with numbers that never fitted the buttons drawing them —
    * `235.0` is 33px of text in a 29.9px cell — and the bed plan answers the
    * same question for any coordinate. A configuration still holding it has to

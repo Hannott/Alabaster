@@ -5,10 +5,10 @@
  *
  * The fill's accent is `--action-primary` by default — the same rule
  * `AppSlider`'s own track-fill follows, for the same reason: a caller with its
- * own progress colour (the G-code viewer's own loading track uses
+ * own progress color (the G-code viewer's own loading track uses
  * `--viewer-accent` on a bespoke `.gcode-loading-track`, not this component)
  * can override `--app-progress-bar-accent` in one scoped rule rather than this
- * component growing a second "which colour" prop. This is also the fix for
+ * component growing a second "which color" prop. This is also the fix for
  * the bug this component replaced: the print module's own bar used to fill
  * with `bg-data-sky`, a fixed data-series hue that
  * `src/themes/README.md` documents as deliberately not changing per theme

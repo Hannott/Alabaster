@@ -235,7 +235,7 @@ describe('Calibration view', () => {
     expect(view.findComponent(HeaterCalibrationPanel).exists()).toBe(true)
   })
 
-  it('reports each endstop with a word, not a colour alone', async () => {
+  it('reports each endstop with a word, not a color alone', async () => {
     const view = await mountView()
 
     const rows = view.findAll('.calibration-endstop')
@@ -245,7 +245,7 @@ describe('Calibration view', () => {
     expect(rows[1]!.text()).toContain('Open')
 
     // The state also carries a shape class, so the reading survives a display
-    // that renders the accent and the muted colour indistinguishably.
+    // that renders the accent and the muted color indistinguishably.
     expect(rows[0]!.find('.calibration-endstop__state--triggered').exists()).toBe(true)
     expect(rows[1]!.find('.calibration-endstop__state--open').exists()).toBe(true)
   })
@@ -712,7 +712,7 @@ describe('Calibration view', () => {
    * stand in for that, the same way production wiring would have by the time
    * anyone opened Calibration.
    */
-  it('reports runout sensor states with a word, not a colour alone', async () => {
+  it('reports runout sensor states with a word, not a color alone', async () => {
     const moonraker = useMoonrakerStore(pinia)
     let snapshotHandler: ((snapshot: { eventtime: number; status: unknown }) => void) | undefined
     vi.spyOn(moonraker, 'rpcCall').mockImplementation(((method: string) => {

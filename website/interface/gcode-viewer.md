@@ -34,7 +34,7 @@ curve.
 
 Geometry ahead of the current print position is not drawn. Only what has
 printed is shown, so the model's edge always matches real progress.
-Finished layers show in the printed colour.
+Finished layers show in the printed color.
 
 This feature requires that the loaded file matches the file being printed.
 The viewer checks this automatically and falls back to plain position
@@ -48,10 +48,10 @@ updates.
 
 ## Inspecting the toolpath
 
-**Colour** changes how moves are coloured:
+**Color** changes how moves are colored:
 
-- **Single**: One colour for the whole model.
-- **Feature**: Colours each move by its type: external and inner
+- **Single**: One color for the whole model.
+- **Feature**: Colors each move by its type: external and inner
   perimeters, infill, solid infill, bridges, support, skirt, and brim. The
   legend lists only the types present in the file. A file from an
   unrecognized slicer shows its moves as unclassified.
@@ -90,9 +90,9 @@ the bed mesh map.
 The chips in the corner of the view zoom, reset the framing, and save a
 screenshot of the current view. The gear icon opens two settings:
 
-- **Rotation pivot**: Sets whether rotation happens around the centre of the
+- **Rotation pivot**: Sets whether rotation happens around the center of the
   view or the point under the pointer.
-- **Snap to centre**: Moves the point you grabbed to the centre of the view
+- **Snap to center**: Moves the point you grabbed to the center of the view
   as you start rotating.
 
 ## Replaying a file
@@ -102,8 +102,8 @@ specified in the file, at up to 20×, with a scrubber to jump to any point.
 Simulation works without a printer connected. Use it to read a slice, check
 where a long print spends its time, or find a problem before printing it.
 
-During simulation, the selected colour mode still applies: printed geometry
-keeps its feature or feed-rate colour, and the rest of the model shows as an
+During simulation, the selected color mode still applies: printed geometry
+keeps its feature or feed-rate color, and the rest of the model shows as an
 outline shell.
 
 ## Rendering quality

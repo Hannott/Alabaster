@@ -16,10 +16,10 @@ export function sensorLabel(sensor: SensorReading, t: (key: string) => string): 
 }
 
 /**
- * The colours a sensor may be drawn in — `dashboardColorTokens`, the shared
+ * The colors a sensor may be drawn in — `dashboardColorTokens`, the shared
  * seven-hue palette, re-exported under this module's own name so nothing
  * calling it has to change. Each carries a name, because a swatch identified
- * only by its colour is unusable to anyone choosing between two hues they
+ * only by its color is unusable to anyone choosing between two hues they
  * cannot tell apart; seven distinguishable choices is also more than a chart
  * of three or four sensors can use anyway.
  */
@@ -41,13 +41,13 @@ const assignableColors = sensorColorTokens
   .filter((key) => key !== 'orange' && key !== 'sky')
 
 /**
- * A stable default colour for a sensor, derived from its own name.
+ * A stable default color for a sensor, derived from its own name.
  *
  * Derived rather than assigned by position, which is what this replaced: the
  * previous version indexed into the palette by where a sensor happened to sit
- * in the discovery order, so plugging in one new thermistor silently recoloured
- * every sensor after it — and a chart whose colours mean something different
- * today than yesterday is worse than one with no colours at all.
+ * in the discovery order, so plugging in one new thermistor silently recolored
+ * every sensor after it — and a chart whose colors mean something different
+ * today than yesterday is worse than one with no colors at all.
  */
 export function defaultSensorColorKey(objectName: string): SensorColorKey {
   const pinned = pinnedColors[objectName]

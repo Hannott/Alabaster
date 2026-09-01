@@ -13,7 +13,7 @@
  *
  * If it ever needs regenerating: sample the model on this grid, testing each
  * voxel by how much of it falls inside the surface rather than whether its
- * centre does. A centre test alone drops every wall thinner than a voxel, and
+ * center does. A center test alone drops every wall thinner than a voxel, and
  * the boat comes out as a hull with no cabin on it.
  */
 const layers: readonly (readonly string[])[] = [

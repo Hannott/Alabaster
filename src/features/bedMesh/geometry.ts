@@ -10,7 +10,7 @@
  *
  * A vertex carries **a position and a deviation, separately**. For the surface
  * they are the same number, but a bar's foot sits on the zero plane while still
- * being coloured for the reading at its top — so height and colour cannot be
+ * being colored for the reading at its top — so height and color cannot be
  * the same attribute. Getting this wrong draws every column with a gradient
  * running up it, which reads as a value the printer never reported.
  *
@@ -27,24 +27,24 @@
  * measurements they actually are, contour says exactly where a given deviation
  * falls, terraces group the bed into bands so its overall shape reads without
  * tracing a gradient, and mosaic is bars pushed edge to edge — one flat tile
- * per probed point, coloured for its own exact reading rather than an average
+ * per probed point, colored for its own exact reading rather than an average
  * or a band, so the number the overlay writes over a tile always names the
- * reading that tile is coloured for.
+ * reading that tile is colored for.
  */
 export type MeshRenderStyle = 'surface' | 'bars' | 'contour' | 'terraced' | 'mosaic'
 
 export interface MeshGeometry {
   /** x, y, z triples in bed coordinates. */
   positions: number[]
-  /** One deviation per vertex, for the colour ramp. */
+  /** One deviation per vertex, for the color ramp. */
   deviations: number[]
   triangles: number[]
   lines: number[]
   /**
    * True when the lines are the drawing rather than an overlay on it. Contour
    * has no surface to outline, so its lines ignore the wireframe setting, take
-   * the layer's own opacity, and are coloured from the ramp rather than drawn
-   * in the flat line colour.
+   * the layer's own opacity, and are colored from the ramp rather than drawn
+   * in the flat line color.
    */
   linesAreTheDrawing: boolean
 }
@@ -128,7 +128,7 @@ function buildSurface(input: MeshGeometryInput): MeshGeometry {
 
 /**
  * One box standing on the zero plane, all eight corners carrying the reading it
- * was built for so the whole column takes a single colour.
+ * was built for so the whole column takes a single color.
  */
 export function pushBox(
   geometry: MeshGeometry,
@@ -250,9 +250,9 @@ function buildMosaic(input: MeshGeometryInput): MeshGeometry {
  * The bed grouped into height bands, one block per cell.
  *
  * Per cell rather than per point, because a terrace is a flat tread and a cell
- * is the only thing here with an area. The block's height and its colour both
+ * is the only thing here with an area. The block's height and its color both
  * come from the snapped value, so the treads and the gradient step together
- * rather than a smooth colour running over a stepped shape.
+ * rather than a smooth color running over a stepped shape.
  */
 function buildTerraced(input: MeshGeometryInput): MeshGeometry {
   const { matrix, area, bandStep } = input

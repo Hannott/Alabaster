@@ -34,7 +34,7 @@ features:
     details: Alabaster measures service intervals in print hours, metres of filament, or days, and warns you before you start a print that would run into an overdue one.
     link: /interface/modules#maintenance
   - title: Readable by contract
-    details: Every control meets WCAG AA contrast on every surface. A test checks this and fails the build if contrast drops. Colour never carries status alone.
+    details: Every control meets WCAG AA contrast on every surface. A test checks this and fails the build if contrast drops. Color never carries status alone.
     link: /accessibility
   - title: Themes, typefaces, and languages
     details: Alabaster includes theme packs with independent light and dark modes, five typefaces including OpenDyslexic, and full localization. English and Norwegian are both available.

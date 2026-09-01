@@ -49,7 +49,7 @@ export function defaultOutputIcon(kind: OutputKind): OutputIconToken | null {
 /**
  * The icon for a row, honouring its card's own choice if it has one — the
  * same shape as `temperatureSensors.ts`'s `sensorColorKey`, one level over
- * (icon instead of colour). An override naming something outside
+ * (icon instead of color). An override naming something outside
  * `outputIconTokens` and not the `NONE_ICON` sentinel (a hand-edited profile,
  * an icon a future release renamed) is dropped rather than trusted, so a
  * corrupt or stale value degrades to this row's own default alone.

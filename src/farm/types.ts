@@ -53,7 +53,7 @@ export interface FarmHeater {
 
 export interface FarmSpool {
   material: string
-  /** `#rrggbb`, or an empty string where Spoolman holds no colour for it. */
+  /** `#rrggbb`, or an empty string where Spoolman holds no color for it. */
   color: string
   /** Grams left on the spool, when Spoolman has enough to compute it. */
   remainingWeight: number | null

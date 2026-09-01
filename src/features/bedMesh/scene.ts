@@ -85,7 +85,7 @@ export type MeshOrientationName = keyof typeof meshOrientationPresets
  * dozen entries in front of someone who wanted "3D" is the wrong trade.
  *
  * Fisheye is the one entry with no place in the taxonomy. It bends the box
- * outward from its centre, giving up straight lines as well as comparability.
+ * outward from its center, giving up straight lines as well as comparability.
  */
 export type MeshProjection =
   | 'perspective'
@@ -218,12 +218,12 @@ export function meshProjectionFixesAngle(projection: MeshProjection): boolean {
 
 /**
  * Camera distance for the perspective projection, in box widths from the
- * centre. Near enough to be seen, far enough that the far corners are not
+ * center. Near enough to be seen, far enough that the far corners are not
  * distorted into a funnel.
  */
 const perspectiveDistance = 4
 
-/** How strongly `fisheye` bends the box outward from its centre. */
+/** How strongly `fisheye` bends the box outward from its center. */
 const fisheyeStrength = 1.1
 
 export interface MeshLayer {
@@ -233,12 +233,12 @@ export interface MeshLayer {
   area: MeshArea
   /** 0 to 1; the flat reference plane is translucent so the mesh reads through it. */
   opacity: number
-  /** A layer with no colour of its own takes the neutral middle of the ramp. */
+  /** A layer with no color of its own takes the neutral middle of the ramp. */
   neutral?: boolean
   /**
-   * Reads from the opposite end of the colour ramp. Two layers occupying
+   * Reads from the opposite end of the color ramp. Two layers occupying
    * nearly the same point in space — the probed points and the interpolated
-   * cell under them — read as one blurred layer if both take their colour
+   * cell under them — read as one blurred layer if both take their color
    * from the same end of the ramp for the same deviation; inverting one
    * keeps them visually apart at a glance, for any value either happens to
    * hold.
@@ -323,18 +323,18 @@ export interface MeshSceneInput {
    * drag pulls orientation away from the resting angle — so the fit pass uses
    * this same value rather than a separate one. Forcing the fit to 1
    * regardless would fit a resting 2D view to a perspective box it never
-   * actually draws, leaving the flat map wrongly small and off-centre.
+   * actually draws, leaving the flat map wrongly small and off-center.
    */
   projectionAmount?: number
   /**
-   * Uniform magnification about the box's own centre, applied after the box is
+   * Uniform magnification about the box's own center, applied after the box is
    * fitted to the viewport. Not part of the fit itself: zooming in must not
    * change what "fits" means, or the box would resize under the pointer on
    * every scroll tick rather than staying put while the view magnifies.
    */
   zoom?: number
   /**
-   * How far the fitted box is carried away from the centre it was fitted to, in
+   * How far the fitted box is carried away from the center it was fitted to, in
    * CSS pixels on the card.
    *
    * Applied after the fit for the same reason `zoom` is: a pan that fed back
@@ -419,8 +419,8 @@ function ticksAcross(low: number, high: number, wanted: number): number[] {
  * kind that gets explained away rather than fixed.
  */
 export interface MeshCamera {
-  centreX: number
-  centreY: number
+  centerX: number
+  centerY: number
   longest: number
   boxHeight: number
   zMax: number
@@ -478,8 +478,8 @@ export function projectWithCamera(
   y: number,
   z: number,
 ): [number, number, number] {
-  const ux = (x - camera.centreX) / camera.longest
-  const uy = -((y - camera.centreY) / camera.longest)
+  const ux = (x - camera.centerX) / camera.longest
+  const uy = -((y - camera.centerY) / camera.longest)
   const uz = (clamp(z, -camera.zMax, camera.zMax) / camera.zMax) * (camera.boxHeight / 2)
   const rotatedX = ux * camera.cosBeta - uy * camera.sinBeta
   const rotatedY = ux * camera.sinBeta + uy * camera.cosBeta
@@ -555,8 +555,8 @@ export function meshCameraFor(input: MeshSceneInput): MeshCamera | null {
   const obliqueAngle = (oblique?.angle ?? 0) * degreesToRadians
   const obliqueScale = oblique?.scale ?? 0
   const shared = {
-    centreX: (bed.minX + bed.maxX) / 2,
-    centreY: (bed.minY + bed.maxY) / 2,
+    centerX: (bed.minX + bed.maxX) / 2,
+    centerY: (bed.minY + bed.maxY) / 2,
     longest,
     boxHeight: (shortest / longest) * heightAgainstBed,
     zMax,
@@ -611,11 +611,11 @@ export function meshCameraFor(input: MeshSceneInput): MeshCamera | null {
     ...shared,
     ...trigFor(orientation),
     fit: Math.min(usableWidth / spanX, usableHeight / spanY) * viewportInset,
-    // Applied after the fit and centred on the same anchor as the box itself,
-    // so zooming magnifies about the mesh's own centre rather than the corner
+    // Applied after the fit and centered on the same anchor as the box itself,
+    // so zooming magnifies about the mesh's own center rather than the corner
     // of the canvas — "turn in place", extended to scrolling.
     zoom: Math.max(0.1, input.zoom ?? 1),
-    // The box is symmetric about its own centre, so its projection is centred
+    // The box is symmetric about its own center, so its projection is centered
     // on the scene origin at every orientation. Anchoring there rather than on
     // the measured bounding box is the other half of turning in place: a
     // bounding box that changes shape as the box turns also moves its middle.
@@ -862,7 +862,7 @@ export function sceneOccludes(scene: MeshScene, x: number, y: number, depth: num
   const tolerance = 1e-6
   for (const quad of scene.quads) {
     // The level plane and the flat map's own mosaic stand in for no reading
-    // of their own — they take the neutral colour precisely because they are
+    // of their own — they take the neutral color precisely because they are
     // not data — so a marker for a reading that is genuinely there hides
     // behind an actual surface, never behind the reference drawn beside it.
     if (quad.neutral) continue

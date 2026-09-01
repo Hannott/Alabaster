@@ -53,7 +53,7 @@ describe('BedMeshQuickSettings', () => {
     const { wrapper } = mountQuickSettings()
     const boxes = wrapper.findAll('input[type="checkbox"]')
     // In pane order — the layer set, then the rest of the height map, then the
-    // colour scale. A promoted row never moves, so the card lists them exactly
+    // color scale. A promoted row never moves, so the card lists them exactly
     // as the pane does.
     expect(boxes.map((box) => (box.element as HTMLInputElement).checked)).toEqual([
       true, // mesh
@@ -61,14 +61,14 @@ describe('BedMeshQuickSettings', () => {
       false, // level reference plane
       true, // wireframe
       true, // probed points
-      false, // scale colours to this mesh
+      false, // scale colors to this mesh
     ])
   })
 
   it('drops a row the pane demoted, and keeps the others where they were', async () => {
     const { config, wrapper } = mountQuickSettings({ quickSettings: ['wireframe', 'showProbes'] })
     expect(wrapper.findAll('input[type="checkbox"]')).toHaveLength(2)
-    expect(wrapper.text()).not.toContain('Scale colours')
+    expect(wrapper.text()).not.toContain('Scale colors')
 
     // Emptied deliberately is a real state, distinct from never customized:
     // the card's gear then opens the full surface instead of an empty layer.

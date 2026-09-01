@@ -15,7 +15,7 @@
  * live card on screen, and would imply a second mounted instance rather than
  * the real card having moved. It borrows the card's own border, radius,
  * surface and shadow rather than the dashed marker layout editing uses
- * elsewhere: a box of a different shape and colour cannot read as the same box
+ * elsewhere: a box of a different shape and color cannot read as the same box
  * with its contents gone.
  */
 defineProps<{

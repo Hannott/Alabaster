@@ -9,7 +9,7 @@ import { bedMeshDefaultQuickKeys } from '@/dashboard/quickSettingDefaults'
 import { useQuickSettings } from '@/dashboard/quickSettings'
 
 /**
- * What the height map's colours are measured against — see
+ * What the height map's colors are measured against — see
  * `BedMeshViewSettingsFields` for the `mode` contract these two share.
  *
  * The two rows are one decision taken in two steps, which is why they sit

@@ -105,7 +105,7 @@ const presets = computed(() => readPresets(config.value))
  */
 const chartShowPower = computed(() => configBoolean(config.value, 'chartShowPower', false))
 
-/** Colours the user has chosen, over the stable default each sensor derives. */
+/** Colors the user has chosen, over the stable default each sensor derives. */
 const sensorColors = computed(() => configStringMap(config.value, 'sensorColors'))
 
 /**
@@ -534,7 +534,7 @@ function statusPhrase(sensor: SensorReading): string | null {
  * `displayedPower`, so scrubbing the chart rewrites this figure along with
  * the Current column rather than leaving it pinned to the live reading — and
  * it is kept apart from the status phrase beside it so the template can give
- * it, alone, the same per-sensor colour the Current column takes on a scrub.
+ * it, alone, the same per-sensor color the Current column takes on a scrub.
  */
 function detailPower(sensor: SensorReading): string | null {
   const power = displayedPower(sensor)
@@ -792,7 +792,7 @@ const hasJobLoaded = computed(() => printer.hasActivePrint)
                 alert is announced when it is inserted, which is exactly when
                 this appears, and a heater that has a target and is not reaching
                 it is worth interrupting for. The icon and the words carry it
-                visually — colour alone never does.
+                visually — color alone never does.
               -->
               <span v-if="isStalled(sensor)" class="temperature-stat__stall" role="alert">
                 <AppIcon name="warning" class="size-4" aria-hidden="true" />

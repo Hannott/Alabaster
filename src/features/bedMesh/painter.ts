@@ -1,7 +1,7 @@
 /**
  * Draws the bed mesh height map onto a 2D canvas.
  *
- * Colours and the font family arrive already resolved from the theme, because
+ * Colors and the font family arrive already resolved from the theme, because
  * a paint routine that reads CSS variables would re-read them on every frame
  * of the transition and would tie this file to a document. The card resolves
  * them once and again when the theme or the typeface changes. The font family
@@ -32,7 +32,7 @@ export interface MeshPalette {
    * than a chromatic hue: once the plane's own geometry is subdivided finely
    * enough to depth-test correctly against the mesh (see `flatPlaneGrid` in
    * `BedMeshModule.vue`), the only place it still shows inside the mesh's own
-   * footprint is a genuine dip below it — and a bright colour there reads as
+   * footprint is a genuine dip below it — and a bright color there reads as
    * a defect, where a quiet grey close to the ramp's own near-white middle
    * reads as the reference plane it actually is.
    */
@@ -53,7 +53,7 @@ export interface MeshProbeMarker {
 export interface MeshPaintOptions extends MeshSceneInput {
   /** 0 is the flat heat map, 1 is the tilted surface. */
   t: number
-  /** The range the gradient covers. Colour only — it never reshapes the bed. */
+  /** The range the gradient covers. Color only — it never reshapes the bed. */
   scale: MeshScale
   palette: MeshPalette
   /** Resolved from `--font-mono`, not the raw `var(...)` reference — see the file header. */
@@ -95,17 +95,17 @@ function css(color: MeshRgb, alpha = 1): string {
 
 /**
  * The diverging ramp: one hue below the middle of the scale, a neutral at it,
- * another hue above. Colour is never the only channel — the legend labels both
+ * another hue above. Color is never the only channel — the legend labels both
  * ends with their value, the axes carry numbers, and the card states the
  * lowest, highest and range in text.
  *
- * Five stops, not three. A straight lerp from a saturated colour to white
- * spends much of its travel looking pale rather than white-to-colour in equal
+ * Five stops, not three. A straight lerp from a saturated color to white
+ * spends much of its travel looking pale rather than white-to-color in equal
  * steps — white is a hard background to read a gradient away from, so a wide
  * band either side of the plane reads as "washed out" rather than "near
  * level." Reaching a fully saturated `low`/`high` at the *midpoint* of each
  * half, then continuing on to a deeper shade at the true extreme, gets real
- * colour onto the surface sooner and leaves the pale band only immediately
+ * color onto the surface sooner and leaves the pale band only immediately
  * around the plane, where "washed out" and "near level" are the same thing.
  */
 export function meshRampColor(
@@ -220,7 +220,7 @@ function paintProbes(
       !sceneOccludes(scene, x, y, scene.depthAt(probe.x, probe.y, probe.deviation))
     ) {
       // Against a ramp running from a dark blue through a near-white to a deep
-      // red, one ink colour is unreadable at one end or the other. Each number
+      // red, one ink color is unreadable at one end or the other. Each number
       // takes the ink its own patch of surface can carry.
       const beneath = meshRampColor(probe.deviation, scale, palette)
       const luminance = (beneath[0] * 0.299 + beneath[1] * 0.587 + beneath[2] * 0.114) / 255

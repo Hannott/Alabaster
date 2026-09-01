@@ -17,7 +17,7 @@ describe('AppStatusField', () => {
     const wrapper = mount(AppStatusField, { props: { text: 'Needs attention', tone: 'caution' } })
 
     expect(wrapper.attributes('data-tone')).toBe('caution')
-    // The colour is never the only thing that changed -- the text still says so.
+    // The color is never the only thing that changed -- the text still says so.
     expect(wrapper.text()).toBe('Needs attention')
   })
 
