@@ -1,0 +1,173 @@
+/*
+ * Overcast: a single steady slate-grey palette, deliberately landing between
+ * a bright light mode's glare and a near-black dark mode's contrast --
+ * comfortable to read in a bright workshop and in a dim one at 2am without
+ * retuning anything. That is also why it is colors only: no structural
+ * token overrides, no bespoke component shapes, just a different semantic
+ * mapping laid over the same canonical geometry every other pack shares.
+ *
+ * Exempt from the Okabe-Ito and WCAG floors under src/themes/README.md's
+ * "Custom packs may break every other rule" -- every value below is a raw
+ * literal chosen for hue clarity against this mid-lightness surface family
+ * (a band where several Okabe-Ito primitives land too close in luminance to
+ * the surfaces themselves to read as a boundary or a label), not derived
+ * from palette.css or proven against the contrast floors the canonical pack
+ * measures itself against.
+ *
+ * The three surface roles carry deliberately uneven steps, not a single
+ * shade repeated with a slight tint: canvas sits close to surface-strong's
+ * near-black, raised is pulled noticeably lighter so a card actually lifts
+ * off the page instead of just gaining a hairline edge, and soft sits
+ * between the two. A first pass kept all three within about ten sRGB points
+ * of each other for the sake of staying "midway" -- it read as flat and
+ * washed out rather than calm, which is the mistake this spread corrects.
+ *
+ * `registry.ts` locks this pack to light mode: the whole premise is one
+ * palette that does not change with the reader's system preference or the
+ * time of day, so the dark selector below is not a second identity waiting
+ * to be unlocked -- it restates the same values under `color-scheme: dark`
+ * purely to satisfy the pack contract's completeness test.
+ */
+:root[data-theme-pack='overcast'][data-theme='light'] {
+  color-scheme: light;
+  --surface-canvas: #363b41;
+  --surface-canvas-glass: rgba(54, 59, 65, 0.88);
+  --surface-raised: #62686f;
+  --surface-soft: #454a51;
+  --surface-strong: #23262b;
+  --surface-on-strong-soft: rgba(255, 255, 255, 0.14);
+  --viewer-surface: #363b41;
+  --viewer-grid: rgba(255, 255, 255, 0.14);
+  --viewer-shadow: rgba(0, 0, 0, 0.35);
+  --viewer-nozzle: #e8b862;
+  --viewer-extrusion: #86c9e8;
+  --viewer-progress: #e8b862;
+  --viewer-seam: #c98fd6;
+  --viewer-axis-x: #e8776a;
+  --viewer-axis-y: #63d494;
+  --viewer-axis-z: #86c9e8;
+  --viewer-accent: #86c9e8;
+  --viewer-feature-perimeter-outer: #86c9e8;
+  --viewer-feature-perimeter-inner: #5a9dc2;
+  --viewer-feature-infill: #e8b862;
+  --viewer-feature-infill-solid: #e0954f;
+  --viewer-feature-bridge: #63d494;
+  --viewer-feature-support: #c98fd6;
+  --viewer-feature-skirt: #d9cf6a;
+  --viewer-feature-other: #8a919a;
+  --viewer-feed-slow: #6fa8d6;
+  --viewer-feed-fast: #e0644f;
+  --mesh-low-deep: #2c4a5c;
+  --mesh-low: #5a9dc2;
+  --mesh-middle: #6b7178;
+  --mesh-high: #e0954f;
+  --mesh-high-deep: #b5502e;
+  --mesh-plane: rgba(255, 255, 255, 0.2);
+  --text-primary: #eef0f2;
+  --text-muted: rgba(238, 240, 242, 0.64);
+  --text-on-strong: #f5f6f8;
+  --text-on-strong-muted: rgba(245, 246, 248, 0.68);
+  --text-on-strong-faint: rgba(245, 246, 248, 0.4);
+  --border-subtle: rgba(255, 255, 255, 0.16);
+  --action-primary: #86c9e8;
+  --action-on-primary: #12181d;
+  --accent-primary: var(--action-primary);
+  --focus-ring: #86c9e8;
+  --interaction-veil: rgba(255, 255, 255, 0.08);
+  --interaction-veil-strong: rgba(255, 255, 255, 0.13);
+  --status-offline: rgba(255, 255, 255, 0.5);
+  --status-available: #63d494;
+  --status-recovering: #e8b862;
+  --status-danger: #e8776a;
+  --status-danger-soft: rgba(232, 119, 106, 0.18);
+  --status-danger-text: #ff9585;
+  --status-danger-strong: #b5503e;
+  --status-on-danger: #fbf1ef;
+  --status-danger-border: #e8776a;
+  --status-caution-text: #e8b862;
+  --status-caution-border: #e8b862;
+  --status-caution-veil: rgba(232, 184, 98, 0.2);
+}
+
+/*
+ * `.text-eyebrow`'s documented color choices (interface-standards.md's
+ * "Color is never part of a role") include `text-data-blue`/`text-data-sky`
+ * -- the fixed Okabe-Ito blue and sky-blue that `src/themes/README.md`
+ * deliberately keeps pack-invariant for charts and data series. That fixed
+ * hue happens to read fine as heading text against every other pack's
+ * near-white or near-black surfaces, but its own luminance lands almost
+ * exactly on top of Overcast's mid-grey surface family (contrast ~1.1:1,
+ * effectively invisible) -- a collision no canonical-contrast pack could
+ * expose. Overriding `--color-data-blue` itself would also repaint every
+ * genuine chart/data-series consumer, which must stay pack-invariant per
+ * that same document; overriding the eyebrow's rendered color within this
+ * pack's own scope, per README's "Custom packs may break every other rule",
+ * fixes the collision without touching that invariant. Cascade layers (ADR
+ * 0009) put this ahead of the `.text-data-blue`/`.text-data-sky` Tailwind
+ * utilities regardless of selector specificity.
+ */
+[data-theme-pack='overcast'] .text-eyebrow.text-data-blue,
+[data-theme-pack='overcast'] .text-eyebrow.text-data-sky {
+  color: var(--accent-primary);
+}
+
+:root[data-theme-pack='overcast'][data-theme='dark'] {
+  color-scheme: dark;
+  --surface-canvas: #363b41;
+  --surface-canvas-glass: rgba(54, 59, 65, 0.88);
+  --surface-raised: #62686f;
+  --surface-soft: #454a51;
+  --surface-strong: #23262b;
+  --surface-on-strong-soft: rgba(255, 255, 255, 0.14);
+  --viewer-surface: #363b41;
+  --viewer-grid: rgba(255, 255, 255, 0.14);
+  --viewer-shadow: rgba(0, 0, 0, 0.35);
+  --viewer-nozzle: #e8b862;
+  --viewer-extrusion: #86c9e8;
+  --viewer-progress: #e8b862;
+  --viewer-seam: #c98fd6;
+  --viewer-axis-x: #e8776a;
+  --viewer-axis-y: #63d494;
+  --viewer-axis-z: #86c9e8;
+  --viewer-accent: #86c9e8;
+  --viewer-feature-perimeter-outer: #86c9e8;
+  --viewer-feature-perimeter-inner: #5a9dc2;
+  --viewer-feature-infill: #e8b862;
+  --viewer-feature-infill-solid: #e0954f;
+  --viewer-feature-bridge: #63d494;
+  --viewer-feature-support: #c98fd6;
+  --viewer-feature-skirt: #d9cf6a;
+  --viewer-feature-other: #8a919a;
+  --viewer-feed-slow: #6fa8d6;
+  --viewer-feed-fast: #e0644f;
+  --mesh-low-deep: #2c4a5c;
+  --mesh-low: #5a9dc2;
+  --mesh-middle: #6b7178;
+  --mesh-high: #e0954f;
+  --mesh-high-deep: #b5502e;
+  --mesh-plane: rgba(255, 255, 255, 0.2);
+  --text-primary: #eef0f2;
+  --text-muted: rgba(238, 240, 242, 0.64);
+  --text-on-strong: #f5f6f8;
+  --text-on-strong-muted: rgba(245, 246, 248, 0.68);
+  --text-on-strong-faint: rgba(245, 246, 248, 0.4);
+  --border-subtle: rgba(255, 255, 255, 0.16);
+  --action-primary: #86c9e8;
+  --action-on-primary: #12181d;
+  --accent-primary: var(--action-primary);
+  --focus-ring: #86c9e8;
+  --interaction-veil: rgba(255, 255, 255, 0.08);
+  --interaction-veil-strong: rgba(255, 255, 255, 0.13);
+  --status-offline: rgba(255, 255, 255, 0.5);
+  --status-available: #63d494;
+  --status-recovering: #e8b862;
+  --status-danger: #e8776a;
+  --status-danger-soft: rgba(232, 119, 106, 0.18);
+  --status-danger-text: #ff9585;
+  --status-danger-strong: #b5503e;
+  --status-on-danger: #fbf1ef;
+  --status-danger-border: #e8776a;
+  --status-caution-text: #e8b862;
+  --status-caution-border: #e8b862;
+  --status-caution-veil: rgba(232, 184, 98, 0.2);
+}

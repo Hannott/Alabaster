@@ -18,6 +18,7 @@ export const themePacks = [
   { id: 'alabaster', labelKey: 'theme.packs.alabaster', lockedMode: null },
   { id: 'terminal', labelKey: 'theme.packs.terminal', lockedMode: 'dark' },
   { id: 'blueprint', labelKey: 'theme.packs.blueprint', lockedMode: null },
+  { id: 'overcast', labelKey: 'theme.packs.overcast', lockedMode: 'light' },
 ] as const
 
 export type ThemePackId = (typeof themePacks)[number]['id']

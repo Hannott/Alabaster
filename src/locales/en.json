@@ -1932,7 +1932,8 @@
     "packs": {
       "alabaster": "Alabaster",
       "terminal": "Terminal",
-      "blueprint": "Blueprint"
+      "blueprint": "Blueprint",
+      "overcast": "Overcast"
     },
     "fontLabel": "Typeface",
     "fonts": {

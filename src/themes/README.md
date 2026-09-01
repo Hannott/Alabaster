@@ -124,6 +124,32 @@ selected pack, and both preferences persist in local storage.
   topographic contour map (blue low ground, tan mid, amber/red peaks), and the
   viewer's X/Y/Z axes follow the red/green/blue convention CAD viewports have
   used since the trade had a word for it.
+- `Overcast` is a non-canonical pack that reaches past the exemption in the
+  opposite direction from Terminal and Blueprint: instead of a bespoke shape,
+  it is colors only, changing nothing the structural token layer or scoped
+  raw CSS would otherwise reach for. Its whole point is a single steady
+  slate-grey surface family that sits between a bright light mode's glare and
+  a near-black dark mode's contrast, so it reads the same in a bright workshop
+  as it does in a dim one at night. `registry.ts` locks it to light mode for
+  that reason: there is deliberately no separate night identity to unlock, so
+  the pack's `[data-theme='dark']` selector restates the same values under
+  `color-scheme: dark` purely to satisfy the completeness test below, not as
+  a second design. Every accent (the sky-toned blue used for actions and
+  focus, the status hues) is pulled lighter than the Okabe-Ito primitive it
+  echoes, because the mid-lightness surface family this pack is built around
+  is exactly the luminance band several of those primitives themselves occupy
+  -- a raw `--ito-blue` or `--ito-vermillion` reads as barely-there against a
+  surface that is neither dark enough nor light enough to throw it into
+  relief, which is what pushed this pack to raw literals under the same
+  exemption Terminal and Blueprint use, rather than the palette primitives a
+  colors-only pack would otherwise reach for first. The same collision hits
+  `.text-eyebrow`'s documented `text-data-blue`/`text-data-sky` color
+  choices even harder, since those stay the fixed Okabe-Ito literal
+  regardless of pack by design -- against Overcast's surfaces the fixed blue
+  measures roughly 1.1:1, unreadable. One small scoped rule in
+  `packs/overcast.css` repaints `.text-eyebrow.text-data-blue`/`.text-sky` to
+  `--accent-primary` for this pack only, leaving `--color-data-blue` itself,
+  and therefore every genuine chart/data-series consumer, untouched.
 
 A pack that is removed by product decision is dropped from `themePacks`
 entirely; `registry.ts`'s `isThemePackId` migrates anyone who still has it
@@ -197,7 +223,7 @@ pack.
 | ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Canvas and surfaces     | `--surface-canvas`, `--surface-canvas-glass`, `--surface-raised`, `--surface-soft`, `--surface-strong`, `--surface-on-strong-soft`                                                                                                                                                        |
 | G-code viewer           | `--viewer-surface`, `--viewer-grid`, `--viewer-shadow`, `--viewer-nozzle`, `--viewer-extrusion`, `--viewer-progress`, `--viewer-seam`, `--viewer-axis-x`, `--viewer-axis-y`, `--viewer-axis-z`, `--viewer-accent`                                                                         |
-| G-code feature colors  | `--viewer-feature-perimeter-outer`, `--viewer-feature-perimeter-inner`, `--viewer-feature-infill`, `--viewer-feature-infill-solid`, `--viewer-feature-bridge`, `--viewer-feature-support`, `--viewer-feature-skirt`, `--viewer-feature-other`, `--viewer-feed-slow`, `--viewer-feed-fast` |
+| G-code feature colors   | `--viewer-feature-perimeter-outer`, `--viewer-feature-perimeter-inner`, `--viewer-feature-infill`, `--viewer-feature-infill-solid`, `--viewer-feature-bridge`, `--viewer-feature-support`, `--viewer-feature-skirt`, `--viewer-feature-other`, `--viewer-feed-slow`, `--viewer-feed-fast` |
 | Bed mesh height map     | `--mesh-low-deep`, `--mesh-low`, `--mesh-middle`, `--mesh-high`, `--mesh-high-deep`, `--mesh-plane`                                                                                                                                                                                       |
 | Text                    | `--text-primary`, `--text-muted`, `--text-on-strong`, `--text-on-strong-muted`, `--text-on-strong-faint`                                                                                                                                                                                  |
 | Structure               | `--border-subtle`, `--focus-ring`                                                                                                                                                                                                                                                         |
