@@ -41,4 +41,5 @@
 @import './app-slider.css' layer(components);
 @import './app-output-row.css' layer(components);
 @import './app-status-field.css' layer(components);
+@import './app-progress-bar.css' layer(components);
 @import './components.css' layer(components);

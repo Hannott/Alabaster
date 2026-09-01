@@ -69,9 +69,12 @@ selected pack, and both preferences persist in local storage.
   which alone squares `AppButton`, `AppField`, and `AppSlider`'s entry box and
   uppercases both label components, with no per-component rule to keep in
   sync. What is left as scoped raw CSS is the genuinely bespoke shape a token
-  cannot express: the phosphor-bloom glow on solid buttons, and `AppSlider`'s
+  cannot express: the phosphor-bloom glow on solid buttons, `AppSlider`'s
   track becoming a stepped meter with a block-cursor thumb in place of the
-  round one. In dark mode the console transcript (`.gcode-console`, shared by
+  round one, and `AppProgressBar` reading as the same meter — a solid muted
+  track with the filled portion drawn as the meter's own repeating chunky
+  dash, glowing the same way the solid buttons do. In dark mode the console
+  transcript (`.gcode-console`, shared by
   the Console page, the dashboard card, and the Calibration bench) becomes an
   actual CRT screen — curved corners, an inset vignette, a bezel ring, and a
   phosphor glow on its own text — a treatment light mode's dot-matrix printout
@@ -103,7 +106,9 @@ selected pack, and both preferences persist in local storage.
   becoming a ruler — graduated ticks along the unfilled length, a solid inked
   line where filled — with its thumb a downward caliper arrow, tinted at rest
   rather than only on interaction, since a caliper mark is a permanent
-  reference and not a hover affordance; and the console transcript
+  reference and not a hover affordance; `AppProgressBar` reading as the same
+  ruler, minus the thumb a completion bar has no single value to mark; and
+  the console transcript
   (`.gcode-console`) becoming a full technical drawing sheet in both modes: a
   coarser graph-paper grid, a ruled margin frame inset from the edge, and
   corner registration marks — the alignment ticks a real drafting sheet prints

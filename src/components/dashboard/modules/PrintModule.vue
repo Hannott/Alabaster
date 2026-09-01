@@ -5,6 +5,7 @@ import { RouterLink } from 'vue-router'
 
 import AppButton from '@/components/AppButton.vue'
 import AppIcon from '@/components/AppIcon.vue'
+import AppProgressBar from '@/components/AppProgressBar.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import DisclosureReveal from '@/components/DisclosureReveal.vue'
 import ExcludeObjectDialog from '@/components/ExcludeObjectDialog.vue'
@@ -722,19 +723,11 @@ function requestPause(): void {
               <p v-if="printer.displayMessage" class="mt-1 truncate text-xs text-muted">
                 {{ printer.displayMessage }}
               </p>
-              <div
-                class="mt-4 h-2 overflow-hidden rounded-full bg-soft"
-                role="progressbar"
-                :aria-label="t('dashboard.print.progress')"
-                aria-valuemin="0"
-                aria-valuemax="100"
-                :aria-valuenow="Math.round(progressFraction * 100)"
-              >
-                <span
-                  class="block h-full rounded-full bg-data-sky transition-[width]"
-                  :style="{ width: `${progressFraction * 100}%` }"
-                ></span>
-              </div>
+              <AppProgressBar
+                class="mt-4"
+                :value="progressFraction * 100"
+                :label="t('dashboard.print.progress')"
+              />
               <dl class="print-stats print-stats--four mt-3 grid grid-cols-2 gap-3 text-xs">
                 <div>
                   <dt class="text-muted">{{ t('dashboard.print.progress') }}</dt>

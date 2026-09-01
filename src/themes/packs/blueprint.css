@@ -255,6 +255,29 @@
 }
 
 /*
+ * `AppProgressBar` reads as the same ruler the slider's own track does:
+ * squared, ticked at the same 8px scale along its unfilled length, with the
+ * filled span a plain solid inked line -- a completion bar has no single
+ * value to mark with a caliper arrow the way the slider's thumb does, so the
+ * fill stays a plain block rather than gaining one.
+ */
+[data-theme-pack='blueprint'] .app-progress-bar {
+  border-radius: 0;
+  background-color: transparent;
+  background-image: repeating-linear-gradient(
+    to right,
+    var(--border-subtle) 0,
+    var(--border-subtle) 1px,
+    transparent 1px,
+    transparent 8px
+  );
+}
+
+[data-theme-pack='blueprint'] .app-progress-bar__fill {
+  border-radius: 0;
+}
+
+/*
  * The console transcript as a technical drawing sheet: a fine graph-paper
  * grid at a coarser scale than the fields' own, a ruled margin frame set in
  * from the edge, and corner registration marks -- the alignment ticks printed

@@ -1,0 +1,37 @@
+/*
+ * `AppProgressBar`, the one percent-of-completion bar. Every value-driven
+ * progress bar in the product is this component; the classes below are its
+ * internals and are not written by hand anywhere.
+ *
+ * The fill's accent is `--action-primary` by default — the same rule
+ * `AppSlider`'s own track-fill follows, for the same reason: a caller with its
+ * own progress colour (the G-code viewer's own loading track uses
+ * `--viewer-accent` on a bespoke `.gcode-loading-track`, not this component)
+ * can override `--app-progress-bar-accent` in one scoped rule rather than this
+ * component growing a second "which colour" prop. This is also the fix for
+ * the bug this component replaced: the print module's own bar used to fill
+ * with `bg-data-sky`, a fixed data-series hue that
+ * `src/themes/README.md` documents as deliberately not changing per theme
+ * pack — correct for a chart, wrong for a primary UI progress indicator that
+ * every other themed control responds to.
+ */
+.app-progress-bar {
+  overflow: hidden;
+  border-radius: 999px;
+  background-color: var(--surface-soft);
+  block-size: 0.5rem;
+}
+
+.app-progress-bar__fill {
+  display: block;
+  block-size: 100%;
+  border-radius: inherit;
+  background-color: var(--app-progress-bar-accent, var(--action-primary));
+  transition: width var(--motion-duration-fast) var(--motion-ease-standard);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-progress-bar__fill {
+    transition: none;
+  }
+}

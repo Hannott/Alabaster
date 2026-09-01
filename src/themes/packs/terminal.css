@@ -245,6 +245,35 @@
 }
 
 /*
+ * `AppProgressBar` reads as the same bar-graph readout the slider's own
+ * track does, and for the same reason its track and its fill carry the
+ * pattern on opposite sides: a solid, muted track with the *filled* portion
+ * drawn as a repeating chunky dash — the meter's own lit segments — rather
+ * than a smooth block, plus the same phosphor-bloom glow the solid button
+ * variants carry. Blueprint's equivalent below deliberately inverts this
+ * (fine ticks on the track, a plain solid line for the fill): a stepped meter
+ * and a ruler are two different readouts and should not converge into the
+ * same shape with only their hue swapped.
+ */
+[data-theme-pack='terminal'] .app-progress-bar {
+  border-radius: 0;
+  background-color: var(--border-subtle);
+}
+
+[data-theme-pack='terminal'] .app-progress-bar__fill {
+  border-radius: 0;
+  background-color: transparent;
+  background-image: repeating-linear-gradient(
+    to right,
+    var(--action-primary) 0,
+    var(--action-primary) 5px,
+    transparent 5px,
+    transparent 7px
+  );
+  box-shadow: 0 0 6px color-mix(in srgb, var(--action-primary) 55%, transparent);
+}
+
+/*
  * The console transcript as an actual CRT screen — the pack's one phosphor
  * surface that reads as a physical monitor rather than a page background.
  * Dark mode only: light mode's dot-matrix printout has no bezel to wear, so
