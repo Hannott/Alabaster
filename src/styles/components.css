@@ -6637,6 +6637,51 @@ input.z-axis__slider {
   overflow-wrap: anywhere;
   scrollbar-width: thin;
   white-space: pre-wrap;
+  /*
+   * `scrollbar-color` (Firefox, and Chromium/Edge since 121) and the
+   * `::-webkit-scrollbar-*` pseudo-elements below (Safari, and older Chromium)
+   * are two names for the same override: together they replace the OS-drawn
+   * bar's colour with a themed one on every engine, without a hand-built thumb
+   * element to keep in sync with scroll position, dragging, resize, and
+   * keyboard/touch scrolling ourselves. `--text-muted` is the token, so a
+   * theme pack that recolours it recolours the scrollbar too, and it stays the
+   * default here — always visible — because the console page's transcript
+   * fills the whole workspace and has no "unfocused" state to fade against.
+   * `.console-module__body` below overrides both properties to transparent so
+   * the dashboard card's copy can fade at rest.
+   */
+  scrollbar-color: var(--text-muted) transparent;
+  transition: scrollbar-color var(--motion-duration-standard) var(--motion-ease-standard);
+}
+
+/*
+ * Chromium versions without native `scrollbar-color` support, and Safari,
+ * read this instead; kept in exact lockstep with the `scrollbar-color` rules
+ * above and below rather than one being treated as a fallback for the other,
+ * since neither engine reads both.
+ */
+.gcode-console::-webkit-scrollbar {
+  width: 8px;
+}
+
+.gcode-console::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.gcode-console::-webkit-scrollbar-thumb {
+  background-color: var(--text-muted);
+  border-radius: 999px;
+  transition: background-color var(--motion-duration-standard) var(--motion-ease-standard);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gcode-console {
+    transition: none;
+  }
+
+  .gcode-console::-webkit-scrollbar-thumb {
+    transition: none;
+  }
 }
 
 /*
@@ -7095,6 +7140,52 @@ input.z-axis__slider {
  */
 .console-module__body .gcode-console {
   background: none;
+}
+
+/*
+ * On the dashboard card, the scrollbar itself is chrome: worth having while the
+ * reader is actually working the transcript, a distraction on a card sitting
+ * quietly on the Overview grid otherwise. It starts transparent and the hover
+ * and focus-within rules below restore the same themed colour the page's copy
+ * carries permanently — never a change to `overflow` or the webkit scrollbar's
+ * `width`, which is what keeps its track reserved at every state instead of the
+ * content reflowing as the thumb appears.
+ *
+ * Scoped to `.console-module__body`, not `.gcode-console` itself, so hovering
+ * the prompt below the transcript — or tabbing focus into it — counts as
+ * working the module, the same as hovering the transcript's own text.
+ */
+.console-module__body .gcode-console {
+  scrollbar-color: transparent transparent;
+}
+
+.console-module__body .gcode-console::-webkit-scrollbar-thumb {
+  background-color: transparent;
+}
+
+.console-module__body:hover .gcode-console,
+.console-module__body:focus-within .gcode-console {
+  scrollbar-color: var(--text-muted) transparent;
+}
+
+.console-module__body:hover .gcode-console::-webkit-scrollbar-thumb,
+.console-module__body:focus-within .gcode-console::-webkit-scrollbar-thumb {
+  background-color: var(--text-muted);
+}
+
+/*
+ * A touch screen has no hover to reveal the bar with, and no mouse-driven
+ * scrollbar affordance to begin with — so the fade is a desktop-pointer
+ * behaviour only, matching `.camera-tile__actions`' own `(hover: none)` rule.
+ */
+@media (hover: none) {
+  .console-module__body .gcode-console {
+    scrollbar-color: var(--text-muted) transparent;
+  }
+
+  .console-module__body .gcode-console::-webkit-scrollbar-thumb {
+    background-color: var(--text-muted);
+  }
 }
 
 .console-module__body--input-top {
