@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 
 import MovementBedPlan from '@/components/dashboard/modules/MovementBedPlan.vue'
 import { i18n } from '@/i18n'
+import { usePrinterConfigStore } from '@/stores/printerConfig'
 import { usePrinterStore } from '@/stores/printer'
 
 function mountPlan(
@@ -20,6 +21,7 @@ function mountPlan(
 ) {
   const pinia = createPinia()
   const printer = usePrinterStore(pinia)
+  const printerConfig = usePrinterConfigStore(pinia)
   const wrapper = mount(MovementBedPlan, {
     ...(options.attach ? { attachTo: document.body } : {}),
     global: { plugins: [pinia, i18n] },
@@ -29,13 +31,27 @@ function mountPlan(
       axesReadout: options.axesReadout ?? [],
     },
   })
-  return { printer, wrapper }
+  return { printer, printerConfig, wrapper }
 }
 
 /** A 300 x 200 bed, so a mistaken axis or a squared aspect both show up. */
 function reportVolume(printer: ReturnType<typeof usePrinterStore>) {
   printer.buildVolume.minimum = [0, 0, 0]
   printer.buildVolume.maximum = [300, 200, 340]
+}
+
+/**
+ * A delta printer's usual shape: a square bounding box centered on the
+ * origin, with the printer configured as circular kinematics so `bedShape`
+ * reports it.
+ */
+function reportCircularVolume(
+  printer: ReturnType<typeof usePrinterStore>,
+  printerConfig: ReturnType<typeof usePrinterConfigStore>,
+) {
+  printer.buildVolume.minimum = [-100, -100, 0]
+  printer.buildVolume.maximum = [100, 100, 250]
+  printerConfig.settings = { printer: { kinematics: 'delta' } }
 }
 
 function homed(printer: ReturnType<typeof usePrinterStore>) {
@@ -429,5 +445,56 @@ describe('MovementBedPlan', () => {
 
     expect(wrapper.find('.bed-plan__target').exists()).toBe(false)
     expect(wrapper.emitted('move')).toBeUndefined()
+  })
+
+  /**
+   * Delta, rotary delta and polar kinematics move within a circle, not the
+   * square Klipper reports — the plate rounds into that circle so the
+   * corners read as unreachable rather than as a place the machine will
+   * accept a move to.
+   */
+  describe('a circular bed', () => {
+    it('rounds the plate into a circle rather than drawing it square', async () => {
+      const { printer, printerConfig, wrapper } = mountPlan()
+      reportCircularVolume(printer, printerConfig)
+      await flushPromises()
+
+      expect(wrapper.get('.bed-plan__surface').classes()).toContain('bed-plan__surface--circular')
+    })
+
+    it('does not round the plate for an ordinary rectangular machine', async () => {
+      const { printer, wrapper } = mountPlan()
+      reportVolume(printer)
+      await flushPromises()
+
+      expect(wrapper.get('.bed-plan__surface').classes()).not.toContain(
+        'bed-plan__surface--circular',
+      )
+    })
+
+    /**
+     * The bounding square's top-right corner is outside the circle Klipper's
+     * kinematics can actually reach. Klipper does not refuse the move with a
+     * command error the way it does past a linear axis's travel limit — it
+     * simply cannot complete it — so the plot has to keep the tap off the
+     * corner itself.
+     */
+    it('pulls a tap aimed at a corner in to the reachable circle', async () => {
+      const { printer, printerConfig, wrapper } = mountPlan()
+      reportCircularVolume(printer, printerConfig)
+      homed(printer)
+      await flushPromises()
+
+      // Near the top-right corner of the scripted 300 x 200 plot box,
+      // standing for a 200mm-wide circular bed centered on the origin.
+      await tapPlot(wrapper, 295, 5)
+      await wrapper.get('.bed-plan__plot').trigger('dblclick')
+
+      const target = wrapper.emitted('move')?.[0]?.[0] as { x: number; y: number }
+      const distance = Math.hypot(target.x, target.y)
+      expect(distance).toBeCloseTo(100)
+      expect(target.x).toBeGreaterThan(0)
+      expect(target.y).toBeGreaterThan(0)
+    })
   })
 })

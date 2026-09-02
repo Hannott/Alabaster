@@ -233,6 +233,10 @@ Before homing, the plan shows the position as unknown rather than drawing a
 nozzle at a possibly incorrect location. It can be set to show or hide
 during printing.
 
+On a delta, rotary delta, or polar printer, the plate is drawn as the circle
+it actually is, and a spot picked near a corner is pulled in to the nearest
+point on that circle rather than sent as a move the machine cannot complete.
+
 Hovering over the plan or the Z slider beside it previews that coordinate in
 the corner reading, without moving anything.
 

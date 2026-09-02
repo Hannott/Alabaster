@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 
 import AppButton from '@/components/AppButton.vue'
 import { bedExtents, nudgeCoordinate, planCoordinate, planPoint } from '@/dashboard/bedPlan'
+import { usePrinterConfigStore } from '@/stores/printerConfig'
 import { usePrinterStore } from '@/stores/printer'
 
 /**
@@ -18,6 +19,7 @@ import { usePrinterStore } from '@/stores/printer'
 
 const { locale, t } = useI18n({ useScope: 'global' })
 const printer = usePrinterStore()
+const printerConfig = usePrinterConfigStore()
 
 const emit = defineEmits<{
   move: [target: { x: number; y: number }]
@@ -52,7 +54,9 @@ const coordinateFormatter = computed(
   () => new Intl.NumberFormat(locale.value, { minimumFractionDigits: 1, maximumFractionDigits: 1 }),
 )
 
-const extents = computed(() => bedExtents(printer.buildVolume.minimum, printer.buildVolume.maximum))
+const extents = computed(() =>
+  bedExtents(printer.buildVolume.minimum, printer.buildVolume.maximum, printerConfig.bedShape),
+)
 
 const homedAxes = computed(() => printer.motion.homedAxes.toUpperCase())
 const isPlanarHomed = computed(() => homedAxes.value.includes('X') && homedAxes.value.includes('Y'))
@@ -247,6 +251,17 @@ function commitFromControl(): void {
       @keydown.esc.prevent="target = null"
     >
       <!--
+        The plate's own fill, border and clipping live on this inner box
+        rather than on `.bed-plan__plot` itself, so the readout and `Go` below
+        can stand in the plot's corners without being clipped by them. A
+        circular bed (delta, rotary delta, polar) needs exactly that: its
+        `bedExtents` is always the square Klipper reports, so the plot itself
+        stays square and the corners keep the room the readout and `Go`
+        already use — only this box rounds into the circle inscribed in that
+        square, via `border-radius: 50%` on `--circular`, which costs nothing
+        else because `bedExtents` only ever calls a bed circular when its
+        reported box is square to begin with.
+
         Only the center lines are drawn in SVG. They are the one thing
         `preserveAspectRatio="none"` cannot spoil — a line stretched along its
         own axis is the same line — while anything with a shape of its own
@@ -255,21 +270,72 @@ function commitFromControl(): void {
         lengths. Both markers are therefore DOM boxes positioned in per-cent,
         which the aspect ratio does not touch.
       -->
-      <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true" focusable="false">
-        <line class="bed-plan__grid" x1="50" y1="0" x2="50" y2="100" />
-        <line class="bed-plan__grid" x1="0" y1="50" x2="100" y2="50" />
-      </svg>
+      <div
+        class="bed-plan__surface"
+        :class="{ 'bed-plan__surface--circular': extents.shape === 'circular' }"
+      >
+        <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+          <line class="bed-plan__grid" x1="50" y1="0" x2="50" y2="100" />
+          <line class="bed-plan__grid" x1="0" y1="50" x2="100" y2="50" />
+        </svg>
+        <!--
+          Both markers translate a full-size box rather than moving their own
+          edges: a transform per cent is a per cent of the element, so a box
+          that already fills the plot converts the plan's own fractions
+          straight into a GPU-friendly translate, and the nozzle can then be
+          interpolated between samples without animating layout.
+
+          On a circular bed this box is what clips a marker that strays
+          outside the circle — `overflow: hidden` on the surface itself —
+          which only matters for the nozzle: `planCoordinate` and
+          `nudgeCoordinate` already pull a placed target back to the circle's
+          edge before it can be drawn here, but the nozzle is deliberately
+          never clamped, so a toolhead genuinely outside the reachable circle
+          still reads as off the bed rather than as a dot sitting on top of an
+          unreachable corner.
+        -->
+        <!--
+          Both are keyed, and that is load-bearing rather than tidiness. They
+          are adjacent `v-if` spans of the same tag, so without keys Vue is
+          free to patch one into the other when the crosshair is removed on
+          commit — reusing the element rather than replacing it. The nozzle
+          then inherits the crosshair's transform as its starting value and
+          animates across the plot from wherever the aim happened to be,
+          which is exactly the jump this had: order a move, and the dot flies
+          off and comes back.
+        -->
+        <span
+          v-if="targetPoint"
+          key="bed-plan-target"
+          class="bed-plan__target"
+          :style="{ transform: `translate(${targetPoint.x * 100}%, ${targetPoint.y * 100}%)` }"
+          aria-hidden="true"
+        ></span>
+        <span
+          v-if="nozzle"
+          key="bed-plan-nozzle"
+          class="bed-plan__nozzle"
+          :style="{ transform: `translate(${nozzle.x * 100}%, ${nozzle.y * 100}%)` }"
+          aria-hidden="true"
+        ></span>
+      </div>
       <!--
         The readout sits in the plot's own bottom-left corner rather than in a
         side gutter, so the plot no longer costs the card a column either side
         just to hold three numbers. It stacks above whatever the markers draw
-        — `z-index` in the stylesheet, not DOM order, since the markers are
-        siblings that come after it — so a nozzle or target passing through
-        that corner goes behind the digits instead of over them. Not
-        `aria-hidden`: this is the position, stated once, not a decoration:
-        with it moved out of the header the group's own `aria-label` no
-        longer carries Z at all, so screen-reader users would lose it
-        entirely if it were hidden here too.
+        — `z-index` in the stylesheet, not DOM order, since the markers now
+        live inside `.bed-plan__surface`, a sibling that comes before this one
+        — so a nozzle or target passing through that corner goes behind the
+        digits instead of over them. Not `aria-hidden`: this is the position,
+        stated once, not a decoration: with it moved out of the header the
+        group's own `aria-label` no longer carries Z at all, so screen-reader
+        users would lose it entirely if it were hidden here too.
+
+        Deliberately a sibling of `.bed-plan__surface` rather than a child of
+        it: the surface is what a circular bed clips to its inscribed circle,
+        and the readout sits in the square plot's own corner, which the
+        circle does not reach. Nesting it inside the surface would have it
+        clipped away on exactly the printers this change is for.
       -->
       <div v-if="axesReadout.length > 0" class="bed-plan__readout">
         <span
@@ -282,36 +348,6 @@ function commitFromControl(): void {
           <span class="bed-plan__readout-value">{{ axis.value }}</span>
         </span>
       </div>
-      <!--
-        Both markers translate a full-size box rather than moving their own
-        edges: a transform per cent is a per cent of the element, so a box that
-        already fills the plot converts the plan's own fractions straight into
-        a GPU-friendly translate, and the nozzle can then be interpolated
-        between samples without animating layout.
-      -->
-      <!--
-        Both are keyed, and that is load-bearing rather than tidiness. They are
-        adjacent `v-if` spans of the same tag, so without keys Vue is free to
-        patch one into the other when the crosshair is removed on commit —
-        reusing the element rather than replacing it. The nozzle then inherits
-        the crosshair's transform as its starting value and animates across the
-        plot from wherever the aim happened to be, which is exactly the jump
-        this had: order a move, and the dot flies off and comes back.
-      -->
-      <span
-        v-if="targetPoint"
-        key="bed-plan-target"
-        class="bed-plan__target"
-        :style="{ transform: `translate(${targetPoint.x * 100}%, ${targetPoint.y * 100}%)` }"
-        aria-hidden="true"
-      ></span>
-      <span
-        v-if="nozzle"
-        key="bed-plan-nozzle"
-        class="bed-plan__nozzle"
-        :style="{ transform: `translate(${nozzle.x * 100}%, ${nozzle.y * 100}%)` }"
-        aria-hidden="true"
-      ></span>
       <!--
         The visible way to send an aimed target, in the corner the readout
         leaves empty, and only while there is something to send — the same

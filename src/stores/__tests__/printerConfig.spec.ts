@@ -140,6 +140,34 @@ describe('printer configuration store', () => {
   })
 
   /**
+   * Klipper reports the same square bounding box for every kinematics, so the
+   * shape a plan or a clamp treats it as has to come from `kinematics`
+   * itself, not from the reported numbers.
+   */
+  it('recognizes circular kinematics and defaults everything else to rectangular', async () => {
+    mockQuery({ eventtime: 1, status: { configfile: { settings } } })
+    const printerConfig = usePrinterConfigStore()
+    await printerConfig.refresh()
+    expect(printerConfig.bedShape).toBe('rectangular')
+
+    for (const kinematics of ['delta', 'rotary_delta', 'polar']) {
+      mockQuery({
+        eventtime: 1,
+        status: { configfile: { settings: { ...settings, printer: { kinematics } } } },
+      })
+      await printerConfig.refresh()
+      expect(printerConfig.bedShape).toBe('circular')
+    }
+
+    mockQuery({
+      eventtime: 1,
+      status: { configfile: { settings: { ...settings, printer: { kinematics: 'corexy' } } } },
+    })
+    await printerConfig.refresh()
+    expect(printerConfig.bedShape).toBe('rectangular')
+  })
+
+  /**
    * Klipper's `bed_screws` object reports which screw it stands at as a bare
    * index and never sends the list, so the prompt can only name the screw by
    * reading the configuration that defined it. `screwN` runs until the first

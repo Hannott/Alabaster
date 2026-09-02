@@ -3611,23 +3611,64 @@ input[type='number']::-webkit-inner-spin-button {
 /*
  * `max-block-size` rather than a fixed height: the plot is as tall as its own
  * aspect makes it and no taller, so a deep bed does not push the jog matrix
- * off the card. Overflow is hidden so a toolhead reported outside the volume
- * reads as off the bed instead of drawing over the gutters.
+ * off the card.
  */
 .bed-plan__plot {
   position: relative;
   min-width: 0;
   max-block-size: 8rem;
   max-inline-size: 100%;
-  border: 1px solid var(--border-subtle);
-  border-radius: 0.6rem;
-  background: var(--surface-soft);
   cursor: crosshair;
-  overflow: hidden;
   touch-action: none;
 }
 
-.bed-plan__plot > svg {
+/*
+ * The plate itself: fill, border and the clip that makes a toolhead reported
+ * outside the volume read as off the bed instead of drawing over the corners.
+ * Split out of `.bed-plan__plot` so that clip can become a circle without
+ * taking the readout and `Go` down with it — see the template's own comment
+ * on why they are this box's siblings rather than its children.
+ *
+ * Normal flow and sized by percentage, `position: relative` rather than
+ * `absolute` — deliberately, and not merely for its own children's `inset: 0`
+ * to resolve against. `.bed-plan__plot` sits in `.bed-plan`'s single
+ * content-sized grid column, and the SVG this box contains is what gives that
+ * column something to measure: an SVG is a replaced element with a genuine
+ * default intrinsic size, which is what `.bed-plan__plot`'s own `aspect-ratio`
+ * has to resolve against in a column nothing else constrains. Every child of
+ * `.bed-plan__plot` used to be either that SVG or absolutely positioned, and
+ * making this box `position: absolute` as well left `.bed-plan__plot` with no
+ * normal-flow content of its own — the grid column measured zero, and the
+ * whole plan collapsed to a sliver beside the jog rows. Keeping this box in
+ * flow, with the SVG still inside it contributing the same intrinsic size one
+ * level up, is what avoids that.
+ */
+.bed-plan__surface {
+  position: relative;
+  z-index: 0;
+  inline-size: 100%;
+  block-size: 100%;
+  border: 1px solid var(--border-subtle);
+  border-radius: 0.6rem;
+  background: var(--surface-soft);
+  overflow: hidden;
+}
+
+/*
+ * Delta, rotary delta and polar kinematics move within a circle, but
+ * `bedExtents` only ever has the square Klipper's `axis_minimum`/
+ * `axis_maximum` describe, so the plot itself stays that square — rounding
+ * this box into the circle inscribed in it is what tells the corners apart
+ * from the reachable area, exactly where `planCoordinate`'s circular clamp
+ * already sends a tap aimed at one. Safe at any width because a bed
+ * `bedExtents` calls circular is always reported square to begin with, so
+ * this box is square whenever the modifier is present.
+ */
+.bed-plan__surface--circular {
+  border-radius: 50%;
+}
+
+.bed-plan__surface > svg {
   display: block;
   inline-size: 100%;
   block-size: 100%;
@@ -3645,10 +3686,10 @@ input[type='number']::-webkit-inner-spin-button {
  * visible mark is drawn by pseudo-elements pinned to the box's own origin.
  *
  * `z-index: 0` puts them under the readout explicitly rather than relying on
- * DOM order: the readout is a sibling that happens to come first in the
- * markup so a screen reader meets it before the decorative markers, and
- * without a stacking context of their own here a marker passing behind the
- * numbers would instead paint over them, on top of DOM order alone.
+ * DOM order: the readout is a sibling of `.bed-plan__surface` that comes
+ * after it in the markup, so without an explicit order here a marker passing
+ * behind the numbers would paint over them instead, on top of DOM order
+ * alone.
  */
 .bed-plan__target,
 .bed-plan__nozzle {

@@ -15,11 +15,34 @@ const square: BedExtents = {
   maximumY: 235,
   width: 235,
   depth: 235,
+  shape: 'rectangular',
+  centerX: 117.5,
+  centerY: 117.5,
+  radius: 117.5,
 }
 
 describe('bedExtents', () => {
   it('reads the volume the printer reported', () => {
     expect(bedExtents([0, 0, 0], [235, 235, 250])).toEqual(square)
+  })
+
+  it('defaults to rectangular for a caller that has not been given kinematics', () => {
+    expect(bedExtents([0, 0, 0], [235, 235, 250])?.shape).toBe('rectangular')
+  })
+
+  /**
+   * Delta, rotary delta and polar kinematics move within a circle, but
+   * Klipper only ever reports the square bounding box around it — the caller
+   * says which shape it actually is.
+   */
+  it('carries a circular shape through when the caller supplies one', () => {
+    const extents = bedExtents([-117.5, -117.5, 0], [117.5, 117.5, 250], 'circular')
+    expect(extents).toMatchObject({ shape: 'circular', centerX: 0, centerY: 0, radius: 117.5 })
+  })
+
+  it('takes the shorter half-span as the radius when the reported box is not quite square', () => {
+    const extents = bedExtents([-100, -120, 0], [100, 120, 250], 'circular')
+    expect(extents?.radius).toBe(100)
   })
 
   /**
@@ -119,5 +142,51 @@ describe('nudgeCoordinate', () => {
   it('stops at the travel limits rather than stepping past them', () => {
     expect(nudgeCoordinate({ x: 230, y: 5 }, 10, -10, square)).toEqual({ x: 235, y: 0 })
     expect(nudgeCoordinate({ x: 2, y: 232 }, -10, 10, square)).toEqual({ x: 0, y: 235 })
+  })
+})
+
+/**
+ * A delta or polar printer's usable area is the circle inscribed in the
+ * square Klipper reports, not the square itself — its four corners are
+ * outside the circle and the kinematics cannot reach them, unlike a
+ * rectangular bed's corners.
+ */
+describe('circular beds', () => {
+  const circle = bedExtents([-100, -100, 0], [100, 100, 250], 'circular')
+  if (!circle) throw new Error('circle')
+
+  it('reads a tap inside the circle the same as a rectangular bed would', () => {
+    expect(planCoordinate({ x: 0.5, y: 0.5 }, circle)).toEqual({ x: 0, y: 0 })
+  })
+
+  /**
+   * The corner of the bounding square is at distance ~141 from center, past
+   * the 100mm radius. Klipper does not answer an unreachable delta move with
+   * a command error the way it refuses a linear axis past its travel limit —
+   * it simply cannot complete it — so this has to be caught here rather than
+   * left to the printer.
+   */
+  it('pulls a tap aimed at a corner in to the circle’s edge, not the corner', () => {
+    const corner = planCoordinate({ x: 1, y: 0 }, circle)
+    const distance = Math.hypot(corner.x - circle.centerX, corner.y - circle.centerY)
+    expect(distance).toBeCloseTo(circle.radius)
+    // The corner is up and to the right of center; the clamp keeps that
+    // direction rather than sliding the tap somewhere else on the circle.
+    expect(corner.x).toBeGreaterThan(0)
+    expect(corner.y).toBeGreaterThan(0)
+  })
+
+  it('leaves a tap on the circle’s own edge alone', () => {
+    expect(planCoordinate({ x: 1, y: 0.5 }, circle)).toEqual({ x: 100, y: 0 })
+  })
+
+  it('nudges freely inside the circle', () => {
+    expect(nudgeCoordinate({ x: 0, y: 0 }, 50, 0, circle)).toEqual({ x: 50, y: 0 })
+  })
+
+  it('stops a nudge at the circle rather than at the bounding square', () => {
+    const nudged = nudgeCoordinate({ x: 90, y: 90 }, 10, 10, circle)
+    const distance = Math.hypot(nudged.x - circle.centerX, nudged.y - circle.centerY)
+    expect(distance).toBeCloseTo(circle.radius)
   })
 })

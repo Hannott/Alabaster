@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { computed, ref, watch, type WatchStopHandle } from 'vue'
 
+import type { BedShape } from '@/dashboard/bedPlan'
 import { useAvailabilityStore } from '@/stores/availability'
 import { createGuardedLoad } from '@/stores/guardedLoad'
 import { useMoonrakerStore } from '@/stores/moonraker'
@@ -50,6 +51,16 @@ export interface ConfiguredBedScrew {
   /** Whether this screw is also visited on the second, finer pass. */
   hasFineAdjust: boolean
 }
+
+/**
+ * Kinematics whose usable X/Y area is a circle rather than the rectangle
+ * `toolhead.axis_minimum`/`axis_maximum` describe. Klipper reports the same
+ * square bounding box for all three — there is no notification that carries
+ * the shape itself — so `bedShape` is the one place that turns "which
+ * kinematics" into "which shape", and every caller drawing or clamping to the
+ * bed reads this instead of checking `kinematics` a second way.
+ */
+const circularKinematics = new Set(['delta', 'rotary_delta', 'polar'])
 
 const levelingSections: ReadonlyArray<readonly [LevelingMethod, string]> = [
   ['quadGantryLevel', 'quad_gantry_level'],
@@ -276,6 +287,22 @@ export const usePrinterConfigStore = defineStore('printerConfig', () => {
   })
 
   /**
+   * Whether the machine's reachable X/Y area is the reported bounding
+   * rectangle, or the circle inscribed in it — see `bedPlan.ts`'s `BedShape`
+   * for what a caller does with the answer. Defaults to rectangular, the same
+   * way an unrecognized `control` leaves `controlKindFor` reporting nothing
+   * rather than guessing: a kinematics this store has not been taught about
+   * is far more likely to be an ordinary linear one than a circular one it
+   * has never heard of.
+   */
+  const bedShape = computed<BedShape>(() => {
+    const kinematics = section('printer')?.kinematics
+    return typeof kinematics === 'string' && circularKinematics.has(kinematics)
+      ? 'circular'
+      : 'rectangular'
+  })
+
+  /**
    * The screws `BED_SCREWS_ADJUST` will visit, in the order it visits them.
    *
    * Klipper's `bed_screws` object reports which screw it is standing at as a
@@ -456,6 +483,7 @@ export const usePrinterConfigStore = defineStore('printerConfig', () => {
     probeOffset,
     hasProbe,
     hasZEndstopOffset,
+    bedShape,
     bedScrews,
     historyFields,
     levelingMethods,
