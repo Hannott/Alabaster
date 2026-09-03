@@ -447,31 +447,6 @@ function onDragEnd(): void {
   </SurfaceSection>
 
   <SurfaceSection bare>
-    <div class="mt-4 flex flex-wrap items-center gap-2">
-      <label class="sr-only" for="dashboard-macro-search">
-        {{ t('dashboard.macros.searchLabel') }}
-      </label>
-      <input
-        id="dashboard-macro-search"
-        v-model="query"
-        type="search"
-        class="field field--on-soft macro-search"
-        :placeholder="t('dashboard.macros.searchLabel')"
-        autocomplete="off"
-        data-1p-ignore
-        data-lpignore="true"
-        data-bwignore
-      />
-      <AppButton
-        size="sm"
-        icon="refresh"
-        :disabled="macros.isLoading"
-        :title="t('dashboard.macros.refresh')"
-        :aria-label="t('dashboard.macros.refresh')"
-        @click="macros.refresh()"
-      />
-    </div>
-
     <p class="surface-section__subtitle">{{ t('dashboard.macros.selectedTitle') }}</p>
     <ul v-if="selectedRows.length > 0" class="macro-picker__selected mt-2 grid gap-1">
       <li
@@ -597,6 +572,30 @@ function onDragEnd(): void {
         icon="add"
         :label="t('dashboard.macros.addDivider')"
         @click="addDivider"
+      />
+    </div>
+    <div class="mt-4 flex flex-wrap items-center gap-2">
+      <label class="sr-only" for="dashboard-macro-search">
+        {{ t('dashboard.macros.searchLabel') }}
+      </label>
+      <input
+        id="dashboard-macro-search"
+        v-model="query"
+        type="search"
+        class="field field--on-soft macro-search"
+        :placeholder="t('dashboard.macros.searchLabel')"
+        autocomplete="off"
+        data-1p-ignore
+        data-lpignore="true"
+        data-bwignore
+      />
+      <AppButton
+        size="sm"
+        icon="refresh"
+        :disabled="macros.isLoading"
+        :title="t('dashboard.macros.refresh')"
+        :aria-label="t('dashboard.macros.refresh')"
+        @click="macros.refresh()"
       />
     </div>
     <ul v-if="availableMacros.length > 0" class="macro-picker__available mt-2 grid gap-1">
