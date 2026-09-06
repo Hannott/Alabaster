@@ -27,8 +27,7 @@ More of what's different: **[hannott.github.io/Alabaster/guide/highlights](https
 
 ## Installation
 
-On the machine running Klipper — not your workstation — as the user that owns
-it, not root:
+On the machine running Klipper, as the user that owns it, not root:
 
 ```bash
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/Hannott/Alabaster/main/scripts/install.sh)"
