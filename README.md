@@ -81,10 +81,14 @@ transport, theming, and deployment — are summarised in
 
 Every icon in [`AppIcon.vue`](src/components/AppIcon.vue) is hand-drawn or
 redrawn from an MIT/Apache-2.0-licensed glyph, neither of which require
-attribution. One exception: the Spoolman card's icon (the `spool` token) is
+attribution. Two exceptions: the Spoolman card's icon (the `spool` token) is
 selfh.st's ["spoolman-light"](https://icon-sets.iconify.design/selfhst/spoolman-light/)
 icon, © [selfh.st](https://selfh.st/icons/), licensed
-[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
+[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/); and the
+Temperatures card's five `thermometer*` fill-level icons are redrawn from
+[Font Awesome 4](https://github.com/FortAwesome/Font-Awesome/tree/fa-4)
+(© Dave Gandy), licensed
+[SIL OFL 1.1](https://scripts.sil.org/cms/scripts/page.php?site_id=nrsi&id=OFL).
 
 ## Prior art
 

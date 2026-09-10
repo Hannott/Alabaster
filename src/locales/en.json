@@ -715,6 +715,10 @@
       "listToggle": "Show {sensor} on the card",
       "chartToggle": "Draw {sensor} in the chart",
       "colorChoice": "{sensor} in {color}",
+      "colorCustom": "Custom color",
+      "colorCustomChoice": "{sensor} in a custom color",
+      "colorCustomTitle": "Choose a custom color — {sensor}",
+      "colorCustomApply": "Apply",
       "color": {
         "orange": "Orange",
         "sky": "Sky blue",
@@ -1744,6 +1748,13 @@
   "iconPicker": {
     "close": "Close",
     "none": "None"
+  },
+  "colorPickerDialog": {
+    "shade": "Saturation and brightness",
+    "hue": "Hue",
+    "hexLabel": "Hex",
+    "invalidHex": "Enter a hex color, like #3388ff.",
+    "preview": "Chosen color"
   },
   "field": {
     "increase": "Increase {field}",

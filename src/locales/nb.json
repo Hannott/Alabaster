@@ -715,6 +715,10 @@
       "listToggle": "Vis {sensor} på kortet",
       "chartToggle": "Tegn {sensor} i grafen",
       "colorChoice": "{sensor} i {color}",
+      "colorCustom": "Egendefinert farge",
+      "colorCustomChoice": "{sensor} i en egendefinert farge",
+      "colorCustomTitle": "Velg egendefinert farge — {sensor}",
+      "colorCustomApply": "Bruk",
       "color": {
         "orange": "Oransje",
         "sky": "Himmelblå",
@@ -1744,6 +1748,13 @@
   "iconPicker": {
     "close": "Lukk",
     "none": "Ingen"
+  },
+  "colorPickerDialog": {
+    "shade": "Metning og lysstyrke",
+    "hue": "Fargetone",
+    "hexLabel": "Hex",
+    "invalidHex": "Angi en hex-farge, som #3388ff.",
+    "preview": "Valgt farge"
   },
   "field": {
     "increase": "Øk {field}",

@@ -6,6 +6,7 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { computed, ref } from 'vue'
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import AppIcon from '@/components/AppIcon.vue'
 import TemperaturesModule from '@/components/dashboard/modules/TemperaturesModule.vue'
 import { dashboardModuleContextKey } from '@/dashboard/context'
 import { i18n } from '@/i18n'
@@ -740,17 +741,19 @@ describe('TemperaturesModule', () => {
     expect(names).toEqual(['Hotend', 'Bed'])
   })
 
-  it('draws each sensor in its own color, and the card may choose it', async () => {
+  it('draws each sensor’s row icon in its own color, and the card may choose it', async () => {
     const byDefault = mountModule()
     await flushPromises()
-    const rails = () =>
-      byDefault.wrapper.findAll('.temperature-rail').map((rail) => rail.attributes('style') ?? '')
-    expect(rails()[0]).toContain('var(--color-data-orange)')
-    expect(rails()[1]).toContain('var(--color-data-sky)')
+    const icons = () =>
+      byDefault.wrapper
+        .findAll('.temperature-row-icon')
+        .map((icon) => icon.attributes('style') ?? '')
+    expect(icons()[0]).toContain('var(--color-data-orange)')
+    expect(icons()[1]).toContain('var(--color-data-sky)')
 
     const chosen = mountModule({ config: { sensorColors: { extruder: 'purple' } } })
     await flushPromises()
-    expect(chosen.wrapper.findAll('.temperature-rail').at(0)?.attributes('style')).toContain(
+    expect(chosen.wrapper.findAll('.temperature-row-icon').at(0)?.attributes('style')).toContain(
       'var(--color-data-purple)',
     )
   })
@@ -873,38 +876,18 @@ describe('TemperaturesModule', () => {
     expect(setHeaterTarget).toHaveBeenNthCalledWith(2, 'heater_bed', 55)
   })
 
-  it('fills the rail to the heater’s power, and marks a passive sensor differently', async () => {
-    const { wrapper } = mountModule()
-    await flushPromises()
-
-    const bedRail = wrapper.findAll('.module-table__row').at(1)?.get('.temperature-rail')
-    expect(bedRail?.get('.temperature-rail__fill').attributes('style')).toContain(
-      '--meter-value: 42%',
-    )
-
-    // A sensor with no power to report gets no stem — a meter it cannot fill —
-    // but keeps the bulb, same as every other row.
-    const passiveRail = wrapper.findAll('.module-table__row').at(2)?.get('.temperature-rail')
-    expect(passiveRail?.classes()).toContain('temperature-rail--passive')
-    expect(passiveRail?.find('.temperature-rail__stem').exists()).toBe(false)
-    expect(passiveRail?.find('.temperature-rail__bulb').exists()).toBe(true)
-  })
-
   /*
-   * The bulb is the one part of the rail that never goes blank: a heater
-   * sitting at 0% power (the extruder here, with no target and no reported
-   * power) still needs its color on screen, or the card loses its key to
-   * that line the moment the heater is off — the exact moment someone is
-   * most likely to be scanning the rails to tell two heaters apart.
+   * The hotend and the bed keep a fixed icon for what they physically are,
+   * regardless of how close either is to its target.
    */
-  it('keeps the bulb colored even when a heater is off and its stem is empty', async () => {
+  it('gives the hotend and the bed their own fixed row icon', async () => {
     const { wrapper } = mountModule()
     await flushPromises()
 
-    const extruderRow = wrapper.findAll('.module-table__row').at(0)
-    const rail = extruderRow?.get('.temperature-rail')
-    expect(rail?.get('.temperature-rail__fill').attributes('style')).toContain('--meter-value: 0%')
-    expect(rail?.find('.temperature-rail__bulb').exists()).toBe(true)
+    const icon = (rowIndex: number) =>
+      wrapper.findAll('.module-table__row').at(rowIndex)?.findComponent(AppIcon)
+    expect(icon(0)?.props('name')).toBe('nozzleHeat')
+    expect(icon(1)?.props('name')).toBe('heatingSquare')
   })
 
   it('shows an ETA once the store has a reliable one, and hides the rate readout beside it', async () => {

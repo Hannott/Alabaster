@@ -3,6 +3,7 @@ import { computed, nextTick, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import AppButton from '@/components/AppButton.vue'
+import ColorPickerDialog from '@/components/ColorPickerDialog.vue'
 import FilamentCatalogueDialog from '@/components/FilamentCatalogueDialog.vue'
 import AppIcon from '@/components/AppIcon.vue'
 import HeaterCalibrationPanel from '@/components/calibration/HeaterCalibrationPanel.vue'
@@ -11,6 +12,8 @@ import TemperaturesChartSettingsFields from '@/components/dashboard/modules/Temp
 import {
   sensorColorKey,
   sensorColorTokens,
+  sensorColorVariable,
+  sensorCustomColor,
   sensorLabel,
 } from '@/components/dashboard/modules/temperatureSensors'
 import {
@@ -195,7 +198,7 @@ function toggleListed(objectName: string): void {
   updateConfig({ listSensors: next })
 }
 
-function colorKeyFor(objectName: string): string {
+function colorKeyFor(objectName: string): string | null {
   return sensorColorKey(objectName, configStringMap(config.value, 'sensorColors'))
 }
 
@@ -204,6 +207,55 @@ function chooseColor(objectName: string, key: string): void {
     sensorColors: { ...configStringMap(config.value, 'sensorColors'), [objectName]: key },
   })
 }
+
+function customColorFor(objectName: string): string | null {
+  return sensorCustomColor(objectName, configStringMap(config.value, 'sensorColors'))
+}
+
+/**
+ * The eighth swatch's own face when nothing custom has been chosen yet:
+ * every token in a ring rather than any one hue, since none of the seven is
+ * "the" custom color. Built from the same tokens the fixed swatches use, so
+ * it never reaches for a literal outside `src/themes` even for a decoration.
+ */
+const customColorWheelPreview =
+  'conic-gradient(from 0deg, var(--color-data-red), var(--color-data-orange), ' +
+  'var(--color-data-yellow), var(--color-data-green), var(--color-data-sky), ' +
+  'var(--color-data-blue), var(--color-data-purple), var(--color-data-red))'
+
+function customColorSwatch(objectName: string): string {
+  return customColorFor(objectName) ?? customColorWheelPreview
+}
+
+/**
+ * The sensor `ColorPickerDialog` is open for, or `null` when it is closed —
+ * one dialog shared by every row rather than one per sensor, the same reason
+ * `HeaterCalibrationPanel` is not duplicated per heater. The picker opens on
+ * whatever the sensor is drawn in right now, custom or token, so a small
+ * adjustment starts from the current color rather than from nothing.
+ */
+const colorPickerTarget = ref<string | null>(null)
+
+function openCustomColorPicker(objectName: string): void {
+  colorPickerTarget.value = objectName
+}
+
+function confirmCustomColor(hex: string): void {
+  if (colorPickerTarget.value) chooseColor(colorPickerTarget.value, hex)
+  colorPickerTarget.value = null
+}
+
+const colorPickerTitle = computed(() => {
+  const objectName = colorPickerTarget.value
+  const sensor = telemetry.sensors.find((candidate) => candidate.objectName === objectName)
+  return t('dashboard.temperature.colorCustomTitle', { sensor: sensor ? label(sensor) : '' })
+})
+
+const colorPickerInitialValue = computed(() =>
+  colorPickerTarget.value
+    ? sensorColorVariable(colorPickerTarget.value, configStringMap(config.value, 'sensorColors'))
+    : '',
+)
 
 function toggleSeries(objectName: string): void {
   const configured = configOptionalStringList(config.value, 'chartSeries')
@@ -278,10 +330,35 @@ function toggleSeries(objectName: string): void {
               aria-hidden="true"
             />
           </button>
+          <button
+            type="button"
+            class="palette-swatch"
+            :style="{ '--swatch': customColorSwatch(sensor.objectName) }"
+            :aria-pressed="colorKeyFor(sensor.objectName) === null"
+            :title="t('dashboard.temperature.colorCustom')"
+            :aria-label="t('dashboard.temperature.colorCustomChoice', { sensor: label(sensor) })"
+            @click="openCustomColorPicker(sensor.objectName)"
+          >
+            <AppIcon
+              v-if="colorKeyFor(sensor.objectName) === null"
+              name="check"
+              class="size-4"
+              aria-hidden="true"
+            />
+          </button>
         </span>
       </template>
     </div>
   </SurfaceSection>
+
+  <ColorPickerDialog
+    :open="colorPickerTarget !== null"
+    :title="colorPickerTitle"
+    :initial-value="colorPickerInitialValue"
+    :confirm-label="t('dashboard.temperature.colorCustomApply')"
+    @confirm="confirmCustomColor"
+    @cancel="colorPickerTarget = null"
+  />
 
   <SurfaceSection
     :title="t('dashboard.temperature.presetsTitle')"

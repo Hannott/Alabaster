@@ -53,6 +53,7 @@ export type AppIconName =
   | 'function'
   | 'gears'
   | 'globe'
+  | 'heatingSquare'
   | 'help'
   | 'hide'
   | 'history'
@@ -104,6 +105,11 @@ export type AppIconName =
   | 'stop'
   | 'sunMoon'
   | 'temperature'
+  | 'thermometerEmpty'
+  | 'thermometerFull'
+  | 'thermometerHalf'
+  | 'thermometerQuarter'
+  | 'thermometerThreeQuarters'
   | 'trash'
   | 'undo'
   | 'unlock'
@@ -912,6 +918,17 @@ defineProps<{ name: AppIconName }>()
       />
       <path d="m16.95 8.46l-.71-.7l-.7-.71l-4.25 4.24l-4.24 4.25l.71.7l.7.71l4.25-4.24z" />
     </g>
+    <!--
+      Iconoir's "heating-square" glyph (MIT licensed) — a wall unit's front
+      panel with three rising heat-shimmer lines, for the Temperatures
+      module's bed row: `heater_bed` is a plate the printer heats from below,
+      which this reads as at a glance in a way `temperature`'s plain
+      thermometer (a sensor, not a heating element) does not.
+    -->
+    <g v-else-if="name === 'heatingSquare'">
+      <rect x="3" y="3" width="18" height="18" rx="0.6" />
+      <path d="M8 6s-2.5 3 0 6s0 6 0 6m4-12s-2.5 3 0 6s0 6 0 6m4-12s-2.5 3 0 6s0 6 0 6" />
+    </g>
     <g v-else-if="name === 'help'">
       <circle cx="12" cy="12" r="9" />
       <path d="M9.1 9a3 3 0 0 1 5.82 1c0 2-3 3-3 3" />
@@ -1188,6 +1205,106 @@ defineProps<{ name: AppIconName }>()
       />
       <path
         d="M8.75 15.71V8.5h-1.5v7.21c-.445.26-.75.74-.75 1.29c0 .83.67 1.5 1.5 1.5s1.5-.67 1.5-1.5c0-.555-.305-1.03-.75-1.29M21 4h-6.5v1.5H21zm-2 3.5h-4.5V9H19zm2 3.5h-6.5v1.5H21zm-2 3.5h-4.5V16H19z"
+      />
+    </g>
+    <!--
+      Font Awesome 4's "thermometer" glyphs (Dave Gandy, OFL-1.1 licensed) —
+      the five fill levels (`-empty`, `-quarter`, `-half`, `-three-quarters`
+      and the bare, full glyph) `TemperaturesModule` steps a passive sensor's
+      row icon through, chosen by its own reading against a fixed scale —
+      see `sensorRowIcon` in `temperatureSensors.ts` for the current
+      floor/ceiling and why it is a fixed range rather than measured against
+      a target. Native 1024x1792 grid, scaled and centered into this file's
+      shared 24x24 box.
+
+      Each glyph is two subpaths sharing one outline: a bulb-and-stem
+      "mercury" shape that grows between the five, and — identical across all
+      five, so it is stated once here and not repeated in the shorter
+      comments below — the surrounding glass silhouette plus the three scale
+      ticks up its side. The mercury stays plain `currentColor`, so it takes
+      the row's own sensor-color styling the way every other icon in this
+      file does; the outline is pinned to `text-muted` instead, the same
+      fixed neutral `AppOutputRow`'s icons default to, so the glass reads as
+      a constant part of the glyph rather than tinting along with whichever
+      color the sensor is drawn in.
+    -->
+    <g
+      v-else-if="name === 'thermometerEmpty'"
+      stroke="none"
+      transform="translate(5.142857 0) scale(0.0133928571)"
+    >
+      <path
+        fill="currentColor"
+        d="M640 1344q0 80-56 136t-136 56t-136-56t-56-136q0-79 56-135.5t136-56.5t136 56.5t56 135.5"
+      />
+      <path
+        class="text-muted"
+        fill="currentColor"
+        d="M768 1344q0-77-34-144t-94-112V320q0-80-56-136t-136-56t-136 56t-56 136v768q-60 45-94 112t-34 144q0 133 93.5 226.5T448 1664t226.5-93.5T768 1344m128 0q0 185-131.5 316.5T448 1792t-316.5-131.5T0 1344q0-182 128-313V320q0-133 93.5-226.5T448 0t226.5 93.5T768 320v711q128 131 128 313m128-576v128H832V768zm0-256v128H832V512zm0-256v128H832V256z"
+      />
+    </g>
+    <!-- Font Awesome 4's "thermometer-quarter" glyph — see `thermometerEmpty` above. -->
+    <g
+      v-else-if="name === 'thermometerQuarter'"
+      stroke="none"
+      transform="translate(5.142857 0) scale(0.0133928571)"
+    >
+      <path
+        fill="currentColor"
+        d="M640 1344q0 80-56 136t-136 56t-136-56t-56-136q0-60 35-110t93-71v-139h128v139q58 21 93 71t35 110"
+      />
+      <path
+        class="text-muted"
+        fill="currentColor"
+        d="M768 1344q0-77-34-144t-94-112V320q0-80-56-136t-136-56t-136 56t-56 136v768q-60 45-94 112t-34 144q0 133 93.5 226.5T448 1664t226.5-93.5T768 1344m128 0q0 185-131.5 316.5T448 1792t-316.5-131.5T0 1344q0-182 128-313V320q0-133 93.5-226.5T448 0t226.5 93.5T768 320v711q128 131 128 313m128-576v128H832V768zm0-256v128H832V512zm0-256v128H832V256z"
+      />
+    </g>
+    <!-- Font Awesome 4's "thermometer-half" glyph — see `thermometerEmpty` above. -->
+    <g
+      v-else-if="name === 'thermometerHalf'"
+      stroke="none"
+      transform="translate(5.142857 0) scale(0.0133928571)"
+    >
+      <path
+        fill="currentColor"
+        d="M640 1344q0 80-56 136t-136 56t-136-56t-56-136q0-60 35-110t93-71V768h128v395q58 21 93 71t35 110"
+      />
+      <path
+        class="text-muted"
+        fill="currentColor"
+        d="M768 1344q0-77-34-144t-94-112V320q0-80-56-136t-136-56t-136 56t-56 136v768q-60 45-94 112t-34 144q0 133 93.5 226.5T448 1664t226.5-93.5T768 1344m128 0q0 185-131.5 316.5T448 1792t-316.5-131.5T0 1344q0-182 128-313V320q0-133 93.5-226.5T448 0t226.5 93.5T768 320v711q128 131 128 313m128-576v128H832V768zm0-256v128H832V512zm0-256v128H832V256z"
+      />
+    </g>
+    <!-- Font Awesome 4's "thermometer-three-quarters" glyph — see `thermometerEmpty` above. -->
+    <g
+      v-else-if="name === 'thermometerThreeQuarters'"
+      stroke="none"
+      transform="translate(5.142857 0) scale(0.0133928571)"
+    >
+      <path
+        fill="currentColor"
+        d="M640 1344q0 80-56 136t-136 56t-136-56t-56-136q0-60 35-110t93-71V512h128v651q58 21 93 71t35 110"
+      />
+      <path
+        class="text-muted"
+        fill="currentColor"
+        d="M768 1344q0-77-34-144t-94-112V320q0-80-56-136t-136-56t-136 56t-56 136v768q-60 45-94 112t-34 144q0 133 93.5 226.5T448 1664t226.5-93.5T768 1344m128 0q0 185-131.5 316.5T448 1792t-316.5-131.5T0 1344q0-182 128-313V320q0-133 93.5-226.5T448 0t226.5 93.5T768 320v711q128 131 128 313m128-576v128H832V768zm0-256v128H832V512zm0-256v128H832V256z"
+      />
+    </g>
+    <!-- Font Awesome 4's bare "thermometer" glyph (full) — see `thermometerEmpty` above. -->
+    <g
+      v-else-if="name === 'thermometerFull'"
+      stroke="none"
+      transform="translate(5.142857 0) scale(0.0133928571)"
+    >
+      <path
+        fill="currentColor"
+        d="M640 1344q0 80-56 136t-136 56t-136-56t-56-136q0-60 35-110t93-71V256h128v907q58 21 93 71t35 110"
+      />
+      <path
+        class="text-muted"
+        fill="currentColor"
+        d="M768 1344q0-77-34-144t-94-112V320q0-80-56-136t-136-56t-136 56t-56 136v768q-60 45-94 112t-34 144q0 133 93.5 226.5T448 1664t226.5-93.5T768 1344m128 0q0 185-131.5 316.5T448 1792t-316.5-131.5T0 1344q0-182 128-313V320q0-133 93.5-226.5T448 0t226.5 93.5T768 320v711q128 131 128 313m128-576v128H832V768zm0-256v128H832V512zm0-256v128H832V256z"
       />
     </g>
     <!--

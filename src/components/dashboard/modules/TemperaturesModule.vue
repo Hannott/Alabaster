@@ -4,13 +4,14 @@ import { useI18n } from 'vue-i18n'
 
 import AppButton from '@/components/AppButton.vue'
 import AppField from '@/components/AppField.vue'
-import AppIcon from '@/components/AppIcon.vue'
+import AppIcon, { type AppIconName } from '@/components/AppIcon.vue'
 import AppDashboardModule from '@/components/dashboard/AppDashboardModule.vue'
 import TemperatureChart from '@/components/dashboard/modules/TemperatureChart.vue'
 import TemperaturesQuickSettings from '@/components/dashboard/modules/TemperaturesQuickSettings.vue'
 import {
   sensorColorVariable,
   sensorLabel as sensorDisplayLabel,
+  sensorRowIcon,
 } from '@/components/dashboard/modules/temperatureSensors'
 import {
   readChartHeight,
@@ -369,6 +370,15 @@ function sensorLabel(sensor: SensorReading): string {
   return sensorDisplayLabel(sensor, t)
 }
 
+/**
+ * Reads out of `displayedTemperature` rather than the sensor's own live
+ * value, so scrubbing the chart moves the row's icon along with every other
+ * number on the card instead of leaving it pinned to the present moment.
+ */
+function rowIcon(sensor: SensorReading): AppIconName {
+  return sensorRowIcon(sensor, displayedTemperature(sensor))
+}
+
 function clamp(value: number, minimum: number, maximum: number): number {
   return Math.min(maximum, Math.max(minimum, value))
 }
@@ -478,10 +488,6 @@ function signedNudge(delta: number): string {
 
 function hasActiveTarget(sensor: SensorReading): boolean {
   return sensor.target !== null && sensor.target > 0
-}
-
-function powerPercent(sensor: SensorReading): number {
-  return sensor.power === null ? 0 : clamp(Math.round(sensor.power * 100), 0, 100)
 }
 
 function formatShortDuration(seconds: number): string {
@@ -655,20 +661,12 @@ const hasJobLoaded = computed(() => printer.hasActivePrint)
         it belongs to, it does neither.
       -->
         <div v-for="sensor in listedSensors" :key="sensor.objectName" class="module-table__row">
-          <span
-            class="temperature-rail"
-            :class="{ 'temperature-rail--passive': !sensor.isSettable }"
-            :style="{ '--series-color': colorFor(sensor.objectName) }"
+          <AppIcon
+            :name="rowIcon(sensor)"
+            class="temperature-row-icon"
+            :style="{ color: colorFor(sensor.objectName) }"
             aria-hidden="true"
-          >
-            <span v-if="sensor.isSettable" class="temperature-rail__stem">
-              <span
-                class="temperature-rail__fill"
-                :style="{ '--meter-value': `${powerPercent(sensor)}%` }"
-              ></span>
-            </span>
-            <span class="temperature-rail__bulb"></span>
-          </span>
+          />
           <span class="module-table__name">{{ sensorLabel(sensor) }}</span>
           <!--
           One field per sensor, not a reading beside a box to type in. The two
@@ -713,7 +711,7 @@ const hasJobLoaded = computed(() => printer.hasActivePrint)
             label-align="end"
             type="text"
             :unit="t('dashboard.temperatureUnit')"
-            :label="t('dashboard.temperature.passive')"
+            label=""
             :aria-label="t('dashboard.temperature.readingLabel', { sensor: sensorLabel(sensor) })"
             :model-value="temperature(displayedTemperature(sensor))"
           />

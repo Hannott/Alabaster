@@ -481,6 +481,60 @@ describe('TemperaturesSettingsPane', () => {
   })
 
   /*
+   * The eighth swatch opens `ColorPickerDialog` rather than picking a fixed
+   * hue itself. Nothing is written until the dialog's own Apply: the picker
+   * is Alabaster's, not the browser's, so there is no native panel closing
+   * on its own to commit behind the reader's back.
+   */
+  it('lets a sensor take a custom color through the color-picker dialog', async () => {
+    const { wrapper, config } = mountPane()
+    await flushPromises()
+
+    const customSwatch = wrapper.get('[title="Custom color"]')
+    expect(customSwatch.attributes('aria-pressed')).toBe('false')
+    await customSwatch.trigger('click')
+
+    const dialog = wrapper.getComponent({ name: 'ColorPickerDialog' })
+    expect(dialog.props('open')).toBe(true)
+    expect(dialog.props('title')).toBe('Choose a custom color — Hotend')
+    // Opens on what the sensor is already drawn in.
+    expect(dialog.props('initialValue')).toBe('var(--color-data-orange)')
+
+    await dialog.get('input[type="text"]').setValue('#123456')
+    expect(config.value.sensorColors).toBeUndefined()
+
+    await dialog.get('form').trigger('submit')
+    await flushPromises()
+
+    expect((config.value.sensorColors as Record<string, string>).extruder).toBe('#123456')
+    expect(dialog.props('open')).toBe(false)
+
+    // The extruder's own row: the custom swatch is pressed and none of its
+    // seven fixed tokens is, even though `orange` was its own default before.
+    const extruderRow = wrapper.findAll('.palette-swatches')[0]
+    const pressedInRow = extruderRow
+      ?.findAll('.palette-swatch')
+      .filter((swatch) => swatch.attributes('aria-pressed') === 'true')
+    expect(pressedInRow).toHaveLength(1)
+    expect(pressedInRow?.[0]?.attributes('title')).toBe('Custom color')
+  })
+
+  it('discards the color picker on cancel, leaving the sensor on its default', async () => {
+    const { wrapper, config } = mountPane()
+    await flushPromises()
+
+    await wrapper.get('[title="Custom color"]').trigger('click')
+    const dialog = wrapper.getComponent({ name: 'ColorPickerDialog' })
+
+    await dialog.get('input[type="text"]').setValue('#abcdef')
+    dialog.vm.$emit('cancel')
+    await flushPromises()
+
+    expect(dialog.props('open')).toBe(false)
+    expect(config.value.sensorColors).toBeUndefined()
+  })
+
+  /*
    * Both `listSensors` and `chartSeries` treat an empty stored list as "never
    * customized, show everything" — right for an instance nobody has touched
    * yet, wrong once the user has actually unticked every row. Unticking the

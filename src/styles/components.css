@@ -2959,9 +2959,8 @@ input[type='number']::-webkit-inner-spin-button {
 /*
  * One value track, not two: a sensor's reading and its setpoint are one field,
  * the reading notched into its border — so there is no heading to cut a track
- * to, and the track is cut to the field instead. The first track is the rail's
- * own width, not the stem's — see the note on `.temperature-rail__bulb` for why
- * it is wider.
+ * to, and the track is cut to the field instead. The first track is the
+ * leading icon's own width, `.temperature-row-icon`'s 1.5rem.
  *
  * A heater's target never exceeds its configured `max_temp`, so three digits
  * plus `°C` is the whole range the box has to hold — but the notch above it is
@@ -2972,7 +2971,7 @@ input[type='number']::-webkit-inner-spin-button {
  * reading `Report…`.
  */
 .temperature-table {
-  grid-template-columns: 0.5rem minmax(2.5rem, 1fr) 7.75rem;
+  grid-template-columns: 1.5rem minmax(2.5rem, 1fr) 7.75rem;
 }
 
 /*
@@ -3067,66 +3066,18 @@ input[type='number']::-webkit-inner-spin-button {
 }
 
 /*
- * The rail is the heater's power, not decoration: a stem filled from the
- * bottom in that sensor's own chart color, rising out of a bulb in the same
- * color — a thermometer, not a bare gauge. It replaces a numeric State column
- * the card has no width for, and it makes the color key earn its place by
- * reporting something. Power stays readable as a figure on the detail line, so
- * this is never color or shape alone.
- *
- * The bulb is never empty, even at 0% power or with the heater off: it is the
- * only place on the card that always shows a sensor's color, so a heater that
- * has cooled all the way down does not lose its key. `--meter-value` at 0%
- * only empties the stem above it.
+ * The row's own leading icon, in the column the power-meter rail used to
+ * fill: the hotend, the bed, and every other sensor's own fill-level
+ * thermometer, each drawn in that sensor's chart color. It replaces a
+ * numeric State column the card has no width for, and makes the color key
+ * earn its place by naming what the row actually is rather than only
+ * reporting a duty cycle a heater's own detail line already states as a
+ * figure — see `detailPower` in `TemperaturesModule.vue`, which is why
+ * dropping the meter loses no reading, only a second way to draw it.
  */
-.temperature-rail {
-  position: relative;
-  width: 0.5rem;
-  height: 1.9rem;
-}
-
-/* Narrower than the bulb beneath it, and centered over it: the neck of the
-   thermometer, in the same rounded pill the rail used to be on its own. */
-.temperature-rail__stem {
-  position: absolute;
-  inset-inline: 0.125rem;
-  top: 0;
+.temperature-row-icon {
+  width: 1.5rem;
   height: 1.5rem;
-  overflow: hidden;
-  border-radius: 999px 999px 1px 1px;
-  background: var(--border-subtle);
-}
-
-.temperature-rail__fill {
-  position: absolute;
-  inset: 0;
-  background: var(--series-color);
-  clip-path: inset(calc(100% - clamp(0%, var(--meter-value), 100%)) 0 0 0);
-  transition: clip-path var(--motion-duration-fast) var(--motion-ease-standard);
-}
-
-/*
- * Wider than the 0.25rem stem it sits under, which is why the column carries
- * 0.5rem rather than the stem's own width — a bulb cut to the stem's width
- * reads as a rounded end, not a reservoir.
- */
-.temperature-rail__bulb {
-  position: absolute;
-  bottom: 0;
-  left: 50%;
-  width: 0.5rem;
-  height: 0.5rem;
-  border-radius: 50%;
-  background: var(--series-color);
-  transform: translateX(-50%);
-}
-
-/* A passive sensor has no power to report, so it gets the bulb alone —
-   centered on the row rather than pinned to a stem it does not have. */
-.temperature-rail--passive .temperature-rail__bulb {
-  top: 50%;
-  bottom: auto;
-  transform: translate(-50%, -50%);
 }
 
 /*
@@ -3198,26 +3149,26 @@ input[type='number']::-webkit-inner-spin-button {
  * Where a heater's controls move up beside its reading, derived from the tracks
  * rather than picked as a round figure.
  *
- * Add the wide row up: 0.5rem of rail, the nudge pair and `Off` at 8.7rem, the
- * status track at 8.5rem, the field at 7.75rem and four 0.5rem gaps come to
- * 27.45rem, so the row stops overflowing its card at 30rem — with the name
- * pinned to its 2.5rem floor, which is not a row anybody can read, since it cuts
- * `Hotend` to two letters. The breakpoint sits 2rem above that floor so the name
- * starts at 4.5rem and grows a pixel per pixel of card after it: a name longer
- * than about nine characters ellipsizes at the breakpoint itself, which is what
- * this column does everywhere and is cheaper than the 39px of extra row height
- * the stacked line costs to avoid it.
+ * Add the wide row up: 1.5rem of leading icon, the nudge pair and `Off` at
+ * 8.7rem, the status track at 8.5rem, the field at 7.75rem and four 0.5rem
+ * gaps come to 28.45rem, so the row stops overflowing its card at 31rem —
+ * with the name pinned to its 2.5rem floor, which is not a row anybody can
+ * read, since it cuts `Hotend` to two letters. The breakpoint sits 2rem above
+ * that floor so the name starts at 4.5rem and grows a pixel per pixel of card
+ * after it: a name longer than about nine characters ellipsizes at the
+ * breakpoint itself, which is what this column does everywhere and is
+ * cheaper than the 39px of extra row height the stacked line costs to avoid
+ * it.
  *
- * It was 34rem, and that number failed a width the dashboard actually produces:
- * an L column at a 1920px viewport gives this card a 542px content box, two
- * pixels under the threshold, so a row with 60px of slack in it stacked its
- * controls onto a second line and left 394px of empty name track paying for the
- * height. A breakpoint set by eye above the width a row needs is one that
- * eventually lands on the wrong side of a real column.
+ * The icon column grew from the 0.5rem rail it replaced, so this breakpoint
+ * moved up from 32rem with it — an L column at a 1920px viewport still gives
+ * this card a 542px (33.875rem) content box, so 33rem keeps real headroom
+ * rather than picked by eye; see the icon-column note above `.temperature-table`
+ * for the swap this arithmetic followed.
  */
-@container temperature-card (min-width: 32rem) {
+@container temperature-card (min-width: 33rem) {
   .temperature-table {
-    grid-template-columns: 0.5rem minmax(2.5rem, 1fr) auto 8.5rem 7.75rem;
+    grid-template-columns: 1.5rem minmax(2.5rem, 1fr) auto 8.5rem 7.75rem;
   }
 
   /* The wrapper stops being a box so its two halves become cells of the row's
@@ -3364,6 +3315,10 @@ input[type='number']::-webkit-inner-spin-button {
 .palette-swatches {
   display: inline-flex;
   gap: 0.2rem;
+  /* The selected ring reaches 3px past the last swatch, and the settings
+     surface's content scrolls — without this the ring on the rightmost swatch
+     is cut off at the pane's edge. */
+  padding-inline-end: 3px;
 }
 
 /*
@@ -5458,6 +5413,100 @@ input.z-axis__slider {
   color: var(--status-danger-text);
   font-size: var(--text-alert-inline-size);
   font-weight: var(--font-weight);
+}
+
+/*
+ * The color picker (dialog-system.md Shape 7), drawn by the application
+ * rather than borrowed from the browser: `<input type="color">` always opens
+ * the platform's own panel on top of whatever invoked it, which stacked a
+ * second popup on the dialog that was meant to hold it. A shade square (white
+ * to the hue across, black up from the bottom) and a hue bar below it, both
+ * driven by pointer position, are the whole of what that panel offered.
+ *
+ * The hue bar's spectrum and the square's white/black ramps are the one
+ * chromatic gradient in shared CSS that is not an Okabe-Ito token — it cannot
+ * be, since its job is to offer every hue. AGENTS.md lists this alongside the
+ * sensor color it collects as the bounded exception to that rule.
+ */
+.color-picker-dialog__shade {
+  position: relative;
+  height: 9rem;
+  margin-block-start: 1rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: 0.6rem;
+  background:
+    linear-gradient(to top, var(--ito-black), transparent),
+    linear-gradient(to right, white, var(--picker-hue));
+  cursor: crosshair;
+  touch-action: none;
+}
+
+.color-picker-dialog__hue {
+  position: relative;
+  height: 0.9rem;
+  margin-block-start: 0.75rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: 999px;
+  background: linear-gradient(
+    to right,
+    hsl(0 100% 50%),
+    hsl(60 100% 50%),
+    hsl(120 100% 50%),
+    hsl(180 100% 50%),
+    hsl(240 100% 50%),
+    hsl(300 100% 50%),
+    hsl(360 100% 50%)
+  );
+  cursor: pointer;
+  touch-action: none;
+}
+
+/* The shared inset-ring focus model: a surface that is itself a color
+   cannot show a recolored border legibly, so it takes the ring instead. */
+.color-picker-dialog__shade:focus-visible,
+.color-picker-dialog__hue:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--focus-ring);
+}
+
+/* One thumb shape for both surfaces: a white ring with a black hairline, so
+   it stays visible over any hue, any shade, and either theme. It shows the
+   color under it, and never takes the pointer away from the surface. */
+.color-picker-dialog__thumb {
+  position: absolute;
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid white;
+  border-radius: 999px;
+  background: var(--picker-color);
+  box-shadow: 0 0 0 1px var(--ito-black);
+  pointer-events: none;
+  translate: -50% -50%;
+}
+
+.color-picker-dialog__hue .color-picker-dialog__thumb {
+  top: 50%;
+}
+
+.color-picker-dialog__hex {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.6rem;
+  margin-block-start: 0.75rem;
+}
+
+.color-picker-dialog__hex .prompt-dialog__field {
+  flex: 1;
+  margin-block-start: 0;
+}
+
+.color-picker-dialog__preview {
+  flex: none;
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: 0.4rem;
+  background: var(--picker-color);
 }
 
 /*
