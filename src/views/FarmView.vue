@@ -1,30 +1,42 @@
 <script setup lang="ts">
 /**
- * The farm rail: every saved printer on screen at once, in one row of
- * full-height columns that scrolls sideways.
+ * The farm: every saved printer on screen at once, as a grid of camera-first
+ * cards that the page scrolls vertically.
  *
- * Two geometric decisions carry the page, and both are in `main.css`:
- * a collapsed column is 200 px and an expanded one is 416 px — two collapsed
- * columns plus the gap — so expanding never knocks the rail off its rhythm,
- * and the arithmetic of "what does this cost me" is one column. Eight
- * collapsed columns fit a 1752 px canvas with a sliver of a ninth showing,
- * and that sliver is the affordance that says there is more to the right.
+ * This replaced a sideways rail of full-height columns, and the reason is one
+ * measurement: in that rail the camera was 298 × 169 px — 17% of a 981 px
+ * column — while the control dock under it took 175 px and roughly 372 px of
+ * the column was empty because a full-height card has to fill itself. Three
+ * cards across the same canvas make each camera 570 × 320: 3.6× the area, on a
+ * page whose whole purpose is looking at machines.
  *
- * The horizontal scroll lives on the rail, never on the document:
- * `interface-standards.md` forbids horizontal *document* overflow and controls
- * past the edge of a container that clips rather than scrolls. A region that
- * scrolls its own overflow is the permitted half, on two conditions this page
- * meets — the scrollbar stays visible, and a further column is always partly
- * on screen.
+ * What the rail's "one row" decision settled, and how the grid answers it
+ * instead:
+ *
+ * - **How many printers fit.** However many there are, as before: a wrapping
+ *   grid has no density cliff either, and twenty printers is seven rows of
+ *   ordinary scrolling rather than six thousand pixels of sideways travel.
+ * - **Where the controls go.** One action row and one menu, in place of a dock
+ *   that existed largely because the column had 800 px to fill.
+ * - **What happens when the farm grows.** A new printer appends a card and
+ *   moves nothing, because order is the saved list's order and the grid fills
+ *   in order. The grid does reshape when the *window* changes — but a window
+ *   resize is a user event, not a data event, which is the distinction
+ *   [`ADR 0002`](../../docs/architecture/0002-resilient-availability.md) draws.
+ * - **One machine needs attention and the others do not.** The middle level the
+ *   rail bought with a second column size is gone, because a 570 px card is
+ *   already wider than the expanded column's data pane was. There is one size.
+ *
+ * The scroll is the page's own, so this is a `standard-page`: no nested scroll
+ * region anywhere on the route, where the rail had two (itself, and the queue
+ * list inside a column).
  */
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { onBeforeUnmount, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
-import FarmPrinterColumn from '@/components/farm/FarmPrinterColumn.vue'
+import FarmPrinterCard from '@/components/farm/FarmPrinterCard.vue'
 import PageHeading from '@/components/PageHeading.vue'
-import type { PageHeadingAction } from '@/components/PageHeading.vue'
-import { useFarmExpansion } from '@/composables/useFarmExpansion'
 import { useFarmStore } from '@/stores/farm'
 import { useMoonrakerStore } from '@/stores/moonraker'
 import { usePrintersStore } from '@/stores/printers'
@@ -34,9 +46,6 @@ const router = useRouter()
 const farm = useFarmStore()
 const printers = usePrintersStore()
 const moonraker = useMoonrakerStore()
-const { isExpanded, toggle, expandedCount, collapseAll } = useFarmExpansion()
-
-const rail = ref<HTMLElement | null>(null)
 
 /**
  * Farm connections exist only while this page is mounted *and* the document is
@@ -60,24 +69,14 @@ onBeforeUnmount(() => {
   farm.deactivate()
 })
 
-const collapseAction = computed<PageHeadingAction | undefined>(() =>
-  expandedCount.value > 0
-    ? {
-        label: t('farm.collapseAll'),
-        icon: 'collapse',
-        onClick: () => collapseAll(),
-      }
-    : undefined,
-)
-
 /**
  * The card's primary control does one of two things, and which one is the whole
  * reason it has two labels.
  *
- * **Switch** retargets the live connection and stays on the rail. The reader is
+ * **Switch** retargets the live connection and stays on the page. The reader is
  * looking at the wall; the useful outcome is that Alabaster is now driving this
- * machine, not that they have been moved somewhere else. The column marks
- * itself as the active one and the rail carries on.
+ * machine, not that they have been moved somewhere else. The card marks itself
+ * as the active one and the wall carries on.
  *
  * **Go to dashboard**, on the card that is already active, leaves. Before this
  * split both cards read differently and did the same thing — switch, then
@@ -94,48 +93,19 @@ function open(id: string): void {
   }
   moonraker.selectPrinter(id)
 }
-
-/**
- * Arrow keys move the rail one column; Home and End go to its ends. A
- * horizontally scrolling region that only answers a mouse is unreachable by
- * keyboard, and the rail is the whole page.
- */
-function onKeydown(event: KeyboardEvent): void {
-  const element = rail.value
-  if (!element) return
-  const step = 216
-  if (event.key === 'ArrowRight') element.scrollBy({ left: step, behavior: 'smooth' })
-  else if (event.key === 'ArrowLeft') element.scrollBy({ left: -step, behavior: 'smooth' })
-  else if (event.key === 'Home') element.scrollTo({ left: 0, behavior: 'smooth' })
-  else if (event.key === 'End') element.scrollTo({ left: element.scrollWidth, behavior: 'smooth' })
-  else return
-  event.preventDefault()
-}
 </script>
 
 <template>
-  <section class="workspace-page farm-page">
-    <PageHeading
-      :title="t('farm.title')"
-      v-bind="collapseAction ? { action: collapseAction } : {}"
-    />
+  <section class="standard-page farm-page">
+    <PageHeading :title="t('farm.title')" />
 
-    <div
-      ref="rail"
-      class="farm-rail"
-      tabindex="0"
-      role="group"
-      :aria-label="t('farm.railLabel')"
-      @keydown="onKeydown"
-    >
-      <FarmPrinterColumn
-        v-for="column in farm.columns"
-        :key="column.id"
-        :printer="column"
-        :expanded="isExpanded(column.id)"
-        @toggle="toggle(column.id)"
-        @open="open(column.id)"
-        @visibility="farm.setVisible(column.id, $event)"
+    <div class="farm-grid" role="group" :aria-label="t('farm.gridLabel')">
+      <FarmPrinterCard
+        v-for="card in farm.columns"
+        :key="card.id"
+        :printer="card"
+        @open="open(card.id)"
+        @visibility="farm.setVisible(card.id, $event)"
       />
     </div>
   </section>

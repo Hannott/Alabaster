@@ -31,6 +31,14 @@ const props = defineProps<{
   triggerSize?: AppButtonSize | undefined
   triggerBlock?: boolean | undefined
   /**
+   * For a trigger that sits on a photographic surface rather than on the
+   * application's own chrome — the farm card's camera picker, over a live
+   * stream. Same reason `CameraTile`'s capture and fullscreen controls carry
+   * it: a quiet button's ordinary muted foreground is unreadable against
+   * whatever the camera happens to be pointing at.
+   */
+  triggerOnStrong?: boolean | undefined
+  /**
    * Explicit rather than derived: the trigger's content arrives through a slot,
    * so `AppButton` cannot tell an icon from a label the way it can at an
    * ordinary call site.
@@ -107,6 +115,7 @@ onBeforeUnmount(() => {
       :variant="props.triggerVariant"
       :size="props.triggerSize ?? 'xs'"
       :block="props.triggerBlock"
+      :on-strong="props.triggerOnStrong"
       :icon-only="props.triggerIconOnly"
       :badged="props.badge"
       :aria-label="props.label"

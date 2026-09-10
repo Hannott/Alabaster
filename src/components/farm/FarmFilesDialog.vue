@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * One printer's printable files, without leaving the rail.
+ * One printer's printable files and its queue, without leaving the wall.
  *
  * `dialog-system.md`'s Shape 4 — a searchable picker over a result set — with
  * the one deviation that shape allows for and this case needs: picking a row is
@@ -12,6 +12,16 @@
  * The filter is client-side, unlike the filament catalogue's debounced search:
  * one printer's gcodes root is tens or hundreds of entries, already in hand
  * after a single request, so a round trip per keystroke would buy nothing.
+ *
+ * **The second tab is where the queue's job list lives.** The farm card reduced
+ * the queue to a count, because a scrolling list of filenames inside a card is
+ * the one thing on a camera-first wall that cannot justify its height — but
+ * seeing what a machine prints next, and dropping it, is exactly what somebody
+ * standing at a wall of printers does. It is here rather than on the Job queue
+ * destination for the same reason the files are: going there would switch the
+ * live connection and lose the wall. The tab appears only where Moonraker has a
+ * `job_queue` answer for this printer, so capability removes it and preference
+ * never does.
  */
 import { computed, onMounted, ref, useId, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -20,6 +30,7 @@ import AppButton from '@/components/AppButton.vue'
 import AppIcon from '@/components/AppIcon.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import { useActionGuard } from '@/composables/useActionGuard'
+import type { FarmQueue } from '@/farm/types'
 import { createDateTimeFormatter } from '@/i18n/formats'
 import type { MoonrakerFileInfo } from '@/services/moonraker'
 import { useFarmStore } from '@/stores/farm'
@@ -30,6 +41,8 @@ const props = defineProps<{
   printerLabel: string
   /** Printing or paused: a machine with a job loaded cannot start another. */
   busy: boolean
+  /** Null where Moonraker has no `job_queue` answer for this printer. */
+  queue: FarmQueue | null
 }>()
 
 const emit = defineEmits<{ close: [] }>()
@@ -41,6 +54,7 @@ const dialog = ref<HTMLDialogElement | null>(null)
 const input = ref<HTMLInputElement | null>(null)
 const titleId = useId()
 
+const tab = ref<'files' | 'queue'>('files')
 const query = ref('')
 const files = ref<MoonrakerFileInfo[]>([])
 const isLoading = ref(false)
@@ -85,6 +99,7 @@ function sync(open: boolean): void {
     dialog.value?.close()
     return
   }
+  tab.value = 'files'
   query.value = ''
   startingPath.value = null
   void load()
@@ -103,7 +118,14 @@ function formatSize(bytes: number): string {
   return t('farm.files.kilobytes', { value: Math.max(1, Math.round(bytes / 1024)) })
 }
 
-async function queue(path: string): Promise<void> {
+/**
+ * Named for the act rather than for the noun: `queue` is this component's
+ * *prop* — the printer's queue — and a function of the same name shadowed it in
+ * the template, where every `queue ?` test then read a function that is always
+ * defined and so always true. The queue tab rendered for a machine that has no
+ * queue at all.
+ */
+async function addToQueue(path: string): Promise<void> {
   const queued = await farm.queueFile(props.printerId, path)
   // Closing on success is the answer to "did that work"; a failure keeps the
   // dialog open behind its own toast so the file is still there to retry.
@@ -122,6 +144,14 @@ async function start(path: string): Promise<void> {
   const started = await farm.startPrint(props.printerId, path)
   if (started) emit('close')
 }
+
+const queueJobs = computed(() => props.queue?.jobs ?? [])
+/**
+ * An empty queue that Moonraker reports as `paused` is not a held line — an
+ * idle printer answers exactly that with nothing wrong — so the held state is
+ * only stated where something is actually being held back.
+ */
+const queueHeld = computed(() => props.queue?.state === 'paused' && queueJobs.value.length > 0)
 </script>
 
 <template>
@@ -134,7 +164,11 @@ async function start(path: string): Promise<void> {
   >
     <header class="farm-files__head">
       <h2 :id="titleId" class="text-dialog-title">
-        {{ t('farm.files.title', { printer: printerLabel }) }}
+        {{
+          queue
+            ? t('farm.files.titleQueue', { printer: printerLabel })
+            : t('farm.files.title', { printer: printerLabel })
+        }}
       </h2>
       <!--
         The close control is the same one every dialog header carries: square,
@@ -151,58 +185,116 @@ async function start(path: string): Promise<void> {
       />
     </header>
 
-    <label class="sr-only" :for="`${titleId}-search`">{{ t('farm.files.search') }}</label>
-    <div class="farm-files__search">
-      <AppIcon name="fileSearch" class="size-4 shrink-0" aria-hidden="true" />
-      <input
-        :id="`${titleId}-search`"
-        ref="input"
-        v-model="query"
-        class="field field--sm field--block"
-        type="search"
-        autocomplete="off"
-        data-1p-ignore
-        data-lpignore="true"
-        data-bwignore
-        :placeholder="t('farm.files.search')"
-      />
+    <!--
+      A `tab-select` pair, not buttons: `button-system.md` lists it as one of
+      the four patterns that are deliberately not `AppButton`, and this is the
+      same shape Configuration's file roots use.
+    -->
+    <div v-if="queue" class="farm-files__tabs" role="group" :aria-label="t('farm.files.tabs')">
+      <button
+        type="button"
+        class="tab-select"
+        :aria-pressed="tab === 'files'"
+        @click="tab = 'files'"
+      >
+        {{ t('farm.files.filesTab') }}
+      </button>
+      <button
+        type="button"
+        class="tab-select"
+        :aria-pressed="tab === 'queue'"
+        @click="tab = 'queue'"
+      >
+        {{ t('farm.queueJobs', { count: queueJobs.length }) }}
+      </button>
     </div>
 
-    <p v-if="isLoading" class="farm-files__note" role="status">{{ t('farm.files.loading') }}</p>
-    <p v-else-if="failed" class="farm-files__note" role="status">
-      {{ t('farm.files.unreachable', { printer: printerLabel }) }}
-    </p>
-    <p v-else-if="files.length === 0" class="farm-files__note" role="status">
-      {{ t('farm.files.empty') }}
-    </p>
-    <p v-else-if="matches.length === 0" class="farm-files__note" role="status">
-      {{ t('farm.files.noMatch') }}
-    </p>
+    <template v-if="tab === 'queue' && queue">
+      <p class="farm-files__note" role="status">
+        {{ queueHeld ? t('farm.files.queueHeldNote') : t('farm.files.queueRunningNote') }}
+      </p>
 
-    <ul v-else class="farm-files__list">
-      <li v-for="file in matches" :key="file.path">
-        <span class="farm-files__name" :title="file.path">{{ file.path }}</span>
-        <span class="farm-files__meta">
-          {{ formatSize(file.size) }} · {{ dateFormatter.format(file.modified * 1000) }}
-        </span>
-        <span class="farm-files__actions">
-          <AppButton
-            size="xs"
-            :label="t('farm.files.queue')"
-            :disabled="farm.isPending(printerId, 'queueFile')"
-            @click="queue(file.path)"
-          />
-          <AppButton
-            v-if="!busy"
-            size="xs"
-            :guard="startGuard"
-            :label="t('farm.files.printNow')"
-            :disabled="farm.isPending(printerId, 'startPrint')"
-            @click="requestStart(file.path)"
-          />
-        </span>
-      </li>
-    </ul>
+      <ol v-if="queueJobs.length > 0" class="farm-files__list farm-files__queue">
+        <li v-for="(job, index) in queueJobs" :key="job.jobId">
+          <span class="farm-files__position" aria-hidden="true">{{ index + 1 }}</span>
+          <span class="farm-files__name" :title="job.filename">{{ job.filename }}</span>
+        </li>
+      </ol>
+      <p v-else class="farm-files__note">{{ t('farm.queueEmpty') }}</p>
+
+      <div class="farm-files__queue-actions">
+        <AppButton
+          size="sm"
+          :label="queueHeld ? t('farm.startQueue') : t('farm.holdQueue')"
+          :disabled="farm.isPending(printerId, 'queue')"
+          :pending="farm.isPending(printerId, 'queue')"
+          @click="queueHeld ? farm.startQueue(printerId) : farm.holdQueue(printerId)"
+        />
+        <AppButton
+          size="sm"
+          variant="danger-quiet"
+          :label="t('farm.removeNext')"
+          :disabled="queueJobs.length === 0 || farm.isPending(printerId, 'removeNext')"
+          :pending="farm.isPending(printerId, 'removeNext')"
+          @click="farm.removeNextJob(printerId)"
+        />
+      </div>
+    </template>
+
+    <template v-else>
+      <label class="sr-only" :for="`${titleId}-search`">{{ t('farm.files.search') }}</label>
+      <div class="farm-files__search">
+        <AppIcon name="fileSearch" class="size-4 shrink-0" aria-hidden="true" />
+        <input
+          :id="`${titleId}-search`"
+          ref="input"
+          v-model="query"
+          class="field field--sm field--block"
+          type="search"
+          autocomplete="off"
+          data-1p-ignore
+          data-lpignore="true"
+          data-bwignore
+          :placeholder="t('farm.files.search')"
+        />
+      </div>
+
+      <p v-if="isLoading" class="farm-files__note" role="status">{{ t('farm.files.loading') }}</p>
+      <p v-else-if="failed" class="farm-files__note" role="status">
+        {{ t('farm.files.unreachable', { printer: printerLabel }) }}
+      </p>
+      <p v-else-if="files.length === 0" class="farm-files__note" role="status">
+        {{ t('farm.files.empty') }}
+      </p>
+      <p v-else-if="matches.length === 0" class="farm-files__note" role="status">
+        {{ t('farm.files.noMatch') }}
+      </p>
+
+      <ul v-else class="farm-files__list">
+        <li v-for="file in matches" :key="file.path">
+          <span class="farm-files__name" :title="file.path">{{ file.path }}</span>
+          <span class="farm-files__meta">
+            {{ formatSize(file.size) }} · {{ dateFormatter.format(file.modified * 1000) }}
+          </span>
+          <span class="farm-files__actions">
+            <AppButton
+              size="xs"
+              :label="t('farm.files.queue')"
+              :disabled="farm.isPending(printerId, 'queueFile')"
+              @click="addToQueue(file.path)"
+            />
+            <AppButton
+              v-if="!busy"
+              size="xs"
+              :guard="startGuard"
+              :label="t('farm.files.printNow')"
+              :disabled="farm.isPending(printerId, 'startPrint')"
+              @click="requestStart(file.path)"
+            />
+          </span>
+        </li>
+      </ul>
+    </template>
   </dialog>
 
   <ConfirmDialog

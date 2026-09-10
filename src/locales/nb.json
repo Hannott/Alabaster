@@ -35,12 +35,7 @@
   },
   "farm": {
     "title": "Skriverpark",
-    "railLabel": "Lagrede skrivere",
-    "collapseAll": "Slå sammen alle",
-    "expand": "Utvid {printer}",
-    "collapse": "Slå sammen {printer}",
     "status": {
-      "active": "Åpen",
       "printing": "Skriver ut",
       "paused": "Pauset",
       "idle": "Ledig",
@@ -51,20 +46,13 @@
       "reconnecting": "Kobler til igjen",
       "offline": "Frakoblet",
       "unreached": "Ikke nådd",
-      "refused": "Avvist"
-    },
-    "ended": {
+      "refused": "Avvist",
       "complete": "Fullført",
       "cancelled": "Avbrutt",
-      "error": "Feilet",
-      "standby": "Klar",
-      "printing": "Skriver ut",
-      "paused": "Pauset",
-      "unknown": "Klar"
+      "unauthorized": "Krever innlogging"
     },
     "noCamera": "Ingen kamera",
     "noJob": "Ingen utskrift ennå",
-    "noPreview": "Ingen forhåndsvisning",
     "previewAlt": "Forhåndsvisning av {file}",
     "noValue": "—",
     "percent": "{value} %",
@@ -78,9 +66,7 @@
     "unknownMaterial": "Filament",
     "grams": "{value} g",
     "queue": "Kø",
-    "queueCount": "Kø · {count}",
     "queueHeld": "Holdt",
-    "queueRunning": "Kjører",
     "queueEmpty": "Ingenting i kø",
     "originRefused": "Skriveren svarte, men avviste adressen til denne siden. Legg den til i [authorization] cors_domains.",
     "neverReached": "Ikke nådd fra denne nettleseren ennå.",
@@ -108,15 +94,14 @@
         "title": "Starte denne utskriften på {printer}?",
         "description": "{file} starter umiddelbart.",
         "confirm": "Start utskrift"
-      }
+      },
+      "titleQueue": "Filer og kø på {printer}",
+      "tabs": "Filer eller kø",
+      "filesTab": "Filer",
+      "queueHeldNote": "Køen er holdt. Neste jobb starter ikke av seg selv.",
+      "queueRunningNote": "Neste jobb starter når maskinen er ledig."
     },
-    "homed": "Nullstilt",
-    "notHomed": "Ikke nullstilt",
     "homeAll": "Nullstill alle akser",
-    "homeAllShort": "Nullstill",
-    "homeAxisHomed": "Nullstill {axis} på nytt",
-    "homeAxisNotHomed": "{axis} er ikke nullstilt — nullstill den",
-    "homeBlocked": "{axis} kan ikke nullstilles mens en jobb er lastet",
     "powerOn": "Slå på",
     "powerOff": "Slå av",
     "retry": "Prøv igjen",
@@ -141,7 +126,16 @@
         "description": "Er du sikker på at du vil slå av skriveren?",
         "confirm": "Slå av"
       }
-    }
+    },
+    "gridLabel": "Lagrede skrivere",
+    "chip": {
+      "active": "Aktiv",
+      "notHomed": "Ikke nullstilt"
+    },
+    "chooseCamera": "Velg kamera",
+    "moreActions": "Flere handlinger for {printer}",
+    "filament": "Filament",
+    "queueJobs": "Kø · {count}"
   },
   "printFiles": {
     "title": "Utskriftsfiler",

@@ -13,7 +13,7 @@ import { hideableDestinations, type NavigationDestinationName } from '@/navigati
  * rather than leaving it permanently invisible.
  *
  * Module-level state rather than a store, like the sidebar's collapse and
- * `useFarmExpansion`: a display preference with no domain behind it. It stays
+ * `useFarmCameraChoice`: a display preference with no domain behind it. It stays
  * out of the settings bundle (`settings/bundle.ts`) for the reason the printer
  * list itself does — what a browser has saved is what makes the Farm
  * destination worth offering, and carrying "Farm hidden" to a screen with a

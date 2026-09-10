@@ -2,19 +2,20 @@ import { createPinia, setActivePinia, type Pinia } from 'pinia'
 import { enableAutoUnmount, flushPromises, mount } from '@vue/test-utils'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { useFarmExpansion } from '@/composables/useFarmExpansion'
 import { emptyFarmSnapshot } from '@/farm/types'
 import { i18n } from '@/i18n'
 import { useFarmStore } from '@/stores/farm'
 import { useMoonrakerStore } from '@/stores/moonraker'
 
 /**
- * The rail's two sizes and what separates them.
+ * What the farm grid's markup promises.
  *
- * The geometry lives in `main.css`, so what is asserted here is what the markup
- * promises: the machine controls are on a collapsed column, expanding adds the
- * preview and the queue layer, homing obeys the same job-loaded rule the
- * Movement card documents, and the size is remembered per printer.
+ * The geometry is CSS, so what is asserted here is the card's contract: one
+ * card per saved printer in the saved order, an emergency stop on every one of
+ * them, job controls disabled rather than removed on a machine with nothing
+ * loaded, homing refused while a job is loaded on the same terms the Movement
+ * card documents, and the two things that must not navigate — choosing a file
+ * and switching — not navigating.
  */
 
 enableAutoUnmount(afterEach)
@@ -70,23 +71,14 @@ beforeEach(() => {
   } as unknown as typeof WebSocket
   useMoonrakerStore().connect('ws://active.local:7125/websocket')
   routerPush.mockClear()
-  // Expansion is module-level state by design (a display preference with no
-  // domain behind it), so it outlives a mount and has to be reset here.
-  useFarmExpansion().collapseAll()
 })
 
 afterEach(() => {
   globalThis.WebSocket = realWebSocket
 })
 
-function labelsOf(
-  column: { findAll: (selector: string) => Array<{ text: () => string }> } | undefined,
-): string[] {
-  return column?.findAll('button').map((button) => button.text()) ?? []
-}
-
-/** One connected column, for the tests that need controls to be live. */
-function connectedColumn(state: 'paused' | 'standby' = 'paused') {
+/** One connected card, for the tests that need controls to be live. */
+function connectedCard(state: 'paused' | 'standby' = 'paused') {
   return {
     id: 'printer-2',
     label: 'Voron',
@@ -100,6 +92,10 @@ function connectedColumn(state: 'paused' | 'standby' = 'paused') {
       klipper: 'ready' as const,
       state,
       homedAxes: 'xyz',
+      queue: {
+        state: 'ready' as const,
+        jobs: [{ jobId: 'job-1', filename: 'next.gcode' }],
+      },
       job:
         state === 'paused'
           ? {
@@ -124,87 +120,94 @@ async function mountView() {
   return wrapper
 }
 
-describe('the farm rail', () => {
-  it('renders one column per saved printer', async () => {
-    const wrapper = await mountView()
-    expect(wrapper.findAll('.farm-column')).toHaveLength(2)
-    expect(wrapper.text()).toContain('Workshop')
-    expect(wrapper.text()).toContain('Voron')
-  })
+/**
+ * Everything the card does not keep on its own action row is one menu away, so
+ * most of these tests have to open it first.
+ */
+async function openCardMenu(wrapper: Awaited<ReturnType<typeof mountView>>, printer: string) {
+  const trigger = wrapper
+    .findAll('.farm-card button')
+    .find(
+      (button) =>
+        button.attributes('aria-label') === i18n.global.t('farm.moreActions', { printer }),
+    )
+  await trigger?.trigger('click')
+  await flushPromises()
+  return trigger
+}
 
-  it('starts every column collapsed', async () => {
+function menuItem(wrapper: Awaited<ReturnType<typeof mountView>>, label: string) {
+  return wrapper.findAll('.header-menu__panel button').find((button) => button.text() === label)
+}
+
+describe('the farm grid', () => {
+  it('renders one card per saved printer, in the saved order', async () => {
     const wrapper = await mountView()
-    expect(wrapper.findAll('.farm-column--wide')).toHaveLength(0)
+    const cards = wrapper.findAll('.farm-card')
+
+    expect(cards).toHaveLength(2)
+    expect(cards.map((card) => card.attributes('aria-label'))).toEqual(['Workshop', 'Voron'])
   })
 
   /*
    * The reason to have an emergency stop on this page at all is spotting a
-   * crash on a machine nobody is driving, so it has to survive collapsing —
-   * and it sits in the header rather than the dock, where it is in the same
-   * place whatever else the column is showing.
+   * crash on a machine nobody is driving, so it is on every card and never
+   * behind the menu — the one control that must not be a click away.
    */
-  it('keeps an emergency stop on a collapsed column', async () => {
+  it('keeps an emergency stop on every card', async () => {
     const wrapper = await mountView()
-    const collapsed = wrapper.findAll('.farm-column')
-    expect(collapsed).toHaveLength(2)
-    for (const column of collapsed) {
-      expect(column.classes()).not.toContain('farm-column--wide')
-      expect(column.find('.farm-estop').exists()).toBe(true)
-    }
+    const cards = wrapper.findAll('.farm-card')
+
+    expect(cards).toHaveLength(2)
+    for (const card of cards) expect(card.find('.farm-estop').exists()).toBe(true)
   })
 
   /*
-   * Collapsed acts on the machine in front of you; expanding adds the preview
-   * and the queue layer — holding the line, dropping the next job. What must
-   * never be true is that a collapsed column is a worse copy of an expanded
-   * one, so the machine controls are asserted on both.
+   * A control that moves position between states is how a wall of
+   * near-identical cards produces a wrong click, so an idle machine greys its
+   * job controls in place rather than dropping them.
    */
-  it('carries the machine controls at both sizes', async () => {
+  it('disables the job controls on an idle machine rather than removing them', async () => {
+    const farm = useFarmStore()
+    vi.spyOn(farm, 'columns', 'get').mockReturnValue([connectedCard('standby')])
+
     const wrapper = await mountView()
-    const column = wrapper.findAll('.farm-column')[1]
-    expect(column?.find('.farm-dock__grid').exists()).toBe(true)
-    expect(column?.find('.farm-home').exists()).toBe(true)
-    expect(column?.find('.farm-preview').exists()).toBe(false)
-    expect(labelsOf(column).some((label) => label === i18n.global.t('farm.holdQueue'))).toBe(false)
+    const actions = wrapper.findAll('.farm-actions button')
+    const pause = actions.find((button) => button.text() === i18n.global.t('farm.pause'))
+    const cancel = actions.find((button) => button.text() === i18n.global.t('farm.cancel'))
 
-    await column?.find('.farm-column__chevron').trigger('click')
+    expect(pause?.attributes('disabled')).toBeDefined()
+    expect(cancel?.attributes('disabled')).toBeDefined()
+  })
 
-    const expanded = wrapper.findAll('.farm-column')[1]
-    expect(expanded?.classes()).toContain('farm-column--wide')
-    expect(expanded?.find('.farm-dock__grid').exists()).toBe(true)
-    expect(expanded?.find('.farm-home').exists()).toBe(true)
-    expect(expanded?.find('.farm-preview').exists()).toBe(true)
-    expect(labelsOf(expanded).some((label) => label === i18n.global.t('farm.holdQueue'))).toBe(true)
+  /* Every card carries the same facts strip: only capability removes a cell. */
+  it('shows the temperatures on every card', async () => {
+    const wrapper = await mountView()
+    const cards = wrapper.findAll('.farm-card')
+
+    for (const card of cards) {
+      expect(card.find('.farm-facts').exists()).toBe(true)
+      expect(card.text()).toContain(i18n.global.t('farm.hotend'))
+      expect(card.text()).toContain(i18n.global.t('farm.bed'))
+    }
   })
 
   /*
    * The Movement card refuses homing while a job is *loaded* — paused as well
    * as printing — because `G28 Z` drives the nozzle at a bed with a printed
    * part on it. A second surface offering the same command has to refuse it on
-   * the same terms.
+   * the same terms, wherever that surface keeps it.
    */
   it('refuses homing on a machine with a job loaded', async () => {
     const farm = useFarmStore()
-    vi.spyOn(farm, 'columns', 'get').mockReturnValue([connectedColumn()])
+    vi.spyOn(farm, 'columns', 'get').mockReturnValue([connectedCard()])
 
     const wrapper = await mountView()
-    const home = wrapper.findAll('.farm-home button').map((button) => button.attributes('disabled'))
+    await openCardMenu(wrapper, 'Voron')
+    const home = menuItem(wrapper, i18n.global.t('farm.homeAll'))
 
-    expect(home.length).toBeGreaterThan(0)
-    expect(home.every((disabled) => disabled !== undefined)).toBe(true)
-  })
-
-  /*
-   * What keeps the two sizes one design rather than two: a collapsed column is
-   * never missing information, only room.
-   */
-  it('shows the temperature rows at both sizes', async () => {
-    const wrapper = await mountView()
-    const column = wrapper.findAll('.farm-column')[1]
-    expect(column?.find('.farm-temps').exists()).toBe(true)
-
-    await column?.find('.farm-column__chevron').trigger('click')
-    expect(wrapper.findAll('.farm-column')[1]?.find('.farm-temps').exists()).toBe(true)
+    expect(home?.exists()).toBe(true)
+    expect(home?.attributes('disabled')).toBeDefined()
   })
 
   /*
@@ -215,19 +218,17 @@ describe('the farm rail', () => {
    */
   it('browses a printer file list without leaving the page', async () => {
     const farm = useFarmStore()
-    // A connected column: every control is gated on a live connection, and the
+    // A connected card: every control is gated on a live connection, and the
     // stubbed socket in this file never opens one.
-    vi.spyOn(farm, 'columns', 'get').mockReturnValue([connectedColumn()])
+    vi.spyOn(farm, 'columns', 'get').mockReturnValue([connectedCard()])
     const listFiles = vi.spyOn(farm, 'listFiles').mockResolvedValue([
       { path: 'benchy.gcode', modified: 1_700_000_000, size: 2_400_000 },
       { path: 'projects/bracket.gcode', modified: 1_699_000_000, size: 1_100_000 },
     ])
 
     const wrapper = await mountView()
-    const files = wrapper
-      .findAll('button')
-      .find((button) => button.text() === i18n.global.t('farm.files.open'))
-    await files?.trigger('click')
+    await openCardMenu(wrapper, 'Voron')
+    await menuItem(wrapper, i18n.global.t('farm.files.open'))?.trigger('click')
     await flushPromises()
 
     expect(listFiles).toHaveBeenCalledWith('printer-2')
@@ -236,7 +237,30 @@ describe('the farm rail', () => {
   })
 
   /*
-   * The failure this catches was silent and total: the column renders its
+   * The card reduced the queue to a count, so the job list has to be somewhere:
+   * the second tab of the same dialog, rather than the Job queue destination,
+   * which would switch the connection to get there.
+   */
+  it('shows the printer queue beside its files', async () => {
+    const farm = useFarmStore()
+    vi.spyOn(farm, 'columns', 'get').mockReturnValue([connectedCard()])
+    vi.spyOn(farm, 'listFiles').mockResolvedValue([])
+
+    const wrapper = await mountView()
+    await openCardMenu(wrapper, 'Voron')
+    await menuItem(wrapper, i18n.global.t('farm.files.open'))?.trigger('click')
+    await flushPromises()
+
+    const queueTab = wrapper
+      .findAll('.farm-files__tabs button')
+      .find((button) => button.text().includes(i18n.global.t('farm.queue')))
+    await queueTab?.trigger('click')
+
+    expect(wrapper.find('.farm-files__queue').text()).toContain('next.gcode')
+  })
+
+  /*
+   * The failure this catches was silent and total: the card renders its
    * confirmation only while one is pending, so the dialog mounts with `open`
    * already true and a watcher on that prop never fires. Every guarded action
    * on every card — cancel, power, the emergency stop where it is confirmed —
@@ -244,7 +268,7 @@ describe('the farm rail', () => {
    */
   it('opens the confirmation a guarded card action asks for', async () => {
     const farm = useFarmStore()
-    vi.spyOn(farm, 'columns', 'get').mockReturnValue([connectedColumn()])
+    vi.spyOn(farm, 'columns', 'get').mockReturnValue([connectedCard()])
     const cancel = vi.spyOn(farm, 'cancel').mockResolvedValue(true)
 
     const wrapper = await mountView()
@@ -262,26 +286,17 @@ describe('the farm rail', () => {
     expect(cancel).not.toHaveBeenCalled()
   })
 
-  it('remembers which columns were expanded', async () => {
-    const wrapper = await mountView()
-    await wrapper.findAll('.farm-column')[1]?.find('.farm-column__chevron').trigger('click')
-
-    expect(JSON.parse(window.localStorage.getItem('alabaster.farm.expanded') ?? '[]')).toEqual([
-      'printer-2',
-    ])
-  })
-
   /*
    * Switching and leaving are two actions, and both cards used to do both. The
    * reader is looking at the wall: the useful outcome of switching is that
    * Alabaster is now driving this machine, not that they have been moved.
    */
-  it('switches the live connection without leaving the rail', async () => {
+  it('switches the live connection without leaving the page', async () => {
     const wrapper = await mountView()
     const moonraker = useMoonrakerStore()
     const selectPrinter = vi.spyOn(moonraker, 'selectPrinter')
 
-    const buttons = wrapper.findAll('.farm-column')[1]?.findAll('button') ?? []
+    const buttons = wrapper.findAll('.farm-card')[1]?.findAll('button') ?? []
     const switchTo = buttons.find((button) => button.text() === i18n.global.t('farm.switch'))
     await switchTo?.trigger('click')
 
@@ -294,22 +309,11 @@ describe('the farm rail', () => {
     const moonraker = useMoonrakerStore()
     const selectPrinter = vi.spyOn(moonraker, 'selectPrinter')
 
-    const buttons = wrapper.findAll('.farm-column')[0]?.findAll('button') ?? []
+    const buttons = wrapper.findAll('.farm-card')[0]?.findAll('button') ?? []
     const toDashboard = buttons.find((button) => button.text() === i18n.global.t('farm.openActive'))
     await toDashboard?.trigger('click')
 
     expect(routerPush).toHaveBeenCalledWith({ name: 'overview' })
     expect(selectPrinter).not.toHaveBeenCalled()
-  })
-
-  it('scrolls the rail with the arrow keys', async () => {
-    const wrapper = await mountView()
-    const rail = wrapper.find('.farm-rail')
-    const element = rail.element as HTMLElement
-    const scrollBy = vi.fn()
-    element.scrollBy = scrollBy as unknown as HTMLElement['scrollBy']
-
-    await rail.trigger('keydown', { key: 'ArrowRight' })
-    expect(scrollBy).toHaveBeenCalledWith(expect.objectContaining({ left: expect.any(Number) }))
   })
 })

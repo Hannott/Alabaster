@@ -34,9 +34,9 @@ The page does not reload. Modules dim, then fill with the new machine's data.
 ## Seeing them all at once
 
 With two or more printers saved, the [Farm](/interface/farm) page appears in the
-sidebar: every machine side by side, live, with the controls for whichever one
-needs attention. Switching stays where it is: the menu is one click from every
-page. The Farm page is somewhere you go.
+sidebar: a wall of cards, one per machine, each with a live camera and the
+controls for whichever one needs attention. Switching stays where it is: the
+menu is one click from every page. The Farm page is somewhere you go.
 
 If you keep several printers but work on one at a time, turn **Show the Farm
 page** off on this card and the sidebar entry goes away.

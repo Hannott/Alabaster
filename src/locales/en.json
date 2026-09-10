@@ -35,12 +35,7 @@
   },
   "farm": {
     "title": "Farm",
-    "railLabel": "Saved printers",
-    "collapseAll": "Collapse all",
-    "expand": "Expand {printer}",
-    "collapse": "Collapse {printer}",
     "status": {
-      "active": "Open",
       "printing": "Printing",
       "paused": "Paused",
       "idle": "Idle",
@@ -51,20 +46,13 @@
       "reconnecting": "Reconnecting",
       "offline": "Offline",
       "unreached": "Not reached",
-      "refused": "Refused"
-    },
-    "ended": {
+      "refused": "Refused",
       "complete": "Completed",
       "cancelled": "Cancelled",
-      "error": "Failed",
-      "standby": "Ready",
-      "printing": "Printing",
-      "paused": "Paused",
-      "unknown": "Ready"
+      "unauthorized": "Sign in required"
     },
     "noCamera": "No camera",
     "noJob": "Nothing printed yet",
-    "noPreview": "No preview",
     "previewAlt": "Preview of {file}",
     "noValue": "—",
     "percent": "{value}%",
@@ -78,9 +66,7 @@
     "unknownMaterial": "Filament",
     "grams": "{value} g",
     "queue": "Queue",
-    "queueCount": "Queue · {count}",
     "queueHeld": "Held",
-    "queueRunning": "Running",
     "queueEmpty": "Nothing queued",
     "originRefused": "This printer answered, but refused this page's address. Add it to [authorization] cors_domains.",
     "neverReached": "Not reached from this browser yet.",
@@ -108,15 +94,14 @@
         "title": "Start this print on {printer}?",
         "description": "{file} starts immediately.",
         "confirm": "Start print"
-      }
+      },
+      "titleQueue": "Files and queue on {printer}",
+      "tabs": "Files or queue",
+      "filesTab": "Files",
+      "queueHeldNote": "The queue is held. The next job will not start on its own.",
+      "queueRunningNote": "The next job starts when the machine is free."
     },
-    "homed": "Homed",
-    "notHomed": "Not homed",
     "homeAll": "Home all axes",
-    "homeAllShort": "Home",
-    "homeAxisHomed": "Home {axis} again",
-    "homeAxisNotHomed": "{axis} is not homed — home it",
-    "homeBlocked": "{axis} cannot be homed while a job is loaded",
     "powerOn": "Power on",
     "powerOff": "Power off",
     "retry": "Retry now",
@@ -141,7 +126,16 @@
         "description": "Are you sure you want to switch off the printer?",
         "confirm": "Switch off"
       }
-    }
+    },
+    "gridLabel": "Saved printers",
+    "chip": {
+      "active": "Active",
+      "notHomed": "Not homed"
+    },
+    "chooseCamera": "Choose camera",
+    "moreActions": "More actions for {printer}",
+    "filament": "Filament",
+    "queueJobs": "Queue · {count}"
   },
   "printFiles": {
     "title": "Print files",

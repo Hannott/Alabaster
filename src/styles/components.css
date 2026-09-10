@@ -5530,12 +5530,27 @@ input.z-axis__slider {
 }
 
 /*
- * The Farm rail's file picker — `dialog-system.md`'s Shape 4, second instance.
+ * A Farm card's file picker — `dialog-system.md`'s Shape 4, second instance.
  * Wider than the catalogue's measure because each row carries a path, a size
  * and a date beside two actions, where a filament row carries a name.
  */
 .farm-files {
   max-width: min(38rem, calc(100vw - 2rem));
+}
+
+/*
+ * Files and queue, as `tab-select` rather than buttons — one of the four
+ * patterns `button-system.md` names as deliberately not `AppButton`, and the
+ * same shape Configuration's file roots use. The strip appears only where
+ * Moonraker has a `job_queue` answer for the printer, so a machine without one
+ * sees the files it always did with no empty tab beside them.
+ */
+.farm-files__tabs {
+  display: flex;
+  gap: 1rem;
+  margin-block-start: 0.85rem;
+  block-size: 2rem;
+  border-bottom: 1px solid var(--border-subtle);
 }
 
 .farm-files__head {
@@ -5604,6 +5619,40 @@ input.z-axis__slider {
   grid-row: 1 / span 2;
   display: flex;
   gap: 0.4rem;
+}
+/*
+ * The queue is an ordered list, so its rows lead with the position rather than
+ * with the filename: on a wall, "what runs next" is the question, and the
+ * answer is row 1.
+ *
+ * Both classes are named deliberately. `.farm-files__queue li` alone is exactly
+ * as specific as the `.farm-files__list li` it has to override, so which one
+ * won depended on which came later in this file — a rule that is correct today
+ * and one move away from silently reversing, which is how the filenames ended
+ * up right-aligned in a track sized to the position digit.
+ */
+.farm-files__list.farm-files__queue li {
+  grid-template-columns: auto minmax(0, 1fr);
+}
+
+.farm-files__position {
+  grid-column: 1;
+  grid-row: 1;
+  font-family: var(--font-mono);
+  font-size: var(--text-meta-size);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+
+.farm-files__queue .farm-files__name {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.farm-files__queue-actions {
+  display: flex;
+  gap: 0.4rem;
+  margin-block-start: 0.85rem;
 }
 
 .filament-catalogue-dialog__header {
@@ -13076,97 +13125,109 @@ body.machine-editor-fullscreen-open {
 }
 
 /*
- * Farm rail — every saved printer on screen at once.
+ * Farm grid — every saved printer on screen at once, camera first.
  *
- * Two widths and one height carry the whole page. A collapsed column is
- * `--farm-column-width`; an expanded one is exactly two of those plus the gap,
- * so expanding never knocks the rail off its rhythm and "what does this cost
- * me" is arithmetic anyone can do at a glance: one column. The height is the
- * page's own, so every column ends on the same line and the control docks line
- * up across the rail.
+ * One measurement decides this whole block. In the sideways rail this replaced,
+ * a column was 300 x 981 px and its camera was 298 x 169 — 17% of the card, on
+ * the one page whose purpose is looking at machines — while the control dock
+ * took 175 px and about 372 px of the column was empty, because a full-height
+ * card has to fill itself somehow. Three cards across the same 1737 px canvas
+ * are 570 px wide with a 570 x 320 camera: 3.6x the picture, 63% of the card,
+ * and no stretch space at all because the card is only as tall as its rows.
  *
- * The horizontal scroll lives here and never on the document.
- * `interface-standards.md` forbids horizontal *document* overflow and controls
- * past the inline edge of a container that clips rather than scrolls; a region
- * that scrolls its own overflow is the permitted half, and the two conditions
- * that make it usable — a scrollbar that stays visible, and a further column
- * always partly on screen — are geometry rather than decoration.
+ * The column count is **declared per width band**, not left to `auto-fill`.
+ * `repeat(auto-fill, minmax(30rem, 1fr))` reads as the modern answer and is the
+ * wrong one here: the count it produces is a side effect of a floor nobody
+ * reads a camera size off, and at 1737 px a 26 rem floor silently gives four
+ * 427 px cards — a 240 px camera, which is the failure this layout exists to
+ * fix — while 30 rem gives three, with 3 px of window width between them.
+ * `.dashboard-columns` already faced this and declared its count for the same
+ * reason; the ladder here is CSS alone because, unlike the dashboard, nothing
+ * about a farm card is stored per viewport class.
+ *
+ * The page scrolls, and nothing inside it does: this route has no nested scroll
+ * region, where the rail had two (itself, and a column's queue list).
  */
 .farm-page {
-  --farm-column-width: 18.75rem;
-  --farm-column-width-wide: 32rem;
-  --farm-column-gap: 0.85rem;
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  min-height: 0;
+  --farm-columns: 1;
+  --farm-card-gap: 0.85rem;
 }
 
-.farm-rail {
-  display: flex;
-  flex: 1 1 auto;
-  gap: var(--farm-column-gap);
-  min-height: 0;
+.farm-grid {
+  display: grid;
+  grid-template-columns: repeat(var(--farm-columns), minmax(0, 1fr));
+  gap: var(--farm-card-gap);
   /*
-   * `scroll`, not `auto`, and the reason is that this rail's overflow changes
-   * as the reader works: expanding a column can push the rail past the
-   * viewport, and an appearing scrollbar would then take its height out of
-   * every column at once — every card on the wall twitching because one of them
-   * was opened. `scrollbar-gutter: stable` does not cover this, because the
-   * gutter it reserves is the inline-end one for a vertical scrollbar; there is
-   * no equivalent for the block-end edge. Reserving the track unconditionally
-   * is the only thing that holds the geometry still. Overlay scrollbars, which
-   * take no space in the first place, are unaffected either way.
+   * `.standard-page` is a column flex container, so this box is a flex item
+   * whose cross axis is inline size — and the `margin-inline: auto` the
+   * one-column band adds is exactly the auto-margin case the flexbox spec
+   * carves out of stretch. Without an explicit `100%` the grid would fall back
+   * to shrink-to-fit at that width, sized to a card's own contents instead of
+   * the space it was given. The same pair the dashboard uses, for the same
+   * reason.
    */
-  overflow-x: scroll;
-  overflow-y: hidden;
-  padding-bottom: 0.5rem;
+  inline-size: 100%;
   /*
-   * Proximity, not mandatory: the rail settles on a column boundary without
-   * fighting a deliberate half-scroll, which is what a reader does when they
-   * want two columns side by side rather than one aligned to the edge.
+   * Cards size to their own rows, so a card with no camera and no Spoolman is
+   * shorter than its neighbours. Stretching them to the tallest card in the row
+   * would put empty space back inside the shorter ones — the exact thing the
+   * full-height column was spending 372 px on — and would also mean a notice
+   * strip appearing on one card grew every card beside it.
    */
-  scroll-snap-type: x proximity;
-  scrollbar-gutter: stable;
+  align-items: start;
 }
 
 /*
- * The rail is focusable so the arrow keys can scroll it, and it takes the
- * shared inset ring rather than an outline of its own — a floating ring around
- * a full-page region would trace the viewport edge.
+ * Two cards from 1100 px, three from 1700, four from 2200. The bands are window
+ * widths because that is what a media query measures, and every other
+ * responsive rule in this product is written the same way; the canvas is the
+ * window less the sidebar and page padding, so the camera sizes these produce
+ * are 570 px at 1920 and 496 px at 1700.
  */
-.farm-rail:focus-visible {
-  outline: none;
-  box-shadow: inset 0 0 0 2px var(--focus-ring);
-  border-radius: 1.35rem;
+@media (min-width: 68.75rem) {
+  .farm-page {
+    --farm-columns: 2;
+  }
 }
 
-.farm-column {
+@media (min-width: 106.25rem) {
+  .farm-page {
+    --farm-columns: 3;
+  }
+}
+
+@media (min-width: 137.5rem) {
+  .farm-page {
+    --farm-columns: 4;
+  }
+}
+
+/*
+ * One column is capped and centred rather than let loose across the canvas: a
+ * tablet in portrait would otherwise get a single 841 px card with a 476 px
+ * camera, which is not more useful than two cards — it is one machine per
+ * screen on a page about seeing several. Below the cap the rule does nothing,
+ * so a phone still fills its width.
+ */
+@media (max-width: 68.74rem) {
+  .farm-grid {
+    max-inline-size: 44rem;
+    margin-inline: auto;
+  }
+}
+
+.farm-card {
   display: flex;
   flex-direction: column;
-  flex: 0 0 var(--farm-column-width);
-  inline-size: var(--farm-column-width);
-  min-height: 0;
-  scroll-snap-align: start;
+  min-width: 0;
   border: 1px solid var(--border-subtle);
   border-radius: 1.35rem;
   background-color: var(--surface-raised);
   overflow: hidden;
 }
 
-/*
- * The width change is instantaneous on purpose. ADR 0004 forbids animating
- * pane widths and grid tracks, and this is the case that rule was written for:
- * an animated 216px change would drag every column to its right across the
- * screen for the length of the transition.
- */
-.farm-column--wide {
-  flex-basis: var(--farm-column-width-wide);
-  inline-size: var(--farm-column-width-wide);
-}
-
 /* Which printer the rest of the application is pointed at, without moving it. */
-.farm-column--active {
+.farm-card--active {
   border-color: color-mix(in srgb, var(--accent-primary) 55%, var(--border-subtle));
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent-primary) 25%, transparent);
 }
@@ -13175,538 +13236,385 @@ body.machine-editor-fullscreen-open {
  * Last-known content stays mounted and dims, per ADR 0002 — never emptied, so
  * a printer that has gone quiet still answers "what was it doing".
  */
-.farm-column--stale .farm-column__camera,
-.farm-column--stale .farm-job,
-.farm-column--stale .farm-body {
+.farm-card--stale .farm-card__camera,
+.farm-card--stale .farm-state,
+.farm-card--stale .farm-facts {
   opacity: 0.45;
 }
 
-/*
- * Aligned to the first line, not to the box.
- *
- * Expanding a column adds the address under its name, and centering the row
- * against a name that is sometimes one line and sometimes two moved the chevron
- * and the emergency stop down by half a line as the card opened — the control
- * the reader had just clicked, sliding out from under the pointer. So the name
- * carries a first-line box exactly as tall as the two 1.5rem controls beside
- * it, and everything in the row hangs from the top of that line.
- */
-.farm-column__head {
+.farm-card__head {
   display: flex;
-  align-items: flex-start;
-  gap: 0.35rem;
-  padding: 0.5rem 0.6rem;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.45rem 0.75rem;
+  min-block-size: 2.5rem;
   border-bottom: 1px solid var(--border-subtle);
   min-width: 0;
 }
 
-.farm-column__chevron {
-  display: grid;
-  place-items: center;
-  flex: 0 0 auto;
-  inline-size: 1.5rem;
-  block-size: 1.5rem;
-  border: 0;
-  border-radius: 0.4rem;
-  background: none;
-  color: var(--text-muted);
-  cursor: pointer;
-}
-
-.farm-column__chevron:hover {
-  background-color: var(--interaction-veil);
-  color: var(--text-primary);
-}
-
-.farm-column__chevron:focus-visible {
-  outline: none;
-  box-shadow: inset 0 0 0 2px var(--focus-ring);
-}
-
-.farm-column__name {
+.farm-card__name {
+  display: flex;
   flex: 1 1 auto;
+  flex-direction: column;
   min-width: 0;
-  /* The chevron's and the emergency stop's own block size: see the header. */
-  line-height: 1.5rem;
-  font-size: var(--text-row-name-size);
-  font-weight: var(--font-weight-increased);
+  line-height: 1.15;
+}
+
+.farm-card__name b {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.farm-column__state {
-  margin: 0;
-  padding: 0.35rem 0.6rem;
-  border-bottom: 1px solid var(--border-subtle);
-}
-
-.farm-column__host {
-  display: block;
-  line-height: 1.3;
-  font-size: var(--text-meta-size);
-  font-weight: var(--font-weight);
-  color: var(--text-muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
+  font-size: var(--text-card-title-size);
+  font-weight: var(--font-weight-increased);
 }
 
 /*
- * The emergency stop, outlier 5 in `button-system.md` and its second instance.
- * Not an `AppButton`: it is found before it is read, so a fixed danger color
- * and the brake glyph carry that instead of button chrome. It stays on a
- * *collapsed* column deliberately — the reason to have it here at all is
- * spotting a crash on a machine nobody is driving, and expanding first would be
- * one click too many.
+ * The address, always, under the name. The rail showed it only on an expanded
+ * column because 300 px could not hold two lines; on a wall of near-identical
+ * machines it is what tells two printers called "Voron 2.4" apart. Monospaced
+ * because it is an address rather than a word, and muted because the name is
+ * what the reader is scanning for.
+ */
+.farm-card__host {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-size: var(--text-meta-size);
+  color: var(--text-muted);
+}
+
+/*
+ * Not a `button--*` anything: the emergency stop is outlier 5 in
+ * `button-system.md` — text and one fixed danger colour, no button chrome —
+ * and this is its second instance. It keeps its place in the header at every
+ * state of the card, because the reason this destination has one at all is
+ * spotting a crash on a machine nobody is driving.
  */
 .farm-estop {
   display: inline-flex;
+  flex: none;
   align-items: center;
   justify-content: center;
-  flex: 0 0 auto;
   inline-size: 1.5rem;
   block-size: 1.5rem;
-  border: 0;
-  padding: 0;
-  background: none;
+  border-radius: 0.4rem;
   color: var(--status-danger-text);
-  cursor: pointer;
+  transition-duration: var(--motion-duration-fast);
+  transition-property: background-color;
+  transition-timing-function: var(--motion-ease-standard);
+}
+
+.farm-estop:hover:not(:disabled) {
+  background-color: color-mix(in srgb, var(--critical-bg) 18%, transparent);
 }
 
 .farm-estop:disabled {
   opacity: 0.4;
-  cursor: not-allowed;
 }
 
+/*
+ * The one conditional chip: "driving" on the single card Alabaster is pointed
+ * at, "not homed" on an idle machine whose axes are not. It is a status and
+ * never a control, so it can appear and disappear without moving anything the
+ * reader clicks — the stop is pinned to the inline end and the name flexes.
+ */
 .farm-chip {
-  flex: 0 0 auto;
   display: inline-flex;
+  flex: none;
   align-items: center;
-  gap: 0.25rem;
-  padding: 0.1rem 0.35rem;
-  border: 1px solid var(--border-subtle);
-  border-radius: 0.4rem;
-  font-size: var(--text-badge-size);
-  letter-spacing: var(--text-badge-tracking);
-  font-weight: var(--font-weight-increased);
-  text-transform: uppercase;
+  gap: 0.3rem;
+  border-radius: 999px;
+  padding: 0.1rem 0.5rem;
+  background-color: var(--interaction-veil);
   color: var(--text-muted);
+  font-size: var(--text-label-caps-size);
+  font-weight: var(--font-weight-increased);
+  letter-spacing: var(--text-label-caps-tracking);
+  text-transform: uppercase;
   white-space: nowrap;
 }
 
-/*
- * State is never color alone: the chip's word is the state, and the tone only
- * reinforces it.
- */
-.farm-chip[data-tone='printing'],
 .farm-chip[data-tone='active'] {
+  background-color: color-mix(in srgb, var(--accent-primary) 20%, transparent);
   color: var(--accent-primary);
-  border-color: color-mix(in srgb, var(--accent-primary) 45%, var(--border-subtle));
 }
 
 .farm-chip[data-tone='paused'] {
+  background-color: color-mix(in srgb, var(--status-caution-text) 22%, transparent);
   color: var(--status-caution-text);
-  border-color: var(--status-caution-border);
-}
-
-.farm-chip[data-tone='error'] {
-  color: var(--status-danger-text);
-  border-color: var(--status-danger-border);
-}
-
-.farm-chip[data-tone='idle'] {
-  color: var(--status-available);
-  border-color: color-mix(in srgb, var(--status-available) 45%, var(--border-subtle));
-}
-
-.farm-column__camera {
-  flex: 0 0 auto;
-  block-size: calc(var(--farm-column-width) * 9 / 16);
-  border-bottom: 1px solid var(--border-subtle);
-}
-
-.farm-column--wide .farm-column__camera {
-  block-size: calc(var(--farm-column-width-wide) * 9 / 16);
 }
 
 /*
- * Fixed at 16:9 at both sizes rather than flexible. A taller box would either
- * letterbox a landscape stream or crop it to a slice, and the column has a row
- * that genuinely wants the spare height — the queue.
+ * The camera is the card. Everything above and below it is a strip.
+ *
+ * `fit="cover"` on the tile gives the box a fixed 16:9 whatever the stream's own
+ * shape turns out to be, which is what keeps a 4:3 camera connecting from
+ * changing a card's height — and with it the height of every card in its grid
+ * row. The empty and preview states take the same ratio for the same reason.
  */
-.farm-column__camera--empty {
-  display: grid;
-  place-items: center;
-  gap: 0.3rem;
+.farm-card__camera {
+  position: relative;
+  flex: none;
+}
+
+.farm-card__preview,
+.farm-card__camera-empty {
+  display: flex;
+  aspect-ratio: 16 / 9;
+  inline-size: 100%;
+  align-items: center;
+  justify-content: center;
+}
+
+/*
+ * The slicer's preview, in the camera's place on a printer that has no camera.
+ * That is the one position a preview earns 320 px of card: it is worth the
+ * space exactly when nothing else is filling it, and worth almost none beside a
+ * live stream — which is why the rail's expanded column, where it sat next to
+ * one, is not where it ended up.
+ */
+.farm-card__preview {
+  object-fit: contain;
+  background-color: var(--surface-soft);
+}
+
+.farm-card__camera-empty {
+  flex-direction: column;
+  gap: 0.35rem;
   background-color: var(--surface-soft);
   color: var(--text-muted);
   font-size: var(--text-meta-size);
 }
 
+/*
+ * The camera picker sits at the top *start* corner deliberately: the tile's own
+ * capture and fullscreen controls own the top end corner, and they appear on
+ * hover, so a picker there would land under the pointer that just arrived.
+ */
+.farm-card__cameras {
+  position: absolute;
+  inset-block-start: 0.5rem;
+  inset-inline-start: 0.5rem;
+}
+
+/*
+ * Progress on the camera's own bottom edge rather than in a row of its own: it
+ * reads as part of the picture and costs four pixels where the rail spent
+ * seventy on a bar, a percentage and a caption. The percentage and the time
+ * left are in the state row below, so nothing here is the only statement of
+ * anything — and paused recolours the bar *and* changes the state word, so the
+ * difference is never carried by colour alone.
+ */
+.farm-card__bar {
+  position: absolute;
+  inset-inline: 0;
+  inset-block-end: 0;
+  block-size: 4px;
+  background-color: var(--surface-soft);
+}
+
+.farm-card__bar > span {
+  display: block;
+  block-size: 100%;
+  background-color: var(--accent-primary);
+  transition-duration: var(--motion-duration-standard);
+  transition-property: width;
+  transition-timing-function: var(--motion-ease-standard);
+}
+
+.farm-card__bar > span[data-paused='true'] {
+  background-color: var(--status-caution-text);
+}
+
+/*
+ * A single reserved line, so a printer flapping between reachable and refused
+ * changes its card's height once rather than breathing. Klipper's own message
+ * is the one that may wrap to two lines, and it does not flap — it arrives with
+ * the fault and stays until the machine is restarted.
+ */
 .farm-notice {
   display: flex;
   align-items: flex-start;
   gap: 0.4rem;
-  margin: 0;
-  padding: 0.5rem 0.6rem;
+  padding: 0.4rem 0.75rem;
+  min-block-size: 2rem;
   border-bottom: 1px solid var(--border-subtle);
   color: var(--status-caution-text);
   font-size: var(--text-meta-size);
-  line-height: 1.35;
 }
 
 .farm-notice__message {
   overflow-wrap: anywhere;
 }
 
-.farm-job {
-  padding: 0.45rem 0.6rem;
-  border-bottom: 1px solid var(--border-subtle);
-  min-width: 0;
-}
-
-.farm-job__name {
-  margin: 0;
-  font-size: var(--text-meta-size);
-  font-weight: var(--font-weight-increased);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.farm-job__name--past {
-  font-weight: var(--font-weight);
-  color: var(--text-muted);
-}
-
-.farm-bar {
-  margin-top: 0.35rem;
-  block-size: 0.3rem;
-  border-radius: 999px;
-  background-color: var(--surface-soft);
-  overflow: hidden;
-}
-
-.farm-bar > span {
-  display: block;
-  block-size: 100%;
-  border-radius: 999px;
-  background-color: var(--accent-primary);
-}
-
-.farm-bar > span[data-paused='true'] {
-  background-color: var(--status-caution-text);
-}
-
-.farm-job__meta {
-  display: flex;
-  justify-content: space-between;
-  gap: 0.35rem;
-  margin-top: 0.25rem;
-  font-family: var(--font-mono);
-  font-variant-numeric: tabular-nums;
-  font-size: var(--text-value-micro-size);
-  color: var(--text-muted);
-  white-space: nowrap;
-  overflow: hidden;
-}
-
 /*
- * The only flexible region in the column, at both sizes. Everything a shorter
- * screen takes comes out of here — the queue list scrolls inside itself and the
- * preview shrinks — so no other row ever moves between one viewport and the
- * next.
+ * One row for the state, and it is the largest thing on the card after the
+ * name. The rail gave a chip its own 38 px row because a 200 px header could
+ * not hold the chip and the name at once; at 570 px the state *is* the row, so
+ * the pill is gone and the word is the size of the question being asked.
  */
-.farm-body {
-  flex: 1 1 auto;
-  min-height: 0;
+.farm-state {
   display: flex;
-  flex-direction: column;
-  padding: 0.5rem 0.6rem;
-  gap: 0.5rem;
-  overflow: hidden;
-}
-
-/*
- * Expanded puts the preview beside its data rather than above it. Two reading
- * distances — a thumbnail recognized across a room, a queue read close up —
- * and stacking them made the eye cross the whole column to answer either
- * question. It is also what gives the queue the vertical run it needs.
- */
-.farm-body--split {
-  display: grid;
-  grid-template-columns: 10.625rem minmax(0, 1fr);
+  flex: none;
+  align-items: center;
   gap: 0.6rem;
-}
-
-.farm-preview {
-  min-width: 0;
-  min-height: 0;
-}
-
-.farm-preview__image {
-  inline-size: 100%;
-  aspect-ratio: 1;
-  object-fit: contain;
-  border: 1px solid var(--border-subtle);
-  border-radius: 0.7rem;
-  background-color: var(--surface-soft);
-}
-
-.farm-preview__empty {
-  inline-size: 100%;
-  aspect-ratio: 1;
-  display: grid;
-  place-items: center;
-  border: 1px dashed var(--border-subtle);
-  border-radius: 0.7rem;
-  color: var(--text-muted);
-  font-size: var(--text-meta-size);
-}
-
-.farm-data {
-  display: flex;
-  flex-direction: column;
-  gap: 0.45rem;
-  min-height: 0;
-  min-width: 0;
-}
-
-.farm-temps {
-  display: grid;
-  gap: 0.2rem;
-  margin: 0;
-}
-
-.farm-temps > div {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 0.4rem;
-}
-
-.farm-temps dt {
-  font-size: var(--text-label-caps-size);
-  letter-spacing: var(--text-label-caps-tracking);
-  text-transform: uppercase;
-  color: var(--text-muted);
-}
-
-.farm-temps dd {
-  margin: 0;
-  font-family: var(--font-mono);
-  font-variant-numeric: tabular-nums;
-  font-weight: var(--font-weight-increased);
-  font-size: var(--text-value-size);
-  white-space: nowrap;
-}
-
-.farm-temps dd i {
-  font-style: normal;
-  font-weight: var(--font-weight);
-  color: var(--text-muted);
-}
-
-.farm-filament {
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
-  margin: 0;
-  font-size: var(--text-meta-size);
-  color: var(--text-muted);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.farm-filament b {
-  color: var(--text-primary);
-}
-
-.farm-filament__swatch {
-  flex: 0 0 auto;
-  inline-size: 0.7rem;
-  block-size: 0.7rem;
-  border-radius: 999px;
-  border: 1px solid var(--border-subtle);
-  background-color: var(--surface-soft);
+  padding: 0.45rem 0.75rem;
+  min-block-size: 3rem;
+  border-bottom: 1px solid var(--border-subtle);
 }
 
 /*
- * The rail's one nested scroll. A second would make "which thing did I just
- * scroll" unanswerable, which is why the queue is the row allowed to overflow
- * and everything else is sized to fit.
+ * The glyph follows the state rather than being one fixed printer mark, so the
+ * row says what is happening in a shape as well as in a word — which is the
+ * "never colour alone" rule paying for itself: the tone below is reinforcement,
+ * not the message.
  */
-.farm-queue {
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-  border: 1px solid var(--border-subtle);
-  border-radius: 0.6rem;
-  overflow: hidden;
-}
-
-.farm-queue__head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.35rem;
-  padding: 0.25rem 0.4rem;
-  border-bottom: 1px solid var(--border-subtle);
-  font-size: var(--text-label-caps-size);
-  letter-spacing: var(--text-label-caps-tracking);
-  text-transform: uppercase;
-  font-weight: var(--font-weight-increased);
+.farm-state__glyph {
+  flex: none;
   color: var(--text-muted);
 }
 
-.farm-queue__list {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  min-height: 0;
-  overflow-y: auto;
-}
-
-.farm-queue__list li {
+.farm-state__main {
   display: flex;
-  align-items: baseline;
-  gap: 0.35rem;
-  padding: 0.25rem 0.4rem;
-  border-bottom: 1px solid var(--border-subtle);
-  font-size: var(--text-meta-size);
-  min-width: 0;
-}
-
-.farm-queue__list li:last-child {
-  border-bottom: 0;
-}
-
-.farm-queue__list li > span:first-child {
-  flex: 0 0 auto;
-  font-family: var(--font-mono);
-  font-size: var(--text-value-micro-size);
-  color: var(--text-muted);
-}
-
-.farm-queue__file {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.farm-queue__empty {
-  margin: 0;
-  padding: 0.35rem 0.4rem;
-  font-size: var(--text-meta-size);
-  color: var(--text-muted);
-}
-
-/*
- * Docked to the bottom edge so the controls are in the same place on every
- * expanded column. Buttons are disabled rather than removed between states: a
- * control that moves position is how a rail of near-identical columns produces
- * a wrong click.
- */
-.farm-dock {
-  flex: 0 0 auto;
-  border-top: 1px solid var(--border-subtle);
-  padding: 0.5rem 0.6rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-}
-
-.farm-dock__grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.4rem;
-}
-
-.farm-dock__span {
-  grid-column: span 2;
-}
-
-.farm-dock__utilities {
-  display: flex;
-  gap: 0.4rem;
-}
-
-.farm-dock__utilities > * {
   flex: 1 1 auto;
-  min-width: 0;
-}
-
-.farm-home {
-  display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  min-width: 0;
+  line-height: 1.2;
 }
 
-.farm-home__state {
-  font-size: var(--text-label-caps-size);
-  letter-spacing: var(--text-label-caps-tracking);
-  text-transform: uppercase;
+.farm-state__word {
+  font-size: var(--text-section-title-size);
   font-weight: var(--font-weight-increased);
+}
+
+.farm-state__word[data-tone='printing'] {
+  color: var(--accent-primary);
+}
+
+.farm-state__word[data-tone='paused'] {
   color: var(--status-caution-text);
 }
 
-/*
- * Homed is the unremarkable state, so it recedes; not-homed is the one worth
- * noticing. Both say which they are in words — the color only reinforces it.
- */
-.farm-home__state[data-homed='true'] {
+.farm-state__word[data-tone='error'] {
+  color: var(--status-danger-text);
+}
+
+.farm-state__word[data-tone='offline'],
+.farm-state__word[data-tone='muted'] {
   color: var(--text-muted);
 }
 
-.farm-home__row {
-  display: grid;
-  grid-template-columns: minmax(0, 1.6fr) repeat(3, minmax(0, 1fr));
-  gap: 0.4rem;
+.farm-state__file {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-muted);
+  font-size: var(--text-meta-size);
 }
 
-@media (max-width: 63.999rem) {
-  .farm-page {
-    --farm-column-width-wide: 28rem;
-  }
+.farm-state__right {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  align-items: flex-end;
+  line-height: 1.2;
+}
+
+.farm-state__percent {
+  font-family: var(--font-mono);
+  font-size: var(--text-card-title-size);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--font-weight-increased);
+}
+
+.farm-state__eta {
+  color: var(--text-muted);
+  font-size: var(--text-meta-size);
 }
 
 /*
- * A phone shows one printer at a time whatever the page does, so an expanded
- * column takes the screen with the next one peeking, and the split stacks. The
- * destination is deliberately still reachable here — one that exists on desktop
- * and not on a phone is the silent cull `navigation-plan.md` forbids.
+ * One strip carries every fact the card has, in place of the rail's three
+ * separate blocks (temperatures 46 px, filament, queue 65 px). Auto-flow by
+ * column so the cells divide the width evenly however many of them a machine's
+ * capabilities produce — and only capability removes one. Preference never
+ * does: cards that each showed different things would be several dashboards
+ * side by side rather than a comparison.
  */
-@media (max-width: 39.999rem) {
-  .farm-page {
-    --farm-column-width: 15rem;
-    --farm-column-width-wide: calc(100vw - 3rem);
-  }
+.farm-facts {
+  display: grid;
+  flex: none;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: 0.6rem;
+  align-items: center;
+  margin: 0;
+  padding: 0.4rem 0.75rem;
+  min-block-size: 2.75rem;
+  border-bottom: 1px solid var(--border-subtle);
+}
 
-  .farm-rail {
-    scroll-snap-type: x mandatory;
-  }
+.farm-facts > div {
+  min-width: 0;
+}
 
-  .farm-body--split {
-    grid-template-columns: minmax(0, 1fr);
-  }
+.farm-facts dt {
+  font-size: var(--text-label-caps-size);
+  font-weight: var(--font-weight-increased);
+  letter-spacing: var(--text-label-caps-tracking);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
 
-  /*
-   * Stacked, the preview would take its own width in height as well and push
-   * the temperatures, filament and queue out of the column entirely. Capping it
-   * keeps the split's promise at the one width where it cannot be a split: the
-   * preview shrinks first, everything else keeps its size.
-   */
-  .farm-body--split .farm-preview {
-    display: flex;
-    justify-content: center;
-  }
+.farm-facts dd {
+  overflow: hidden;
+  margin: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-size: var(--text-value-size);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--font-weight-increased);
+}
 
-  .farm-body--split .farm-preview__image,
-  .farm-body--split .farm-preview__empty {
-    inline-size: auto;
-    block-size: 6rem;
-  }
+.farm-facts dd i {
+  color: var(--text-muted);
+  font-style: normal;
+  font-weight: var(--font-weight);
+}
+
+/*
+ * The spool's own colour, which is data rather than chrome — the one place a
+ * farm card carries a value the user picked for themselves. The material is
+ * named beside it, so the swatch is never the only statement of anything.
+ */
+.farm-facts__swatch {
+  display: inline-block;
+  inline-size: 0.6rem;
+  block-size: 0.6rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: 999px;
+  background-color: var(--surface-soft);
+  vertical-align: -0.05rem;
+}
+
+/*
+ * Two commands, a menu and one destination control. The row's shape is
+ * constant: controls are disabled rather than removed, because a control that
+ * moves position between states is how a wall of near-identical cards produces
+ * a wrong click.
+ */
+.farm-actions {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.75rem;
+  min-block-size: 2.75rem;
+}
+
+.farm-actions__gap {
+  flex: 1 1 auto;
 }
 
 @media (prefers-reduced-motion: reduce) {
