@@ -1,105 +1,82 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import {
-  benchmarkCameraPose,
   frameIntervalStatistics,
-  geometryGpuByteEstimate,
+  gcodeBenchmarkScripts,
   installGcodeViewerBenchmark,
   type GcodeBenchmarkHooks,
+  type GcodeBenchmarkReport,
+  type GcodeFrameStatistics,
 } from '@/features/gcode/benchmark'
-import { fittedCamera } from '@/features/gcode/camera'
-import { parseGcode } from '@/features/gcode/parser'
-import type { GcodeBounds } from '@/features/gcode/types'
-
-const bounds: GcodeBounds = { minX: 0, maxX: 200, minY: 0, maxY: 200, minZ: 0, maxZ: 100 }
 
 describe('frameIntervalStatistics', () => {
   it('summarizes intervals into rate and tail percentiles', () => {
     const statistics = frameIntervalStatistics([16, 32, 16, 16])
 
     expect(statistics.frames).toBe(4)
-    expect(statistics.seconds).toBeCloseTo(0.08)
-    expect(statistics.averageFps).toBeCloseTo(50)
-    expect(statistics.medianFrameMilliseconds).toBe(16)
-    expect(statistics.p95FrameMilliseconds).toBe(32)
-    expect(statistics.worstFrameMilliseconds).toBe(32)
+    expect(statistics.averageFramesPerSecond).toBeCloseTo(50)
+    expect(statistics.medianMilliseconds).toBe(16)
+    expect(statistics.percentile95Milliseconds).toBe(32)
+    expect(statistics.worstMilliseconds).toBe(32)
   })
 
   it('takes the middle value of an odd run and survives an empty one', () => {
-    expect(frameIntervalStatistics([30, 10, 20]).medianFrameMilliseconds).toBe(20)
+    expect(frameIntervalStatistics([30, 10, 20]).medianMilliseconds).toBe(20)
     expect(frameIntervalStatistics([]).frames).toBe(0)
-    expect(frameIntervalStatistics([]).averageFps).toBe(0)
+    expect(frameIntervalStatistics([]).averageFramesPerSecond).toBe(0)
+  })
+
+  /**
+   * An average alone hid the whole problem this harness exists to find: the old
+   * renderer averaged acceptably on integrated graphics while stuttering
+   * visibly, because the tail was where the long frames lived.
+   */
+  it('reports a tail that a single average would have hidden', () => {
+    const statistics = frameIntervalStatistics([8, 8, 8, 8, 8, 8, 8, 8, 8, 400])
+
+    expect(statistics.medianMilliseconds).toBe(8)
+    expect(statistics.worstMilliseconds).toBe(400)
+    expect(statistics.percentile95Milliseconds).toBe(400)
   })
 })
 
-describe('benchmarkCameraPose', () => {
-  const fitted = fittedCamera(bounds, 1920, 1200)
-
-  it('sweeps a full orbit as an absolute function of progress', () => {
-    const start = benchmarkCameraPose('fitted-orbit', bounds, 0, 1920, 1200)
-    const end = benchmarkCameraPose('fitted-orbit', bounds, 1, 1920, 1200)
-
-    expect(start).toEqual(fitted)
-    expect(end.yaw).toBeCloseTo(fitted.yaw + Math.PI * 2)
-    expect(end.distance).toBeCloseTo(fitted.distance)
-    expect(end.pitch).toBeCloseTo(fitted.pitch)
-    expect(end.targetX).toBeCloseTo(fitted.targetX)
-  })
-
-  it('orbits close at a fixed share of the fitted distance', () => {
-    const pose = benchmarkCameraPose('close-orbit', bounds, 0.5, 1920, 1200)
-
-    expect(pose.distance).toBeCloseTo(fitted.distance * 0.15)
-    expect(pose.yaw).toBeCloseTo(fitted.yaw + Math.PI)
-  })
-
-  it('zoom-sweeps from fitted to nearest and back', () => {
-    expect(benchmarkCameraPose('zoom-sweep', bounds, 0, 1920, 1200).distance).toBeCloseTo(
-      fitted.distance,
-    )
-    expect(benchmarkCameraPose('zoom-sweep', bounds, 0.5, 1920, 1200).distance).toBeCloseTo(
-      fitted.distance * 0.08,
-    )
-    expect(benchmarkCameraPose('zoom-sweep', bounds, 1, 1920, 1200).distance).toBeCloseTo(
-      fitted.distance,
-    )
-  })
-
-  it('clamps progress so a long frame cannot overshoot the script', () => {
-    const overshoot = benchmarkCameraPose('fitted-orbit', bounds, 1.4, 1920, 1200)
-
-    expect(overshoot.yaw).toBeCloseTo(fitted.yaw + Math.PI * 2)
-  })
-})
-
-describe('geometryGpuByteEstimate', () => {
-  it('counts the uploaded buffers and not the CPU-side byte table', () => {
-    const geometry = parseGcode(`G90
-M83
-G1 X10 Z0.2 E1 F1200
-G1 Y10 E1
-G1 X0 Z0.4
-`)
-
-    const tierBytes = Object.values(geometry.tiers).reduce(
-      (total, tier) => total + tier.segments.byteLength + tier.pathDetails.byteLength,
-      0,
-    )
-    expect(geometryGpuByteEstimate(geometry)).toBe(
-      geometry.segments.byteLength +
-        geometry.pathDetails.byteLength +
-        geometry.caps.byteLength +
-        tierBytes,
-    )
-    expect(geometry.sourceBytes.byteLength).toBeGreaterThan(0)
-  })
-})
-
+/**
+ * The harness is a measurement instrument, so what matters is that it measures
+ * the same camera motion every time and refuses to produce a number it cannot
+ * stand behind. Every hook here is faked; what is under test is the driving.
+ */
 describe('installGcodeViewerBenchmark', () => {
   const windowKey = '__alabasterGcodeViewerBenchmark'
 
-  function hooks(overrides: Partial<GcodeBenchmarkHooks> = {}): GcodeBenchmarkHooks {
-    return {
+  interface WindowApi {
+    loadUrl: (url: string) => Promise<void>
+    run: () => Promise<GcodeBenchmarkReport | null>
+    frame: (script?: (typeof gcodeBenchmarkScripts)[number]) => Promise<GcodeFrameStatistics | null>
+    capture: () => string | null
+  }
+
+  function installedApi(): WindowApi {
+    return (window as unknown as Record<string, unknown>)[windowKey] as WindowApi
+  }
+
+  /**
+   * The scripts await an animation frame a few hundred times each, so real
+   * frames would make this suite take minutes. Running the callback at once
+   * with a fixed 16 ms step keeps it instant and makes every reported interval
+   * a number the assertions can name.
+   */
+  function driveFramesSynchronously(stepMilliseconds = 16): void {
+    let timestamp = 0
+    vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
+      timestamp += stepMilliseconds
+      callback(timestamp)
+      return 0
+    })
+  }
+
+  function harness(overrides: Partial<GcodeBenchmarkHooks> = {}) {
+    const calls: string[] = []
+    const hooks: GcodeBenchmarkHooks = {
       fileSummary: () => ({
         name: 'cube.gcode',
         bytes: 128,
@@ -109,69 +86,145 @@ describe('installGcodeViewerBenchmark', () => {
         layers: 2,
       }),
       loadMilliseconds: () => 1234,
-      firstGeometryMilliseconds: () => 820,
-      streamedBatches: () => 12,
-      qualityStep: () => 0,
-      frameDiagnostics: () => ({ lod: 'full', instances: 3, drawCalls: 1 }),
-      gpuUploadBytes: () => 4096,
-      modelBounds: () => bounds,
+      qualityStep: () => 2,
+      tier: () => 3,
+      resolutionScale: () => 0.85,
       viewportSize: () => ({ width: 640, height: 480 }),
-      applyCamera: vi.fn(),
-      renderScene: vi.fn(),
-      resetView: vi.fn(),
+      resetView: () => calls.push('resetView'),
+      orbitBy: () => calls.push('orbitBy'),
+      zoomBy: () => calls.push('zoomBy'),
+      screenshot: () => 'data:image/png;base64,',
       loadUrl: vi.fn().mockResolvedValue(undefined),
-      captureRegion: () => 'data:image/png;base64,',
       ...overrides,
     }
+    return { hooks, calls }
   }
 
   afterEach(() => {
     delete (window as unknown as Record<string, unknown>)[windowKey]
+    vi.unstubAllGlobals()
     vi.restoreAllMocks()
   })
 
-  it('drives every script through the render hooks and reports one JSON block', async () => {
-    const log = vi.spyOn(console, 'log').mockImplementation(() => undefined)
-    // jsdom has no WebGL; keep its "not implemented" warning out of the run.
-    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null)
-    const scripted = hooks()
-    installGcodeViewerBenchmark(scripted)
+  it('installs the whole console API under one window handle', () => {
+    const { hooks } = harness()
 
-    const api = (window as unknown as Record<string, unknown>)[windowKey] as {
-      run(seconds?: number): Promise<{ scripts: Record<string, { frames: number }> }>
+    installGcodeViewerBenchmark(hooks)
+
+    const api = installedApi()
+    expect(typeof api.loadUrl).toBe('function')
+    expect(typeof api.run).toBe('function')
+    expect(typeof api.frame).toBe('function')
+    expect(typeof api.capture).toBe('function')
+  })
+
+  it('drives every script and reports them in one comparable block', async () => {
+    driveFramesSynchronously()
+    const info = vi.spyOn(console, 'info').mockImplementation(() => undefined)
+    const { hooks, calls } = harness()
+    installGcodeViewerBenchmark(hooks)
+
+    const report = await installedApi().run()
+
+    expect(report).not.toBeNull()
+    // The three script names are the comparison against the hand-written
+    // renderer's numbers; reordering or renaming one breaks that comparison.
+    expect(Object.keys(report!.scripts)).toEqual([...gcodeBenchmarkScripts])
+    for (const script of gcodeBenchmarkScripts) {
+      const statistics = report!.scripts[script]
+      expect(statistics.frames).toBeGreaterThan(0)
+      expect(statistics.medianMilliseconds).toBe(16)
     }
-    const report = await api.run(0.05)
+    // One block, so a run can be pasted somewhere whole rather than reassembled
+    // out of a scrollback.
+    expect(info).toHaveBeenCalledTimes(1)
+    expect(JSON.parse((info.mock.calls[0]?.[0] as string) ?? '')).toEqual(report)
+    expect(calls.filter((call) => call === 'resetView')).toHaveLength(gcodeBenchmarkScripts.length)
+  })
 
-    expect(Object.keys(report.scripts)).toEqual(['fitted-orbit', 'close-orbit', 'zoom-sweep'])
-    expect(scripted.renderScene).toHaveBeenCalled()
-    expect(scripted.applyCamera).toHaveBeenCalled()
-    expect(scripted.resetView).toHaveBeenCalledTimes(1)
-    expect(log).toHaveBeenCalledTimes(1)
-    expect(JSON.parse((log.mock.calls[0]?.[0] as string) ?? '')).toMatchObject({
-      file: { name: 'cube.gcode' },
+  /**
+   * A frame time means nothing without the settings it was measured under: the
+   * same file at tier 2 and half resolution is a different measurement from the
+   * same file at tier 5. So the report carries them, and a number taken without
+   * them could not be compared to anything.
+   */
+  it('carries the file and the settings the numbers were measured under', async () => {
+    driveFramesSynchronously()
+    vi.spyOn(console, 'info').mockImplementation(() => undefined)
+    const { hooks } = harness()
+    installGcodeViewerBenchmark(hooks)
+
+    const report = await installedApi().run()
+
+    expect(report).toMatchObject({
+      file: { name: 'cube.gcode', bytes: 128, layers: 2 },
       loadMilliseconds: 1234,
-      firstGeometryMilliseconds: 820,
-      streamedBatches: 12,
-      gpuUploadBytes: 4096,
+      tier: 3,
+      qualityStep: 2,
+      resolutionScale: 0.85,
+      viewport: { width: 640, height: 480 },
     })
   })
 
   it('refuses to run without a loaded file instead of reporting nonsense', async () => {
-    installGcodeViewerBenchmark(hooks({ fileSummary: () => null }))
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    installGcodeViewerBenchmark(harness({ fileSummary: () => null }).hooks)
 
-    const api = (window as unknown as Record<string, unknown>)[windowKey] as {
-      run(): Promise<unknown>
-    }
-    await expect(api.run()).rejects.toThrow('Load a G-code file')
+    await expect(installedApi().run()).resolves.toBeNull()
+    await expect(installedApi().frame()).resolves.toBeNull()
+    expect(warn).toHaveBeenCalledTimes(2)
+  })
+
+  it('runs a single script on request without touching the other two', async () => {
+    driveFramesSynchronously()
+    const { hooks, calls } = harness()
+    installGcodeViewerBenchmark(hooks)
+
+    const statistics = await installedApi().frame('zoom-sweep')
+
+    expect(statistics?.frames).toBeGreaterThan(0)
+    expect(calls.filter((call) => call === 'resetView')).toHaveLength(1)
+    // A zoom sweep zooms and never orbits, so a script that quietly fell back
+    // to the orbit path would show up here rather than as a plausible number.
+    expect(calls).toContain('zoomBy')
+    expect(calls).not.toContain('orbitBy')
+  })
+
+  /**
+   * Close-orbit is the framing the old renderer was slowest at, because a
+   * camera inside the model's own footprint defeats every bounds-based culling
+   * scheme. It only measures that if it zooms in *before* it starts orbiting.
+   */
+  it('closes in before it orbits on the close-orbit script', async () => {
+    driveFramesSynchronously()
+    const { hooks, calls } = harness()
+    installGcodeViewerBenchmark(hooks)
+
+    await installedApi().frame('close-orbit')
+
+    expect(calls.indexOf('zoomBy')).toBeGreaterThan(-1)
+    expect(calls.indexOf('zoomBy')).toBeLessThan(calls.indexOf('orbitBy'))
+  })
+
+  it('forwards loading and capture straight to the viewer', async () => {
+    const { hooks } = harness()
+    installGcodeViewerBenchmark(hooks)
+
+    await installedApi().loadUrl('/bench.gcode')
+
+    expect(hooks.loadUrl).toHaveBeenCalledWith('/bench.gcode')
+    expect(installedApi().capture()).toBe('data:image/png;base64,')
   })
 
   it('uninstalls its own handle without clobbering a newer one', () => {
-    const first = installGcodeViewerBenchmark(hooks())
-    const second = installGcodeViewerBenchmark(hooks())
+    const first = installGcodeViewerBenchmark(harness().hooks)
+    const second = installGcodeViewerBenchmark(harness().hooks)
 
+    // A second viewer mounting before the first unmounts would otherwise lose
+    // its own API to the older instance's teardown.
     first()
-    expect((window as unknown as Record<string, unknown>)[windowKey]).toBeDefined()
+    expect(installedApi()).toBeDefined()
     second()
-    expect((window as unknown as Record<string, unknown>)[windowKey]).toBeUndefined()
+    expect(installedApi()).toBeUndefined()
   })
 })

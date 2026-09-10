@@ -14,6 +14,9 @@ import { isTextWeightMode, useTextWeight, type TextWeightMode } from '@/composab
 import { isThemeMode, useTheme, type ThemeMode } from '@/composables/useTheme'
 import type { DashboardProfile } from '@/dashboard/layout'
 import { defaultIndentWidth, isIndentWidth, type IndentWidth } from '@/features/machine/indent'
+import { useGcodeViewerSettings } from '@/composables/useGcodeViewerSettings'
+import type { GcodeQualityMode } from '@/features/gcode/quality'
+import type { GcodeColorMode } from '@/features/gcode/types'
 import { defaultFontId, isFontId, type FontId } from '@/fonts/registry'
 import { i18n, setLocale, supportedLocales, type SupportedLocale } from '@/i18n'
 import {
@@ -49,6 +52,20 @@ import { isRecord } from '@/utils/records'
  * `version` exists so a future incompatible change to this shape has
  * somewhere to branch from; there is only one version today.
  */
+/**
+ * How someone likes to look at a toolpath. In the bundle because the answer
+ * is the same on every screen they own — unlike the viewer's two device
+ * facts, the detail ceiling this machine can hold and whether its last parse
+ * died, which are answers about one browser on one piece of hardware and
+ * would be the wrong answer anywhere else.
+ */
+export interface GcodeViewerBundle {
+  colorMode: GcodeColorMode
+  showTravels: boolean
+  qualityMode: GcodeQualityMode
+  followByDefault: boolean
+}
+
 export interface SettingsBundle {
   version: 1
   updatedAt: string
@@ -64,6 +81,15 @@ export interface SettingsBundle {
   timeFormat: TimeFormatMode
   confirmations: StoredConfirmations
   dashboardProfile: DashboardProfile
+  gcodeViewer: GcodeViewerBundle
+}
+
+function isGcodeColorMode(value: unknown): value is GcodeColorMode {
+  return value === 'single' || value === 'feature' || value === 'feedrate'
+}
+
+function isGcodeQualityMode(value: unknown): value is GcodeQualityMode {
+  return value === 'quality' || value === 'auto' || value === 'performance'
 }
 
 export function collectSettingsBundle(): SettingsBundle {
@@ -76,6 +102,7 @@ export function collectSettingsBundle(): SettingsBundle {
   const { timeMode, dateMode, dateCustomPattern } = useDateTimeFormatMode()
   const confirmations = useConfirmationsStore()
   const layout = useDashboardLayoutStore()
+  const gcodeViewer = useGcodeViewerSettings()
 
   return {
     version: 1,
@@ -100,6 +127,12 @@ export function collectSettingsBundle(): SettingsBundle {
       maintenanceReminderSuppressedUntil: confirmations.maintenanceReminderSuppressedUntil,
     },
     dashboardProfile: layout.profile,
+    gcodeViewer: {
+      colorMode: gcodeViewer.colorMode.value,
+      showTravels: gcodeViewer.showTravels.value,
+      qualityMode: gcodeViewer.qualityMode.value,
+      followByDefault: gcodeViewer.followByDefault.value,
+    },
   }
 }
 
@@ -126,6 +159,7 @@ export async function applySettingsBundle(input: unknown): Promise<void> {
   const { setTimeMode, setDateMode, setDateCustomPattern } = useDateTimeFormatMode()
   const confirmations = useConfirmationsStore()
   const layout = useDashboardLayoutStore()
+  const gcodeViewer = useGcodeViewerSettings()
 
   if (isRecord(input.theme)) {
     if (typeof input.theme.mode === 'string' && isThemeMode(input.theme.mode)) {
@@ -169,6 +203,15 @@ export async function applySettingsBundle(input: unknown): Promise<void> {
   }
   if (input.confirmations !== undefined) confirmations.replaceAll(input.confirmations)
   if (input.dashboardProfile !== undefined) layout.replaceProfile(input.dashboardProfile)
+  if (isRecord(input.gcodeViewer)) {
+    const viewer = input.gcodeViewer
+    if (isGcodeColorMode(viewer.colorMode)) gcodeViewer.setColorMode(viewer.colorMode)
+    if (typeof viewer.showTravels === 'boolean') gcodeViewer.setShowTravels(viewer.showTravels)
+    if (isGcodeQualityMode(viewer.qualityMode)) gcodeViewer.setQualityMode(viewer.qualityMode)
+    if (typeof viewer.followByDefault === 'boolean') {
+      gcodeViewer.setFollowByDefault(viewer.followByDefault)
+    }
+  }
 }
 
 /** A bundle built from nothing but defaults — what "Reset" applies. */
@@ -196,5 +239,11 @@ export function defaultSettingsBundle(): SettingsBundle {
       maintenanceReminderSuppressedUntil: null,
     },
     dashboardProfile: normalizeDashboardProfile(undefined),
+    gcodeViewer: {
+      colorMode: 'single',
+      showTravels: false,
+      qualityMode: 'auto',
+      followByDefault: true,
+    },
   }
 }

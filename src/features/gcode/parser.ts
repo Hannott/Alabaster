@@ -2,30 +2,18 @@ import {
   GcodeFeature,
   GcodeMoveKind,
   defaultGcodeFilamentDiameter,
-  gcodeCapStride,
-  gcodePathDetailStride,
   gcodeSegment,
   gcodeSegmentStride,
   gcodeSourceByteStride,
   maximumGcodeSourceBytes,
   type GcodeBounds,
-  type GcodeDecimationTier,
-  type GcodeGeometryBatch,
-  type GcodeGeometryTier,
-  type ParsedGcodeGeometry,
   type ParsedGcodeSummary,
 } from '@/features/gcode/types'
 import { gcodeFeatureFromComment } from '@/features/gcode/features'
-import { buildGcodePathData, gcodeMovesConnected } from '@/features/gcode/pathGeometry'
-import { buildGcodeCapRenderChunks, buildGcodeRenderChunks } from '@/features/gcode/lod'
-import { decimateGcodeSegments, gcodeDecimationSettings } from '@/features/gcode/decimate'
 
 const segmentsPerBufferChunk = 65_536
 const valuesPerChunk = gcodeSegmentStride * segmentsPerBufferChunk
 const sourceBytesPerChunk = gcodeSourceByteStride * segmentsPerBufferChunk
-// One streamed batch. Small enough to appear quickly, large enough that a
-// 100 MB file becomes tens of GPU uploads rather than thousands.
-const streamedBatchSegments = 65_536
 const coordinateEpsilon = 0.000_1
 const maximumArcSegments = 2_048
 const maximumArcStepRadians = Math.PI / 36
@@ -35,7 +23,7 @@ const maximumDerivedExtrusionWidth = 2
 
 // Slicers vary extrusion width per feature and usually widen the first layer, so
 // the deposited cross-section is recovered from the filament consumed over the
-// move. Zero means "not derivable"; the renderer falls back to nozzle width.
+// move. Zero means "not derivable"; a consumer falls back to nozzle width.
 //
 // The filament's cross-section is squared into this, so the diameter is taken
 // from the machine rather than assumed: 1.75 mm arithmetic on a 2.85 mm printer
@@ -84,31 +72,10 @@ class SegmentBuffer {
   }
 
   /**
-   * Copies segments [start, end) into a fresh transferable array, normalizing
-   * the raw progress bytes by `progressDenominator` on the way out. The
-   * retained chunks keep raw bytes so the final pass can renormalize by the
-   * actual total without a second conversion. No clamp here: values may pass
-   * 1 when a download understated its size, and the renderer reconciles that
-   * with a uniform-side scale instead of losing the ordering.
+   * Concatenates the retained chunks and normalizes the raw progress bytes by
+   * the actual byte total. Progress is stored as a byte offset while parsing
+   * because the total is only known once the last chunk has arrived.
    */
-  copySegmentSpan(start: number, end: number, progressDenominator: number): Float32Array {
-    const result = new Float32Array((end - start) * gcodeSegmentStride)
-    const denominator = Math.max(1, progressDenominator)
-    let target = 0
-    for (let index = start; index < end; index += 1) {
-      const chunkIndex = Math.floor(index / segmentsPerBufferChunk)
-      const source = this.chunks[chunkIndex] ?? this.current
-      const inner = (index % segmentsPerBufferChunk) * gcodeSegmentStride
-      for (let field = 0; field < gcodeSegmentStride; field += 1) {
-        result[target + field] = source[inner + field] ?? 0
-      }
-      result[target + gcodeSegment.progress] =
-        (source[inner + gcodeSegment.progress] ?? 0) / denominator
-      target += gcodeSegmentStride
-    }
-    return result
-  }
-
   finish(totalBytes: number): { segments: Float32Array; sourceBytes: Uint32Array } {
     const segments = new Float32Array(this.count * gcodeSegmentStride)
     const sourceBytes = new Uint32Array(this.count * gcodeSourceByteStride)
@@ -197,20 +164,6 @@ export class GcodeParser {
   private readonly layerHeights: number[] = []
   private readonly decoder = new TextDecoder()
   private readonly encoder = new TextEncoder()
-  // Streaming state: how much has already left as batches, and where the next
-  // batch may safely end. A cut is safe only where path connectivity is absent,
-  // so miter joins and end caps never straddle a batch boundary.
-  private drainedSegments = 0
-  private drainedCaps = 0
-  private safeCutIndex = 0
-  private lastEmittedProgress = 0
-  private previousSegment: {
-    endX: number
-    endY: number
-    endZ: number
-    kind: number
-    layer: number
-  } | null = null
   private state: MachineState = {
     x: 0,
     y: 0,
@@ -235,14 +188,15 @@ export class GcodeParser {
   private minimumFeedrate = Number.POSITIVE_INFINITY
   private maximumFeedrate = 0
 
-  /**
-   * `expectedTotalBytes` enables streamed batches: mid-parse progress can only
-   * be normalized against a size known up front (a Content-Length, a File
-   * size). Without it the parser stays a single-emission parser, exactly as
-   * before.
-   */
   private readonly filamentCrossSection: number
 
+  /**
+   * `expectedTotalBytes` is the size the download claimed up front, kept only
+   * so the summary can report how far it differed from the real total. The
+   * segment stream itself is always normalized by the actual byte count, so a
+   * lying `Content-Length` cannot distort the timeline — see
+   * `ParsedGcodeSummary.progressScale`.
+   */
   constructor(
     private readonly expectedTotalBytes: number | null = null,
     filamentDiameter: number = defaultGcodeFilamentDiameter,
@@ -274,34 +228,9 @@ export class GcodeParser {
     this.pushBytes(this.encoder.encode(text))
   }
 
-  /**
-   * Emits the next streamed batch once enough completed paths have
-   * accumulated, or null while they have not. Only available when the
-   * expected total was declared — without it, mid-stream progress values
-   * would have no denominator.
-   */
-  drainBatch(minimumSegments = streamedBatchSegments): GcodeGeometryBatch | null {
-    if (this.expectedTotalBytes === null || this.expectedTotalBytes <= 0) return null
-    if (this.safeCutIndex - this.drainedSegments < minimumSegments) return null
-    return this.emitBatch(this.safeCutIndex, this.expectedTotalBytes)
-  }
-
-  /**
-   * Flushes the final partial batch and the CPU-side summary. The summary's
-   * segment stream is normalized by the actual byte total (the exact classic
-   * semantics); batches were normalized by the expected total, and
-   * `progressScale` carries the ratio for the renderer.
-   */
-  finishStream(): { batch: GcodeGeometryBatch | null; summary: ParsedGcodeSummary } {
+  /** Flushes the trailing partial line and produces the parse timeline. */
+  finish(): ParsedGcodeSummary {
     this.flushByteCarry()
-    const denominator =
-      this.expectedTotalBytes && this.expectedTotalBytes > 0
-        ? this.expectedTotalBytes
-        : Math.max(1, this.bytesProcessed)
-    const batch =
-      this.segments.count > this.drainedSegments
-        ? this.emitBatch(this.segments.count, denominator)
-        : null
 
     const { segments, sourceBytes } = this.segments.finish(this.bytesProcessed)
     const hasGeometry = this.segments.count > 0
@@ -315,36 +244,19 @@ export class GcodeParser {
         : 1
 
     return {
-      batch,
-      summary: {
-        segments,
-        sourceBytes,
-        sourceByteCount: this.bytesProcessed,
-        layerHeights: this.filledLayerHeights(),
-        tiers: buildGcodeGeometryTiers(segments),
-        segmentCount: this.segments.count,
-        capCount: this.drainedCaps,
-        extrusionCount: this.extrusionCount,
-        travelCount: this.travelCount,
-        bounds,
-        extrusionBounds,
-        minimumFeedrate: Number.isFinite(this.minimumFeedrate) ? this.minimumFeedrate : 0,
-        maximumFeedrate: this.maximumFeedrate,
-        progressScale,
-      },
+      segments,
+      sourceBytes,
+      sourceByteCount: this.bytesProcessed,
+      layerHeights: this.filledLayerHeights(),
+      segmentCount: this.segments.count,
+      extrusionCount: this.extrusionCount,
+      travelCount: this.travelCount,
+      bounds,
+      extrusionBounds,
+      minimumFeedrate: Number.isFinite(this.minimumFeedrate) ? this.minimumFeedrate : 0,
+      maximumFeedrate: this.maximumFeedrate,
+      progressScale,
     }
-  }
-
-  /**
-   * Classic single-emission parse. Invalid after drainBatch() — earlier
-   * batches already left this parser and cannot be reassembled here.
-   */
-  finish(): ParsedGcodeGeometry {
-    if (this.drainedSegments > 0) {
-      throw new Error('finish() cannot follow drainBatch(); use finishStream() instead')
-    }
-    const { batch, summary } = this.finishStream()
-    return assembleGcodeGeometry(batch ? [batch] : [], summary)
   }
 
   private flushByteCarry(): void {
@@ -368,32 +280,6 @@ export class GcodeParser {
       heights[layer] = lastHeight
     }
     return heights
-  }
-
-  private emitBatch(end: number, progressDenominator: number): GcodeGeometryBatch {
-    const start = this.drainedSegments
-    const segments = this.segments.copySegmentSpan(start, end, progressDenominator)
-    const pathData = buildGcodePathData(segments, this.lastEmittedProgress)
-    const renderChunks = buildGcodeRenderChunks(segments, start)
-    const capRenderChunks = buildGcodeCapRenderChunks(pathData.caps, this.drainedCaps)
-    this.lastEmittedProgress =
-      segments[(end - start - 1) * gcodeSegmentStride + gcodeSegment.progress] ??
-      this.lastEmittedProgress
-    this.drainedSegments = end
-    this.drainedCaps += pathData.capCount
-    const bounds = { ...this.bounds }
-    return {
-      segments,
-      pathDetails: pathData.pathDetails,
-      caps: pathData.caps,
-      segmentCount: end - start,
-      capCount: pathData.capCount,
-      renderChunks,
-      capRenderChunks,
-      bounds,
-      extrusionBounds: this.extrusionCount > 0 ? { ...this.extrusionBounds } : bounds,
-      layerCount: Math.max(1, this.currentLayer + 1),
-    }
   }
 
   private processLine(rawLine: string, byteLength: number): void {
@@ -567,35 +453,6 @@ export class GcodeParser {
 
     if (extrusion) this.updateLayer(end.z)
     const kind = extrusion ? GcodeMoveKind.Extrusion : GcodeMoveKind.Travel
-    // Batch-boundary bookkeeping: a cut before this segment is safe exactly
-    // when path connectivity is absent. Values go through fround so this
-    // decision matches what pathGeometry will read back out of Float32 storage.
-    const previous = this.previousSegment
-    if (
-      this.segments.count > 0 &&
-      (!previous ||
-        !gcodeMovesConnected(
-          previous.endX,
-          previous.endY,
-          previous.endZ,
-          previous.kind,
-          previous.layer,
-          Math.fround(start.x),
-          Math.fround(start.y),
-          Math.fround(start.z),
-          kind,
-          this.currentLayer,
-        ))
-    ) {
-      this.safeCutIndex = this.segments.count
-    }
-    this.previousSegment = {
-      endX: Math.fround(end.x),
-      endY: Math.fround(end.y),
-      endZ: Math.fround(end.z),
-      kind,
-      layer: this.currentLayer,
-    }
     const previousLayerZ =
       this.currentLayer > 0 ? (this.layerHeights[this.currentLayer - 1] ?? 0) : 0
     const extrusionHeight = extrusion ? Math.max(0, end.z - previousLayerZ) : 0
@@ -665,77 +522,7 @@ export class GcodeParser {
   }
 }
 
-/**
- * Builds the reduced LOD tiers from the finished segment stream. This runs at
- * the end of the parse rather than per batch because a mergeable run may span
- * a batch boundary, and a tier built per batch would break every run at one.
- */
-export function buildGcodeGeometryTiers(
-  segments: Float32Array,
-): Record<GcodeDecimationTier, GcodeGeometryTier> {
-  const tiers = {} as Record<GcodeDecimationTier, GcodeGeometryTier>
-  for (const tier of Object.keys(gcodeDecimationSettings) as GcodeDecimationTier[]) {
-    const settings = gcodeDecimationSettings[tier]
-    const reduced = decimateGcodeSegments(segments, settings)
-    // Caps are deliberately discarded: a tier only renders where beads are
-    // sub-pixel, and a cap there costs 108 vertices to change nothing.
-    const pathData = buildGcodePathData(reduced)
-    tiers[tier] = {
-      segments: reduced,
-      pathDetails: pathData.pathDetails,
-      segmentCount: Math.floor(reduced.length / gcodeSegmentStride),
-      renderChunks: buildGcodeRenderChunks(reduced),
-    }
-  }
-  return tiers
-}
-
-/**
- * Rebuilds the classic whole-file geometry from streamed parts, for consumers
- * that want one object (tests, the synchronous helper, the renderer's
- * non-streamed load). Batch-local path details and caps concatenate exactly
- * because their chunk records already carry global indices.
- */
-export function assembleGcodeGeometry(
-  batches: readonly GcodeGeometryBatch[],
-  summary: ParsedGcodeSummary,
-): ParsedGcodeGeometry {
-  const pathDetails = new Float32Array(summary.segmentCount * gcodePathDetailStride)
-  const caps = new Float32Array(summary.capCount * gcodeCapStride)
-  const renderChunks = []
-  const capRenderChunks = []
-  let pathOffset = 0
-  let capOffset = 0
-  for (const batch of batches) {
-    pathDetails.set(batch.pathDetails, pathOffset)
-    caps.set(batch.caps, capOffset)
-    pathOffset += batch.pathDetails.length
-    capOffset += batch.caps.length
-    renderChunks.push(...batch.renderChunks)
-    capRenderChunks.push(...batch.capRenderChunks)
-  }
-  return {
-    segments: summary.segments,
-    sourceBytes: summary.sourceBytes,
-    sourceByteCount: summary.sourceByteCount,
-    pathDetails,
-    caps,
-    layerHeights: summary.layerHeights,
-    renderChunks,
-    capRenderChunks,
-    tiers: summary.tiers,
-    segmentCount: summary.segmentCount,
-    capCount: summary.capCount,
-    extrusionCount: summary.extrusionCount,
-    travelCount: summary.travelCount,
-    bounds: summary.bounds,
-    extrusionBounds: summary.extrusionBounds,
-    minimumFeedrate: summary.minimumFeedrate,
-    maximumFeedrate: summary.maximumFeedrate,
-  }
-}
-
-export function parseGcode(source: string, filamentDiameter?: number): ParsedGcodeGeometry {
+export function parseGcode(source: string, filamentDiameter?: number): ParsedGcodeSummary {
   const parser = new GcodeParser(null, filamentDiameter)
   parser.pushText(source)
   return parser.finish()

@@ -117,14 +117,33 @@ export function hsvToHex(hsv: Hsv): string {
 }
 
 /**
- * A hex color or the `rgb()`/`rgba()` form `getComputedStyle` reports, in
- * either the comma or the space-separated syntax. Anything else is `null`.
+ * A hex color, the `rgb()`/`rgba()` form `getComputedStyle` reports in either
+ * the comma or the space-separated syntax, or the `color(srgb …)` form it
+ * reports for anything computed — a `color-mix()`, most of all. Anything else
+ * is `null`.
+ *
+ * The `color(srgb …)` branch is not a nicety. Alabaster's theme tokens are
+ * built almost entirely out of `color-mix()`, and a browser reports those
+ * resolved as `color(srgb 1 1 1 / 0.56)` rather than as `rgb(…)`. Without this
+ * branch every such token parses as `null` and a caller that falls back to
+ * black gets black — which is how the G-code viewer's bed grid shipped
+ * invisible against a dark background, correct in the stylesheet and wrong on
+ * the canvas. Its components are 0-to-1 rather than 0-to-255, which is the
+ * other half of the same trap.
  */
 export function parseCssColor(value: string): Rgb | null {
   const hex = hexToRgb(value)
   if (hex) return hex
 
-  const match = /^rgba?\(\s*([\d.]+)[\s,]+([\d.]+)[\s,]+([\d.]+)/i.exec(value.trim())
+  const trimmed = value.trim()
+  const modern =
+    /^color\(\s*srgb(?:-linear)?\s+([\d.eE+-]+)\s+([\d.eE+-]+)\s+([\d.eE+-]+)/i.exec(trimmed)
+  if (modern) {
+    const [, r, g, b] = modern
+    return { r: Number(r) * 255, g: Number(g) * 255, b: Number(b) * 255 }
+  }
+
+  const match = /^rgba?\(\s*([\d.]+)[\s,]+([\d.]+)[\s,]+([\d.]+)/i.exec(trimmed)
   if (!match) return null
   const [, r, g, b] = match
   return { r: Number(r), g: Number(g), b: Number(b) }

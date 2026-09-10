@@ -1,9 +1,5 @@
 import { GcodeParser } from '@/features/gcode/parser'
-import type {
-  GcodeGeometryBatch,
-  GcodeParserWorkerRequest,
-  GcodeParserWorkerResponse,
-} from '@/features/gcode/types'
+import type { GcodeParserWorkerRequest, GcodeParserWorkerResponse } from '@/features/gcode/types'
 
 interface WorkerScope {
   onmessage: ((event: MessageEvent<GcodeParserWorkerRequest>) => void) | null
@@ -12,14 +8,6 @@ interface WorkerScope {
 
 const workerScope = self as unknown as WorkerScope
 let parser: GcodeParser | null = null
-
-function postBatch(batch: GcodeGeometryBatch): void {
-  workerScope.postMessage({ type: 'batch', batch }, [
-    batch.segments.buffer,
-    batch.pathDetails.buffer,
-    batch.caps.buffer,
-  ])
-}
 
 workerScope.onmessage = (event) => {
   try {
@@ -30,25 +18,15 @@ workerScope.onmessage = (event) => {
     if (!parser) throw new Error('Parser has not been started')
     if (event.data.type === 'chunk') {
       parser.pushBytes(new Uint8Array(event.data.buffer))
-      let batch = parser.drainBatch()
-      while (batch) {
-        postBatch(batch)
-        batch = parser.drainBatch()
-      }
       return
     }
 
-    const { batch, summary } = parser.finishStream()
+    const summary = parser.finish()
     parser = null
-    if (batch) postBatch(batch)
     workerScope.postMessage({ type: 'parsed', summary }, [
       summary.segments.buffer,
       summary.sourceBytes.buffer,
       summary.layerHeights.buffer,
-      ...Object.values(summary.tiers).flatMap((tier) => [
-        tier.segments.buffer,
-        tier.pathDetails.buffer,
-      ]),
     ])
   } catch (error) {
     parser = null

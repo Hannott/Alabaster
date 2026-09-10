@@ -753,14 +753,49 @@ describe('interaction and iconography contract', () => {
     }
 
     // The track's accent is the shared blue by default — the same one
-    // `AppField`'s own border uses — with one documented, scoped exception
-    // for the G-code viewer's playback scrubber, not a second invented hue.
+    // `AppField`'s own border uses — rather than a second invented hue.
     expect(appSliderStyles).toMatch(
       /background-color:\s*var\(--app-slider-accent,\s*var\(--action-primary\)\)/,
     )
-    expect(styles).toMatch(
-      /\.gcode-simulation-scrubber\s*\{[^}]*--app-slider-accent:\s*var\(--viewer-progress\)/,
-    )
+  })
+
+  /*
+   * The bounded exception, and the reason it is bounded.
+   *
+   * `AppSlider` is a labelled two-row control tuned to `AppField`'s height
+   * rhythm so a dashboard card can mix the two. The G-code viewer's stage has
+   * two dragged tracks that are not in a card at all — a vertical layer range
+   * down the edge of the canvas and the transport scrubber along its bottom —
+   * and bending a card component into those shapes would have cost every card
+   * the geometry that makes them line up. So they are their own controls, and
+   * this test exists to keep that a list of two rather than an open door: a
+   * third hand-rolled slider belongs in `AppSlider` or in this list, with the
+   * reason written down. `interface-standards.md` holds the same boundary.
+   */
+  it('allows the two stage-mounted tracks their own shape without leaking it', () => {
+    const stageTracks = ['.gcode-rail__input', '.gcode-transport__input']
+    for (const track of stageTracks) {
+      expect(styles, `${track} must be defined`).toContain(`${track} {`)
+      // Transparent tracks: each draws its own fill as a separate element, so
+      // the input contributes only a thumb and a hit area.
+      // Located by index rather than by a built regex: the selectors carry
+      // `--` and `__`, and a pattern assembled from them is one escape away
+      // from silently matching nothing and passing.
+      const start = styles.indexOf(`${track} {`)
+      const rule = start >= 0 ? styles.slice(start, styles.indexOf('}', start)) : undefined
+      expect(rule, `${track}'s rule is missing`).toBeDefined()
+      expect(rule).toContain('background: transparent')
+      expect(rule).toContain('appearance: none')
+      // They must not borrow AppSlider's geometry knobs. A stage control that
+      // started tracking AppField's tier heights would be a card component
+      // again, with none of a card's layout around it.
+      expect(rule).not.toContain('--app-slider')
+    }
+
+    // Neither track may reintroduce the shared slider's own class, which is
+    // how a copied stage control would quietly become a fourth pattern.
+    expect(styles).not.toContain('.gcode-rail__input.app-slider')
+    expect(styles).not.toContain('.gcode-transport__input.app-slider')
   })
 
   it('gives AppOutputRow a shorter tier than AppField/AppSlider and keeps .pin-row matched to it', () => {

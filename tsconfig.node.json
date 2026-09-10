@@ -5,6 +5,7 @@
     "eslint.config.js",
     "website/.vitepress/config.ts",
     "src/env.d.ts",
+    "src/features/gcode/vendor/gcodeviewer.d.ts",
     "src/**/__tests__/*.ts",
     "klipper/__tests__/*.ts"
   ],

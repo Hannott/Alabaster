@@ -78,3 +78,21 @@ export function gcodeFeatureFromComment(line: string): GcodeFeature | null {
   const label = match[1].trim().toLowerCase()
   return featureByLabel.get(label) ?? GcodeFeature.Other
 }
+
+/**
+ * Every slicer label that means this category, most specific first.
+ *
+ * This is the table above read backwards, and it exists so the legend can be
+ * coloured by the renderer instead of by a guess. Feature colour belongs to
+ * the rendering library — it decides a bead's colour while parsing, from its
+ * own per-slicer palette — but the library names features in slicer words
+ * while Alabaster names them in translated ones. Asking it for the colour of
+ * each label a category might carry, and taking the first answer, bridges the
+ * two without a second palette to keep in step and without a per-slicer table
+ * of our own to let rot.
+ */
+export function gcodeFeatureLabels(feature: GcodeFeature): string[] {
+  return [...featureByLabel.entries()]
+    .filter(([, category]) => category === feature)
+    .map(([label]) => label)
+}

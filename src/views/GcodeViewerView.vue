@@ -1,30 +1,43 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+/**
+ * The G-code viewer.
+ *
+ * The stage is the page. Every control that changes what the canvas shows sits
+ * on the canvas — the file and the three modes top left, the view tools top
+ * right, the layer range down the right edge, everything time-shaped along the
+ * bottom — because the old sidebar put all of them a screen-width away from
+ * their own effect, and the two controls that were already on the stage were
+ * the ones people actually used.
+ *
+ * What this component owns: the loaded file, the renderer's lifecycle, the
+ * overlay canvas, and the arbitration between the three things that can move a
+ * cursor through a file (a live print, a simulation, a drag of the scrubber).
+ * What it deliberately does not own: anything about how a toolpath is drawn.
+ * That is behind `GcodeSceneRenderer`, and ADR 0011 explains why.
+ *
+ * Two canvases, two clocks, unchanged from the renderer this replaced and
+ * still required by ADR 0007. The library owns the scene canvas and renders
+ * only when something moved; the overlay canvas is ours and redraws the
+ * toolhead every animation frame, so a print's marker stays smooth while the
+ * scene behind it updates at a fraction of that rate.
+ */
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import AppButton from '@/components/AppButton.vue'
 import AppIcon from '@/components/AppIcon.vue'
-import AppSlider from '@/components/AppSlider.vue'
-import AvailabilityRegion from '@/components/AvailabilityRegion.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import GcodeViewerSettingsDialog from '@/components/GcodeViewerSettingsDialog.vue'
+import HeaderMenu from '@/components/HeaderMenu.vue'
 import PageHeading from '@/components/PageHeading.vue'
+import GcodeFilePicker from '@/components/gcode/GcodeFilePicker.vue'
+import GcodeInfoPanel from '@/components/gcode/GcodeInfoPanel.vue'
+import GcodeLayerRail from '@/components/gcode/GcodeLayerRail.vue'
+import GcodeLegend, { type GcodeLegendEntry } from '@/components/gcode/GcodeLegend.vue'
+import GcodeTransportBar from '@/components/gcode/GcodeTransportBar.vue'
 import { useGcodeViewerSettings } from '@/composables/useGcodeViewerSettings'
-import { useTouchGesture, type TouchGestureStep } from '@/composables/useTouchGesture'
 import { installGcodeViewerBenchmark } from '@/features/gcode/benchmark'
-import {
-  cameraBasis,
-  cameraPosition,
-  dollyCamera,
-  dollyCameraAt,
-  fittedCamera,
-  orbitCamera,
-  orbitCameraAround,
-  panCamera,
-  projectGcodePoint,
-  worldUnitsPerPixel,
-  type GcodeProjection,
-} from '@/features/gcode/camera'
+import { gcodeFeatureLabels } from '@/features/gcode/features'
 import {
   GcodeFileTooLargeError,
   fetchAndParseGcode,
@@ -34,26 +47,19 @@ import {
 import { SmoothToolheadPosition } from '@/features/gcode/motion'
 import { nozzleHeight, visibleNozzleFaces } from '@/features/gcode/nozzle'
 import {
-  bedPlaneHit,
-  boundsCenter,
-  reanchorCamera,
-  resolvePivot,
-  type GcodePoint,
-} from '@/features/gcode/pick'
-import {
-  GcodeQualityGovernor,
-  gcodeBeadProfileFor,
-  gcodeQualityStepCount,
-  gcodeSubPixelStrategyFor,
-} from '@/features/gcode/quality'
-import { GcodeRenderer, type GcodeRenderColors } from '@/features/gcode/renderer'
-import {
   PlannedToolheadPlayback,
   defaultPlannedPlaybackConfiguration,
   defaultPlannedPositionMatchConfiguration,
   matchPlannedPosition,
   plannedFollowCanStart,
 } from '@/features/gcode/plannedPlayback'
+import { GcodeQualityGovernor, gcodeTierFor, gcodeQualityStepCount } from '@/features/gcode/quality'
+import {
+  createGcodeSceneRenderer,
+  type GcodeRenderTier,
+  type GcodeSceneColors,
+  type GcodeSceneRenderer,
+} from '@/features/gcode/scene'
 import {
   buildGcodeSimulationTimeline,
   sampleGcodeSimulation,
@@ -61,42 +67,36 @@ import {
   simulationTimeForCursor,
   type GcodeSimulationTimeline,
 } from '@/features/gcode/simulation'
+import { gcodeByteForCursor } from '@/features/gcode/timeline'
 import { currentGcodeLayer } from '@/features/gcode/tracking'
 import {
   GcodeFeature,
-  defaultGcodeBeadOverlap,
   defaultGcodeFilamentDiameter,
   defaultGcodeNozzleDiameter,
   gcodeSegment,
   gcodeSegmentStride,
   type GcodeBounds,
-  type GcodeCamera,
-  type GcodeGeometryBatch,
   type GcodeColorMode,
-  type GcodeRenderOptions,
   type ParsedGcodeSummary,
 } from '@/features/gcode/types'
-import { moonrakerGcodeFileUrl } from '@/services/moonraker'
+import { moonrakerGcodeFileUrl, type MoonrakerGcodeMetadata } from '@/services/moonraker'
 import { useAvailabilityStore } from '@/stores/availability'
-import { useMoonrakerStore } from '@/stores/moonraker'
-import { usePrinterConfigStore } from '@/stores/printerConfig'
 import { useConfirmationsStore } from '@/stores/confirmations'
+import { useMoonrakerStore } from '@/stores/moonraker'
 import { usePrinterStore } from '@/stores/printer'
+import { usePrinterConfigStore } from '@/stores/printerConfig'
+import { rgbToHex, resolveCssColor } from '@/utils/color'
 
 interface LoadedGcode {
   name: string
   source: 'moonraker' | 'local'
   size: number
   bounds: GcodeBounds
-  sceneBounds: GcodeBounds
-  bedBounds: GcodeBounds
   layerHeights: Float32Array
   segmentCount: number
   extrusionCount: number
   travelCount: number
   sourceByteCount: number
-  minimumFeedrate: number
-  maximumFeedrate: number
 }
 
 type ViewerError = 'download' | 'empty' | 'renderer' | 'tooLarge' | null
@@ -108,95 +108,83 @@ interface GcodeLoadRequest {
   load: (
     signal: AbortSignal,
     onProgress: (progress: GcodeLoadProgress) => void,
-    onBatch: (batch: GcodeGeometryBatch) => void,
-  ) => Promise<ParsedGcodeSummary>
+  ) => Promise<{ text: string; summary: ParsedGcodeSummary }>
 }
 
-// Above this size, loading asks first: the segment stream of a file this large
-// costs hundreds of megabytes of memory, which weaker devices pay in crashes.
+/*
+ * Above this size, loading asks first. The threshold follows the device rather
+ * than being one number for every machine: the library keeps the whole file as
+ * text plus a line array, so what is a pause on a desktop is an ended tab on
+ * the hardware that made this rebuild necessary. A device that has already
+ * shown it cannot hold a middling tier is asked at a quarter of the size.
+ */
 const largeFileConfirmBytes = 150 * 1_048_576
+const weakDeviceConfirmBytes = 40 * 1_048_576
+const simulationSpeeds = [1, 2, 5, 10, 20] as const
+/** How often the scene's frontier is redrawn while the overlay runs at full rate. */
+const sceneFollowIntervalMilliseconds = 50
 
-const { locale, t } = useI18n({ useScope: 'global' })
+const { locale, t, n } = useI18n({ useScope: 'global' })
 const moonraker = useMoonrakerStore()
 const printer = usePrinterStore()
-const confirmations = useConfirmationsStore()
 const printerConfig = usePrinterConfigStore()
+const confirmations = useConfirmationsStore()
 const availability = useAvailabilityStore()
+
 const stage = ref<HTMLElement | null>(null)
-const sceneCanvas = ref<HTMLCanvasElement | null>(null)
 const overlayCanvas = ref<HTMLCanvasElement | null>(null)
 const localFileInput = ref<HTMLInputElement | null>(null)
-const selectedRemoteFile = ref('')
+
 const loaded = ref<LoadedGcode | null>(null)
 const loading = ref(false)
+const reloading = ref(false)
 const loadedBytes = ref(0)
 const totalBytes = ref<number | null>(null)
 const loadingName = ref('')
 const viewerError = ref<ViewerError>(null)
-const selectedLayer = ref(0)
-const showPreviousLayers = ref(true)
-const showTravels = ref(false)
-const liveTracking = ref(true)
-const camera = reactive<GcodeCamera>(
-  fittedCamera(configuredBedBounds() ?? { minX: 0, maxX: 1, minY: 0, maxY: 1, minZ: 0, maxZ: 1 }),
-)
+const pendingLoad = ref<GcodeLoadRequest | null>(null)
+const metadata = ref<MoonrakerGcodeMetadata | null>(null)
+const fileSearch = ref('')
+const settingsOpen = ref(false)
+const recoveredFromFailedLoad = ref(false)
+const activeTier = ref<GcodeRenderTier>(4)
+const travelsAvailable = ref(true)
+const qualityStep = ref(0)
+const qualityStepTotal = gcodeQualityStepCount - 1
+
+const layerTop = ref(0)
+const layerBottom = ref(0)
+const presentFeatures = ref<GcodeFeature[]>([])
+const featureColors = ref<Map<GcodeFeature, string>>(new Map())
+
+const following = ref(true)
+const plannedFollowActive = ref(false)
 const simulationEnabled = ref(false)
 const simulationPlaying = ref(false)
 const simulationCursor = ref(0)
-const simulationFileProgress = ref(0)
-const simulationSpeed = ref<1 | 2 | 5 | 10 | 20>(1)
-const simulationSpeeds = [1, 2, 5, 10, 20] as const
-const smoothToolhead = new SmoothToolheadPosition()
+const simulationSpeed = ref<(typeof simulationSpeeds)[number]>(1)
+
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)')
 const reducedMotionEnabled = ref(reducedMotion.matches)
-const plannedFollowActive = ref(false)
-const plannedFileProgress = ref(0)
-const streamingGeometry = ref(false)
-const pendingLoad = ref<GcodeLoadRequest | null>(null)
+const smoothToolhead = new SmoothToolheadPosition()
+
 const {
-  orbitMode,
-  snapToCenter,
-  highlightSeams,
+  colorMode,
+  showTravels,
   qualityMode,
+  followByDefault,
   nozzleDiameterOverride,
-  setOrbitMode,
-  setSnapToCenter,
-  setHighlightSeams,
+  tierCeiling,
+  setColorMode,
+  setShowTravels,
   setQualityMode,
+  setFollowByDefault,
   setNozzleDiameterOverride,
+  lowerTierCeiling,
 } = useGcodeViewerSettings()
 
-/*
- * The bead width used for moves whose extruded volume cannot give one. Most
- * moves declare enough to derive their real width, so this is a fallback rather
- * than a global setting — and the machine's own configured nozzle is a better
- * fallback than a constant. The stored override wins when set, which is what
- * makes a local file inspected with no printer connected still look right.
- */
-const effectiveNozzleDiameter = computed(
-  () =>
-    nozzleDiameterOverride.value ??
-    printerConfig.extruderGeometry.nozzleDiameter ??
-    defaultGcodeNozzleDiameter,
-)
-const machineNozzleDiameter = computed(() => printerConfig.extruderGeometry.nozzleDiameter)
-const effectiveFilamentDiameter = computed(
-  () => printerConfig.extruderGeometry.filamentDiameter ?? defaultGcodeFilamentDiameter,
-)
-const qualityModes = ['quality', 'auto', 'performance'] as const
 const colorModes = ['single', 'feature', 'feedrate'] as const
-const fileSearch = ref('')
-const statisticsOpen = ref(false)
-// The floor of the visible layer range. Zero reproduces "show previous
-// layers"; raising it opens a cross-section nothing could show before.
-const layerFloor = ref(0)
-const colorMode = ref<GcodeColorMode>('single')
-/*
- * Which feature categories this file actually contains. The legend lists only
- * these: a legend naming supports for a print with none is a legend the user
- * has to ignore, and ignoring one entry teaches them to ignore all of them.
- */
-const presentFeatures = ref<GcodeFeature[]>([])
+const qualityModes = ['quality', 'auto', 'performance'] as const
 const featureLegendOrder: readonly GcodeFeature[] = [
   GcodeFeature.PerimeterOuter,
   GcodeFeature.PerimeterInner,
@@ -217,198 +205,93 @@ const featureTokenNames: Record<GcodeFeature, string> = {
   [GcodeFeature.Support]: 'support',
   [GcodeFeature.Skirt]: 'skirt',
 }
-const qualityStep = ref(0)
-const qualityStepTotal = gcodeQualityStepCount - 1
+
+let renderer: GcodeSceneRenderer | null = null
+/** Set on unmount, for the mount hook still awaiting its renderer. */
+let unmounted = false
+const governor = new GcodeQualityGovernor(qualityMode.value)
+let resizeObserver: ResizeObserver | null = null
+let themeObserver: MutationObserver | null = null
+let loadController: AbortController | null = null
+let uninstallBenchmark: (() => void) | null = null
+let sceneReparseTail = Promise.resolve()
+let pendingSceneReparses = 0
+
+let overlayWidth = 1
+let overlayHeight = 1
+let overlayPixelRatio = 1
+let toolheadFrame = 0
+let simulationFrame = 0
+let simulationSegments: Float32Array | null = null
+let simulationTimeline: GcodeSimulationTimeline | null = null
+let simulationCursorValue = 0
+let simulationElapsedValue = 0
+let simulatedPosition: [number, number, number] | null = null
+let lastSimulationTimestamp = 0
+let lastSimulationSceneUpdate = 0
+let followSourceBytesRaw: Uint32Array | null = null
+let followSourceBytes: Float64Array | null = null
+let followTimeline: GcodeSimulationTimeline | null = null
+let plannedPlayback: PlannedToolheadPlayback | null = null
+let plannedToolheadPosition: [number, number, number] | null = null
+let plannedFollowBlocked = false
+let plannedFollowMismatchStarted: number | null = null
+let lastPlannedFollowSceneUpdate = 0
+let cachedToolheadBase: [number, number, number] = [0, 0, 0]
+let cachedAxisColors: [string, string, string] = ['', '', '']
+let cachedAxisFont = 'ui-monospace, monospace'
+let benchmarkLoadMilliseconds: number | null = null
+let benchmarkLoadStartedAt = 0
+/** Set by the first load of any kind, so the mount-time auto-load stands down. */
+let loadRequested = false
+
 const numberFormatter = computed(() => new Intl.NumberFormat(locale.value))
 const decimalFormatter = computed(
   () => new Intl.NumberFormat(locale.value, { maximumFractionDigits: 2 }),
 )
 
-let renderer: GcodeRenderer | null = null
-const governor = new GcodeQualityGovernor(qualityMode.value)
-// Only frames that actually rendered the scene are sampled: an idle frame looks
-// infinitely fast and would talk the governor into a quality this machine
-// cannot hold once the user starts dragging again.
-let lastSceneRenderTimestamp = 0
-// Samples per screen pixel the scene is drawn at right now. Above 1 while
-// beads are small enough that their shading would otherwise alias.
-let sampleScale = 1
-let currentProjection: GcodeProjection | null = null
-// Development benchmark bookkeeping; the window API itself is only installed
-// behind `import.meta.env.DEV`.
-let benchmarkLoadMilliseconds: number | null = null
-let benchmarkGpuBytes: number | null = null
-let uninstallBenchmark: (() => void) | null = null
-let resizeObserver: ResizeObserver | null = null
-let themeObserver: MutationObserver | null = null
-let loadController: AbortController | null = null
-let sceneFrame = 0
-let toolheadFrame = 0
-let simulationFrame = 0
-let simulationCursorValue = 0
-let simulationElapsedValue = 0
-let simulationSegments: Float32Array | null = null
-let simulationTimeline: GcodeSimulationTimeline | null = null
-// The parser's exact byte table, kept as Uint32 (half the memory) and widened
-// to the Float64Array the playback controller validates only when a live
-// print of this exact file actually starts following.
-let followSourceBytesRaw: Uint32Array | null = null
-let followSourceBytes: Float64Array | null = null
-let followTimeline: GcodeSimulationTimeline | null = null
-let lastLoadRequest: GcodeLoadRequest | null = null
-let streamBounds: GcodeBounds | null = null
-let streamedGpuBytes = 0
-let streamedBatchCount = 0
-let benchmarkLoadStartedAt = 0
-let benchmarkFirstGeometryMilliseconds: number | null = null
-let userAdjustedViewDuringLoad = false
-let plannedPlayback: PlannedToolheadPlayback | null = null
-let plannedToolheadPosition: [number, number, number] | null = null
-let plannedFollowBlocked = false
-let plannedFollowMismatchStarted: number | null = null
-let lastPlannedFollowSceneRender = 0
-let simulatedPosition: [number, number, number] | null = null
-let lastSimulationTimestamp = 0
-let lastSimulationSceneRender = 0
-let overlayWidth = 1
-let overlayHeight = 1
-let overlayPixelRatio = 1
-let cachedRenderColors: GcodeRenderColors | null = null
-let cachedToolheadFill = ''
-let cachedToolheadStroke = ''
-let cachedNozzleBase: [number, number, number] = [0, 0, 0]
-let cachedAxisX = ''
-let cachedAxisY = ''
-let cachedAxisZ = ''
-let cachedAxisFont = 'ui-monospace, monospace'
-const pointerDrag = ref<{
-  pointerId: number
-  x: number
-  y: number
-  mode: 'orbit' | 'pan'
-  pivot: GcodePoint | null
-} | null>(null)
-/**
- * Two fingers pan and pinch. The one-finger drag above keeps orbiting, which is
- * the reading a touch user expects from the same gesture a mouse makes, so the
- * second finger is what switches modes rather than a toolbar toggle.
- */
-const touch = useTouchGesture()
-const settingsOpen = ref(false)
-// Held down keys and wheel bursts would otherwise re-pick the pivot far more
-// often than the view can change meaningfully.
-const pivotPickThrottle = 120
-const pivotSnapDuration = 180
-const cameraKeys = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', '+', '=', '-', '_']
-let lastPivotPick = 0
-let snapFrame = 0
-let pivotSnap: {
-  fromX: number
-  fromY: number
-  fromZ: number
-  toX: number
-  toY: number
-  toZ: number
-  start: number
-} | null = null
+/* -------------------------------------------------------------------------- */
+/* Derived state                                                              */
+/* -------------------------------------------------------------------------- */
+
+const layerCount = computed(() => loaded.value?.layerHeights.length ?? 0)
+const layerMaximum = computed(() => Math.max(0, layerCount.value - 1))
+const currentPrintFile = computed(() => printer.printStats.filename)
+const normalizedPrintFile = computed(() =>
+  currentPrintFile.value ? currentPrintFile.value.replace(/^gcodes\//i, '') : null,
+)
+const loadedMatchesPrint = computed(
+  () =>
+    loaded.value?.source === 'moonraker' &&
+    Boolean(normalizedPrintFile.value) &&
+    loaded.value.name.replace(/^gcodes\//i, '') === normalizedPrintFile.value,
+)
+const loadedIsCurrentPrint = computed(() => loadedMatchesPrint.value && printer.hasActivePrint)
+
+const effectiveNozzleDiameter = computed(
+  () =>
+    nozzleDiameterOverride.value ??
+    printerConfig.extruderGeometry.nozzleDiameter ??
+    defaultGcodeNozzleDiameter,
+)
+const machineNozzleDiameter = computed(() => printerConfig.extruderGeometry.nozzleDiameter)
+const effectiveFilamentDiameter = computed(
+  () => printerConfig.extruderGeometry.filamentDiameter ?? defaultGcodeFilamentDiameter,
+)
 
 const feedrateRange = computed<[number, number]>(() => {
-  const minimum = loaded.value?.minimumFeedrate ?? 0
-  const maximum = loaded.value?.maximumFeedrate ?? 0
+  const minimum = loadedFeedrates.value[0]
+  const maximum = loadedFeedrates.value[1]
   // A file printed entirely at one speed has no range to map; widen it so the
   // ramp resolves to its slow end instead of dividing by nothing.
   return maximum > minimum ? [minimum, maximum] : [minimum, minimum + 1]
 })
-const feedrateRangeLabel = computed(() => ({
+const loadedFeedrates = ref<[number, number]>([0, 1])
+const feedrateLabels = computed(() => ({
   slow: Math.round(feedrateRange.value[0] / 60),
   fast: Math.round(feedrateRange.value[1] / 60),
 }))
-function cssColor(components: readonly [number, number, number, number]): string {
-  const channel = (value: number): number => Math.round(Math.min(1, Math.max(0, value)) * 255)
-  return `rgb(${channel(components[0])} ${channel(components[1])} ${channel(components[2])})`
-}
-const legendEntries = computed(() => {
-  const colors = cachedRenderColors
-  if (!colors) return []
-  if (colorMode.value === 'feature') {
-    return presentFeatures.value
-      .filter((feature) => featureLegendOrder.includes(feature))
-      .sort((left, right) => featureLegendOrder.indexOf(left) - featureLegendOrder.indexOf(right))
-      .map((feature) => ({
-        key: `feature-${feature}`,
-        color: cssColor(colors.features[feature] ?? colors.features[0]!),
-        label: t(`gcodeViewer.legend.features.${featureTokenNames[feature]}`),
-      }))
-  }
-  if (colorMode.value === 'feedrate') {
-    return [
-      {
-        key: 'feed-slow',
-        color: cssColor(colors.feedSlow),
-        label: t('gcodeViewer.legend.feedSlow', { value: feedrateRangeLabel.value.slow }),
-      },
-      {
-        key: 'feed-fast',
-        color: cssColor(colors.feedFast),
-        label: t('gcodeViewer.legend.feedFast', { value: feedrateRangeLabel.value.fast }),
-      },
-    ]
-  }
-  return [
-    { key: 'toolpath', color: cssColor(colors.extrusion), label: t('gcodeViewer.legend.toolpath') },
-    { key: 'printed', color: cssColor(colors.progress), label: t('gcodeViewer.legend.printed') },
-  ]
-})
 
-const filteredFiles = computed(() => {
-  const query = fileSearch.value.trim().toLowerCase()
-  const files = query
-    ? printer.files.filter((file) => file.path.toLowerCase().includes(query))
-    : [...printer.files]
-  // Newest first: the file someone wants to look at is almost always the one
-  // they just sliced.
-  return files.sort((left, right) => (right.modified ?? 0) - (left.modified ?? 0)).slice(0, 200)
-})
-const fileMatchCount = computed(() => printer.files.length)
-
-const layerCount = computed(() => loaded.value?.layerHeights.length ?? 0)
-const layerFloorHeight = computed(() => loaded.value?.layerHeights[layerFloor.value] ?? 0)
-const layerHeight = computed(() => loaded.value?.layerHeights[selectedLayer.value] ?? 0)
-const loadPercent = computed(() =>
-  totalBytes.value && totalBytes.value > 0
-    ? Math.min(100, Math.round((loadedBytes.value / totalBytes.value) * 100))
-    : null,
-)
-const currentPrintFile = computed(() => printer.printStats.filename)
-const loadedMatchesPrint = computed(
-  () =>
-    loaded.value?.source === 'moonraker' &&
-    Boolean(currentPrintFile.value) &&
-    loaded.value.name.replace(/^gcodes\//i, '') ===
-      currentPrintFile.value.replace(/^gcodes\//i, ''),
-)
-const loadedIsCurrentPrint = computed(() => loadedMatchesPrint.value && printer.hasActivePrint)
-/**
- * Whether a toolhead marker belongs on screen at all.
- *
- * A marker asserts "the machine is here, in this model". That is only ever true
- * of the file being played back or the file being printed, so the rule is that
- * the marker's position and the geometry under it must describe the same job.
- * Telemetry alone does not satisfy it: the printer always has a position, and
- * drawing it over an unrelated file someone opened to inspect puts a nozzle in
- * a model the machine is not making.
- *
- * Three sources qualify, all of them tied to the loaded file. Simulation is a
- * playback of it. Planned follow is a live print of it. Raw telemetry qualifies
- * only while the loaded file is the current print, which is the case that keeps
- * a marker when planned follow cannot start — under reduced motion, say.
- */
-const toolheadVisible = computed(
-  () =>
-    simulationEnabled.value ||
-    plannedFollowActive.value ||
-    (liveTracking.value && loadedIsCurrentPrint.value),
-)
 const plannedFollowEligible = computed(() =>
   plannedFollowCanStart({
     loadedSource: loaded.value?.source ?? null,
@@ -418,13 +301,11 @@ const plannedFollowEligible = computed(() =>
     virtualSdActive: printer.virtualSdcard.isActive,
     klipperReady: availability.isKlipperReady,
     reducedMotion: reducedMotionEnabled.value,
-    followEnabled: liveTracking.value,
+    followEnabled: following.value,
     simulationEnabled: simulationEnabled.value,
   }),
 )
-// Segment progress is measured against the complete source file. This raw
-// ratio locates the dispatch frontier and provides the telemetry fallback;
-// planned Follow renders from its simulation sample instead.
+
 const livePrintProgress = computed(() =>
   loadedIsCurrentPrint.value && loaded.value
     ? Math.min(
@@ -447,16 +328,88 @@ const livePrintLayer = computed(() => {
     livePrintProgress.value,
   )
 })
-const renderedProgress = computed(() =>
-  simulationEnabled.value
-    ? simulationFileProgress.value
-    : plannedFollowActive.value
-      ? plannedFileProgress.value
-      : livePrintProgress.value,
+
+/**
+ * A toolhead marker asserts "the machine is here, in this model", which is
+ * only ever true of the file being printed or the file being played back.
+ * Telemetry alone does not qualify: the printer always has a position, and
+ * drawing it over an unrelated file someone opened to inspect puts a nozzle in
+ * a model the machine is not making.
+ */
+const toolheadVisible = computed(
+  () =>
+    simulationEnabled.value ||
+    plannedFollowActive.value ||
+    (following.value && loadedIsCurrentPrint.value),
 )
-const simulationMove = computed(() =>
-  Math.min(loaded.value?.segmentCount ?? 0, simulationCursor.value),
+
+/** Which of the three things the transport bar is showing. */
+const transportState = computed<'loading' | 'live' | 'idle'>(() => {
+  if (loading.value) return 'loading'
+  return loadedIsCurrentPrint.value && following.value ? 'live' : 'idle'
+})
+const followUnavailableReason = computed(() => {
+  if (loadedIsCurrentPrint.value) return undefined
+  if (!currentPrintFile.value) return t('gcodeViewer.transport.followNoPrint')
+  return t('gcodeViewer.transport.followOtherFile')
+})
+const layerRailDisabledReason = computed(() => {
+  if (simulationEnabled.value) return t('gcodeViewer.layers.lockedSimulation')
+  if (plannedFollowActive.value || transportState.value === 'live') {
+    return t('gcodeViewer.layers.lockedFollow')
+  }
+  return undefined
+})
+
+const loadPercent = computed(() =>
+  totalBytes.value && totalBytes.value > 0
+    ? Math.min(100, Math.round((loadedBytes.value / totalBytes.value) * 100))
+    : null,
 )
+
+const legendEntries = computed<GcodeLegendEntry[]>(() => {
+  if (!loaded.value) return []
+  if (colorMode.value === 'feature') {
+    return presentFeatures.value
+      .filter((feature) => featureColors.value.has(feature))
+      .sort((left, right) => featureLegendOrder.indexOf(left) - featureLegendOrder.indexOf(right))
+      .map((feature) => ({
+        key: `feature-${feature}`,
+        color: featureColors.value.get(feature) ?? '',
+        label: t(`gcodeViewer.legend.features.${featureTokenNames[feature]}`),
+      }))
+  }
+  if (colorMode.value === 'feedrate') {
+    return [
+      {
+        key: 'feed-slow',
+        color: token('--viewer-feed-slow'),
+        label: t('gcodeViewer.legend.feedSlow', { value: n(feedrateLabels.value.slow) }),
+      },
+      {
+        key: 'feed-fast',
+        color: token('--viewer-feed-fast'),
+        label: t('gcodeViewer.legend.feedFast', { value: n(feedrateLabels.value.fast) }),
+      },
+    ]
+  }
+  const entries: GcodeLegendEntry[] = [
+    {
+      key: 'toolpath',
+      color: token('--viewer-extrusion'),
+      label: t('gcodeViewer.legend.toolpath'),
+    },
+  ]
+  if (toolheadVisible.value) {
+    entries.push({
+      key: 'printed',
+      color: token('--viewer-progress'),
+      label: t('gcodeViewer.legend.printed'),
+    })
+  }
+  return entries
+})
+
 const errorTitle = computed(() =>
   viewerError.value ? t(`gcodeViewer.errors.${viewerError.value}.title`) : '',
 )
@@ -464,209 +417,174 @@ const errorDescription = computed(() =>
   viewerError.value ? t(`gcodeViewer.errors.${viewerError.value}.description`) : '',
 )
 
+/* -------------------------------------------------------------------------- */
+/* Formatting                                                                 */
+/* -------------------------------------------------------------------------- */
+
 function formatFileSize(bytes: number): string {
   if (bytes < 1_024)
     return t('gcodeViewer.size.bytes', { value: numberFormatter.value.format(bytes) })
   if (bytes < 1_048_576) {
-    return t('gcodeViewer.size.kilobytes', {
-      value: decimalFormatter.value.format(bytes / 1_024),
-    })
+    return t('gcodeViewer.size.kilobytes', { value: decimalFormatter.value.format(bytes / 1_024) })
   }
   return t('gcodeViewer.size.megabytes', {
     value: decimalFormatter.value.format(bytes / 1_048_576),
   })
 }
 
-function resolveCssColor(variable: string): string {
-  const probe = document.createElement('span')
-  probe.style.color = `var(${variable})`
-  probe.style.display = 'none'
-  document.body.appendChild(probe)
-  const color = getComputedStyle(probe).color
-  probe.remove()
-  return color
+function formatModified(modified: number | null): string {
+  if (!modified) return ''
+  return new Intl.DateTimeFormat(locale.value, { dateStyle: 'medium' }).format(modified * 1_000)
 }
+
+function formatDuration(seconds: number): string {
+  const total = Math.max(0, Math.round(seconds))
+  const hours = Math.floor(total / 3_600)
+  const minutes = Math.round((total % 3_600) / 60)
+  return hours > 0
+    ? t('dashboard.duration.hoursMinutes', { hours, minutes })
+    : t('dashboard.duration.minutes', { minutes })
+}
+
+/* -------------------------------------------------------------------------- */
+/* Theme colors                                                               */
+/* -------------------------------------------------------------------------- */
 
 /**
- * A canvas font is not CSS: it cannot read a custom property, so the family
- * this returns is the resolved string, not a `var(...)` reference — canvas
- * would silently ignore the latter and keep whatever font was set before.
- * Reading a custom property straight off `documentElement` needs no throwaway
- * probe the way `resolveCssColor` does: it is already a literal string in the
- * cascade, not a color the browser has to compute.
+ * A semantic token as `#rrggbb`, which is the only colour syntax the library
+ * accepts — it truncates anything longer and parses hex itself. Resolved
+ * through the document rather than guessed, so a theme pack's own value is
+ * what reaches the canvas.
  */
-function resolveCssFontFamily(variable: string): string {
-  return getComputedStyle(document.documentElement).getPropertyValue(variable).trim()
+function token(name: string): string {
+  const rgb = resolveCssColor(`var(${name})`)
+  return rgb ? rgbToHex(rgb) : rgbToHex({ r: 0, g: 0, b: 0 })
 }
 
-function colorComponents(color: string): [number, number, number, number] {
-  const values = color.match(/[-+]?\d*\.?\d+/g)?.map(Number) ?? []
-  if (color.startsWith('color(')) {
-    return [values[0] ?? 0, values[1] ?? 0, values[2] ?? 0, values[3] ?? 1]
+function sceneColors(): GcodeSceneColors {
+  return {
+    background: token('--viewer-surface'),
+    bed: token('--viewer-grid'),
+    progress: token('--viewer-progress'),
+    feedSlow: token('--viewer-feed-slow'),
+    feedFast: token('--viewer-feed-fast'),
+    /*
+     * Tool colours. The first is the toolpath token every single-colour print
+     * is drawn in; the rest exist because the library indexes tools by the
+     * file's own `T` number and would fail on a multi-material file that
+     * selects a tool it has no colour for. They reuse the feature palette,
+     * which is already contrast-checked in every pack, rather than inventing
+     * four more tokens for a case most printers never hit.
+     */
+    tools: [
+      token('--viewer-extrusion'),
+      token('--viewer-feature-perimeter-outer'),
+      token('--viewer-feature-infill'),
+      token('--viewer-feature-support'),
+      token('--viewer-feature-bridge'),
+    ],
   }
-  return [(values[0] ?? 0) / 255, (values[1] ?? 0) / 255, (values[2] ?? 0) / 255, values[3] ?? 1]
-}
-
-function renderColors(): GcodeRenderColors {
-  if (cachedRenderColors) return cachedRenderColors
-  refreshResolvedColors()
-  if (!cachedRenderColors) throw new Error('Viewer colors could not be resolved')
-  return cachedRenderColors
 }
 
 function refreshResolvedColors(): void {
-  cachedRenderColors = {
-    extrusion: colorComponents(resolveCssColor('--viewer-extrusion')),
-    travel: colorComponents(resolveCssColor('--text-muted')),
-    progress: colorComponents(resolveCssColor('--viewer-progress')),
-    seam: colorComponents(resolveCssColor('--viewer-seam')),
-    grid: colorComponents(resolveCssColor('--viewer-grid')),
-    shadow: colorComponents(resolveCssColor('--viewer-shadow')),
-    originX: colorComponents(resolveCssColor('--viewer-axis-x')),
-    originY: colorComponents(resolveCssColor('--viewer-axis-y')),
-    origin: colorComponents(resolveCssColor('--viewer-nozzle')),
-    // Index order is the GcodeFeature enum's, which is what the shader indexes
-    // with; the legend reads the same array so the two cannot disagree.
-    features: [
-      colorComponents(resolveCssColor('--viewer-feature-other')),
-      colorComponents(resolveCssColor('--viewer-feature-perimeter-outer')),
-      colorComponents(resolveCssColor('--viewer-feature-perimeter-inner')),
-      colorComponents(resolveCssColor('--viewer-feature-infill')),
-      colorComponents(resolveCssColor('--viewer-feature-infill-solid')),
-      colorComponents(resolveCssColor('--viewer-feature-bridge')),
-      colorComponents(resolveCssColor('--viewer-feature-support')),
-      colorComponents(resolveCssColor('--viewer-feature-skirt')),
-    ],
-    feedSlow: colorComponents(resolveCssColor('--viewer-feed-slow')),
-    feedFast: colorComponents(resolveCssColor('--viewer-feed-fast')),
-  }
-  const nozzle = colorComponents(resolveCssColor('--viewer-nozzle'))
-  cachedNozzleBase = [nozzle[0] * 255, nozzle[1] * 255, nozzle[2] * 255]
-  cachedToolheadFill = resolveCssColor('--viewer-nozzle')
-  cachedToolheadStroke = resolveCssColor('--surface-strong')
-  cachedAxisX = resolveCssColor('--viewer-axis-x')
-  cachedAxisY = resolveCssColor('--viewer-axis-y')
-  cachedAxisZ = resolveCssColor('--viewer-axis-z')
-  cachedAxisFont = resolveCssFontFamily('--font-mono')
-  scheduleSceneRender()
+  cachedToolheadBase = (() => {
+    const rgb = resolveCssColor('var(--viewer-nozzle)')
+    return rgb ? [rgb.r, rgb.g, rgb.b] : [255, 255, 255]
+  })()
+  cachedAxisColors = [token('--viewer-axis-x'), token('--viewer-axis-y'), token('--viewer-axis-z')]
+  cachedAxisFont = getComputedStyle(document.documentElement).getPropertyValue('--font-mono').trim()
+  renderer?.applyColors(sceneColors())
+  refreshFeatureColors()
   drawOverlay()
 }
 
-function renderOptions(): GcodeRenderOptions {
-  return {
-    selectedLayer: selectedLayer.value,
-    showPreviousLayers: showPreviousLayers.value,
-    layerMinimum: layerFloor.value,
-    showTravels: showTravels.value,
-    printProgress: renderedProgress.value,
-    progressStyle: plannedFollowActive.value ? 'live-layer' : 'standard',
-    extrusionWidth: effectiveNozzleDiameter.value,
-    widthScale: defaultGcodeBeadOverlap,
-    beadProfile: gcodeBeadProfileFor(qualityMode.value),
-    subPixelStrategy: gcodeSubPixelStrategyFor(qualityMode.value),
-    highlightSeams: highlightSeams.value,
-    tierBias: governor.state().tierBias,
-    contactShadow: governor.state().contactShadow,
-    colorMode: colorMode.value,
-    feedrateRange: feedrateRange.value,
-    // A frontier is crossing the selected layer, so that layer must stay
-    // segment-exact whatever tier the rest of the model is drawn at.
-    exactActiveLayer: plannedFollowActive.value || simulationEnabled.value,
-  }
-}
-
-function renderSceneNow(): void {
-  if (!renderer) return
-  const startedAt = performance.now()
-  // Decided before the frame rather than during it, because acting on it
-  // reallocates the drawing buffer; the renderer's hysteresis is what keeps
-  // that from happening repeatedly as the user zooms across the threshold.
-  const wanted = renderer.desiredSampleScale(camera, renderOptions(), sampleScale)
-  if (wanted !== sampleScale) {
-    sampleScale = wanted
-    resizeCanvases()
-  }
-  currentProjection = renderer.render(camera, renderOptions(), renderColors())
-  drawOverlay()
-  if (lastSceneRenderTimestamp > 0) {
-    const report = governor.sample(startedAt - lastSceneRenderTimestamp)
-    if (report.changed) {
-      qualityStep.value = report.step
-      // A resolution change resizes the drawing buffer, so it has to go
-      // through the same path a viewport resize does.
-      resizeCanvases()
+/**
+ * The colour the renderer painted each feature this file contains.
+ *
+ * Read back from the library rather than chosen here: it decides feature
+ * colour while parsing, from its own per-slicer palette, so a legend that
+ * named theme tokens would disagree with the canvas the moment the two
+ * differed. ADR 0011 records that trade.
+ */
+function refreshFeatureColors(): void {
+  const next = new Map<GcodeFeature, string>()
+  if (renderer && colorMode.value === 'feature') {
+    for (const feature of presentFeatures.value) {
+      const color = renderer.featureColor(gcodeFeatureLabels(feature))
+      if (color) next.set(feature, color)
     }
   }
-  lastSceneRenderTimestamp = startedAt
+  featureColors.value = next
 }
 
-function scheduleSceneRender(): void {
-  if (sceneFrame || !renderer) return
-  sceneFrame = requestAnimationFrame(() => {
-    sceneFrame = 0
-    renderSceneNow()
-  })
-}
+/* -------------------------------------------------------------------------- */
+/* Overlay                                                                    */
+/* -------------------------------------------------------------------------- */
 
-function resizeCanvases(): void {
-  if (!stage.value || !renderer || !overlayCanvas.value) return
+function resizeSurfaces(): void {
+  if (!stage.value || !overlayCanvas.value) return
   const rectangle = stage.value.getBoundingClientRect()
   overlayWidth = Math.max(1, rectangle.width)
   overlayHeight = Math.max(1, rectangle.height)
   // The overlay keeps its own full ratio: it draws a handful of shapes, so
-  // there is nothing to gain by softening the nozzle marker, and the governor's
+  // there is nothing to gain by softening the toolhead, and the governor's
   // savings are all in the scene.
   overlayPixelRatio = Math.min(2, Math.max(1, window.devicePixelRatio || 1))
-  renderer.resize(
-    overlayWidth,
-    overlayHeight,
-    window.devicePixelRatio || 1,
-    governor.state().resolutionScale,
-    sampleScale,
-  )
   overlayCanvas.value.width = Math.round(overlayWidth * overlayPixelRatio)
   overlayCanvas.value.height = Math.round(overlayHeight * overlayPixelRatio)
-  scheduleSceneRender()
+  renderer?.resize()
+  drawOverlay()
 }
 
 // A heads-up gizmo rather than a world object, so the axis directions come
-// straight from the camera basis. Projecting world points would blow up whenever
-// one of them fell behind the camera.
+// from projecting three short vectors from the model's own center. Anything
+// anchored in the scene would be occluded by the print it is describing.
 function drawOrientationAxes(context: CanvasRenderingContext2D): void {
-  if (!loaded.value && !streamingGeometry.value) return
-  const { right, up } = cameraBasis(camera)
-  const axes: Array<{
-    label: string
-    color: string
-    direction: [number, number, number]
-  }> = [
-    { label: t('gcodeViewer.view.axisX'), color: cachedAxisX, direction: [1, 0, 0] },
-    { label: t('gcodeViewer.view.axisY'), color: cachedAxisY, direction: [0, 1, 0] },
-    { label: t('gcodeViewer.view.axisZ'), color: cachedAxisZ, direction: [0, 0, 1] },
+  const scene = renderer
+  const file = loaded.value
+  if (!scene || !file) return
+  const center = [
+    (file.bounds.minX + file.bounds.maxX) / 2,
+    (file.bounds.minY + file.bounds.maxY) / 2,
+    (file.bounds.minZ + file.bounds.maxZ) / 2,
+  ] as [number, number, number]
+  const origin = scene.project(center)
+  if (!origin) return
+  const span = Math.max(10, file.bounds.maxX - file.bounds.minX)
+  const axes: Array<{ label: string; color: string; offset: [number, number, number] }> = [
+    { label: t('gcodeViewer.view.axisX'), color: cachedAxisColors[0], offset: [span, 0, 0] },
+    { label: t('gcodeViewer.view.axisY'), color: cachedAxisColors[1], offset: [0, span, 0] },
+    { label: t('gcodeViewer.view.axisZ'), color: cachedAxisColors[2], offset: [0, 0, span] },
   ]
-  const originX = overlayWidth - 48
-  const originY = 48
+  /*
+   * Vertically centred on the left edge, which is the one part of the stage
+   * nothing else claims: the chips are along the top, the transport bar and
+   * the legend along the bottom, and the layer rail down the right.
+   */
+  const gizmoX = 44
+  const gizmoY = overlayHeight / 2
 
   context.save()
   context.font = `800 10px ${cachedAxisFont}`
   context.textAlign = 'center'
   context.textBaseline = 'middle'
   for (const axis of axes) {
-    const deltaX =
-      axis.direction[0] * right[0] + axis.direction[1] * right[1] + axis.direction[2] * right[2]
-    const deltaY = -(
-      axis.direction[0] * up[0] +
-      axis.direction[1] * up[1] +
-      axis.direction[2] * up[2]
-    )
+    const tip = scene.project([
+      center[0] + axis.offset[0],
+      center[1] + axis.offset[1],
+      center[2] + axis.offset[2],
+    ])
+    if (!tip) continue
+    const deltaX = tip[0] - origin[0]
+    const deltaY = tip[1] - origin[1]
     const length = Math.hypot(deltaX, deltaY) || 1
-    const endX = originX + (deltaX / length) * 24
-    const endY = originY + (deltaY / length) * 24
+    const endX = gizmoX + (deltaX / length) * 22
+    const endY = gizmoY + (deltaY / length) * 22
     context.strokeStyle = axis.color
     context.fillStyle = axis.color
     context.lineWidth = 2
     context.beginPath()
-    context.moveTo(originX, originY)
+    context.moveTo(gizmoX, gizmoY)
     context.lineTo(endX, endY)
     context.stroke()
     context.beginPath()
@@ -684,31 +602,26 @@ function activeToolheadPosition(): readonly [number, number, number] | null {
   return smoothToolhead.value()
 }
 
-// Upper bound on the marker's on-screen extent, used to decide when it has left
-// the viewport. Ignoring foreshortening only ever overestimates, which is the
-// safe direction for a cull margin.
-function nozzleScreenExtent(): number {
-  return nozzleHeight / Math.max(0.0001, worldUnitsPerPixel(camera, overlayHeight))
-}
-
 function drawNozzle(
   context: CanvasRenderingContext2D,
   position: readonly [number, number, number],
 ): void {
-  const projection = currentProjection
-  if (!projection) return
-  const visible = visibleNozzleFaces(position, cameraPosition(camera), (point) =>
-    projectGcodePoint(point, projection),
+  const scene = renderer
+  if (!scene) return
+  const visible = visibleNozzleFaces(
+    position as [number, number, number],
+    scene.cameraPosition(),
+    (point) => scene.project(point) ?? [Number.NaN, Number.NaN],
   )
 
   context.save()
   context.lineJoin = 'round'
   for (const face of visible) {
     const [first, ...rest] = face.points
-    if (!first) continue
-    const red = Math.round(cachedNozzleBase[0] * face.shade)
-    const green = Math.round(cachedNozzleBase[1] * face.shade)
-    const blue = Math.round(cachedNozzleBase[2] * face.shade)
+    if (!first || !Number.isFinite(first[0])) continue
+    const red = Math.round(cachedToolheadBase[0] * face.shade)
+    const green = Math.round(cachedToolheadBase[1] * face.shade)
+    const blue = Math.round(cachedToolheadBase[2] * face.shade)
     const fill = `rgb(${red} ${green} ${blue})`
     context.beginPath()
     context.moveTo(first[0], first[1])
@@ -733,70 +646,103 @@ function drawOverlay(): void {
   context.clearRect(0, 0, overlayWidth, overlayHeight)
   drawOrientationAxes(context)
   const position = activeToolheadPosition()
-  if (!position || !loaded.value || !currentProjection) return
-  const [x, y] = projectGcodePoint(position, currentProjection)
-  const margin = nozzleScreenExtent()
-  if (x < -margin || y < -margin || x > overlayWidth + margin || y > overlayHeight + margin) return
-  if (!cachedToolheadFill || !cachedToolheadStroke) refreshResolvedColors()
+  if (!position || !renderer) return
+  const projected = renderer.project(position)
+  if (!projected) return
+  const margin = nozzleHeight * 4
+  if (
+    projected[0] < -margin ||
+    projected[1] < -margin ||
+    projected[0] > overlayWidth + margin ||
+    projected[1] > overlayHeight + margin
+  ) {
+    return
+  }
   drawNozzle(context, position)
 }
 
-function animateToolhead(timestamp: number): void {
-  toolheadFrame = 0
-  if (plannedFollowActive.value && plannedPlayback && simulationSegments && followTimeline) {
-    const state = plannedPlayback.step({
-      timestampMilliseconds: timestamp,
-      speedFactor: printer.motion.speedFactor,
-      liveVelocity: printer.motion.liveVelocity,
-    })
-    if (state.phase === 'fallback') {
-      stopPlannedFollow(true)
-      return
-    }
-    const sample = sampleGcodeSimulationAtTime(
-      simulationSegments,
-      followTimeline,
-      state.playbackSeconds,
-    )
-    if (!sample) {
-      stopPlannedFollow(true)
-      return
-    }
-    plannedToolheadPosition = sample.position
-    if (timestamp - lastPlannedFollowSceneRender >= 50) {
-      lastPlannedFollowSceneRender = timestamp
-      plannedFileProgress.value = sample.progress
-      selectedLayer.value = Math.min(Math.max(0, layerCount.value - 1), sample.layer)
-      scheduleSceneRender()
-    }
-    drawOverlay()
-    if (state.phase === 'running' && liveTracking.value && !simulationEnabled.value) {
-      toolheadFrame = requestAnimationFrame(animateToolhead)
-    }
+/* -------------------------------------------------------------------------- */
+/* The scene's frontier                                                       */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Pushes the current cursor to the renderer as a byte offset.
+ *
+ * Every source of motion ends here — a live print, the simulation clock, a
+ * drag of the scrubber — so "printed so far" has one definition regardless of
+ * which of them is driving. `null` releases the frontier and shows the whole
+ * file, which is also when geometry ahead of it may be drawn again.
+ */
+function applyFrontier(cursor: number | null): void {
+  if (!renderer) return
+  if (cursor === null || !loaded.value || !followSourceBytesRaw) {
+    renderer.setRevealAhead(true)
+    renderer.setProgressBytes(null)
     return
   }
-  const result = smoothToolhead.step(timestamp, reducedMotion.matches)
-  drawOverlay()
-  if (result.moving && liveTracking.value && !simulationEnabled.value) {
-    toolheadFrame = requestAnimationFrame(animateToolhead)
+  renderer.setRevealAhead(false)
+  renderer.setProgressBytes(
+    gcodeByteForCursor(followSourceBytesRaw, loaded.value.segmentCount, cursor),
+  )
+}
+
+function applyLayerRange(): void {
+  if (!renderer || !loaded.value) return
+  // While a frontier is moving it is the only thing that decides what is
+  // drawn: clipping to the active layer as well would hide the completed model
+  // below it, which is the opposite of what watching a print wants.
+  if (plannedFollowActive.value || simulationEnabled.value) {
+    renderer.setLayerRange(null, null)
+    return
   }
+  const heights = loaded.value.layerHeights
+  const bottom = layerBottom.value > 0 ? boundaryBelow(heights, layerBottom.value) : null
+  const top = layerTop.value < layerMaximum.value ? boundaryAbove(heights, layerTop.value) : null
+  renderer.setLayerRange(bottom, top)
 }
 
-function scheduleToolheadAnimation(): void {
-  if (!liveTracking.value || simulationEnabled.value || toolheadFrame) return
-  toolheadFrame = requestAnimationFrame(animateToolhead)
+/*
+ * The top and bottom of a layer's geometry.
+ *
+ * The renderer draws every extrusion as a slab as thick as the layer, centred
+ * on the height the nozzle was at, so a layer's geometry runs from half its
+ * thickness below that height to half above. Clipping at the height itself
+ * takes the top half of every slab off and shows the hollow insides — which is
+ * how "show the first layer" came to draw walls with no roofs.
+ *
+ * The thickness is the layer's own — its height minus the previous layer's —
+ * rather than half the distance to the neighbour above, because a first layer
+ * is routinely thicker than the rest: at 0.3 mm over 0.2 mm layers its slabs
+ * reach 0.05 mm into the second layer's band, and a plane halfway between the
+ * two cut the first layer's roof off again. What that costs is a sliver of the
+ * neighbouring layer's walls where the two overlap, which is invisible at any
+ * distance a person looks at a layer from.
+ */
+function layerThickness(heights: Float32Array, layer: number): number {
+  const height = heights[layer] ?? 0
+  const previous = layer > 0 ? (heights[layer - 1] ?? 0) : 0
+  const thickness = height - previous
+  return thickness > 0 ? thickness : defaultLayerThicknessMillimetres
 }
 
-function seedLiveToolhead(): void {
-  // Same condition as the marker: seeding a position for a file the machine
-  // is not printing would leave a nozzle sitting in an unrelated model.
-  if (!liveTracking.value || !loadedIsCurrentPrint.value) return
-  if (simulationEnabled.value || plannedFollowActive.value) return
-  const position = printer.toolheadPosition
-  if (position.some((coordinate) => coordinate === null)) return
-  smoothToolhead.setTarget(position as [number, number, number], performance.now())
-  scheduleToolheadAnimation()
+/** For a layer table that reports no rise, which a broken file can do. */
+const defaultLayerThicknessMillimetres = 0.2
+
+function boundaryAbove(heights: Float32Array, layer: number): number | null {
+  const height = heights[layer]
+  if (height === undefined) return null
+  return height + layerThickness(heights, layer) / 2
 }
+
+function boundaryBelow(heights: Float32Array, layer: number): number | null {
+  const height = heights[layer]
+  if (height === undefined) return null
+  return height - layerThickness(heights, layer) / 2
+}
+
+/* -------------------------------------------------------------------------- */
+/* Planned follow (ADR 0007)                                                  */
+/* -------------------------------------------------------------------------- */
 
 function stopPlannedFollow(block = false, seedTelemetry = true): void {
   if (toolheadFrame) cancelAnimationFrame(toolheadFrame)
@@ -808,6 +754,15 @@ function stopPlannedFollow(block = false, seedTelemetry = true): void {
   if (block) plannedFollowBlocked = true
   if (seedTelemetry) seedLiveToolhead()
   else drawOverlay()
+}
+
+function seedLiveToolhead(): void {
+  if (!following.value || !loadedIsCurrentPrint.value) return
+  if (simulationEnabled.value || plannedFollowActive.value) return
+  const position = printer.toolheadPosition
+  if (position.some((coordinate) => coordinate === null)) return
+  smoothToolhead.setTarget(position as [number, number, number], performance.now())
+  scheduleToolheadAnimation()
 }
 
 function reconcilePlannedFollow(): boolean {
@@ -901,242 +856,62 @@ function startPlannedFollow(): void {
     return
   }
   plannedToolheadPosition = sample.position
-  plannedFileProgress.value = sample.progress
-  selectedLayer.value = Math.min(Math.max(0, layerCount.value - 1), sample.layer)
-  lastPlannedFollowSceneRender = performance.now()
   plannedFollowActive.value = true
-  scheduleSceneRender()
+  lastPlannedFollowSceneUpdate = performance.now()
+  applyFrontier(sample.cursor)
+  applyLayerRange()
   scheduleToolheadAnimation()
 }
 
-// Whatever the ray through this viewport position hits first, the printed
-// surface or the bed, falling back to the model center when it hits nothing.
-function pivotAt(screenX: number, screenY: number): GcodePoint | null {
-  const file = loaded.value
-  if (!renderer || !file) return null
-  const surface = renderer.pickSurfacePoint(camera, renderOptions(), screenX, screenY)
-  const plane = bedPlaneHit(camera, screenX, screenY, overlayWidth, overlayHeight, file.bedBounds)
-  return resolvePivot(camera, [surface, plane], boundsCenter(file.bounds))
-}
-
-// Puts the orbit pivot on the geometry in front of the camera instead of a point
-// floating above it, so orbiting, panning and zooming are all measured against
-// what is on screen. The pivot is projected onto the view axis, so the image
-// never shifts.
-function reanchorPivot(screenX: number, screenY: number, throttle = 0): void {
-  const file = loaded.value
-  if (!renderer || !file) return
-  const now = performance.now()
-  if (throttle > 0 && now - lastPivotPick < throttle) return
-  lastPivotPick = now
-  const pivot = pivotAt(screenX, screenY)
-  if (pivot) reanchorCamera(camera, pivot)
-}
-
-function reanchorPivotAtCenter(throttle = 0): void {
-  reanchorPivot(overlayWidth / 2, overlayHeight / 2, throttle)
-}
-
-function applySnapProgress(progress: number): void {
-  const snap = pivotSnap
-  if (!snap) return
-  // Eased pan: yaw, pitch and distance are untouched, so the view slides without
-  // turning and the orbit radius the pick established survives the move.
-  const eased = 1 - (1 - progress) ** 3
-  camera.targetX = snap.fromX + (snap.toX - snap.fromX) * eased
-  camera.targetY = snap.fromY + (snap.toY - snap.fromY) * eased
-  camera.targetZ = snap.fromZ + (snap.toZ - snap.fromZ) * eased
-}
-
-// Completing early rather than blending keeps the snap from fighting an orbit
-// drag for the camera when the user starts dragging mid-animation.
-function finishPivotSnap(): void {
-  if (snapFrame) cancelAnimationFrame(snapFrame)
-  snapFrame = 0
-  if (!pivotSnap) return
-  applySnapProgress(1)
-  pivotSnap = null
-  scheduleSceneRender()
-}
-
-function snapPivotToCenter(pivot: GcodePoint): void {
-  finishPivotSnap()
-  pivotSnap = {
-    fromX: camera.targetX,
-    fromY: camera.targetY,
-    fromZ: camera.targetZ,
-    toX: pivot[0],
-    toY: pivot[1],
-    toZ: pivot[2],
-    start: performance.now(),
-  }
-  if (reducedMotion.matches) {
-    finishPivotSnap()
-    return
-  }
-  const step = (timestamp: number): void => {
-    snapFrame = 0
-    const snap = pivotSnap
-    if (!snap) return
-    const progress = Math.min(1, (timestamp - snap.start) / pivotSnapDuration)
-    applySnapProgress(progress)
-    if (progress < 1) snapFrame = requestAnimationFrame(step)
-    else pivotSnap = null
-    scheduleSceneRender()
-  }
-  snapFrame = requestAnimationFrame(step)
-}
-
-function resetView(): void {
-  const bounds = loaded.value?.bounds ?? streamBounds
-  if (!bounds) return
-  Object.assign(camera, fittedCamera(bounds, overlayWidth, overlayHeight))
-  reanchorPivotAtCenter()
-  scheduleSceneRender()
-}
-
-function zoomBy(factor: number): void {
-  dollyCamera(camera, factor)
-  scheduleSceneRender()
-}
-
-function handleWheel(event: WheelEvent): void {
-  if ((!loaded.value && !streamingGeometry.value) || !stage.value) return
-  if (loading.value) userAdjustedViewDuringLoad = true
-  const bounds = stage.value.getBoundingClientRect()
-  const pointerX = event.clientX - bounds.left
-  const pointerY = event.clientY - bounds.top
-  // Anchored on the pointer so the wheel keeps closing in on what it is aimed
-  // at, throttled because every pick costs one extra geometry pass.
-  reanchorPivot(pointerX, pointerY, pivotPickThrottle)
-  dollyCameraAt(
-    camera,
-    Math.exp(-event.deltaY * 0.0015),
-    pointerX,
-    pointerY,
-    bounds.width,
-    bounds.height,
-  )
-  scheduleSceneRender()
-}
-
-function handlePointerDown(event: PointerEvent): void {
-  event.preventDefault()
-  if ((!loaded.value && !streamingGeometry.value) || ![0, 1, 2].includes(event.button)) return
-  if (loading.value) userAdjustedViewDuringLoad = true
-  stage.value?.focus({ preventScroll: true })
-  stage.value?.setPointerCapture(event.pointerId)
-  // The second finger takes the gesture over. The orbit it started as is
-  // dropped rather than left running underneath: a pinch that also rotated
-  // would spin the model as the fingers moved apart.
-  if (touch.begin(event)) {
-    pointerDrag.value = null
-    finishPivotSnap()
-    reanchorPivotAtCenter()
-    return
-  }
-  const mode = event.button === 0 ? 'orbit' : 'pan'
-  // Rotating around the pointer keeps that exact point pinned under the cursor,
-  // so the pivot has to be the picked point itself rather than its depth on the
-  // view axis. Re-anchoring first still gives the drag a sensible orbit radius.
-  const stageBounds = stage.value?.getBoundingClientRect()
-  const pivot =
-    mode === 'orbit' && orbitMode.value === 'pointer' && stageBounds
-      ? pivotAt(event.clientX - stageBounds.left, event.clientY - stageBounds.top)
-      : null
-  if (pivot) reanchorCamera(camera, pivot)
-  else reanchorPivotAtCenter()
-  pointerDrag.value = {
-    pointerId: event.pointerId,
-    x: event.clientX,
-    y: event.clientY,
-    mode,
-    pivot,
-  }
-  if (pivot && snapToCenter.value) snapPivotToCenter(pivot)
-}
-
-/**
- * A two-finger step. The pan is applied before the pinch so the zoom is
- * anchored on where the fingers are now, which is the same rule the wheel
- * follows: the gesture keeps closing in on what it is aimed at.
- */
-function applyTouchGesture(step: TouchGestureStep): void {
-  const bounds = stage.value?.getBoundingClientRect()
-  if (!bounds) return
-  if (loading.value) userAdjustedViewDuringLoad = true
-  finishPivotSnap()
-  panCamera(camera, step.panX, step.panY, overlayHeight)
-  if (step.scale !== 1) {
-    dollyCameraAt(
-      camera,
-      step.scale,
-      step.centerX - bounds.left,
-      step.centerY - bounds.top,
-      bounds.width,
-      bounds.height,
+function animateToolhead(timestamp: number): void {
+  toolheadFrame = 0
+  if (plannedFollowActive.value && plannedPlayback && simulationSegments && followTimeline) {
+    const state = plannedPlayback.step({
+      timestampMilliseconds: timestamp,
+      speedFactor: printer.motion.speedFactor,
+      liveVelocity: printer.motion.liveVelocity,
+    })
+    if (state.phase === 'fallback') {
+      stopPlannedFollow(true)
+      return
+    }
+    const sample = sampleGcodeSimulationAtTime(
+      simulationSegments,
+      followTimeline,
+      state.playbackSeconds,
     )
-  }
-  scheduleSceneRender()
-}
-
-function handlePointerMove(event: PointerEvent): void {
-  const step = touch.move(event)
-  if (step) {
-    event.preventDefault()
-    applyTouchGesture(step)
+    if (!sample) {
+      stopPlannedFollow(true)
+      return
+    }
+    plannedToolheadPosition = sample.position
+    // The overlay marker runs every frame; the scene's frontier is a rebuild
+    // of vertex colours, so it advances on its own slower clock.
+    if (timestamp - lastPlannedFollowSceneUpdate >= sceneFollowIntervalMilliseconds) {
+      lastPlannedFollowSceneUpdate = timestamp
+      applyFrontier(sample.cursor)
+    }
+    drawOverlay()
+    if (state.phase === 'running' && following.value && !simulationEnabled.value) {
+      toolheadFrame = requestAnimationFrame(animateToolhead)
+    }
     return
   }
-  const drag = pointerDrag.value
-  if (!drag || drag.pointerId !== event.pointerId) return
-  event.preventDefault()
-  const deltaX = event.clientX - drag.x
-  const deltaY = event.clientY - drag.y
-  drag.x = event.clientX
-  drag.y = event.clientY
-  finishPivotSnap()
-  if (drag.mode === 'orbit') {
-    if (drag.pivot) orbitCameraAround(camera, deltaX, deltaY, drag.pivot)
-    else orbitCamera(camera, deltaX, deltaY)
-  } else panCamera(camera, deltaX, deltaY, overlayHeight)
-  scheduleSceneRender()
-}
-
-function handlePointerEnd(event: PointerEvent): void {
-  touch.end(event)
-  // Released for whichever pointer lifted, not only for the one that was
-  // dragging: a finger the two-finger gesture took over is still captured
-  // here, and a capture never released holds every later event for that id.
-  if (stage.value?.hasPointerCapture(event.pointerId)) {
-    stage.value.releasePointerCapture(event.pointerId)
+  const result = smoothToolhead.step(timestamp, reducedMotion.matches)
+  drawOverlay()
+  if (result.moving && following.value && !simulationEnabled.value) {
+    toolheadFrame = requestAnimationFrame(animateToolhead)
   }
-  if (pointerDrag.value?.pointerId !== event.pointerId) return
-  event.preventDefault()
-  pointerDrag.value = null
 }
 
-function handleStageKeydown(event: KeyboardEvent): void {
-  const panStep = 24
-  let handled = true
-  if (loading.value && cameraKeys.includes(event.key)) userAdjustedViewDuringLoad = true
-  if (cameraKeys.includes(event.key)) reanchorPivotAtCenter(pivotPickThrottle)
-  if (event.shiftKey && event.key === 'ArrowLeft') orbitCamera(camera, -12, 0)
-  else if (event.shiftKey && event.key === 'ArrowRight') orbitCamera(camera, 12, 0)
-  else if (event.shiftKey && event.key === 'ArrowUp') orbitCamera(camera, 0, 12)
-  else if (event.shiftKey && event.key === 'ArrowDown') orbitCamera(camera, 0, -12)
-  else if (event.key === 'ArrowLeft') panCamera(camera, panStep, 0, overlayHeight)
-  else if (event.key === 'ArrowRight') panCamera(camera, -panStep, 0, overlayHeight)
-  else if (event.key === 'ArrowUp') panCamera(camera, 0, panStep, overlayHeight)
-  else if (event.key === 'ArrowDown') panCamera(camera, 0, -panStep, overlayHeight)
-  else if (event.key === '+' || event.key === '=') zoomBy(1.2)
-  else if (event.key === '-' || event.key === '_') zoomBy(1 / 1.2)
-  else if (event.key === '0') resetView()
-  else if (event.key === ' ' && simulationEnabled.value) toggleSimulationPlayback()
-  else handled = false
-  if (!handled) return
-  event.preventDefault()
-  scheduleSceneRender()
+function scheduleToolheadAnimation(): void {
+  if (!following.value || simulationEnabled.value || toolheadFrame) return
+  toolheadFrame = requestAnimationFrame(animateToolhead)
 }
+
+/* -------------------------------------------------------------------------- */
+/* Simulation                                                                 */
+/* -------------------------------------------------------------------------- */
 
 function stopSimulationPlayback(): void {
   simulationPlaying.value = false
@@ -1145,18 +920,37 @@ function stopSimulationPlayback(): void {
   simulationFrame = 0
 }
 
-function updateSimulation(cursor: number, renderScene = true): void {
+function enterSimulation(): void {
+  if (simulationEnabled.value || !loaded.value || !simulationSegments) return
+  stopPlannedFollow(false, false)
+  simulationTimeline ??= followTimeline ?? buildGcodeSimulationTimeline(simulationSegments)
+  simulationEnabled.value = true
+  if (toolheadFrame) cancelAnimationFrame(toolheadFrame)
+  toolheadFrame = 0
+  applyLayerRange()
+}
+
+function exitSimulation(): void {
+  if (!simulationEnabled.value) return
+  stopSimulationPlayback()
+  simulationEnabled.value = false
+  simulatedPosition = null
+  applyFrontier(null)
+  applyLayerRange()
+  startPlannedFollow()
+  if (!plannedFollowActive.value) seedLiveToolhead()
+}
+
+function updateSimulation(cursor: number, updateScene = true): void {
   if (!simulationSegments || !simulationTimeline || !loaded.value) return
   const sample = sampleGcodeSimulation(simulationSegments, cursor)
   if (!sample) return
   simulationCursorValue = sample.cursor
   simulationElapsedValue = simulationTimeForCursor(simulationTimeline, sample.cursor)
-  simulationCursor.value = sample.cursor
-  simulationFileProgress.value = sample.progress
+  simulationCursor.value = Math.floor(sample.cursor)
   simulatedPosition = sample.position
-  selectedLayer.value = Math.min(Math.max(0, layerCount.value - 1), sample.layer)
+  if (updateScene) applyFrontier(sample.cursor)
   drawOverlay()
-  if (renderScene) scheduleSceneRender()
 }
 
 function animateSimulation(timestamp: number): void {
@@ -1180,12 +974,13 @@ function animateSimulation(timestamp: number): void {
     simulationCursorValue = sample.cursor
     simulatedPosition = sample.position
     drawOverlay()
-    if (timestamp - lastSimulationSceneRender >= 50 || sample.cursor >= loaded.value.segmentCount) {
-      lastSimulationSceneRender = timestamp
+    if (
+      timestamp - lastSimulationSceneUpdate >= sceneFollowIntervalMilliseconds ||
+      sample.cursor >= loaded.value.segmentCount
+    ) {
+      lastSimulationSceneUpdate = timestamp
       simulationCursor.value = Math.floor(sample.cursor)
-      simulationFileProgress.value = sample.progress
-      selectedLayer.value = Math.min(Math.max(0, layerCount.value - 1), sample.layer)
-      scheduleSceneRender()
+      applyFrontier(sample.cursor)
     }
   }
   if (simulationElapsedValue >= simulationTimeline.totalSeconds) {
@@ -1195,191 +990,95 @@ function animateSimulation(timestamp: number): void {
   simulationFrame = requestAnimationFrame(animateSimulation)
 }
 
-function toggleSimulationMode(): void {
-  if (!loaded.value || !simulationSegments) return
-  if (simulationEnabled.value) {
-    stopSimulationPlayback()
-    simulationEnabled.value = false
-    simulatedPosition = null
-    if (livePrintLayer.value !== null) selectedLayer.value = livePrintLayer.value
-    scheduleSceneRender()
-    startPlannedFollow()
-    if (!plannedFollowActive.value) seedLiveToolhead()
-    return
-  }
-  stopPlannedFollow(false, false)
-  simulationTimeline ??= followTimeline ?? buildGcodeSimulationTimeline(simulationSegments)
-  simulationEnabled.value = true
-  if (toolheadFrame) cancelAnimationFrame(toolheadFrame)
-  toolheadFrame = 0
-  updateSimulation(0)
+/** Dragging the scrubber is what enters simulation; there is no separate button. */
+function handleSeek(cursor: number): void {
+  if (!loaded.value) return
+  enterSimulation()
+  stopSimulationPlayback()
+  updateSimulation(cursor)
 }
 
-function toggleSimulationPlayback(): void {
-  if (!simulationEnabled.value || !loaded.value) return
-  if (simulationPlaying.value) {
-    stopSimulationPlayback()
-    return
-  }
+function handlePlay(): void {
+  if (!loaded.value || !simulationSegments) return
+  enterSimulation()
   if (simulationCursorValue >= loaded.value.segmentCount) updateSimulation(0)
   simulationPlaying.value = true
   lastSimulationTimestamp = 0
   simulationFrame = requestAnimationFrame(animateSimulation)
 }
 
-function restartSimulation(): void {
+function handleRestart(): void {
+  enterSimulation()
   stopSimulationPlayback()
   updateSimulation(0)
 }
 
-function finishSimulation(): void {
-  if (!loaded.value) return
-  stopSimulationPlayback()
-  updateSimulation(loaded.value.segmentCount)
+/** Jumping to the end is how a simulation is left: the whole file is shown again. */
+function handleFinish(): void {
+  exitSimulation()
 }
 
-function handleSimulationInput(value: number): void {
-  stopSimulationPlayback()
-  updateSimulation(value || 0)
+/* -------------------------------------------------------------------------- */
+/* Camera and keyboard                                                        */
+/* -------------------------------------------------------------------------- */
+
+function resetView(): void {
+  renderer?.resetCamera()
+  drawOverlay()
 }
 
-function handleLayerInput(value: number): void {
-  selectedLayer.value = Math.min(Math.max(0, layerCount.value - 1), Math.max(0, Math.trunc(value)))
-  // The two thumbs share one range and must not cross.
-  if (layerFloor.value > selectedLayer.value) layerFloor.value = selectedLayer.value
-}
-
-function handleLayerFloorInput(value: number): void {
-  layerFloor.value = Math.min(selectedLayer.value, Math.max(0, Math.trunc(value)))
-}
-
-/**
- * One full-quality frame, composited with the overlay so the nozzle and axis
- * gizmo appear as they do on screen. Rendered on demand rather than read back
- * from the last frame: the drawing buffer is not preserved between frames.
- *
- * `region`, in CSS pixels, crops to part of the stage. Only the benchmark
- * harness passes one — a question about per-pixel shading cannot be answered
- * from a scaled screenshot, and a full 4K frame is too large to move through a
- * console as a data URL.
- */
-function composeFrame(region?: {
-  x: number
-  y: number
-  width: number
-  height: number
-}): HTMLCanvasElement | null {
-  const canvas = sceneCanvas.value
-  const overlay = overlayCanvas.value
-  if (!canvas || !overlay) return null
-  const scale = canvas.width / Math.max(1, overlayWidth)
-  const crop = region
-    ? {
-        x: Math.round(region.x * scale),
-        y: Math.round(region.y * scale),
-        width: Math.max(1, Math.round(region.width * scale)),
-        height: Math.max(1, Math.round(region.height * scale)),
-      }
-    : { x: 0, y: 0, width: canvas.width, height: canvas.height }
-  const capture = document.createElement('canvas')
-  capture.width = crop.width
-  capture.height = crop.height
-  const context = capture.getContext('2d')
-  if (!context) return null
-  renderSceneNow()
-  context.drawImage(canvas, -crop.x, -crop.y)
-  context.drawImage(
-    overlay,
-    0,
-    0,
-    overlay.width,
-    overlay.height,
-    -crop.x,
-    -crop.y,
-    canvas.width,
-    canvas.height,
-  )
-  return capture
+function handleStageKeydown(event: KeyboardEvent): void {
+  const scene = renderer
+  if (!scene) return
+  const panStep = 40
+  const orbitStep = 120
+  let handled = true
+  if (event.shiftKey && event.key === 'ArrowLeft') scene.orbitBy(-orbitStep, 0)
+  else if (event.shiftKey && event.key === 'ArrowRight') scene.orbitBy(orbitStep, 0)
+  else if (event.shiftKey && event.key === 'ArrowUp') scene.orbitBy(0, orbitStep)
+  else if (event.shiftKey && event.key === 'ArrowDown') scene.orbitBy(0, -orbitStep)
+  else if (event.key === 'ArrowLeft') scene.panBy(panStep, 0)
+  else if (event.key === 'ArrowRight') scene.panBy(-panStep, 0)
+  else if (event.key === 'ArrowUp') scene.panBy(0, panStep)
+  else if (event.key === 'ArrowDown') scene.panBy(0, -panStep)
+  else if (event.key === '+' || event.key === '=') scene.zoomBy(1.2)
+  else if (event.key === '-' || event.key === '_') scene.zoomBy(1 / 1.2)
+  else if (event.key === '0') resetView()
+  else if (event.key === ' ' && loaded.value) {
+    if (simulationPlaying.value) stopSimulationPlayback()
+    else handlePlay()
+  } else handled = false
+  if (!handled) return
+  event.preventDefault()
 }
 
 function captureScreenshot(): void {
-  if (!loaded.value) return
-  const capture = composeFrame()
-  if (!capture) return
+  const file = loaded.value
+  const url = renderer?.screenshot()
+  if (!file || !url) return
   const link = document.createElement('a')
-  link.download = `${loaded.value.name.replace(/[\\/]/g, '-')}.png`
-  link.href = capture.toDataURL('image/png')
+  link.download = `${file.name.replace(/[\\/]/g, '-')}.png`
+  link.href = url
   link.click()
 }
 
-function configuredBedBounds(): GcodeBounds | undefined {
+/* -------------------------------------------------------------------------- */
+/* Loading                                                                    */
+/* -------------------------------------------------------------------------- */
+
+function configuredBedBounds(): GcodeBounds | null {
   const minimum = printer.buildVolume.minimum
   const maximum = printer.buildVolume.maximum
   if (
     minimum.some((coordinate) => coordinate === null) ||
     maximum.some((coordinate) => coordinate === null)
   ) {
-    return undefined
+    return null
   }
   const [minX, minY, minZ] = minimum as [number, number, number]
   const [maxX, maxY, maxZ] = maximum as [number, number, number]
-  if (maxX <= minX || maxY <= minY || maxZ <= minZ) return undefined
+  if (maxX <= minX || maxY <= minY || maxZ <= minZ) return null
   return { minX, maxX, minY, maxY, minZ, maxZ }
-}
-
-function installSummary(
-  summary: ParsedGcodeSummary,
-  name: string,
-  source: LoadedGcode['source'],
-  size: number,
-): void {
-  if (summary.segmentCount === 0) {
-    viewerError.value = 'empty'
-    return
-  }
-  if (import.meta.env.DEV) {
-    benchmarkGpuBytes =
-      streamedGpuBytes +
-      Object.values(summary.tiers).reduce(
-        (total, tier) => total + tier.segments.byteLength + tier.pathDetails.byteLength,
-        0,
-      )
-  }
-  simulationSegments = summary.segments
-  simulationTimeline = null
-  followSourceBytesRaw = summary.sourceBytes
-  followSourceBytes = null
-  followTimeline = null
-  plannedFollowBlocked = false
-  plannedFollowMismatchStarted = null
-  plannedFileProgress.value = 0
-  renderer?.finishStreamedLoad(summary)
-  const sceneBounds = renderer?.sceneBounds() ?? summary.bounds
-  const bedBounds = renderer?.bedBounds() ?? summary.bounds
-  loaded.value = {
-    name,
-    source,
-    size,
-    bounds: summary.extrusionBounds,
-    sceneBounds,
-    bedBounds,
-    layerHeights: summary.layerHeights,
-    segmentCount: summary.segmentCount,
-    extrusionCount: summary.extrusionCount,
-    travelCount: summary.travelCount,
-    sourceByteCount: summary.sourceByteCount,
-    minimumFeedrate: summary.minimumFeedrate,
-    maximumFeedrate: summary.maximumFeedrate,
-  }
-  presentFeatures.value = collectFeatures(summary.segments)
-  streamingGeometry.value = false
-  selectedLayer.value = livePrintLayer.value ?? Math.max(0, summary.layerHeights.length - 1)
-  viewerError.value = null
-  // A framing the user chose while the model streamed in is a decision, not a
-  // transient — completing the parse must not snap it away.
-  if (!userAdjustedViewDuringLoad) resetView()
-  else scheduleSceneRender()
-  startPlannedFollow()
 }
 
 /** One pass over the finished stream; the file's own feature inventory. */
@@ -1392,25 +1091,6 @@ function collectFeatures(segments: Float32Array): GcodeFeature[] {
   return [...seen]
 }
 
-function handleGeometryBatch(batch: GcodeGeometryBatch): void {
-  if (!renderer) return
-  renderer.appendGeometryBatch(batch)
-  streamedBatchCount += 1
-  if (import.meta.env.DEV) {
-    benchmarkFirstGeometryMilliseconds ??= performance.now() - benchmarkLoadStartedAt
-  }
-  streamingGeometry.value = true
-  streamBounds = batch.extrusionBounds
-  streamedGpuBytes +=
-    batch.segments.byteLength + batch.pathDetails.byteLength + batch.caps.byteLength
-  // Keep every layer parsed so far visible while the model grows in.
-  selectedLayer.value = Math.max(selectedLayer.value, batch.layerCount - 1)
-  if (!userAdjustedViewDuringLoad) {
-    Object.assign(camera, fittedCamera(batch.extrusionBounds, overlayWidth, overlayHeight))
-  }
-  scheduleSceneRender()
-}
-
 async function runLoad(request: GcodeLoadRequest): Promise<void> {
   loadController?.abort()
   stopPlannedFollow(false, false)
@@ -1419,83 +1099,114 @@ async function runLoad(request: GcodeLoadRequest): Promise<void> {
   simulationCursorValue = 0
   simulationElapsedValue = 0
   simulationCursor.value = 0
-  simulationFileProgress.value = 0
   simulatedPosition = null
   const controller = new AbortController()
   loadController = controller
-  lastLoadRequest = request
-  const loadStartedAt = performance.now()
-  benchmarkLoadStartedAt = loadStartedAt
-  benchmarkFirstGeometryMilliseconds = null
+  benchmarkLoadStartedAt = performance.now()
   loading.value = true
   loadingName.value = request.name
   loadedBytes.value = 0
   totalBytes.value = request.size > 0 ? request.size : null
   viewerError.value = null
-  // The previous model leaves now rather than at the end: the streamed batches
-  // need the buffers, and a stage growing the new file is continuity enough.
   loaded.value = null
-  streamingGeometry.value = false
-  streamBounds = null
-  streamedGpuBytes = 0
-  streamedBatchCount = 0
-  layerFloor.value = 0
-  statisticsOpen.value = false
-  userAdjustedViewDuringLoad = false
-  selectedLayer.value = 0
-  const bedBounds = configuredBedBounds()
-  renderer?.beginStreamedLoad(bedBounds)
-  // The model has not streamed in yet, so frame the bed itself rather than
-  // leaving whatever camera state the previous file (or the initial
-  // placeholder) left behind — the load should never visibly start from a
-  // stale, unrelated framing.
-  if (bedBounds) Object.assign(camera, fittedCamera(bedBounds, overlayWidth, overlayHeight))
-  scheduleSceneRender()
+  metadata.value = null
+  layerTop.value = 0
+  layerBottom.value = 0
+  presentFeatures.value = []
+  featureColors.value = new Map()
+  governor.reset()
+
   try {
-    const summary = await request.load(
-      controller.signal,
-      (progress) => {
-        if (loadController !== controller) return
-        loadedBytes.value = progress.loaded
-        totalBytes.value = progress.total ?? totalBytes.value
-      },
-      (batch) => {
-        if (loadController !== controller || controller.signal.aborted) return
-        handleGeometryBatch(batch)
-      },
-    )
+    const { text, summary } = await request.load(controller.signal, (progress) => {
+      if (loadController !== controller) return
+      loadedBytes.value = progress.loaded
+      totalBytes.value = progress.total ?? totalBytes.value
+    })
     if (controller.signal.aborted) return
-    installSummary(summary, request.name, request.source, request.size || loadedBytes.value)
-    benchmarkLoadMilliseconds = performance.now() - loadStartedAt
+    if (summary.segmentCount === 0) {
+      viewerError.value = 'empty'
+      return
+    }
+
+    const scene = renderer
+    if (!scene) return
+    // The tier is chosen once, here: it is a vertex budget the library meets
+    // by rebuilding every mesh, so it cannot be a slider the user drags.
+    const tier = gcodeTierFor(qualityMode.value, tierCeiling.value, request.size)
+    await scene.setTier(tier)
+    scene.setBedBounds(configuredBedBounds(), printerConfig.bedShape === 'circular')
+    scene.setFeedrateRange(summary.minimumFeedrate, summary.maximumFeedrate)
+    await scene.load(text, {
+      onProgress: (fraction) => {
+        if (loadController !== controller) return
+        // The library reports its parse as a fraction; the download reported
+        // bytes. Both are the same bar, so the second half of it is the parse.
+        if (totalBytes.value) loadedBytes.value = totalBytes.value * fraction
+      },
+    })
+    if (controller.signal.aborted) return
+
+    simulationSegments = summary.segments
+    simulationTimeline = null
+    followSourceBytesRaw = summary.sourceBytes
+    followSourceBytes = null
+    followTimeline = null
+    plannedFollowBlocked = false
+    plannedFollowMismatchStarted = null
+    loadedFeedrates.value = [summary.minimumFeedrate, summary.maximumFeedrate]
+    loaded.value = {
+      name: request.name,
+      source: request.source,
+      size: request.size || loadedBytes.value,
+      bounds: summary.extrusionBounds,
+      layerHeights: summary.layerHeights,
+      segmentCount: summary.segmentCount,
+      extrusionCount: summary.extrusionCount,
+      travelCount: summary.travelCount,
+      sourceByteCount: summary.sourceByteCount,
+    }
+    presentFeatures.value = collectFeatures(summary.segments)
+    activeTier.value = scene.tier
+    travelsAvailable.value = scene.travelsAvailable
+    recoveredFromFailedLoad.value = scene.recoveredFromFailedLoad
+    layerTop.value = layerMaximum.value
+    layerBottom.value = 0
+    scene.setTravels(showTravels.value)
+    applyFrontier(null)
+    applyLayerRange()
+    refreshFeatureColors()
+    scene.resetCamera()
+    benchmarkLoadMilliseconds = performance.now() - benchmarkLoadStartedAt
+    if (request.source === 'moonraker') void loadFileMetadata(request.name)
+    startPlannedFollow()
+    if (!plannedFollowActive.value) seedLiveToolhead()
   } catch (error) {
     if (error instanceof GcodeFileTooLargeError) viewerError.value = 'tooLarge'
-    else if (!(error instanceof DOMException && error.name === 'AbortError'))
+    else if (!(error instanceof DOMException && error.name === 'AbortError')) {
       viewerError.value = 'download'
+      if (import.meta.env.DEV) console.error('[gcode viewer] load failed', error)
+    }
     renderer?.clear()
   } finally {
     if (loadController === controller) {
       loadController = null
       loading.value = false
-      if (!loaded.value) {
-        streamingGeometry.value = false
-        streamBounds = null
-      }
     }
   }
 }
 
+async function loadFileMetadata(path: string): Promise<void> {
+  metadata.value = await printer.loadMetadata(path.replace(/^gcodes\//i, ''))
+}
+
 /**
- * Every load funnels through here so oversized files get one confirmation
- * before hundreds of megabytes are committed. The threshold gates on declared
- * size; a stream that never declared one proceeds and relies on the 4 GiB
- * hard refusal instead.
+ * Every load funnels through here so an oversized file gets one confirmation
+ * before the library commits the whole thing to memory as text.
  */
 function requestLoad(request: GcodeLoadRequest): void {
-  // Skippable like every other binary confirm. This one is a warning about
-  // time and memory rather than about consequence, so it carries no tier
-  // livery -- but a reader who loads 300 MB files routinely should be able to
-  // stop being asked, and could not before.
-  if (request.size > largeFileConfirmBytes && confirmations.shouldConfirm('openLargeGcodeFile')) {
+  loadRequested = true
+  const threshold = tierCeiling.value <= 3 ? weakDeviceConfirmBytes : largeFileConfirmBytes
+  if (request.size > threshold && confirmations.shouldConfirm('openLargeGcodeFile')) {
     pendingLoad.value = request
     return
   }
@@ -1506,10 +1217,6 @@ function confirmPendingLoad(): void {
   const request = pendingLoad.value
   pendingLoad.value = null
   if (request) void runLoad(request)
-}
-
-function cancelPendingLoad(): void {
-  pendingLoad.value = null
 }
 
 function loadRemoteFile(path: string): void {
@@ -1527,31 +1234,16 @@ function loadRemoteFile(path: string): void {
     name: path,
     source: 'moonraker',
     size,
-    load: (signal, onProgress, onBatch) =>
+    load: (signal, onProgress) =>
       fetchAndParseGcode(url, {
         signal,
         onProgress,
-        onBatch,
-        // Moonraker sends no Content-Length, and without a total the parser
-        // cannot stream batches into the scene at all.
+        // Moonraker sends no Content-Length, so the file listing's size is
+        // what gives the progress bar a denominator.
         declaredTotalBytes: size,
         filamentDiameter: effectiveFilamentDiameter.value,
       }),
   })
-}
-
-function loadSelectedRemoteFile(): void {
-  loadRemoteFile(selectedRemoteFile.value)
-}
-
-function loadCurrentPrint(): void {
-  if (!currentPrintFile.value) return
-  selectedRemoteFile.value = currentPrintFile.value
-  loadRemoteFile(currentPrintFile.value)
-}
-
-function chooseLocalFile(): void {
-  localFileInput.value?.click()
 }
 
 function handleLocalFile(event: Event): void {
@@ -1564,29 +1256,141 @@ function handleLocalFile(event: Event): void {
     name: file.name,
     source: 'local',
     size: file.size,
-    load: (signal, onProgress, onBatch) =>
+    load: (signal, onProgress) =>
       parseGcodeFile(file, {
         signal,
         onProgress,
-        onBatch,
         filamentDiameter: effectiveFilamentDiameter.value,
       }),
   })
 }
 
 function cancelLoad(): void {
+  renderer?.cancelLoad()
   loadController?.abort()
 }
 
-async function refreshFiles(): Promise<void> {
-  await printer.refreshFiles()
-  selectedRemoteFile.value ||= currentPrintFile.value || printer.files[0]?.path || ''
+/* -------------------------------------------------------------------------- */
+/* Mode changes                                                               */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The rendering library cannot rebuild two copies of a file at once: both
+ * reparses write into the same processor and scene. Mode rows remain usable
+ * while a large file is rebuilding, so every colour and tier change shares
+ * one queue. Reading the selected setting inside the queued callback also
+ * coalesces choices made before that callback starts into the latest choice.
+ */
+async function serializeSceneReparse(
+  scene: GcodeSceneRenderer,
+  reparse: () => Promise<void>,
+): Promise<void> {
+  pendingSceneReparses += 1
+  reloading.value = true
+  const operation = sceneReparseTail
+    .catch(() => undefined)
+    .then(async () => {
+      if (unmounted || renderer !== scene || !loaded.value) return
+      await reparse()
+    })
+  sceneReparseTail = operation
+  try {
+    await operation
+  } finally {
+    pendingSceneReparses -= 1
+    reloading.value = pendingSceneReparses > 0
+  }
 }
+
+async function chooseColorMode(mode: GcodeColorMode): Promise<void> {
+  if (mode === colorMode.value) return
+  setColorMode(mode)
+  const scene = renderer
+  if (!scene || !loaded.value) return
+  // Colour is built into the geometry, so this is a reparse. The pending
+  // treatment is on the stage for as long as it takes, because a file large
+  // enough to matter takes long enough that silence would read as a hang.
+  await serializeSceneReparse(scene, async () => {
+    await scene.setColorMode(colorMode.value)
+    refreshFeatureColors()
+  })
+}
+
+async function chooseQualityMode(mode: (typeof qualityModes)[number]): Promise<void> {
+  if (mode === qualityMode.value) return
+  setQualityMode(mode)
+  governor.setMode(mode)
+  qualityStep.value = governor.currentStep()
+  const scene = renderer
+  if (!scene) return
+  scene.setResolutionScale(governor.state().resolutionScale)
+  if (!loaded.value) return
+  await serializeSceneReparse(scene, async () => {
+    const file = loaded.value
+    if (!file) return
+    const tier = gcodeTierFor(qualityMode.value, tierCeiling.value, file.size)
+    if (tier === scene.tier) return
+    await scene.setTier(tier)
+    activeTier.value = scene.tier
+    travelsAvailable.value = scene.travelsAvailable
+    scene.setTravels(showTravels.value)
+    applyFrontier(simulationEnabled.value ? simulationCursorValue : null)
+    applyLayerRange()
+    refreshFeatureColors()
+  })
+}
+
+/*
+ * A popover row's handler has to be a single expression.
+ *
+ * Vue compiles an inline handler as one expression unless it can see a
+ * statement, so two calls on two lines are a parse error at build time — and
+ * the formatter rewrites a semicolon-joined pair back onto separate lines, so
+ * the working form cannot be kept by punctuation. These wrappers are what
+ * makes each row's handler one call.
+ *
+ * Closing first is deliberate: the popover leaves immediately and the stage's
+ * pending treatment is what shows the reparse taking place behind it.
+ */
+function pickColorMode(mode: GcodeColorMode, close: () => void): void {
+  close()
+  void chooseColorMode(mode)
+}
+
+function pickQualityMode(mode: (typeof qualityModes)[number], close: () => void): void {
+  close()
+  void chooseQualityMode(mode)
+}
+
+function toggleTravels(): void {
+  setShowTravels(!showTravels.value)
+  renderer?.setTravels(showTravels.value)
+}
+
+function chooseFollowing(enabled: boolean): void {
+  following.value = enabled
+  setFollowByDefault(enabled)
+  if (enabled) {
+    if (simulationEnabled.value) exitSimulation()
+    startPlannedFollow()
+    if (!plannedFollowActive.value) seedLiveToolhead()
+  } else {
+    stopPlannedFollow(false, false)
+    applyFrontier(null)
+    applyLayerRange()
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Watchers                                                                   */
+/* -------------------------------------------------------------------------- */
+
+watch([layerTop, layerBottom], applyLayerRange)
 
 watch(
   () => printer.toolheadPosition,
   (position) => {
-    if (!liveTracking.value || !loadedIsCurrentPrint.value) return
+    if (!following.value || !loadedIsCurrentPrint.value) return
     if (simulationEnabled.value || plannedFollowActive.value) return
     if (position.some((coordinate) => coordinate === null)) return
     smoothToolhead.setTarget(position as [number, number, number], performance.now())
@@ -1594,42 +1398,27 @@ watch(
   },
   { deep: true, immediate: true },
 )
-watch(
-  [selectedLayer, layerFloor, showPreviousLayers, showTravels, renderedProgress, colorMode],
-  scheduleSceneRender,
-)
-watch(livePrintLayer, (layer) => {
-  if (layer === null || simulationEnabled.value || plannedFollowActive.value) return
-  selectedLayer.value = layer
+
+watch(livePrintProgress, (progress) => {
+  // The telemetry fallback: no planned playback, but the loaded file is the
+  // one printing, so the frontier still follows the reported byte position.
+  if (plannedFollowActive.value || simulationEnabled.value) return
+  if (!following.value || !loadedIsCurrentPrint.value || !loaded.value) return
+  if (!renderer) return
+  renderer.setRevealAhead(false)
+  renderer.setProgressBytes(Math.round(progress * loaded.value.sourceByteCount))
 })
-watch(
-  () => [...printer.buildVolume.minimum, ...printer.buildVolume.maximum],
-  () => {
-    const bedBounds = configuredBedBounds()
-    if (!renderer || !loaded.value || !bedBounds) return
-    renderer.setBedBounds(bedBounds)
-    loaded.value.sceneBounds = renderer.sceneBounds()
-    loaded.value.bedBounds = renderer.bedBounds()
-    resetView()
-  },
-)
-watch(effectiveNozzleDiameter, scheduleSceneRender)
-watch(qualityMode, (mode) => {
-  governor.setMode(mode)
-  qualityStep.value = governor.currentStep()
-  lastSceneRenderTimestamp = 0
-  resizeCanvases()
+
+watch(livePrintLayer, () => {
+  if (plannedFollowActive.value || simulationEnabled.value) return
+  applyLayerRange()
 })
-watch(liveTracking, (enabled) => {
-  if (enabled && !simulationEnabled.value) {
-    startPlannedFollow()
-    if (!plannedFollowActive.value) seedLiveToolhead()
-  } else drawOverlay()
-})
+
 watch(plannedFollowEligible, (eligible) => {
   if (eligible) startPlannedFollow()
   else if (plannedFollowActive.value) stopPlannedFollow(false)
 })
+
 watch(
   () => [printer.virtualSdcard.filePosition, printer.isPaused] as const,
   () => {
@@ -1644,6 +1433,7 @@ watch(
     scheduleToolheadAnimation()
   },
 )
+
 watch(
   () => printer.motion.livePositionEventtime,
   () => {
@@ -1663,51 +1453,71 @@ watch(
   },
 )
 
+watch(
+  () => [...printer.buildVolume.minimum, ...printer.buildVolume.maximum],
+  () => {
+    renderer?.setBedBounds(configuredBedBounds(), printerConfig.bedShape === 'circular')
+  },
+)
+
 function handleReducedMotionChange(event: MediaQueryListEvent): void {
   reducedMotionEnabled.value = event.matches
 }
 
-// preventDefault is what makes the browser attempt a restore at all; without
-// it a driver reset leaves a permanently dead canvas behind the page.
-function handleContextLost(event: Event): void {
-  event.preventDefault()
-}
+/* -------------------------------------------------------------------------- */
+/* Lifecycle                                                                  */
+/* -------------------------------------------------------------------------- */
 
-function handleContextRestored(): void {
-  if (!sceneCanvas.value) return
-  renderer?.dispose()
-  renderer = null
-  try {
-    renderer = new GcodeRenderer(sceneCanvas.value)
-  } catch (error) {
-    // The user-facing message is the same however this failed, but a shader
-    // that stopped compiling is a bug rather than a weak GPU, and swallowing
-    // its info log leaves nothing to debug from.
-    if (import.meta.env.DEV) console.error('[gcode viewer] renderer unavailable', error)
-    viewerError.value = 'renderer'
-    return
+/**
+ * One measured frame. The governor spends it on resolution, which is free to
+ * change between frames; when it has run out of ladder and frames are still
+ * long, the device's tier ceiling drops so the *next* load starts cheaper.
+ * Reloading the current file mid-session would be a worse cure than the
+ * stutter it treats.
+ */
+function handleFrame(intervalMilliseconds: number): void {
+  const report = governor.sample(intervalMilliseconds)
+  if (report.changed) {
+    qualityStep.value = report.step
+    renderer?.setResolutionScale(report.state.resolutionScale)
   }
-  resizeCanvases()
-  // GPU buffers died with the context and the CPU keeps no copy of the
-  // upload-only arrays, so recovery is a fresh run of the last load request.
-  const request = lastLoadRequest
-  if (request) void runLoad(request)
+  if (report.tierExhausted && qualityMode.value !== 'quality') lowerTierCeiling()
+  // Camera motion is what makes the library render, so this is also the exact
+  // moment the overlay's projection has gone stale.
+  drawOverlay()
 }
 
 onMounted(async () => {
   await nextTick()
-  if (!sceneCanvas.value || !stage.value) return
+  following.value = followByDefault.value
+  if (!stage.value) return
+  let created: GcodeSceneRenderer
   try {
-    renderer = new GcodeRenderer(sceneCanvas.value)
+    created = await createGcodeSceneRenderer(stage.value, {
+      colors: sceneColors(),
+      tier: gcodeTierFor(qualityMode.value, tierCeiling.value, 0),
+      resolutionScale: governor.state().resolutionScale,
+      nozzleDiameter: effectiveNozzleDiameter.value,
+      bedBounds: configuredBedBounds(),
+      delta: printerConfig.bedShape === 'circular',
+      onFrame: handleFrame,
+    })
   } catch (error) {
-    // The user-facing message is the same however this failed, but a shader
-    // that stopped compiling is a bug rather than a weak GPU, and swallowing
-    // its info log leaves nothing to debug from.
     if (import.meta.env.DEV) console.error('[gcode viewer] renderer unavailable', error)
     viewerError.value = 'renderer'
     return
   }
-  resizeObserver = new ResizeObserver(resizeCanvases)
+  // The page can be left while the renderer is still being built. Its
+  // unmount hook found nothing to dispose, so this is where the engine goes.
+  if (unmounted || !stage.value) {
+    created.dispose()
+    return
+  }
+  renderer = created
+  recoveredFromFailedLoad.value = renderer.recoveredFromFailedLoad
+  activeTier.value = renderer.tier
+  travelsAvailable.value = renderer.travelsAvailable
+  resizeObserver = new ResizeObserver(resizeSurfaces)
   resizeObserver.observe(stage.value)
   refreshResolvedColors()
   themeObserver = new MutationObserver(refreshResolvedColors)
@@ -1715,10 +1525,8 @@ onMounted(async () => {
     attributes: true,
     attributeFilter: ['data-theme', 'data-theme-pack', 'data-font'],
   })
-  resizeCanvases()
+  resizeSurfaces()
   reducedMotion.addEventListener('change', handleReducedMotionChange)
-  sceneCanvas.value.addEventListener('webglcontextlost', handleContextLost)
-  sceneCanvas.value.addEventListener('webglcontextrestored', handleContextRestored)
   if (import.meta.env.DEV) {
     uninstallBenchmark = installGcodeViewerBenchmark({
       fileSummary: () =>
@@ -1734,55 +1542,62 @@ onMounted(async () => {
           : null,
       loadMilliseconds: () => benchmarkLoadMilliseconds,
       qualityStep: () => governor.currentStep(),
-      frameDiagnostics: () => renderer?.lastFrameDiagnostics() ?? null,
-      firstGeometryMilliseconds: () => benchmarkFirstGeometryMilliseconds,
-      streamedBatches: () => streamedBatchCount,
-      gpuUploadBytes: () => benchmarkGpuBytes,
-      modelBounds: () => loaded.value?.bounds ?? null,
+      tier: () => activeTier.value,
+      resolutionScale: () => governor.state().resolutionScale,
       viewportSize: () => ({ width: overlayWidth, height: overlayHeight }),
-      applyCamera: (pose) => Object.assign(camera, pose),
-      renderScene: renderSceneNow,
       resetView,
-      captureRegion: (region) => composeFrame(region)?.toDataURL('image/png') ?? null,
+      orbitBy: (deltaX, deltaY) => renderer?.orbitBy(deltaX, deltaY),
+      zoomBy: (factor) => renderer?.zoomBy(factor),
+      screenshot: () => renderer?.screenshot() ?? null,
       loadUrl: (url) =>
         runLoad({
           name: url,
           source: 'local',
           size: 0,
-          load: (signal, onProgress, onBatch) =>
+          load: (signal, onProgress) =>
             fetchAndParseGcode(url, {
               signal,
               onProgress,
-              onBatch,
               filamentDiameter: effectiveFilamentDiameter.value,
             }),
         }),
     })
   }
-  if (currentPrintFile.value) selectedRemoteFile.value = currentPrintFile.value
-  await refreshFiles()
+  await printer.refreshFiles()
+  /*
+   * Opening the viewer while a print is running almost always means wanting to
+   * watch that print, so it is loaded without being asked for.
+   *
+   * Two guards, both of which cost a real bug to find. It waits on the file
+   * list, so by the time it runs the user may already have picked something —
+   * and this starting then would abort their choice and load a different file
+   * under them. And it gates on a print actually running rather than on a
+   * filename being known: `print_stats` keeps the last file's name long after
+   * it finished, so the looser test downloaded a stale job on every visit.
+   */
+  if (!loadRequested && printer.hasActivePrint && currentPrintFile.value && followByDefault.value) {
+    loadRemoteFile(currentPrintFile.value)
+  }
 })
 
 onBeforeUnmount(() => {
+  unmounted = true
   uninstallBenchmark?.()
   uninstallBenchmark = null
   loadController?.abort()
   resizeObserver?.disconnect()
   themeObserver?.disconnect()
   reducedMotion.removeEventListener('change', handleReducedMotionChange)
-  sceneCanvas.value?.removeEventListener('webglcontextlost', handleContextLost)
-  sceneCanvas.value?.removeEventListener('webglcontextrestored', handleContextRestored)
-  if (sceneFrame) cancelAnimationFrame(sceneFrame)
   if (toolheadFrame) cancelAnimationFrame(toolheadFrame)
-  if (snapFrame) cancelAnimationFrame(snapFrame)
   stopSimulationPlayback()
   simulationSegments = null
   simulationTimeline = null
   followSourceBytesRaw = null
   followSourceBytes = null
   followTimeline = null
-  lastLoadRequest = null
   stopPlannedFollow(false, false)
+  // The library keeps its engine, scene, meshes and the whole file text alive
+  // for as long as nobody disposes them, and it has no disposer of its own.
   renderer?.dispose()
   renderer = null
 })
@@ -1792,522 +1607,308 @@ onBeforeUnmount(() => {
   <section class="workspace-page gcode-viewer-page">
     <PageHeading :title="t('gcodeViewer.title')" />
 
-    <div class="gcode-viewer-layout">
-      <aside class="gcode-viewer-controls">
-        <section class="gcode-control-card">
-          <h2>{{ t('gcodeViewer.files.title') }}</h2>
-          <div v-if="loaded" class="gcode-viewer-loaded-file">
-            <span>{{ t('gcodeViewer.loadedFile') }}</span>
-            <strong :title="loaded.name">{{ loaded.name }}</strong>
-          </div>
-          <AvailabilityRegion requires="moonraker" disable-interaction>
-            <label class="gcode-field" for="gcode-file-search">
-              <span>{{ t('gcodeViewer.files.search') }}</span>
-              <input
-                id="gcode-file-search"
-                v-model="fileSearch"
-                type="search"
-                class="field field--block"
-                :placeholder="t('gcodeViewer.files.searchPlaceholder', { count: fileMatchCount })"
-                :disabled="loading"
-                autocomplete="off"
-                data-1p-ignore
-                data-lpignore="true"
-                data-bwignore
+    <div class="gcode-viewer-panel">
+      <div
+        ref="stage"
+        class="gcode-viewer-stage"
+        tabindex="0"
+        role="img"
+        :aria-label="t('gcodeViewer.stageLabel')"
+        aria-describedby="gcode-viewer-help"
+        :data-pending="loading || reloading ? 'true' : undefined"
+        @keydown="handleStageKeydown"
+        @contextmenu.prevent
+      >
+        <!--
+          The scene canvas is not here: the renderer creates and owns it, one
+          fresh element per engine, because an engine is bound to its canvas
+          for life. The overlay below is ours.
+        -->
+        <canvas
+          ref="overlayCanvas"
+          class="gcode-viewer-canvas gcode-viewer-canvas--overlay"
+          aria-hidden="true"
+        ></canvas>
+
+        <!--
+          The pointer, touch and keyboard instructions the stage used to print
+          under itself. Kept for the accessible description and for the gear
+          dialog's Controls section, which is where a person now reads them.
+        -->
+        <p id="gcode-viewer-help" class="sr-only">{{ t('gcodeViewer.help') }}</p>
+
+        <div v-if="viewerError" class="gcode-viewer-empty" role="alert">
+          <AppIcon name="emergency" class="gcode-viewer-empty__mark" aria-hidden="true" />
+          <h2>{{ errorTitle }}</h2>
+          <p>{{ errorDescription }}</p>
+        </div>
+
+        <div v-else-if="!loaded && !loading" class="gcode-viewer-empty">
+          <AppIcon name="viewer" class="gcode-viewer-empty__mark" aria-hidden="true" />
+          <h2>{{ t('gcodeViewer.empty.title') }}</h2>
+          <p>{{ t('gcodeViewer.empty.description') }}</p>
+        </div>
+
+        <!-- Top left: what is loaded, and how it is drawn. -->
+        <div class="gcode-chips gcode-chips--start">
+          <HeaderMenu
+            :label="t('gcodeViewer.files.open')"
+            align="start"
+            panel-class="gcode-popover gcode-popover--files"
+            trigger-variant="quiet"
+            trigger-size="xs"
+            trigger-class="gcode-chip gcode-chip--file"
+            trigger-on-strong
+          >
+            <template #trigger>
+              <AppIcon
+                :name="loading ? 'refresh' : 'fileText'"
+                class="size-4 shrink-0"
+                aria-hidden="true"
               />
-            </label>
-            <label class="gcode-field" for="gcode-remote-file">
-              <span>{{ t('gcodeViewer.files.printerFile') }}</span>
-              <select
-                id="gcode-remote-file"
-                v-model="selectedRemoteFile"
-                class="field field--block"
-                :disabled="loading"
-                :size="1"
-              >
-                <option value="" disabled>{{ t('gcodeViewer.files.select') }}</option>
-                <option v-for="file in filteredFiles" :key="file.path" :value="file.path">
-                  {{ file.path }}
-                </option>
-              </select>
-            </label>
-            <div class="mt-3 grid grid-cols-2 gap-2">
-              <AppButton
-                variant="primary"
-                icon="download"
-                :label="t('gcodeViewer.files.load')"
-                :disabled="!selectedRemoteFile || loading"
-                @click="loadSelectedRemoteFile"
+              <span class="gcode-chip__label">{{
+                loaded?.name ?? loadingName ?? t('gcodeViewer.files.open')
+              }}</span>
+            </template>
+            <template #default="{ close }">
+              <GcodeFilePicker
+                v-model:search="fileSearch"
+                :files="printer.files"
+                :printing-path="currentPrintFile || null"
+                :loaded-path="loaded?.name ?? null"
+                :format-size="formatFileSize"
+                :format-modified="formatModified"
+                @select="loadRemoteFile"
+                @local="localFileInput?.click()"
+                @close="close"
               />
+            </template>
+          </HeaderMenu>
+
+          <HeaderMenu
+            v-if="loaded"
+            :label="t('gcodeViewer.color.title')"
+            align="start"
+            panel-class="gcode-popover gcode-popover--narrow"
+            trigger-variant="quiet"
+            trigger-size="xs"
+            trigger-class="gcode-chip"
+            trigger-on-strong
+          >
+            <template #trigger>
+              {{ t(`gcodeViewer.color.modes.${colorMode}`) }}
+            </template>
+            <template #default="{ close }">
               <AppButton
+                v-for="mode in colorModes"
+                :key="mode"
+                variant="quiet"
                 size="sm"
-                :disabled="loading"
-                icon="refresh"
-                :label="t('gcodeViewer.files.refresh')"
-                @click="refreshFiles"
+                block
+                :aria-pressed="mode === colorMode ? 'true' : 'false'"
+                @click="pickColorMode(mode, close)"
+              >
+                {{ t(`gcodeViewer.color.modes.${mode}`) }}
+              </AppButton>
+              <p v-if="colorMode === 'feedrate'" class="gcode-popover__note">
+                {{
+                  t('gcodeViewer.color.feedRange', {
+                    slow: n(feedrateLabels.slow),
+                    fast: n(feedrateLabels.fast),
+                  })
+                }}
+              </p>
+            </template>
+          </HeaderMenu>
+
+          <AppButton
+            v-if="loaded"
+            class="gcode-chip"
+            variant="quiet"
+            size="xs"
+            on-strong
+            :disabled="!travelsAvailable"
+            :title="travelsAvailable ? undefined : t('gcodeViewer.layers.travelsUnavailable')"
+            :aria-pressed="showTravels && travelsAvailable ? 'true' : 'false'"
+            @click="toggleTravels"
+          >
+            {{ t('gcodeViewer.layers.travels') }}
+          </AppButton>
+
+          <HeaderMenu
+            v-if="loaded"
+            :label="t('gcodeViewer.quality.title')"
+            align="start"
+            panel-class="gcode-popover gcode-popover--narrow"
+            trigger-variant="quiet"
+            trigger-size="xs"
+            trigger-class="gcode-chip"
+            trigger-on-strong
+          >
+            <template #trigger>
+              {{ t(`gcodeViewer.quality.modes.${qualityMode}`) }}
+            </template>
+            <template #default="{ close }">
+              <AppButton
+                v-for="mode in qualityModes"
+                :key="mode"
+                variant="quiet"
+                size="sm"
+                block
+                :aria-pressed="mode === qualityMode ? 'true' : 'false'"
+                @click="pickQualityMode(mode, close)"
+              >
+                {{ t(`gcodeViewer.quality.modes.${mode}`) }}
+              </AppButton>
+              <p class="gcode-popover__note">
+                {{
+                  t('gcodeViewer.quality.state', {
+                    tier: t(`gcodeViewer.statistics.tier.${activeTier}`),
+                    step: n(qualityStep + 1),
+                    total: n(qualityStepTotal + 1),
+                  })
+                }}
+              </p>
+            </template>
+          </HeaderMenu>
+        </div>
+
+        <!-- Top right: the view's own tools. -->
+        <div class="gcode-chips gcode-chips--end">
+          <HeaderMenu
+            v-if="loaded"
+            :label="t('gcodeViewer.statistics.title')"
+            align="end"
+            panel-class="gcode-popover"
+            trigger-variant="quiet"
+            trigger-size="xs"
+            trigger-class="gcode-chip"
+            trigger-on-strong
+            trigger-icon-only
+          >
+            <template #trigger>
+              <AppIcon name="info" class="size-4 shrink-0" aria-hidden="true" />
+            </template>
+            <template #default>
+              <GcodeInfoPanel
+                :layers="layerCount"
+                :moves="loaded.segmentCount"
+                :extrusions="loaded.extrusionCount"
+                :travels="loaded.travelCount"
+                :size="loaded.size"
+                :tier="activeTier"
+                :recovered="recoveredFromFailedLoad"
+                :metadata="metadata"
+                :format-size="formatFileSize"
+                :format-duration="formatDuration"
               />
-            </div>
-            <AppButton
-              v-if="currentPrintFile"
-              block
-              icon="print"
-              :label="t('gcodeViewer.files.loadCurrent')"
-              class="mt-2"
-              :disabled="loading"
-              @click="loadCurrentPrint"
-            />
-          </AvailabilityRegion>
-          <div class="gcode-file-divider">
-            <span>{{ t('gcodeViewer.files.or') }}</span>
-          </div>
-          <input
-            ref="localFileInput"
-            hidden
-            type="file"
-            accept=".gcode,.g,.gco,.nc,text/plain"
-            @change="handleLocalFile"
+            </template>
+          </HeaderMenu>
+          <AppButton
+            v-if="loaded"
+            class="gcode-chip"
+            variant="quiet"
+            size="xs"
+            icon-only
+            on-strong
+            icon="refresh"
+            :aria-label="t('gcodeViewer.view.reset')"
+            @click="resetView"
           />
           <AppButton
-            block
-            icon="fileText"
-            :label="t('gcodeViewer.files.openLocal')"
-            :disabled="loading"
-            @click="chooseLocalFile"
+            v-if="loaded"
+            class="gcode-chip"
+            variant="quiet"
+            size="xs"
+            icon-only
+            on-strong
+            icon="snapshot"
+            :aria-label="t('gcodeViewer.view.screenshot')"
+            @click="captureScreenshot"
           />
-        </section>
-
-        <section class="gcode-control-card">
-          <h2>{{ t('gcodeViewer.layers.title') }}</h2>
-          <AppSlider
-            :label="t('gcodeViewer.layers.layer')"
-            :model-value="selectedLayer"
-            :min="0"
-            :max="Math.max(0, layerCount - 1)"
-            :step="1"
-            :steppers="false"
-            commit-on-drag
-            :disabled="!loaded || simulationEnabled"
-            @commit="handleLayerInput"
-          >
-            <template v-if="loaded" #reading>
-              {{
-                t('gcodeViewer.layers.value', {
-                  current: selectedLayer + 1,
-                  total: layerCount,
-                  height: decimalFormatter.format(layerHeight),
-                })
-              }}
-            </template>
-          </AppSlider>
-          <!--
-            The floor of the same range. At zero this is exactly the old "show
-            previous layers" behavior; raised, it cuts a cross-section that no
-            single-thumb slider could express.
-          -->
-          <AppSlider
-            v-if="showPreviousLayers"
-            :label="t('gcodeViewer.layers.floor')"
-            :model-value="layerFloor"
-            :min="0"
-            :max="Math.max(0, layerCount - 1)"
-            :step="1"
-            :steppers="false"
-            commit-on-drag
-            :disabled="!loaded || simulationEnabled"
-            @commit="handleLayerFloorInput"
-          >
-            <template v-if="loaded" #reading>
-              {{
-                t('gcodeViewer.layers.value', {
-                  current: layerFloor + 1,
-                  total: layerCount,
-                  height: decimalFormatter.format(layerFloorHeight),
-                })
-              }}
-            </template>
-          </AppSlider>
-          <label class="check-row gcode-check-row">
-            <input v-model="showPreviousLayers" type="checkbox" />
-            <span>{{ t('gcodeViewer.layers.previous') }}</span>
-          </label>
-          <label class="check-row gcode-check-row">
-            <input v-model="showTravels" type="checkbox" />
-            <span>{{ t('gcodeViewer.layers.travels') }}</span>
-          </label>
-          <AvailabilityRegion requires="klipper" disable-interaction>
-            <label class="check-row gcode-check-row">
-              <input v-model="liveTracking" type="checkbox" :disabled="simulationEnabled" />
-              <span>{{ t('gcodeViewer.layers.toolhead') }}</span>
-            </label>
-          </AvailabilityRegion>
-        </section>
-
-        <section class="gcode-control-card">
-          <h2>{{ t('gcodeViewer.color.title') }}</h2>
-          <div class="segmented" role="group" :aria-label="t('gcodeViewer.color.title')">
-            <AppButton
-              v-for="mode in colorModes"
-              :key="mode"
-              size="sm"
-              mono
-              :aria-pressed="colorMode === mode"
-              @click="colorMode = mode"
-            >
-              {{ t(`gcodeViewer.color.modes.${mode}`) }}
-            </AppButton>
-          </div>
-          <p v-if="colorMode === 'feedrate'" class="gcode-quality-state">
-            {{
-              t('gcodeViewer.color.feedRange', {
-                slow: feedrateRangeLabel.slow,
-                fast: feedrateRangeLabel.fast,
-              })
-            }}
-          </p>
-          <label class="check-row gcode-check-row">
-            <input
-              type="checkbox"
-              :checked="highlightSeams"
-              @change="setHighlightSeams(($event.target as HTMLInputElement).checked)"
-            />
-            <span>{{ t('gcodeViewer.color.seams') }}</span>
-          </label>
-        </section>
-
-        <section class="gcode-control-card">
-          <h2>{{ t('gcodeViewer.quality.title') }}</h2>
-          <p class="gcode-view-description">{{ t('gcodeViewer.quality.description') }}</p>
-          <div class="segmented" role="group" :aria-label="t('gcodeViewer.quality.title')">
-            <AppButton
-              v-for="mode in qualityModes"
-              :key="mode"
-              size="sm"
-              mono
-              :aria-pressed="qualityMode === mode"
-              @click="setQualityMode(mode)"
-            >
-              {{ t(`gcodeViewer.quality.modes.${mode}`) }}
-            </AppButton>
-          </div>
-          <p v-if="qualityMode === 'auto'" class="gcode-quality-state">
-            {{
-              qualityStep === 0
-                ? t('gcodeViewer.quality.stateFull')
-                : t('gcodeViewer.quality.stateReduced', {
-                    step: qualityStep,
-                    total: qualityStepTotal,
-                  })
-            }}
-          </p>
-          <p v-else-if="qualityMode === 'performance'" class="gcode-quality-state">
-            {{ t('gcodeViewer.quality.stateSquareBeads') }}
-          </p>
-        </section>
-
-        <section v-if="loaded" class="gcode-control-card">
-          <button
-            type="button"
-            class="gcode-statistics-toggle"
-            :aria-expanded="statisticsOpen"
-            @click="statisticsOpen = !statisticsOpen"
-          >
-            <h2>{{ t('gcodeViewer.statistics.title') }}</h2>
-            <AppIcon :name="statisticsOpen ? 'up' : 'down'" class="size-4" aria-hidden="true" />
-          </button>
-          <dl v-if="statisticsOpen" class="gcode-statistics">
-            <div>
-              <dt>{{ t('gcodeViewer.statistics.layers') }}</dt>
-              <dd>{{ numberFormatter.format(layerCount) }}</dd>
-            </div>
-            <div>
-              <dt>{{ t('gcodeViewer.statistics.moves') }}</dt>
-              <dd>{{ numberFormatter.format(loaded.segmentCount) }}</dd>
-            </div>
-            <div>
-              <dt>{{ t('gcodeViewer.statistics.extrusions') }}</dt>
-              <dd>{{ numberFormatter.format(loaded.extrusionCount) }}</dd>
-            </div>
-            <div>
-              <dt>{{ t('gcodeViewer.statistics.travels') }}</dt>
-              <dd>{{ numberFormatter.format(loaded.travelCount) }}</dd>
-            </div>
-            <div>
-              <dt>{{ t('gcodeViewer.statistics.fileSize') }}</dt>
-              <dd>{{ formatFileSize(loaded.size) }}</dd>
-            </div>
-          </dl>
-        </section>
-      </aside>
-
-      <div class="gcode-viewer-workspace">
-        <div class="gcode-viewer-panel">
-          <div
-            ref="stage"
-            class="gcode-viewer-stage"
-            :data-pending="loading || undefined"
-            :data-drag-mode="pointerDrag?.mode"
-            :data-toolhead-mode="
-              simulationEnabled
-                ? 'simulation'
-                : plannedFollowActive
-                  ? 'planned'
-                  : toolheadVisible
-                    ? 'telemetry'
-                    : undefined
-            "
-            tabindex="0"
-            role="img"
-            :aria-label="t('gcodeViewer.stageLabel')"
-            :aria-describedby="loaded ? 'gcode-viewer-help' : undefined"
-            @wheel.prevent="handleWheel"
-            @pointerdown.prevent="handlePointerDown"
-            @pointermove="handlePointerMove"
-            @pointerup="handlePointerEnd"
-            @pointercancel="handlePointerEnd"
-            @auxclick.prevent
-            @dragstart.prevent
-            @contextmenu.prevent
-            @dblclick="resetView"
-            @keydown="handleStageKeydown"
-          >
-            <canvas ref="sceneCanvas" class="gcode-viewer-canvas" aria-hidden="true"></canvas>
-            <canvas ref="overlayCanvas" class="gcode-viewer-canvas" aria-hidden="true"></canvas>
-
-            <div v-if="!loaded && !loading && !viewerError" class="gcode-viewer-empty">
-              <span class="gcode-viewer-empty__mark" aria-hidden="true">
-                <AppIcon name="viewer" class="size-10" />
-              </span>
-              <h2>{{ t('gcodeViewer.empty.title') }}</h2>
-              <p>{{ t('gcodeViewer.empty.description') }}</p>
-            </div>
-
-            <div v-if="viewerError" class="gcode-viewer-empty" role="alert">
-              <span class="gcode-viewer-empty__mark" aria-hidden="true">
-                <AppIcon name="emergency" class="size-9" />
-              </span>
-              <h2>{{ errorTitle }}</h2>
-              <p>{{ errorDescription }}</p>
-            </div>
-
-            <div v-if="loading" class="gcode-loading-card" role="status" aria-live="polite">
-              <div class="min-w-0">
-                <p>{{ t('gcodeViewer.loading.title') }}</p>
-                <strong :title="loadingName">{{ loadingName }}</strong>
-              </div>
-              <span v-if="loadPercent !== null" class="font-mono font-black tabular-nums"
-                >{{ loadPercent }}{{ t('dashboard.percentUnit') }}</span
-              >
-              <div class="gcode-loading-track" aria-hidden="true">
-                <span v-if="loadPercent !== null" :style="{ width: `${loadPercent}%` }"></span>
-              </div>
-              <AppButton
-                size="sm"
-                on-strong
-                :label="t('gcodeViewer.loading.cancel')"
-                @click="cancelLoad"
-              />
-              <p class="gcode-loading-note">{{ t('gcodeViewer.loading.followGate') }}</p>
-            </div>
-
-            <!--
-              Swatches are painted from the same resolved tokens the renderer
-              uploads. They used to be Tailwind palette utilities that only
-              coincidentally matched, so a theme pack changing a viewer color
-              made the legend quietly wrong.
-            -->
-            <div v-if="loaded" class="gcode-viewer-legend" aria-hidden="true">
-              <span v-for="entry in legendEntries" :key="entry.key"
-                ><i :style="{ background: entry.color }"></i>{{ entry.label }}</span
-              >
-              <span v-if="showTravels"
-                ><i class="gcode-legend-travel"></i>{{ t('gcodeViewer.legend.travel') }}</span
-              >
-              <span v-if="toolheadVisible"
-                ><i class="gcode-legend-toolhead"></i
-                >{{
-                  simulationEnabled
-                    ? t('gcodeViewer.legend.simulationToolhead')
-                    : t('gcodeViewer.legend.toolhead')
-                }}</span
-              >
-            </div>
-
-            <!--
-              Over-canvas controls take their own stacking layer: the canvas
-              raises itself to claim the drag, so a positioned sibling left on
-              the default z-index paints underneath it and every click lands on
-              transparent canvas instead.
-            -->
-            <div class="gcode-viewer-chips" @pointerdown.stop>
-              <AppButton
-                v-if="loaded"
-                on-strong
-                icon-only
-                icon="zoomOut"
-                :aria-label="t('gcodeViewer.view.zoomOut')"
-                :title="t('gcodeViewer.view.zoomOut')"
-                @click.stop="zoomBy(1 / 1.2)"
-              />
-              <AppButton
-                v-if="loaded"
-                on-strong
-                icon-only
-                icon="zoomIn"
-                :aria-label="t('gcodeViewer.view.zoomIn')"
-                :title="t('gcodeViewer.view.zoomIn')"
-                @click.stop="zoomBy(1.2)"
-              />
-              <AppButton
-                v-if="loaded"
-                on-strong
-                icon-only
-                icon="refresh"
-                :aria-label="t('gcodeViewer.view.reset')"
-                :title="t('gcodeViewer.view.reset')"
-                @click.stop="resetView"
-              />
-              <AppButton
-                v-if="loaded"
-                on-strong
-                icon-only
-                icon="snapshot"
-                :aria-label="t('gcodeViewer.view.screenshot')"
-                :title="t('gcodeViewer.view.screenshot')"
-                @click.stop="captureScreenshot"
-              />
-              <AppButton
-                on-strong
-                icon-only
-                icon="settings"
-                :aria-label="t('gcodeViewer.settings.open')"
-                :title="t('gcodeViewer.settings.open')"
-                @click.stop="settingsOpen = true"
-              />
-            </div>
-          </div>
-
-          <!-- Outside the stage so dialog pointer events never start a camera drag. -->
-          <ConfirmDialog
-            :open="pendingLoad !== null"
-            :title="t('gcodeViewer.confirmLoad.title')"
-            :description="
-              pendingLoad
-                ? t('gcodeViewer.confirmLoad.description', {
-                    name: pendingLoad.name,
-                    size: formatFileSize(pendingLoad.size),
-                  })
-                : undefined
-            "
-            :confirm-label="t('gcodeViewer.confirmLoad.confirm')"
-            @confirm="confirmPendingLoad"
-            @cancel="cancelPendingLoad"
+          <AppButton
+            class="gcode-chip"
+            variant="quiet"
+            size="xs"
+            icon-only
+            on-strong
+            icon="settings"
+            :aria-label="t('gcodeViewer.settings.open')"
+            @click="settingsOpen = true"
           />
-          <GcodeViewerSettingsDialog
-            :open="settingsOpen"
-            :orbit-mode="orbitMode"
-            :snap-to-center="snapToCenter"
-            :highlight-seams="highlightSeams"
-            :nozzle-diameter="nozzleDiameterOverride"
-            :machine-nozzle-diameter="machineNozzleDiameter"
-            @select="setOrbitMode"
-            @update:snap-to-center="setSnapToCenter"
-            @update:highlight-seams="setHighlightSeams"
-            @update:nozzle-diameter="setNozzleDiameterOverride"
-            @close="settingsOpen = false"
-          />
-
-          <section v-if="loaded" class="gcode-simulation-panel" :data-active="simulationEnabled">
-            <header>
-              <div>
-                <h2>{{ t('gcodeViewer.simulation.title') }}</h2>
-              </div>
-              <AppButton
-                size="sm"
-                :label="
-                  simulationEnabled
-                    ? t('gcodeViewer.simulation.exit')
-                    : t('gcodeViewer.simulation.enter')
-                "
-                :aria-pressed="simulationEnabled"
-                @click="toggleSimulationMode"
-              />
-            </header>
-            <div v-if="simulationEnabled" class="gcode-simulation-controls">
-              <AppSlider
-                class="gcode-simulation-scrubber"
-                :label="t('gcodeViewer.simulation.position')"
-                :model-value="simulationCursor"
-                :min="0"
-                :max="loaded.segmentCount"
-                :step="1"
-                :steppers="false"
-                commit-on-drag
-                @commit="handleSimulationInput"
-              >
-                <template #reading>
-                  {{
-                    t('gcodeViewer.simulation.moveValue', {
-                      current: numberFormatter.format(Math.floor(simulationMove)),
-                      total: numberFormatter.format(loaded.segmentCount),
-                    })
-                  }}
-                </template>
-              </AppSlider>
-              <div class="gcode-simulation-transport">
-                <AppButton
-                  icon-only
-                  icon="refresh"
-                  :aria-label="t('gcodeViewer.simulation.restart')"
-                  :title="t('gcodeViewer.simulation.restart')"
-                  @click="restartSimulation"
-                />
-                <AppButton
-                  variant="primary"
-                  icon-only
-                  :icon="simulationPlaying ? 'pause' : 'play'"
-                  :aria-label="
-                    simulationPlaying
-                      ? t('gcodeViewer.simulation.pause')
-                      : t('gcodeViewer.simulation.play')
-                  "
-                  :title="
-                    simulationPlaying
-                      ? t('gcodeViewer.simulation.pause')
-                      : t('gcodeViewer.simulation.play')
-                  "
-                  @click="toggleSimulationPlayback"
-                />
-                <AppButton
-                  icon-only
-                  icon="skipForward"
-                  :aria-label="t('gcodeViewer.simulation.finish')"
-                  :title="t('gcodeViewer.simulation.finish')"
-                  @click="finishSimulation"
-                />
-                <div
-                  class="segmented gcode-simulation-speeds"
-                  :aria-label="t('gcodeViewer.simulation.speedLabel')"
-                  role="group"
-                >
-                  <AppButton
-                    v-for="speed in simulationSpeeds"
-                    :key="speed"
-                    size="sm"
-                    mono
-                    :aria-pressed="simulationSpeed === speed"
-                    @click="simulationSpeed = speed"
-                  >
-                    {{ t('gcodeViewer.simulation.speedValue', { speed }) }}
-                  </AppButton>
-                </div>
-              </div>
-            </div>
-          </section>
         </div>
-        <p id="gcode-viewer-help" class="mt-3 text-xs leading-5 text-muted">
-          {{ t('gcodeViewer.help') }}
-        </p>
+
+        <GcodeLayerRail
+          v-if="loaded && layerMaximum > 0"
+          :maximum="layerMaximum"
+          :top="layerTop"
+          :bottom="layerBottom"
+          :heights="loaded.layerHeights"
+          :disabled-reason="layerRailDisabledReason"
+          @update:top="layerTop = $event"
+          @update:bottom="layerBottom = $event"
+        />
+
+        <GcodeLegend :entries="legendEntries" />
+
+        <GcodeTransportBar
+          v-if="loaded || loading"
+          :state="transportState"
+          :loading-name="loadingName"
+          :loading-percent="loadPercent"
+          :following="following"
+          :follow-available="loadedIsCurrentPrint"
+          :follow-unavailable-reason="followUnavailableReason"
+          :live-progress="livePrintProgress"
+          :cursor="simulationCursor"
+          :total-moves="loaded?.segmentCount ?? 0"
+          :playing="simulationPlaying"
+          :speed="simulationSpeed"
+          :speeds="simulationSpeeds"
+          @cancel="cancelLoad"
+          @update:following="chooseFollowing"
+          @seek="handleSeek"
+          @play="handlePlay"
+          @pause="stopSimulationPlayback"
+          @restart="handleRestart"
+          @finish="handleFinish"
+          @update:speed="simulationSpeed = $event as (typeof simulationSpeeds)[number]"
+        />
       </div>
     </div>
+
+    <input
+      ref="localFileInput"
+      class="sr-only"
+      type="file"
+      accept=".gcode,.g,.gco,.nc,text/plain"
+      @change="handleLocalFile"
+    />
+
+    <GcodeViewerSettingsDialog
+      :open="settingsOpen"
+      :machine-nozzle-diameter="machineNozzleDiameter"
+      :nozzle-diameter="nozzleDiameterOverride"
+      @update:nozzle-diameter="setNozzleDiameterOverride"
+      @close="settingsOpen = false"
+    />
+
+    <!--
+      Deliberately outside the stage: a dialog's pointer events landing on the
+      canvas would start a camera drag behind it.
+    -->
+    <ConfirmDialog
+      :open="pendingLoad !== null"
+      :title="t('gcodeViewer.confirmLoad.title')"
+      :description="
+        t('gcodeViewer.confirmLoad.description', {
+          name: pendingLoad?.name ?? '',
+          size: formatFileSize(pendingLoad?.size ?? 0),
+        })
+      "
+      :confirm-label="t('gcodeViewer.confirmLoad.confirm')"
+      @confirm="confirmPendingLoad"
+      @cancel="pendingLoad = null"
+    />
   </section>
 </template>

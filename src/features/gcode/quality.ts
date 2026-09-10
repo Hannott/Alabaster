@@ -1,71 +1,37 @@
 /**
- * Adaptive render quality for the G-code viewer.
+ * How much detail the G-code viewer draws, and who decides.
  *
- * Detail used to be chosen from camera distance alone, which says what a frame
- * *costs* but nothing about what the machine can *afford*. The result was that
- * a weak GPU drew full-detail geometry at whatever frame rate it could manage
- * and a strong one left headroom unused. This governor measures actual frame
- * intervals and spends that measurement, in a fixed order:
+ * Two levers, chosen deliberately, because they cost very different things:
  *
- * 1. **Tier bias** — engage the reduced streams sooner. Cheapest first because
- *    it costs the least visible quality per frame saved.
- * 2. **Resolution scale** — render fewer device pixels and let the browser
- *    scale up. Visible as softness, but it never changes what is on screen.
- * 3. **Contact shadow** — dropped last, because losing it flattens the scene.
+ * - **Tier** is the library's vertex budget, which it meets by picking a
+ *   cheaper representation (solid beads, then lines, then points) and drawing
+ *   fewer of them. It is the lever that makes a large file possible at all on
+ *   hardware with no discrete GPU — and changing it reparses the whole file,
+ *   so it is chosen once per load and never while the user is orbiting.
+ * - **Resolution** is how many device pixels the scene is drawn at. It moves
+ *   between two frames for free, and on the fragment-bound hardware this
+ *   viewer was failing on it is the lever that actually shifts frame time.
  *
- * What it never touches: the reveal semantics, the rule that the active layer
- * stays segment-exact, the overlay's frame rate, and color. A viewer that
- * changed what "printed so far" means under load would be lying to save time.
+ * So the governor below measures frames and spends only the free lever. The
+ * expensive one is a decision, made from the mode the user picked and from
+ * what this device has already been seen to manage.
+ *
+ * What neither lever ever touches: the reveal semantics, the byte cursor,
+ * the overlay's frame rate, and colour. A viewer that changed what "printed
+ * so far" means under load would be lying to save time.
  */
 
-import type { GcodeBeadProfile, GcodeSubPixelStrategy } from '@/features/gcode/types'
+import type { GcodeRenderTier } from '@/features/gcode/scene'
 
 export type GcodeQualityMode = 'quality' | 'auto' | 'performance'
 
-/**
- * Bead shape is the one quality decision the governor does not get to make.
- *
- * Every other lever above is invisible enough to move under load: a tier engages,
- * pixels soften, a shadow drops. A bead's cross-section is the most visible thing
- * on screen, and having it change shape mid-orbit because a few frames ran long
- * would read as a rendering fault rather than as an adaptation. So it follows the
- * mode the user chose and nothing else — square only where they asked for speed
- * over fidelity, and constant for as long as they leave that setting alone.
- */
-export function gcodeBeadProfileFor(mode: GcodeQualityMode): GcodeBeadProfile {
-  return mode === 'performance' ? 'square' : 'round'
-}
-
-/**
- * What to do where a surface has stopped holding together on screen.
- *
- * Far enough out, a print's sparse interior starts showing through the layers
- * above it, because those gaps are real: a layer of infill covers only about a
- * third of its own footprint, and the rest genuinely is a view down into the
- * part. Measured on a 115 MB model, one layer drawn alone covered 13,081 of
- * the 40,998 pixels its whole stack covered.
- *
- * That leaves a real choice rather than a bug to fix. `preserve` draws beads
- * at the width the file says and lets the interior show, which is honest and
- * is information — infill density and direction are readable from it — but at
- * a distance reads as speckle. `widen` grows beads once they are too small to
- * resolve until the gaps close, so the model reads as one solid object, at the
- * cost of hiding structure that is really there.
- *
- * Neither is correct in general, so it follows the mode: the mode that exists
- * for fidelity keeps the truth, and the mode that exists for speed takes the
- * cheaper, calmer picture.
- */
-export function gcodeSubPixelStrategyFor(mode: GcodeQualityMode): GcodeSubPixelStrategy {
-  return mode === 'performance' ? 'widen' : 'preserve'
-}
-
 export interface GcodeQualityState {
-  /** Multiplies the pixel thresholds that select a tier; higher reduces sooner. */
-  tierBias: number
-  /** Device-pixel-ratio cap for the scene canvas. */
+  /**
+   * Device-pixel-ratio cap for the scene. Below 1 the scene is drawn under
+   * CSS resolution and scaled up, which looks soft and is the difference
+   * between usable and not on a weak integrated GPU.
+   */
   resolutionScale: number
-  contactShadow: boolean
 }
 
 export interface GcodeQualitySettings {
@@ -74,6 +40,13 @@ export interface GcodeQualitySettings {
   slowFramesBeforeDegrading: number
   fastFramesBeforeRecovering: number
   sampleWindow: number
+  /**
+   * Slow frames at the bottom of the ladder before the device is judged
+   * unable to hold this tier at all. Deliberately far larger than
+   * `slowFramesBeforeDegrading`: degrading is free and reversible, while
+   * writing a lower ceiling changes what the *next* load looks like.
+   */
+  slowFramesBeforeLoweringTier: number
 }
 
 export const defaultGcodeQualitySettings: GcodeQualitySettings = {
@@ -84,34 +57,71 @@ export const defaultGcodeQualitySettings: GcodeQualitySettings = {
   slowFramesBeforeDegrading: 12,
   fastFramesBeforeRecovering: 90,
   sampleWindow: 30,
+  slowFramesBeforeLoweringTier: 180,
 }
 
 /**
- * The ladder every mode moves along. Index 0 is full quality; each step gives
- * up the next cheapest thing. Named steps rather than free-floating numbers so
- * the sequence is reviewable and a step can never be half-applied.
+ * The resolution ladder. Index 0 draws every device pixel; the last rung
+ * draws one pixel for every four. Named rungs rather than a formula so the
+ * sequence is reviewable and a rung can never be half-applied.
  */
-const qualitySteps: readonly GcodeQualityState[] = [
-  { tierBias: 1, resolutionScale: 2, contactShadow: true },
-  { tierBias: 1.6, resolutionScale: 2, contactShadow: true },
-  { tierBias: 1.6, resolutionScale: 1.5, contactShadow: true },
-  { tierBias: 2.4, resolutionScale: 1, contactShadow: true },
-  { tierBias: 2.4, resolutionScale: 0.75, contactShadow: true },
-  { tierBias: 3.2, resolutionScale: 0.75, contactShadow: false },
+const resolutionSteps: readonly GcodeQualityState[] = [
+  { resolutionScale: 2 },
+  { resolutionScale: 1.5 },
+  { resolutionScale: 1 },
+  { resolutionScale: 0.85 },
+  { resolutionScale: 0.7 },
+  { resolutionScale: 0.5 },
 ]
 
-export const gcodeQualityStepCount = qualitySteps.length
+export const gcodeQualityStepCount = resolutionSteps.length
 
 function stepFor(index: number): GcodeQualityState {
-  const clamped = Math.min(qualitySteps.length - 1, Math.max(0, index))
-  return qualitySteps[clamped] ?? qualitySteps[0]!
+  const clamped = Math.min(resolutionSteps.length - 1, Math.max(0, index))
+  return resolutionSteps[clamped] ?? resolutionSteps[0]!
 }
 
-/** Where each mode starts, and how far it is allowed to move. */
+/** Where each mode starts on the resolution ladder, and how far it may move. */
 function boundsFor(mode: GcodeQualityMode): { start: number; minimum: number; maximum: number } {
+  // Quality is pinned: someone taking a screenshot asked to wait.
   if (mode === 'quality') return { start: 0, minimum: 0, maximum: 0 }
-  if (mode === 'performance') return { start: 2, minimum: 0, maximum: qualitySteps.length - 1 }
-  return { start: 0, minimum: 0, maximum: qualitySteps.length - 1 }
+  if (mode === 'performance') return { start: 2, minimum: 0, maximum: resolutionSteps.length - 1 }
+  return { start: 0, minimum: 0, maximum: resolutionSteps.length - 1 }
+}
+
+/**
+ * The highest tier this device has been seen to hold. Learned from real use
+ * rather than from a synthetic benchmark: the first load runs at the mode's
+ * nominal tier, and if the governor runs out of resolution ladder while frames
+ * are still long, the ceiling drops and the *next* load starts cheaper.
+ *
+ * Stored per browser, never synced — it is a fact about this machine, and
+ * carrying it to another screen would be carrying the wrong answer there.
+ */
+export const defaultGcodeTierCeiling: GcodeRenderTier = 4
+
+/**
+ * Above this many bytes a file starts one tier below the ceiling. A tier is a
+ * vertex budget, so the same budget on a much larger file means much heavier
+ * decimation anyway; starting lower reaches the same picture without the
+ * reparse that finding out the hard way would cost.
+ */
+export const gcodeLargeFileTierBytes = 60 * 1_048_576
+
+export function gcodeTierFor(
+  mode: GcodeQualityMode,
+  tierCeiling: GcodeRenderTier,
+  fileBytes: number,
+): GcodeRenderTier {
+  if (mode === 'quality') return 5
+  const large = fileBytes > gcodeLargeFileTierBytes
+  if (mode === 'performance') return large ? 1 : 2
+  const stepped = large ? tierCeiling - 1 : tierCeiling
+  return Math.min(5, Math.max(1, stepped)) as GcodeRenderTier
+}
+
+export function isGcodeRenderTier(value: unknown): value is GcodeRenderTier {
+  return value === 1 || value === 2 || value === 3 || value === 4 || value === 5
 }
 
 export interface GcodeQualityReport {
@@ -119,12 +129,19 @@ export interface GcodeQualityReport {
   state: GcodeQualityState
   medianFrameMilliseconds: number
   changed: boolean
+  /**
+   * True on the one sample where the ladder has been exhausted and frames are
+   * still long. The page lowers the stored tier ceiling when it sees this,
+   * which is the only thing that makes the next load cheaper.
+   */
+  tierExhausted: boolean
 }
 
 export class GcodeQualityGovernor {
   private intervals: number[] = []
   private slowFrames = 0
   private fastFrames = 0
+  private slowFramesAtFloor = 0
   private step: number
   private mode: GcodeQualityMode
 
@@ -140,9 +157,15 @@ export class GcodeQualityGovernor {
     this.mode = mode
     const bounds = boundsFor(mode)
     this.step = Math.min(bounds.maximum, Math.max(bounds.minimum, bounds.start))
+    this.reset()
+  }
+
+  /** Called on every load: a new file is a new measurement. */
+  reset(): void {
     this.intervals = []
     this.slowFrames = 0
     this.fastFrames = 0
+    this.slowFramesAtFloor = 0
   }
 
   state(): GcodeQualityState {
@@ -168,9 +191,11 @@ export class GcodeQualityGovernor {
       if (intervalMilliseconds > this.settings.targetFrameMilliseconds) {
         this.slowFrames += 1
         this.fastFrames = 0
+        if (this.step >= bounds.maximum) this.slowFramesAtFloor += 1
       } else if (intervalMilliseconds < this.settings.recoverFrameMilliseconds) {
         this.fastFrames += 1
         this.slowFrames = 0
+        this.slowFramesAtFloor = 0
       }
     }
 
@@ -191,7 +216,18 @@ export class GcodeQualityGovernor {
       this.intervals = []
     }
 
-    return { step: this.step, state: stepFor(this.step), medianFrameMilliseconds: median, changed }
+    const tierExhausted = this.slowFramesAtFloor >= this.settings.slowFramesBeforeLoweringTier
+    // Reported once: lowering the ceiling twice for one bad stretch would walk
+    // a merely busy machine down to the cheapest tier it has.
+    if (tierExhausted) this.slowFramesAtFloor = 0
+
+    return {
+      step: this.step,
+      state: stepFor(this.step),
+      medianFrameMilliseconds: median,
+      changed,
+      tierExhausted,
+    }
   }
 
   private medianInterval(): number {

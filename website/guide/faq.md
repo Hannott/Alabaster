@@ -94,12 +94,12 @@ sideways.
 
 ## The G-code viewer will not open
 
-It needs WebGL 2. Nothing else in Alabaster does, so the rest of the interface
-works normally on a device without it.
+It needs hardware 3D rendering through WebGL 2. Nothing else in Alabaster
+does, so the rest of the interface works normally on a device without it.
 
-If it opens but stutters, set **Rendering quality** to Performance. This
-setting keeps the viewer usable on a phone or the Pi's own browser, where it
-would otherwise stall.
+If it opens but stutters, set **Rendering quality** to Performance, which
+starts every file at a lower detail level. The viewer also remembers a device
+that struggled and starts the next file lower on its own.
 
 ## Do I have to install alabaster.cfg?
 

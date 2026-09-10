@@ -1,35 +1,43 @@
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { readdirSync, readFileSync } from 'node:fs'
+import { extname, join } from 'node:path'
 
 import { describe, expect, it } from 'vitest'
 
-import { defaultGcodeNozzleDiameter } from '@/features/gcode/types'
+import { gcodeSourceByteStride, defaultGcodeNozzleDiameter } from '@/features/gcode/types'
 import { navigationDestinations } from '@/navigation/destinations'
 
 const sourceRoot = join(process.cwd(), 'src')
-const loader = readFileSync(join(sourceRoot, 'features', 'gcode', 'loader.ts'), 'utf8')
-const renderer = readFileSync(join(sourceRoot, 'features', 'gcode', 'renderer.ts'), 'utf8')
-const decimate = readFileSync(join(sourceRoot, 'features', 'gcode', 'decimate.ts'), 'utf8')
+const gcodeRoot = join(sourceRoot, 'features', 'gcode')
+const loader = readFileSync(join(gcodeRoot, 'loader.ts'), 'utf8')
+const parser = readFileSync(join(gcodeRoot, 'parser.ts'), 'utf8')
+const scene = readFileSync(join(gcodeRoot, 'scene.ts'), 'utf8')
+const adapter = readFileSync(join(gcodeRoot, 'vendor', 'libraryRenderer.ts'), 'utf8')
+const quality = readFileSync(join(gcodeRoot, 'quality.ts'), 'utf8')
 const viewer = readFileSync(join(sourceRoot, 'views', 'GcodeViewerView.vue'), 'utf8')
 const app = readFileSync(join(sourceRoot, 'App.vue'), 'utf8')
+
+const libraryName = '@sindarius/gcodeviewer'
+
+function sourceFiles(directory: string): string[] {
+  return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    const path = join(directory, entry.name)
+    if (entry.isDirectory()) return sourceFiles(path)
+    return ['.ts', '.vue'].includes(extname(entry.name)) ? [path] : []
+  })
+}
 
 /**
  * These are architectural invariants, not implementation pins. Each one names
  * the failure it prevents, and each is written to survive the viewer being
- * restructured — asserting relationships (every X also does Y) rather than
- * exact source lines, so the redesign can move code without tripping guards
- * that only ever described the old shape.
+ * restructured — asserting relationships rather than exact source lines.
+ *
+ * The set changed shape when the hand-written WebGL renderer was replaced by a
+ * library (ADR 0011). The invariants that described shader internals are gone
+ * with the shaders; what replaced them are the rules that keep the *seam*
+ * real, because a seam nothing enforces is a seam that leaks one call at a
+ * time until the next renderer swap is a rewrite again.
  */
-
-/** Every template-literal shader source assigned to a `...FragmentShaderSource` const. */
-function fragmentShaderSources(source: string): Array<{ name: string; body: string }> {
-  return [...source.matchAll(/const (\w+FragmentShaderSource) = `([^`]*)`/g)].map((match) => ({
-    name: match[1] ?? '',
-    body: match[2] ?? '',
-  }))
-}
-
-describe('G-code viewer performance architecture', () => {
+describe('G-code viewer architecture', () => {
   /**
    * Parsing a large file on the main thread freezes the whole interface for
    * its duration. The parser must stay in a module worker created from the
@@ -41,272 +49,253 @@ describe('G-code viewer performance architecture', () => {
   })
 
   /**
-   * The renderer draws every bead by instancing a procedural pill profile over
-   * the raw parse buffers. Building per-segment geometry on the CPU instead is
-   * how a viewer ends up rebuilding megabytes of vertices on every state
-   * change; the endpoint offsets are what keep a move one width from start to
-   * finish instead of tapering into its neighbors.
-   */
-  it('renders instanced pill geometry straight from the parse buffers', () => {
-    expect(renderer).toContain('drawArraysInstanced')
-    expect(renderer).toContain('pill_profile')
-    expect(renderer).toContain('a_endpoint_offset')
-    expect(renderer).toContain('a_extrusion_height')
-  })
-
-  /**
-   * In follow mode, geometry ahead of the playback cursor on the active layer
-   * must be absent, not dimmed — and identically so in every program that
-   * knows about print progress, or zooming (which switches programs via LOD)
-   * would change what "printed so far" means. Every fragment shader that
-   * reads the progress uniform must therefore also implement the reveal rule
-   * and be able to discard.
-   */
-  it('applies the reveal rule in every program that knows print progress', () => {
-    const sources = fragmentShaderSources(renderer)
-    expect(sources.length).toBeGreaterThanOrEqual(3)
-    const progressAware = sources.filter((shader) => shader.body.includes('u_print_progress'))
-    expect(progressAware.length).toBeGreaterThanOrEqual(2)
-    for (const shader of progressAware) {
-      expect(shader.body, `${shader.name} reads progress without the reveal rule`).toContain(
-        'u_reveal_current_layer',
-      )
-      expect(shader.body, `${shader.name} cannot hide unprinted geometry`).toContain('discard')
-    }
-  })
-
-  /**
-   * Far-zoom detail is reduced by drawing fewer beads of the same procedural
-   * geometry — never by substituting a different kind of object. A voxel or
-   * box-column mode is what this replaced, and reintroducing one would undo
-   * the visual reason the ladder exists. Note that this is about aggregating
-   * many moves into one substitute object: a bead may still change its own
-   * cross-section, which is what the rendering-quality setting does below.
-   */
-  it('reduces far detail with fewer beads, not a substitute shape', () => {
-    // Every tier renders through the one instanced toolpath program.
-    expect(renderer).not.toMatch(/surfaceProgram|drawSurfaceLod|surfaceColumn/)
-    expect(renderer).toContain("type GcodeLod = 'full' | 'reduced' | 'decimated' | 'coarse'")
-    // Detail follows projected bead size alone: travel and seam toggles must
-    // never gate a tier again, which is what once made those two settings
-    // silently disable the far LOD on exactly the largest files.
-    const lodFor = renderer.slice(renderer.indexOf('private lodFor('))
-    const lodBody = lodFor.slice(0, lodFor.indexOf('\n  }'))
-    expect(lodBody).toContain('extrusionPixels')
-    expect(lodBody).not.toContain('showTravels')
-    expect(lodBody).not.toContain('highlightSeams')
-  })
-
-  /**
-   * The bead's cross-section answers to the rendering-quality setting and to
-   * nothing else. Every other quality lever is invisible enough to move under
-   * load — a tier engages, pixels soften, a shadow drops — but a bead changing
-   * shape mid-orbit because a few frames ran long reads as a rendering fault.
-   * So the tier selector must not see the profile, and the profile must not be
-   * derived from the camera.
-   */
-  it('takes bead shape from the quality mode, never from the camera', () => {
-    expect(viewer).toContain('beadProfile: gcodeBeadProfileFor(qualityMode.value)')
-
-    const profileFor = renderer.slice(renderer.indexOf('private profilePointsFor('))
-    const profileBody = profileFor.slice(0, profileFor.indexOf('\n  }'))
-    expect(profileBody).toContain("options.beadProfile === 'square'")
-    expect(profileBody).not.toContain('camera')
-
-    const lodFor = renderer.slice(renderer.indexOf('private lodFor('))
-    expect(lodFor.slice(0, lodFor.indexOf('\n  }'))).not.toContain('beadProfile')
-  })
-
-  /**
-   * Distance averages the bead *normal*; it never fades the lit result.
+   * The seam's first rule. Every renderer call goes through the interface in
+   * `scene.ts`, implemented once in `vendor/`; nothing else in the
+   * application may name the library at all.
    *
-   * A bead only a pixel or two wide is high-frequency normal detail sampled once
-   * per pixel, and a model of it reads as speckle. The first remedy shipped for
-   * that faded the lighting toward a constant, which removed the speckle by
-   * removing the shading with it — a flat, washed-out silhouette with no sense
-   * of form. Snapping the normal toward the one a square bead would have fixes
-   * the aliasing while leaving the lighting model fully engaged, so tops still
-   * separate from sides at every distance.
+   * Two failures this prevents. A component reaching past the interface for
+   * one more method makes the next renderer swap a rewrite of the page — the
+   * exact cost ADR 0011 was paying off. And a static import anywhere outside
+   * the lazily-imported adapter drags roughly half a megabyte of Babylon.js
+   * into whatever chunk did the importing, which is how a route-local
+   * dependency becomes an application-wide one.
    */
-  it('averages the bead normal at distance instead of fading the light', () => {
-    expect(renderer).toContain('flatten_profile_normal')
-    expect(renderer).not.toMatch(/mix\(1\.0, graded_lighting/)
+  it('names the rendering library only inside its vendor folder', () => {
+    const offenders = sourceFiles(sourceRoot)
+      .filter((file) => !file.includes(join('features', 'gcode', 'vendor')))
+      // This spec names the library in order to forbid it elsewhere.
+      .filter((file) => !file.endsWith('architecture.spec.ts'))
+      .filter((file) => readFileSync(file, 'utf8').includes(libraryName))
 
-    // Whatever shades a bead shades it from the flattened normal, body and cap
-    // alike: one of the two keeping the raw profile normal would crease at
-    // every path end.
-    const lightingWrites = renderer.match(/v_lighting = graded_lighting\(surface_normal\)/g) ?? []
-    expect(lightingWrites.length).toBeGreaterThanOrEqual(2)
-    const flattenReads = renderer.match(/flatten_profile_normal\(profile\.normal/g) ?? []
-    expect(flattenReads.length).toBeGreaterThanOrEqual(2)
+    expect(offenders).toEqual([])
   })
 
   /**
-   * Widening beads past their real width is the one thing here that draws
-   * something the file does not say, so it must never happen except where the
-   * mode asked for it. A viewer that quietly fattened geometry to look tidier
-   * would be hiding a print's interior from someone inspecting it.
+   * And the adapter itself is only ever reached through a dynamic import, so
+   * the library lands in the viewer route's chunk. ADR 0001 measures a
+   * dependency's weight against the route that needs it, which is only true
+   * while nothing else can pull it in.
    */
-  it('only widens beads where the mode traded truth for a closed surface', () => {
-    expect(viewer).toContain('subPixelStrategy: gcodeSubPixelStrategyFor(qualityMode.value)')
-    const widthScale = renderer.slice(renderer.indexOf('private closedSurfaceWidthScale('))
-    const body = widthScale.slice(0, widthScale.indexOf('\n  }'))
-    expect(body).toContain("options.subPixelStrategy !== 'widen'")
-    // Bounded, so a model shrunk to a few pixels cannot inflate into a blob.
-    expect(body).toMatch(/Math\.min\(/)
+  it('reaches the adapter only through the async factory', () => {
+    expect(scene).toContain("await import('@/features/gcode/vendor/libraryRenderer')")
+    expect(scene).toContain('export async function createGcodeSceneRenderer')
+
+    const staticImporters = sourceFiles(sourceRoot)
+      .filter((file) => !file.includes(join('features', 'gcode', 'vendor')))
+      .filter((file) => /^\s*import .*vendor\/libraryRenderer/m.test(readFileSync(file, 'utf8')))
+
+    expect(staticImporters).toEqual([])
+    // The view holds the interface's type, never the implementation.
+    expect(viewer).toContain('createGcodeSceneRenderer(')
   })
 
   /**
-   * Supersampling must never reach the tier ladder.
-   *
-   * A device pixel ratio and a sample scale both multiply the pixels a bead
-   * covers, but they mean different things: a dense screen really does show a
-   * bead bigger, and may fairly earn finer geometry, while supersampling only
-   * samples the same picture better. Letting the second argue for finer geometry
-   * charges twice — more fragments and more instances — and measured as 74 fps
-   * falling to 31 rather than to 72.
+   * The library reads its own settings out of `localStorage` — render quality,
+   * camera inertia, background, bed and progress colours, the build volume,
+   * and seven processor keys — in its constructor and again in getters it
+   * calls while initialising. Alabaster owns its settings, so the containment
+   * is to write every one of them explicitly at creation and never read those
+   * keys: the library cannot then be decided by whatever a previous session,
+   * or another Klipper interface on the same origin, happened to leave there.
    */
-  it('keeps supersampling out of the tier decision', () => {
-    const lodFor = renderer.slice(renderer.indexOf('private lodFor('))
-    const lodBody = lodFor.slice(0, lodFor.indexOf('\n  }'))
-    expect(lodBody).toContain('this.sampleScale')
-
-    // The flattening is the opposite case and must keep counting real samples:
-    // more of them genuinely do resolve a bead's curvature better.
-    const flatten = renderer.slice(renderer.indexOf('private normalFlattenFor('))
-    expect(flatten.slice(0, flatten.indexOf('\n  }'))).not.toContain('this.sampleScale')
-  })
-
-  /**
-   * A merge may only join moves the path builder would have joined anyway, so
-   * decimation shares that one predicate rather than reimplementing adjacency.
-   * A second, drifting copy would put end caps in the middle of walls.
-   */
-  it('decimates only along connected paths, using the shared predicate', () => {
-    expect(decimate).toContain(
-      "import { gcodeMovesConnected } from '@/features/gcode/pathGeometry'",
-    )
-    expect(decimate).toContain('gcodeMovesConnected(')
-    // The merged run inherits its last member's progress, so the reveal
-    // frontier can never run ahead of what the printer has actually done.
-    expect(decimate).toContain('field(segments, end, gcodeSegment.progress)')
-  })
-
-  /**
-   * A download only streams into the scene if a total size is known, so every
-   * caller that knows one must hand it over. Moonraker sends G-code with no
-   * `Content-Length`, and reading the size from the header alone left the most
-   * used path of all — pick a file off the printer — blank for the whole
-   * download before appearing at once. The two paths that happened to be tested
-   * both knew their size, which is why it went unnoticed.
-   */
-  it('gives the parser a size even when the response withholds one', () => {
-    expect(loader).toContain('export function gcodeStreamTotalBytes')
-    expect(loader).toContain('declaredTotalBytes')
-    // The printer path is the one that has to declare it; its size comes from
-    // Moonraker's own file listing, already fetched for the size confirmation.
-    expect(viewer).toContain('declaredTotalBytes: size')
-  })
-
-  /**
-   * Whatever tier surrounds it, the layer a moving frontier is crossing draws
-   * from the full-resolution stream. Without this, zooming out during a print
-   * would coarsen the very geometry whose reveal the user is watching.
-   */
-  it('keeps the active layer segment-exact while a frontier crosses it', () => {
-    expect(renderer).toContain('options.exactActiveLayer')
-    expect(viewer).toContain(
-      'exactActiveLayer: plannedFollowActive.value || simulationEnabled.value',
-    )
-  })
-
-  /**
-   * A reduced tier and the full-resolution active layer are drawn as two passes
-   * with different layer bands, so "which band may this draw paint" and "which
-   * layer is the active one" are different questions. They were once the same
-   * uniform, and the tier pass then painted its own top layer in the active
-   * layer's color — two blue layers instead of one, at any zoom where a tier
-   * engaged. Every layer-aware fragment shader must therefore bound its draw
-   * with the pass band and decide the active layer from the visible range.
-   */
-  it('separates the band a pass may draw from which layer is active', () => {
-    const layerAware = fragmentShaderSources(renderer).filter((shader) =>
-      shader.body.includes('v_layer'),
-    )
-    expect(layerAware.length).toBeGreaterThanOrEqual(3)
-    for (const shader of layerAware) {
-      expect(shader.body, `${shader.name} bounds its draw with the visible range`).toContain(
-        'v_layer < u_pass_min',
-      )
-      expect(shader.body, `${shader.name} takes the active layer from its pass band`).toContain(
-        'abs(v_layer - u_layer_max)',
-      )
+  it('writes the library every setting rather than letting storage decide', () => {
+    for (const explicit of [
+      'viewer.updateRenderQuality(',
+      'ready.setCameraInertia(false)',
+      'processor.useHighQualityExtrusion(false)',
+      'processor.updateForceWireMode(false)',
+      'processor.setVoxelMode(false)',
+      'renderer.applyColors(',
+      'renderer.setBedBounds(',
+      'renderer.setResolutionScale(',
+    ]) {
+      expect(adapter, `${explicit} must be set at creation`).toContain(explicit)
     }
-    // The visible range is uploaded once per program, outside the per-pass loop,
-    // so both passes agree on which layer is active and on the depth ramp.
-    const perPass = renderer.match(/u_pass_(?:min|max)'/g) ?? []
-    expect(perPass.length).toBeGreaterThanOrEqual(6)
+
+    // None of the library's own keys may be read anywhere in the application.
+    const libraryKeys = [
+      'renderQuality',
+      'cameraInertia',
+      'sceneBackgroundColor',
+      'progressColor',
+      'bedLineColor',
+      'buildVolume',
+      'renderBedMode',
+      'processorColorMode',
+      'lastLoadFailed',
+    ]
+    const readers = sourceFiles(sourceRoot).filter((file) => {
+      const contents = readFileSync(file, 'utf8')
+      return libraryKeys.some((key) => contents.includes(`localStorage.getItem('${key}')`))
+    })
+
+    expect(readers).toEqual([])
   })
 
   /**
-   * The pick pass packs a depth texture into bytes to find the orbit pivot.
-   * A plain 16-bit depth attachment or an unclamped pack quietly breaks
-   * zoom-to-cursor at distance: rounding the largest depth lands on 2^24,
-   * which a 32-bit float cannot represent oddly enough to survive the split.
+   * ADR 0007's reveal rule: while a frontier is moving, geometry ahead of it
+   * is absent rather than dimmed. The library expresses that as its
+   * "live tracking" mode, and defaults to revealing a 500-byte look-ahead
+   * window on top of it — a few moves the printer has not made yet, which is
+   * exactly what the rule forbids. Both halves must stay.
    */
-  it('picks against a full-precision depth texture with the 2^24 clamp', () => {
-    expect(renderer).toContain('DEPTH_COMPONENT24')
-    expect(renderer).toContain('16777215.0')
+  it('draws nothing ahead of the frontier, with no look-ahead window', () => {
+    expect(adapter).toContain('setLiveTracking(!this.revealAhead)')
+    expect(adapter).toContain('lookAheadLength = 0')
+    // Releasing the frontier and revealing ahead are the same decision, so
+    // they cannot drift apart into two flags with two meanings.
+    expect(viewer).toContain('renderer.setRevealAhead(true)')
+    expect(viewer).toContain('renderer.setProgressBytes(null)')
   })
 
   /**
-   * The nozzle overlay animates at full frame rate on its own 2D canvas while
-   * the WebGL scene renders on a separate, throttled clock. Merging them —
-   * one canvas, or one clock — either drops the marker to the scene's
-   * throttled rate or forces full scene renders at overlay rate.
+   * Three things can move a cursor through a file — a live print, the
+   * simulation clock, and a drag of the scrubber — and all three must end in
+   * the same call, converted through the same byte table. When each source
+   * had its own path into the renderer, "printed so far" meant something
+   * slightly different depending on which one was driving.
+   */
+  it('funnels every cursor through one byte frontier', () => {
+    expect(viewer).toContain('function applyFrontier(')
+    expect(viewer).toContain('gcodeByteForCursor(')
+    // The byte table is per segment and exact; the parser keeps it whatever
+    // else it stops emitting.
+    expect(gcodeSourceByteStride).toBe(2)
+    expect(parser).toContain('sourceBytes')
+
+    const directWrites = [...viewer.matchAll(/renderer\??\.setProgressBytes\(/g)]
+    /*
+     * Three, and no more. Two are the two halves of `applyFrontier` — release
+     * the frontier, or convert a segment cursor to a byte — and the third is
+     * the telemetry fallback, which has a reported byte position and no
+     * segment cursor to convert. A fourth would be a second definition of
+     * "printed so far" somewhere in the file.
+     */
+    expect(directWrites.length).toBeLessThanOrEqual(3)
+  })
+
+  /**
+   * The overlay's toolhead runs at full frame rate on its own canvas while
+   * the scene's frontier advances on a slower clock, because rebuilding the
+   * scene's vertex colours is far more expensive than drawing one marker.
+   * Collapsing them would either stutter the marker or melt the frame rate.
    */
   it('keeps the overlay and the scene on separate canvases and clocks', () => {
-    expect(viewer).toContain('ref="sceneCanvas"')
+    // The scene canvas is the adapter's: it creates one per engine and owns
+    // its lifetime, so the view's template carries only the overlay.
+    expect(viewer).not.toContain('ref="sceneCanvas"')
+    expect(adapter).toContain("document.createElement('canvas')")
+    expect(adapter).toContain("canvas.className = 'gcode-viewer-canvas'")
     expect(viewer).toContain('ref="overlayCanvas"')
-    const throttledSceneWrites = viewer.match(/timestamp - last\w*SceneRender >= 50/g) ?? []
-    expect(throttledSceneWrites.length).toBeGreaterThanOrEqual(2)
+    expect(viewer).toContain('sceneFollowIntervalMilliseconds')
+    const throttled = viewer.match(/>= sceneFollowIntervalMilliseconds/g) ?? []
+    expect(throttled.length).toBeGreaterThanOrEqual(2)
+    // The overlay must not take pointer events, or it would swallow the drags
+    // the renderer's camera controls are listening for on the canvas below.
+    const styles = readFileSync(join(sourceRoot, 'styles', 'components.css'), 'utf8')
+    expect(styles).toMatch(/\.gcode-viewer-canvas--overlay \{[^}]*pointer-events: none/)
   })
 
   /**
    * Planned follow may only start through the shared eligibility gate and the
-   * validated playback controller — never by feeding telemetry or progress
-   * percentages straight into the scene. The `live-layer` progress style is
-   * what selects the reveal semantics, so it must remain tied to planned
-   * follow being active.
+   * validated playback controller — never by feeding telemetry or a progress
+   * percentage straight into the scene.
    */
   it('starts follow mode only through the centralized eligibility gate', () => {
     expect(viewer).toContain('plannedFollowCanStart({')
     expect(viewer).toContain('new PlannedToolheadPlayback(')
-    expect(viewer).toContain("progressStyle: plannedFollowActive.value ? 'live-layer' : 'standard'")
     // Byte positions, not the metadata-adjusted percentage, locate the frontier.
     expect(viewer).toContain('printer.virtualSdcard.filePosition')
   })
 
   /**
-   * A move that declares its own bead width (derived from filament volume)
-   * renders at that width; the configured nozzle diameter is only the
-   * fallback for moves that declare none. A global width override would
-   * falsify files that carry real widths.
+   * The lever the governor is allowed to move, and the one it is not.
+   *
+   * A tier is a vertex budget the library meets by rebuilding every mesh, so
+   * moving it mid-orbit would stall the view for seconds — it is chosen once
+   * per load. Resolution changes between two frames for nothing, and on the
+   * fragment-bound hardware that motivated ADR 0011 it is the lever that
+   * actually shifts frame time.
    */
-  it('treats the nozzle diameter as the fallback bead width only', () => {
-    expect(defaultGcodeNozzleDiameter).toBeCloseTo(0.4)
-    // Every shader prefers the width the move itself declared and reaches for
-    // the uniform only when there is none. A global width would otherwise
-    // falsify every file that states its own — which most files do.
-    for (const shader of ['a_path_width.x > 0.0', 'a_extrusion_width > 0.0']) {
-      expect(renderer).toContain(`${shader} ? `)
+  it('chooses the tier once per load and spends only resolution per frame', () => {
+    expect(quality).toContain('export function gcodeTierFor')
+    expect(quality).toContain('resolutionScale')
+    // The governor's own report offers no tier at all, only resolution.
+    expect(quality).not.toMatch(/tierBias/)
+    // Per frame the view may only touch resolution.
+    expect(viewer).toContain('renderer?.setResolutionScale(report.state.resolutionScale)')
+    expect(viewer).not.toMatch(/handleFrame[\s\S]{0,400}setTier\(/)
+    // A tier change is a load-time decision, or an explicit mode change.
+    expect(viewer).toContain('const tier = gcodeTierFor(')
+  })
+
+  /**
+   * A device that cannot hold its tier writes that down, and the *next* load
+   * starts cheaper. Reloading the file the moment it is discovered would cure
+   * a stutter with a multi-second stall, which is worse than the symptom.
+   */
+  it('records a device that cannot hold its tier instead of reloading at once', () => {
+    expect(quality).toContain('tierExhausted')
+    expect(viewer).toContain('lowerTierCeiling()')
+    expect(viewer).not.toMatch(/tierExhausted[\s\S]{0,200}setTier\(/)
+  })
+
+  /**
+   * Colour reaches the library as resolved theme tokens. The library takes
+   * hex, which is the one syntax it parses, so the conversion happens at
+   * runtime from the document's own computed value — never from a literal in
+   * a component, which `palette.spec.ts` also forbids and which would freeze
+   * one theme pack's answer into every other.
+   */
+  it('drives every library colour from a resolved theme token', () => {
+    expect(viewer).toContain('function token(')
+    expect(viewer).toContain('resolveCssColor(`var(${name})`)')
+    expect(viewer).toContain('rgbToHex(')
+    for (const role of ['--viewer-surface', '--viewer-grid', '--viewer-progress']) {
+      expect(viewer, `${role} must reach the renderer`).toContain(role)
     }
-    expect(renderer).toContain('u_extrusion_width')
-    // The fallback is the machine's nozzle, not a constant: the printer already
-    // reports it, and a stored override exists only for files inspected with no
-    // printer connected.
-    expect(viewer).toContain('extrusionWidth: effectiveNozzleDiameter.value')
-    expect(viewer).toContain('printerConfig.extruderGeometry.nozzleDiameter')
+    // Re-applied when the theme changes, or a pack switch would leave the
+    // canvas painted in the previous pack's colours until the next load.
+    expect(viewer).toContain('themeObserver')
+    expect(viewer).toContain('renderer?.applyColors(sceneColors())')
+  })
+
+  /**
+   * Feature colours are the library's, read back rather than guessed.
+   *
+   * It decides a bead's colour while parsing, from its own per-slicer
+   * palette, so a legend built from theme tokens would disagree with the
+   * canvas as soon as the two differed — and a legend that disagrees with the
+   * picture is worse than none.
+   */
+  it('reads feature colours back from the renderer for the legend', () => {
+    expect(scene).toContain('featureColor(labels: readonly string[])')
+    expect(adapter).toContain('slicer?.featureList')
+    expect(viewer).toContain('renderer.featureColor(gcodeFeatureLabels(feature))')
+  })
+
+  /**
+   * The library has no `dispose()` of its own: its engine, scene, meshes and
+   * the whole file text would live for as long as the tab does. Disposal is
+   * the adapter's job, and the view must call it on every unmount.
+   */
+  it('disposes the renderer and the file text on unmount', () => {
+    expect(adapter).toContain('this.viewer.scene.dispose()')
+    expect(adapter).toContain('this.viewer.engine.dispose()')
+    // `true` is what drops the retained file text, not just the meshes.
+    expect(adapter).toContain('clearScene(true)')
+    expect(viewer).toMatch(/onBeforeUnmount\([\s\S]*renderer\?\.dispose\(\)/)
+  })
+
+  /**
+   * Moonraker serves G-code with no `Content-Length`, so the response cannot
+   * say how large the file is. Without a declared size the progress readout
+   * has no denominator — which is the one path most people use.
+   */
+  it('gives the loader a size even when the response withholds one', () => {
+    expect(loader).toContain('export function gcodeStreamTotalBytes')
+    expect(loader).toContain('declaredTotalBytes')
+    expect(viewer).toContain('declaredTotalBytes: size')
   })
 
   /**
@@ -319,10 +308,21 @@ describe('G-code viewer performance architecture', () => {
   it("derives bead width from the machine's own filament diameter", () => {
     expect(loader).toContain('filamentDiameter')
     expect(viewer).toContain('printerConfig.extruderGeometry.filamentDiameter')
-    const parser = readFileSync(join(sourceRoot, 'features', 'gcode', 'parser.ts'), 'utf8')
     expect(parser).toContain('filamentCrossSection')
     // Not a module constant computed once from the default.
     expect(parser).not.toMatch(/^const filamentCrossSection/m)
+  })
+
+  /**
+   * The nozzle diameter is a fallback for moves that declare no extruded
+   * volume, and it comes from the machine rather than from a constant. The
+   * stored override exists for a file inspected with no printer connected.
+   */
+  it('treats the nozzle diameter as the fallback bead width only', () => {
+    expect(defaultGcodeNozzleDiameter).toBeCloseTo(0.4)
+    expect(viewer).toContain('nozzleDiameterOverride.value ??')
+    expect(viewer).toContain('printerConfig.extruderGeometry.nozzleDiameter')
+    expect(viewer).toContain('nozzleDiameter: effectiveNozzleDiameter.value')
   })
 
   /**

@@ -107,12 +107,16 @@ page.
 
 → [Configuration](/interface/configuration)
 
-## G-code viewer for large files
+## G-code viewer that runs on modest hardware
 
-A 100 MB print begins drawing about a quarter of a second in and keeps
-filling in while the rest downloads and parses. You can orbit the model
-before it finishes loading.
+Every control sits on the picture: the file and its colouring, the view
+tools, a two-handled layer rail down the edge, and playback along the bottom.
+There is no side panel to give up space to.
 
+- **Five detail levels, down to plain lines**, so a phone, a laptop with
+  integrated graphics or the Pi's own browser gets a level it can turn
+  smoothly. The level is chosen for each file from its size and from what
+  your device managed last time; sharpness adjusts live while you look.
 - **Following a live print walks the real moves in the file.** The toolhead
   follows the actual path; corners stay corners instead of sliding between
   telemetry samples and cutting across a curve.
@@ -120,9 +124,8 @@ before it finishes loading.
   frontier matches where printing has reached.
 - **Simulation mode** replays any slice at up to 20×, with a scrubber,
   with no printer connected.
-- **Rendering quality adapts to your device** and reduces detail to keep the
-  view responsive. The layer currently printing always draws at full
-  precision.
+- **Cut the model open** by dragging the two handles of the layer rail: one
+  layer alone, or a slice out of the middle of a solid object.
 - **Open a local file** without uploading it, to check a slice before
   committing to it.
 

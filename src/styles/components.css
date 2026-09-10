@@ -8084,65 +8084,285 @@ input.z-axis__slider {
   }
 }
 
+/*
+ * The G-code viewer.
+ *
+ * The stage is the page: one framed panel filling the route, with every
+ * control drawn on top of the canvas rather than beside it. The old layout put
+ * a 19rem column of cards next to the model, which meant every control that
+ * changed what the canvas showed sat a screen-width from its own effect — and
+ * the only two controls that were already on the stage were the ones people
+ * reached for. ADR 0011 records the reversal.
+ */
 .gcode-viewer-page {
   display: flex;
-  height: 100%;
-  min-height: 34rem;
   flex-direction: column;
   gap: 1rem;
-}
-
-.gcode-viewer-layout {
-  display: grid;
-  grid-template-columns: minmax(16rem, 19rem) minmax(0, 1fr);
+  height: 100%;
   min-height: 0;
-  flex: 1;
-  align-items: stretch;
-  gap: 1rem;
-}
-
-.gcode-viewer-controls {
-  display: grid;
-  min-height: 0;
-  align-content: start;
-  gap: 0.75rem;
-  overflow: auto;
-  overscroll-behavior: contain;
-  scrollbar-width: thin;
-}
-
-.gcode-viewer-workspace {
-  display: grid;
-  min-width: 0;
-  min-height: 0;
-  grid-template-rows: minmax(0, 1fr) auto;
 }
 
 .gcode-viewer-panel {
   display: grid;
+  flex: 1;
   min-height: 0;
   overflow: hidden;
   border: 1px solid var(--border-subtle);
   border-radius: 1.35rem;
   background: var(--surface-raised);
-  box-shadow: 0 1.2rem 3.5rem color-mix(in srgb, var(--ito-black) 14%, transparent);
-  grid-template-rows: minmax(0, 1fr) auto;
+  box-shadow: 0 1.25rem 2.5rem color-mix(in srgb, var(--ito-black) 12%, transparent);
 }
 
-.gcode-control-card {
-  padding: 1rem;
-  border: 1px solid var(--border-subtle);
-  border-radius: 1.1rem;
-  background: var(--surface-raised);
-  box-shadow: 0 0.7rem 2rem color-mix(in srgb, var(--ito-black) 6%, transparent);
+.gcode-viewer-stage {
+  position: relative;
+  min-height: 0;
+  overflow: hidden;
+  background-color: var(--viewer-surface);
+  /*
+   * The renderer attaches its camera controls to the scene canvas, so the
+   * stage itself claims no pointer gestures: it is focusable, so the keyboard
+   * map has somewhere to land, and refuses the context menu that a right-drag
+   * pan would otherwise raise. It must never take focus *on a press*, though.
+   * The renderer focuses its canvas on every pointer-down, and treats the
+   * canvas losing focus as every button being released — so a stage that
+   * grabbed focus on pointer-down ended each drag the instant it began, and
+   * the model could be zoomed but never turned.
+   */
+  touch-action: none;
+  user-select: none;
 }
 
-.gcode-control-card h2 {
-  margin: 0 0 0.8rem;
-  font-size: var(--text-label-caps-size);
+.gcode-viewer-stage:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--focus-ring);
+}
+
+.gcode-viewer-stage[data-pending='true'] .gcode-viewer-canvas {
+  animation: pending-breathe var(--motion-duration-pending) ease-in-out infinite;
+}
+
+.gcode-viewer-canvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/*
+ * The scene canvas keeps its pointer events — the renderer's own orbit, pan
+ * and pinch are attached to it. The overlay above it must not, or the
+ * toolhead marker would swallow every drag that crossed it.
+ */
+.gcode-viewer-canvas--overlay {
+  pointer-events: none;
+}
+
+.gcode-viewer-empty {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 0.35rem;
+  padding: 1.5rem;
+  text-align: center;
+  color: var(--text-on-strong-muted);
+  pointer-events: none;
+}
+
+/*
+ * AppIcon renders a bare `<svg>` with no intrinsic size — every call site
+ * sizes its own glyph — so an unsized one grows to fill whatever box it is
+ * dropped into. This is that size for the two full-stage states.
+ */
+.gcode-viewer-empty__mark {
+  inline-size: 3rem;
+  block-size: 3rem;
+  color: var(--viewer-accent);
+}
+
+.gcode-viewer-empty[role='alert'] .gcode-viewer-empty__mark {
+  color: var(--status-danger-text);
+}
+
+.gcode-viewer-empty h2 {
+  color: var(--text-on-strong);
+  font-size: var(--text-card-title-size);
   font-weight: var(--font-weight-increased);
-  letter-spacing: var(--text-label-caps-tracking);
-  text-transform: uppercase;
+}
+
+.gcode-viewer-empty p {
+  max-width: 24rem;
+  font-size: var(--text-hint-size);
+  font-weight: var(--font-weight);
+}
+
+/*
+ * Every cluster on the stage names its own stacking layer, because the canvas
+ * raises itself to claim the drag: a positioned sibling left on the default
+ * z-index paints underneath it, and every click then lands on transparent
+ * canvas. The bed-mesh reset chip shipped visible and unclickable for exactly
+ * this reason.
+ */
+.gcode-chips {
+  position: absolute;
+  inset-block-start: 0.6rem;
+  z-index: 4;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.gcode-chips--start {
+  inset-inline-start: 0.6rem;
+  /* Stops the file name growing under the view tools in the other corner. */
+  max-inline-size: calc(100% - 11rem);
+}
+
+.gcode-chips--end {
+  inset-inline-end: 0.6rem;
+}
+
+/*
+ * Position and glass only. Height, radius and every interaction state come
+ * from AppButton's own quiet variant with on-strong; the translucent fill is
+ * what lets the toolpath read through a chip, so it is the one thing
+ * overridden here.
+ */
+.gcode-chip.button {
+  background-color: color-mix(in srgb, var(--surface-strong) 78%, transparent);
+  backdrop-filter: blur(0.55rem);
+}
+
+.gcode-chip--file {
+  max-inline-size: 100%;
+}
+
+.gcode-chip__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* One popover look: the header menu's panel, holding the viewer's own bodies. */
+.gcode-popover {
+  gap: 0.15rem;
+  max-inline-size: min(22rem, calc(100vw - 2rem));
+}
+
+.gcode-popover--narrow {
+  min-inline-size: 11rem;
+}
+
+.gcode-popover--files {
+  inline-size: min(26rem, calc(100vw - 2rem));
+  max-inline-size: min(26rem, calc(100vw - 2rem));
+}
+
+.gcode-popover__note {
+  padding: 0.4rem 0.45rem 0.15rem;
+  color: var(--text-muted);
+  font-size: var(--text-hint-size);
+  font-weight: var(--font-weight);
+  line-height: 1.4;
+}
+
+.gcode-picker {
+  display: grid;
+  gap: 0.3rem;
+  min-width: 0;
+}
+
+.gcode-picker__list {
+  display: grid;
+  gap: 0.1rem;
+  /* Tall enough to browse, short enough to leave the model visible behind it. */
+  max-height: min(22rem, 50vh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+
+.gcode-picker__row.button {
+  justify-content: flex-start;
+  gap: 0.45rem;
+  min-width: 0;
+  text-align: start;
+}
+
+.gcode-picker__name {
+  overflow: hidden;
+  flex: 1;
+  min-width: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gcode-picker__meta {
+  flex: none;
+  color: var(--text-muted);
+  font-size: var(--text-meta-size);
+  font-variant-numeric: tabular-nums;
+}
+
+.gcode-picker__row--printing {
+  color: var(--accent-primary);
+}
+
+.gcode-picker__row--local {
+  border-top: 1px solid var(--border-subtle);
+  border-radius: 0;
+  margin-block-start: 0.15rem;
+  padding-block-start: 0.35rem;
+}
+
+.gcode-picker__empty {
+  padding: 0.6rem 0.45rem;
+  color: var(--text-muted);
+  font-size: var(--text-hint-size);
+  font-weight: var(--font-weight);
+}
+
+.gcode-info {
+  display: grid;
+  gap: 0.1rem;
+  padding: 0.2rem 0.15rem;
+}
+
+.gcode-info__row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.2rem 0.3rem;
+  font-size: var(--text-meta-size);
+}
+
+.gcode-info__row dt {
+  color: var(--text-muted);
+  font-weight: var(--font-weight);
+}
+
+.gcode-info__row dd {
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--font-weight-increased);
+}
+
+.gcode-info__row--rendering {
+  margin-block-start: 0.2rem;
+  border-top: 1px solid var(--border-subtle);
+  padding-block-start: 0.35rem;
+}
+
+.gcode-info__note {
+  padding: 0.15rem 0.3rem;
+  color: var(--text-muted);
+  font-size: var(--text-hint-size);
+  font-weight: var(--font-weight);
+  line-height: 1.4;
 }
 
 .gcode-field {
@@ -8152,294 +8372,6 @@ input.z-axis__slider {
   font-size: var(--text-field-label-size);
   font-weight: var(--font-weight);
 }
-
-.gcode-field select {
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.gcode-file-divider {
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
-  align-items: center;
-  gap: 0.6rem;
-  margin-block: 0.75rem;
-  color: var(--text-muted);
-  font-size: var(--text-meta-size);
-  font-weight: var(--font-weight);
-}
-
-.gcode-file-divider::before,
-.gcode-file-divider::after {
-  height: 1px;
-  background: var(--border-subtle);
-  content: '';
-}
-
-/*
- * Type only, on top of `.check-row`. The viewer's control cards set their
- * labels in the muted micro-type `AppSlider`'s own row-a beside them uses, so
- * a row taking the shared 0.75rem primary would be the one loud line in a card
- * of quiet ones.
- */
-.gcode-check-row {
-  color: var(--text-muted);
-  font-size: var(--text-field-label-size);
-  font-weight: var(--font-weight);
-}
-
-.gcode-statistics {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.7rem;
-  margin: 0;
-}
-
-.gcode-statistics > div {
-  min-width: 0;
-  padding: 0.7rem;
-  border-radius: 0.75rem;
-  background: var(--surface-soft);
-}
-
-.gcode-statistics dt {
-  color: var(--text-muted);
-  font-size: var(--text-label-caps-size);
-  text-transform: uppercase;
-  letter-spacing: var(--text-label-caps-tracking);
-  font-weight: var(--font-weight);
-}
-
-.gcode-statistics dd {
-  margin: 0.2rem 0 0;
-  overflow: hidden;
-  font-family: var(--font-mono);
-  font-size: var(--text-value-size);
-  font-weight: var(--font-weight-increased);
-  font-variant-numeric: tabular-nums;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.gcode-viewer-loaded-file {
-  display: grid;
-  min-width: 0;
-  max-width: 100%;
-  justify-items: start;
-  gap: 0.15rem;
-  margin-block-end: 0.8rem;
-  color: var(--text-muted);
-  font-size: var(--text-label-caps-size);
-  font-weight: var(--font-weight);
-  text-transform: uppercase;
-}
-
-.gcode-viewer-loaded-file strong {
-  max-width: 100%;
-  overflow: hidden;
-  color: var(--text-primary);
-  font-size: var(--text-row-name-size);
-  text-overflow: ellipsis;
-  text-transform: none;
-  white-space: nowrap;
-}
-
-.gcode-viewer-stage {
-  position: relative;
-  min-height: 0;
-  overflow: hidden;
-  outline: none;
-  background-color: var(--viewer-surface);
-  cursor: grab;
-  overscroll-behavior: contain;
-  touch-action: none;
-  user-select: none;
-  -webkit-user-select: none;
-}
-
-.gcode-viewer-stage * {
-  user-select: none;
-  -webkit-user-select: none;
-}
-
-.gcode-viewer-stage[data-drag-mode='orbit'] {
-  cursor: grabbing;
-}
-
-.gcode-viewer-stage[data-drag-mode='pan'] {
-  cursor: move;
-}
-
-/* A filled stage with no border of its own — same inset treatment as the
-   console transcript, so the ring reads as the stage's own edge, not a frame
-   floating outside it. */
-.gcode-viewer-stage:focus-visible {
-  outline: none;
-  box-shadow: inset 0 0 0 2px var(--focus-ring);
-}
-
-.gcode-viewer-stage[data-pending='true'] .gcode-viewer-canvas {
-  animation: pending-breathe var(--motion-duration-pending) var(--motion-ease-standard) infinite;
-  will-change: filter, opacity;
-}
-
-.gcode-viewer-canvas {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-}
-
-.gcode-viewer-empty {
-  position: absolute;
-  inset: 0;
-  z-index: 2;
-  display: grid;
-  align-content: center;
-  justify-items: center;
-  padding: 2rem;
-  color: var(--text-primary);
-  text-align: center;
-}
-
-.gcode-viewer-empty__mark {
-  display: grid;
-  width: 4rem;
-  height: 4rem;
-  place-items: center;
-  border: 1px solid var(--viewer-grid);
-  border-radius: 1.2rem;
-  color: var(--viewer-accent);
-}
-
-.gcode-viewer-empty h2 {
-  margin: 1rem 0 0;
-  font-size: var(--text-section-title-size);
-  letter-spacing: var(--text-section-title-tracking);
-  font-weight: var(--font-weight-increased);
-}
-
-.gcode-viewer-empty p {
-  max-width: 28rem;
-  margin: 0.5rem 0 0;
-  color: var(--text-muted);
-  font-size: var(--text-note-size);
-  line-height: 1.6;
-}
-
-.gcode-loading-card {
-  position: absolute;
-  inset-inline: 1rem;
-  inset-block-end: 1rem;
-  z-index: 4;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 0.7rem 1rem;
-  padding: 0.9rem;
-  border: 1px solid var(--surface-on-strong-soft);
-  border-radius: 1rem;
-  background: color-mix(in srgb, var(--ito-black) 88%, transparent);
-  color: var(--neutral-white);
-  backdrop-filter: blur(0.8rem);
-}
-
-.gcode-loading-card p {
-  margin: 0;
-  color: var(--text-on-strong-muted);
-  font-size: var(--text-meta-size);
-  font-weight: var(--font-weight);
-}
-
-.gcode-loading-card strong {
-  display: block;
-  margin-top: 0.15rem;
-  overflow: hidden;
-  font-size: var(--text-row-name-size);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.gcode-loading-track {
-  grid-column: 1 / -1;
-  height: 0.3rem;
-  overflow: hidden;
-  border-radius: 999px;
-  background: var(--surface-on-strong-soft);
-}
-
-.gcode-loading-track span {
-  display: block;
-  height: 100%;
-  border-radius: inherit;
-  background: var(--viewer-accent);
-  transition: width var(--motion-duration-fast) linear;
-}
-
-/* States the follow/simulation gate; typography comes from the card's own p rule. */
-.gcode-loading-note {
-  grid-column: 1 / -1;
-}
-
-/* The statistics header doubles as its own disclosure trigger. */
-.gcode-statistics-toggle {
-  display: flex;
-  width: 100%;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: inherit;
-  font: inherit;
-  cursor: pointer;
-}
-
-.gcode-statistics-toggle h2 {
-  margin: 0;
-}
-
-/*
- * Reports what the quality governor settled on, or what the chosen mode changes,
- * under its segmented control. Hint size rather than meta: it sits directly
- * below the card's own hint-sized description and explains the control above it,
- * so at meta size it read as the loudest thing in the card while saying the
- * least.
- */
-.gcode-quality-state {
-  margin: 0.5rem 0 0;
-  color: var(--text-muted);
-  font-size: var(--text-hint-size);
-  line-height: 1.45;
-  font-weight: var(--font-weight);
-}
-
-/* Mirrors the legend in the opposite corner of the stage. */
-/*
- * Position and glass only. Size, radius, and every interaction state come from
- * `button button--on-strong button--icon`; the translucent fill is what lets the
- * toolpath read through it, so it overrides the on-strong background.
- *
- * The cluster names its own stacking layer because the canvas raises itself to
- * claim the drag: a positioned sibling left on the default z-index paints
- * underneath it, and every click then lands on transparent canvas. The bed-mesh
- * reset chip shipped visible and unclickable for exactly this reason.
- */
-.gcode-viewer-chips {
-  position: absolute;
-  inset-inline-end: 1rem;
-  inset-block-start: 1rem;
-  z-index: 4;
-  display: flex;
-  gap: 0.35rem;
-}
-
-.gcode-viewer-chips .button {
-  background-color: color-mix(in srgb, var(--surface-strong) 78%, transparent);
-  backdrop-filter: blur(0.55rem);
-}
-
 .gcode-settings-dialog {
   max-width: min(26rem, calc(100vw - 2rem));
   margin: auto;
@@ -8483,57 +8415,27 @@ input.z-axis__slider {
   text-transform: uppercase;
 }
 
-/*
- * An option card: a `.check-row--block` whose two-line label earns it a box of
- * its own. The box is what licenses the full width — it draws the boundary the
- * click respects.
- *
- * Hover is the shared veil, not an accent border. An accent border means
- * *chosen* here, and it did double duty as "hoverable" until this rule split
- * them, so pointing at an unselected option made it look selected.
- */
-.gcode-settings-option {
-  align-items: flex-start;
-  gap: 0.65rem;
-  padding: 0.7rem 0.8rem;
-  border: 1px solid var(--border-subtle);
-  border-radius: 0.9rem;
-  background-color: var(--surface-soft);
-  background-image: none;
-}
-
-.gcode-settings-option:hover:not([data-disabled]) {
-  background-image: linear-gradient(var(--interaction-veil), var(--interaction-veil));
-}
-
-.gcode-settings-option[data-disabled] {
-  opacity: 0.5;
-}
-
-.gcode-settings-option:has(input:checked) {
-  border-color: var(--accent-primary);
-}
-
-.gcode-settings-option input {
-  margin-block-start: 0.1rem;
-}
-
-.gcode-settings-option span {
+/* The pointer, touch and keyboard map, moved off the stage into the dialog. */
+.gcode-settings-controls {
   display: grid;
-  gap: 0.2rem;
-  min-width: 0;
+  gap: 0.55rem;
 }
 
-.gcode-settings-option strong {
+.gcode-settings-controls > div {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.gcode-settings-controls dt {
   font-size: var(--text-row-name-size);
-  font-weight: var(--font-weight);
+  font-weight: var(--font-weight-increased);
 }
 
-.gcode-settings-option small {
+.gcode-settings-controls dd {
   color: var(--text-muted);
   font-size: var(--text-meta-size);
   font-weight: var(--font-weight);
-  line-height: 1.35;
+  line-height: 1.4;
 }
 
 /*
@@ -8644,18 +8546,150 @@ input.z-axis__slider {
   text-align: center;
 }
 
-.gcode-viewer-legend {
+/*
+ * The layer range, down the right edge of the stage.
+ *
+ * Two range inputs share one track, so the fill and the reading bubble are
+ * drawn separately and the inputs themselves are transparent. They are not
+ * AppSlider: that component is a labelled two-row control tuned to AppField's
+ * height rhythm for dashboard cards, and this is a bare dragged track on a
+ * canvas. interface-standards.md records the boundary.
+ */
+.gcode-rail {
   position: absolute;
-  inset-inline-start: 1rem;
-  inset-block-start: 1rem;
-  z-index: 3;
+  inset-inline-end: 0.75rem;
+  inset-block-start: 3rem;
+  inset-block-end: 3.6rem;
+  z-index: 4;
+  inline-size: 1.6rem;
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.45rem 0.8rem;
-  padding: 0.55rem 0.7rem;
+  justify-content: center;
+}
+
+.gcode-rail[data-disabled='true'] {
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+.gcode-rail__track {
+  position: relative;
+  inline-size: 0.25rem;
+  block-size: 100%;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface-strong) 70%, transparent);
+}
+
+/*
+ * The selected range, drawn at part strength. At full opacity a range that
+ * covers the whole model — the default — reads as a scrollbar down the edge of
+ * the stage rather than as one end of a control.
+ */
+.gcode-rail__fill {
+  position: absolute;
+  inset-inline: -1px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent-primary) 55%, transparent);
+}
+
+.gcode-rail__bubble {
+  position: absolute;
+  inset-inline-end: 1.5rem;
+  transform: translateY(50%);
+  padding: 0.15rem 0.45rem;
   border: 1px solid var(--surface-on-strong-soft);
-  border-radius: 0.75rem;
-  background: color-mix(in srgb, var(--ito-black) 78%, transparent);
+  border-radius: 0.4rem;
+  background: color-mix(in srgb, var(--surface-strong) 78%, transparent);
+  color: var(--text-on-strong);
+  font-size: var(--text-overlay-label-size);
+  font-weight: var(--font-weight-increased);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  backdrop-filter: blur(0.55rem);
+  opacity: 0;
+  transition: opacity var(--motion-duration-fast) var(--motion-ease-standard);
+}
+
+.gcode-rail:hover .gcode-rail__bubble,
+.gcode-rail:focus-within .gcode-rail__bubble,
+.gcode-rail__bubble--held {
+  opacity: 1;
+}
+
+/*
+ * Vertical because Z is up: the rail's geometry means the same thing as the
+ * model's. direction: rtl is what puts the highest layer at the top rather
+ * than the bottom.
+ */
+.gcode-rail__input {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  /*
+   * Physical `width`/`height`, deliberately, where the rest of this stylesheet
+   * uses logical properties. `writing-mode: vertical-lr` turns the input's own
+   * inline axis vertical, so `inline-size` here would set its *height* and
+   * `block-size` its width — which laid both thumbs in a 1.6rem box at the top
+   * of the rail and made the control look broken while reporting the right
+   * values.
+   */
+  width: 1.6rem;
+  height: 100%;
+  writing-mode: vertical-lr;
+  direction: rtl;
+  background: transparent;
+  appearance: none;
+  cursor: ns-resize;
+}
+
+.gcode-rail__input--active {
+  z-index: 2;
+}
+
+.gcode-rail__input::-webkit-slider-runnable-track {
+  background: transparent;
+}
+
+.gcode-rail__input::-moz-range-track {
+  background: transparent;
+}
+
+.gcode-rail__input::-webkit-slider-thumb {
+  appearance: none;
+  inline-size: 0.85rem;
+  block-size: 0.85rem;
+  border: 2px solid var(--accent-primary);
+  border-radius: 50%;
+  background: var(--surface-raised);
+}
+
+.gcode-rail__input::-moz-range-thumb {
+  inline-size: 0.85rem;
+  block-size: 0.85rem;
+  border: 2px solid var(--accent-primary);
+  border-radius: 50%;
+  background: var(--surface-raised);
+}
+
+.gcode-rail__input:focus-visible::-webkit-slider-thumb {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus-ring) 45%, transparent);
+}
+
+.gcode-rail__input:focus-visible::-moz-range-thumb {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus-ring) 45%, transparent);
+}
+
+/* What the colours mean, bottom left, above the transport bar. */
+.gcode-legend {
+  position: absolute;
+  inset-inline-start: 0.6rem;
+  inset-block-end: 3.2rem;
+  z-index: 3;
+  display: grid;
+  gap: 0.15rem;
+  padding: 0.4rem 0.55rem;
+  border: 1px solid var(--surface-on-strong-soft);
+  border-radius: 0.6rem;
+  background: color-mix(in srgb, var(--surface-strong) 78%, transparent);
   color: var(--text-on-strong-muted);
   font-size: var(--text-overlay-label-size);
   font-weight: var(--font-weight);
@@ -8663,186 +8697,175 @@ input.z-axis__slider {
   pointer-events: none;
 }
 
-.gcode-viewer-legend span {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-}
-
-.gcode-viewer-legend i {
-  width: 0.55rem;
-  height: 0.55rem;
-  border-radius: 50%;
-}
-
-.gcode-legend-travel {
-  border: 1px dashed var(--neutral-white);
-  background: transparent;
-}
-
-.gcode-legend-toolhead {
-  border: 1px solid var(--ito-black);
-  border-radius: 0 0 50% 50% !important;
-  background: var(--viewer-nozzle);
-}
-
-.gcode-simulation-panel {
-  overflow: hidden;
-  border-top: 1px solid var(--border-subtle);
-  background: var(--surface-raised);
-}
-
-.gcode-simulation-panel > header {
+.gcode-legend__row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 0.85rem 1rem;
+  gap: 0.4rem;
 }
 
-.gcode-simulation-panel h2,
-.gcode-simulation-panel p {
-  margin: 0;
+.gcode-legend__swatch {
+  inline-size: 0.9rem;
+  block-size: 0.35rem;
+  border-radius: 999px;
+  flex: none;
 }
 
-.gcode-simulation-panel h2 {
-  font-size: var(--text-label-caps-size);
-  font-weight: var(--font-weight-increased);
-  letter-spacing: var(--text-label-caps-tracking);
-  text-transform: uppercase;
+/* One bar for the load, the live frontier and the simulation scrubber. */
+.gcode-transport {
+  position: absolute;
+  inset-inline: 0.6rem;
+  inset-block-end: 0.6rem;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid var(--surface-on-strong-soft);
+  border-radius: 0.7rem;
+  background: color-mix(in srgb, var(--surface-strong) 78%, transparent);
+  backdrop-filter: blur(0.55rem);
 }
 
-.gcode-simulation-panel p {
-  margin-top: 0.2rem;
-  color: var(--text-muted);
-  font-size: var(--text-hint-size);
-  line-height: 1.45;
-}
-
-.gcode-simulation-controls {
-  display: grid;
-  grid-template-columns: minmax(12rem, 1fr) auto;
-  align-items: end;
-  gap: 0.75rem;
-  padding: 0.65rem 0.75rem 0.75rem;
-  border-top: 1px solid var(--border-subtle);
-  animation: content-settle var(--motion-duration-fast) var(--motion-ease-standard) both;
-}
-
-.gcode-simulation-panel[data-active='true'] > header {
-  padding-block: 0.6rem;
-}
-
-.gcode-simulation-panel[data-active='true'] > header p {
-  display: none;
+.gcode-transport__track {
+  position: relative;
+  flex: 1;
+  min-inline-size: 4rem;
+  block-size: 1.5rem;
+  display: flex;
+  align-items: center;
 }
 
 /*
- * The one `AppSlider` whose accent is not the shared blue: it reports playback
- * position on the viewer stage, so it takes that surface's own progress
- * color instead — see `--app-slider-accent` in app-slider.css.
+ * The groove has to be findable. It was a mix of the same surface colour the
+ * bar itself is built from, which on a dark theme left the scrubber invisible
+ * until you happened to drag across it.
  */
-.gcode-simulation-scrubber {
-  --app-slider-accent: var(--viewer-progress);
+.gcode-transport__track::before {
+  content: '';
+  position: absolute;
+  inset-inline: 0;
+  inset-block-start: 50%;
+  block-size: 0.3rem;
+  transform: translateY(-50%);
+  border-radius: 999px;
+  background: var(--surface-on-strong-soft);
 }
 
-.gcode-simulation-transport {
-  display: flex;
-  min-width: 0;
-  flex-wrap: nowrap;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 0.45rem;
+.gcode-transport__fill {
+  position: absolute;
+  inset-inline-start: 0;
+  inset-block-start: 50%;
+  block-size: 0.3rem;
+  transform: translateY(-50%);
+  border-radius: 999px;
+  background: var(--viewer-progress);
+  transition: width var(--motion-duration-fast) linear;
 }
 
-.gcode-simulation-transport > .button--icon {
-  flex: 0 0 2.75rem;
+.gcode-transport[data-state='loading'] .gcode-transport__fill {
+  background: var(--accent-primary);
 }
 
-.gcode-simulation-speeds {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(2.3rem, 1fr));
-  gap: 0.15rem;
-  margin-inline-start: 0.35rem;
-  padding: 0.2rem;
-  border: 1px solid var(--border-subtle);
-  border-radius: 0.75rem;
-  background: var(--surface-soft);
-  flex: 1 1 11.5rem;
+.gcode-transport__input {
+  position: absolute;
+  inset-inline: 0;
+  inset-block: 0;
+  margin: 0;
+  inline-size: 100%;
+  block-size: 100%;
+  background: transparent;
+  appearance: none;
+  cursor: ew-resize;
 }
 
+.gcode-transport__input:disabled {
+  cursor: default;
+}
+
+.gcode-transport__input::-webkit-slider-runnable-track,
+.gcode-transport__input::-moz-range-track {
+  background: transparent;
+}
+
+.gcode-transport__input::-webkit-slider-thumb {
+  appearance: none;
+  inline-size: 0.8rem;
+  block-size: 0.8rem;
+  border: 2px solid var(--viewer-progress);
+  border-radius: 50%;
+  background: var(--surface-raised);
+}
+
+.gcode-transport__input::-moz-range-thumb {
+  inline-size: 0.8rem;
+  block-size: 0.8rem;
+  border: 2px solid var(--viewer-progress);
+  border-radius: 50%;
+  background: var(--surface-raised);
+}
+
+.gcode-transport__input:disabled::-webkit-slider-thumb,
+.gcode-transport__input:disabled::-moz-range-thumb {
+  opacity: 0;
+}
+
+.gcode-transport__reading {
+  flex: none;
+  color: var(--text-on-strong-muted);
+  font-size: var(--text-overlay-label-size);
+  font-weight: var(--font-weight);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.gcode-transport__follow {
+  flex: none;
+}
+
+.gcode-transport__action {
+  flex: none;
+}
+
+/*
+ * Narrow screens keep the stage rather than stacking cards above it. The old
+ * layout re-flowed its sidebar into a two-column grid on top of the canvas,
+ * so a phone opened on a screenful of controls and had to scroll to reach the
+ * model — the opposite of what a viewer is for.
+ */
 @media (max-width: 55rem) {
   .gcode-viewer-page {
-    display: block;
-    height: 100%;
-    min-height: 0;
-    overflow: auto;
-    overscroll-behavior: contain;
-    padding-bottom: 6rem;
-    scrollbar-gutter: stable;
+    gap: 0.75rem;
   }
 
-  /* `gap` above has no effect once the page becomes a block, so the heading needs its own margin. */
-  .gcode-viewer-page > .page-heading {
-    margin-block-end: 1rem;
-  }
-
-  .gcode-viewer-layout {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .gcode-viewer-controls {
-    position: static;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    max-height: none;
-    overflow: visible;
-  }
-
-  .gcode-viewer-workspace {
-    display: block;
-  }
-
-  .gcode-viewer-panel {
-    display: grid;
-    min-height: 34rem;
-    grid-template-rows: minmax(28rem, 65vh) auto;
+  .gcode-chips--start {
+    max-inline-size: calc(100% - 9.5rem);
   }
 }
 
-@media (max-width: 39.999rem) {
-  .gcode-viewer-controls {
-    grid-template-columns: minmax(0, 1fr);
+@media (max-width: 30rem) {
+  /*
+   * At 390px the file name truncates and the legend gives way: the info
+   * popover carries the same colours in text there.
+   */
+  .gcode-chip__label {
+    max-inline-size: 7rem;
   }
 
-  .gcode-viewer-stage {
-    min-height: 0;
+  .gcode-legend {
+    display: none;
   }
 
-  .gcode-loading-card {
-    grid-template-columns: minmax(0, 1fr);
+  .gcode-rail {
+    inset-block-start: 4.6rem;
   }
 
-  .gcode-simulation-panel > header {
-    align-items: stretch;
-    flex-direction: column;
+  .gcode-transport {
+    gap: 0.3rem;
+    padding: 0.3rem 0.4rem;
   }
 
-  .gcode-simulation-controls {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .gcode-simulation-transport {
-    flex-wrap: wrap;
-  }
-
-  .gcode-simulation-speeds {
-    margin-inline-start: 0;
-  }
-}
-
-@media (min-width: 64rem) {
-  .gcode-viewer-page {
-    height: 100%;
+  .gcode-transport__reading {
+    display: none;
   }
 }
 

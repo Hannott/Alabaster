@@ -1257,61 +1257,71 @@
   },
   "gcodeViewer": {
     "title": "G-kodeviser",
-    "loadedFile": "Lastet fil",
     "stageLabel": "Interaktiv visning av G-kodebanen",
-    "help": "Dra med venstre museknapp for å rotere, dra med høyre for å panorere, og bruk musehjulet for å zoome. På en berøringsskjerm roterer én finger, mens to fingre panorerer og kniper for å zoome. Bruk piltastene for å panorere, Shift og piltastene for å rotere, og 0 for å tilbakestille med tastaturet.",
+    "help": "Dra med venstre museknapp for å rotere, dra med høyre for å panorere og bruk musehjulet for å zoome; på en berøringsskjerm roterer én finger, mens to fingre panorerer og kniper for å zoome; piltastene panorerer, Shift og piltastene roterer, og 0 tilbakestiller visningen.",
     "files": {
-      "title": "Last inn G-kode",
-      "printerFile": "Skriverfil",
-      "select": "Velg en G-kodefil",
-      "load": "Last inn",
-      "refresh": "Oppdater filer",
-      "loadCurrent": "Last inn aktiv utskrift",
-      "or": "eller",
-      "openLocal": "Åpne lokal fil",
+      "open": "Åpne en fil",
       "search": "Finn en fil",
-      "searchPlaceholder": "Søk i {count} filer"
+      "searchPlaceholder": "Søk i {count} filer",
+      "printingNow": "Skrives ut nå",
+      "openLocal": "Åpne en lokal fil",
+      "noUpload": "Leses her, lastes ikke opp",
+      "noMatches": "Fant ingen filer."
     },
     "view": {
-      "title": "Visning",
-      "description": "Perspektivisk 3D-visning · venstre knapp roterer · høyre knapp panorerer",
-      "reset": "Tilbakestill",
-      "zoomIn": "Zoom inn",
-      "zoomOut": "Zoom ut",
+      "reset": "Tilbakestill visningen",
+      "screenshot": "Lagre et skjermbilde",
       "axisX": "X",
       "axisY": "Y",
-      "axisZ": "Z",
-      "screenshot": "Lagre et skjermbilde"
+      "axisZ": "Z"
     },
     "layers": {
-      "title": "Lag og sporing",
-      "layer": "Synlig lag",
-      "value": "{current} av {total} · Z {height} mm",
-      "previous": "Vis tidligere lag",
-      "travels": "Vis forflytninger",
-      "toolhead": "Vis jevn direktebevegelse",
-      "floor": "Laveste synlige lag"
+      "top": "Høyeste synlige lag",
+      "bottom": "Laveste synlige lag",
+      "reading": "Lag {layer} · {height} mm",
+      "travels": "Forflytninger",
+      "travelsUnavailable": "Dette detaljnivået tegner ingen forflytninger.",
+      "lockedSimulation": "Simuleringen bestemmer hvilke lag som vises.",
+      "lockedFollow": "Utskriftens egen posisjon bestemmer hvilke lag som vises."
     },
     "statistics": {
-      "title": "Filstatistikk",
+      "title": "Filinformasjon",
       "layers": "Lag",
       "moves": "Gjengitte bevegelser",
       "extrusions": "Ekstruderinger",
       "travels": "Forflytninger",
-      "fileSize": "Filstørrelse"
+      "fileSize": "Filstørrelse",
+      "estimatedTime": "Beregnet tid",
+      "filament": "Filament",
+      "objectHeight": "Objekthøyde",
+      "slicer": "Kuttet med",
+      "detail": "Detaljnivå",
+      "metres": "{value} m",
+      "millimetres": "{value} mm",
+      "recovered": "Filen som ble lastet inn her sist, ble aldri ferdig, så viseren startet på det laveste detaljnivået.",
+      "tier": {
+        "1": "Linjer, uten forflytninger",
+        "2": "Linjer, kraftig tynnet",
+        "3": "Solide strenger, tynnet",
+        "4": "Solide strenger, lett tynnet",
+        "5": "Solide strenger, full detalj"
+      }
     },
-    "simulation": {
-      "title": "Simuleringsmodus",
-      "enter": "Start simulering",
-      "exit": "Avslutt simulering",
+    "transport": {
+      "follow": "Følg",
+      "followNoPrint": "Ingen utskrift pågår.",
+      "followOtherFile": "Skriveren kjører en annen fil.",
       "position": "Posisjon i verktøybanen",
-      "moveValue": "{current} / {total} bevegelser",
-      "play": "Spill av simulering",
-      "pause": "Sett simulering på pause",
-      "restart": "Start simulering på nytt",
+      "cancel": "Avbryt innlastingen",
+      "restart": "Tilbake til starten",
+      "play": "Spill av",
+      "pause": "Sett på pause",
       "finish": "Gå til slutten",
-      "speedLabel": "Simuleringshastighet",
-      "speedValue": "{speed}×"
+      "speed": "Avspillingshastighet",
+      "speedValue": "{speed}×",
+      "loadingReading": "{name} · {percent} %",
+      "liveReading": "{percent} % skrevet ut",
+      "moveReading": "Bevegelse {current} av {total}"
     },
     "size": {
       "bytes": "{value} B",
@@ -1321,11 +1331,6 @@
     "empty": {
       "title": "Velg en G-kodefil",
       "description": "Last inn fra Moonraker, eller fra denne enheten."
-    },
-    "loading": {
-      "title": "Strømmer og behandler",
-      "cancel": "Avbryt",
-      "followGate": "Direktefølging og simulering låses opp når behandlingen er ferdig."
     },
     "errors": {
       "download": {
@@ -1338,7 +1343,7 @@
       },
       "renderer": {
         "title": "Maskinvaregjengivelse er utilgjengelig",
-        "description": "Denne viseren krever WebGL 2 slik at store filer ikke blokkerer grensesnittet."
+        "description": "Nettleseren melder at det ikke finnes maskinvarebasert 3D-gjengivelse på denne enheten."
       },
       "tooLarge": {
         "title": "Filen er for stor",
@@ -1348,9 +1353,8 @@
     "legend": {
       "toolpath": "Verktøybane",
       "printed": "Skrevet ut",
-      "travel": "Forflytning",
-      "toolhead": "Direkte skrivehode",
-      "simulationToolhead": "Simulert skrivehode",
+      "feedSlow": "{value} mm/s",
+      "feedFast": "{value} mm/s",
       "features": {
         "perimeterOuter": "Ytre kontur",
         "perimeterInner": "Indre kontur",
@@ -1360,37 +1364,27 @@
         "support": "Støtte",
         "skirt": "Skjørt og brem",
         "other": "Uklassifisert"
-      },
-      "feedSlow": "{value} mm/s",
-      "feedFast": "{value} mm/s"
+      }
     },
     "settings": {
       "open": "Innstillinger for visningen",
       "title": "Innstillinger for visningen",
-      "description": "Innstillingene lagres i denne nettleseren.",
       "close": "Ferdig",
-      "appearance": "Utseende",
-      "orbitMode": {
-        "label": "Rotasjonspunkt",
-        "center": "Midten av visningen",
-        "centerHint": "Roterer rundt punktet midten av visningen treffer.",
-        "pointer": "Pekerposisjon",
-        "pointerHint": "Roterer rundt punktet under pekeren der draget starter."
-      },
-      "snapToCenter": {
-        "label": "Flytt til midten",
-        "hint": "Glir punktet du klikker på inn til midten av visningen først."
-      },
-      "highlightSeams": {
-        "label": "Marker sømmer",
-        "hint": "Farger den første og siste millimeteren av hver ekstruderingsbane."
-      },
       "extrusion": "Ekstrudering",
       "nozzle": {
         "label": "Dysediameter (mm)",
         "hint": "Brukes bare for bevegelser som ikke oppgir hvor mye filament de ekstruderer. Tom følger skriveren, som oppgir {value} mm.",
         "hintUnknown": "Brukes bare for bevegelser som ikke oppgir hvor mye filament de ekstruderer. Skriveren har ikke oppgitt dysediameter, så tom betyr 0,4 mm.",
         "unknown": "Fra skriveren"
+      },
+      "controls": {
+        "title": "Navigering",
+        "pointerTerm": "Peker",
+        "pointer": "Dra med venstre museknapp for å rotere, dra med høyre for å panorere, og bruk musehjulet for å zoome.",
+        "touchTerm": "Berøring",
+        "touch": "Én finger roterer; to fingre panorerer og kniper for å zoome.",
+        "keyboardTerm": "Tastatur",
+        "keyboard": "Piltastene panorerer, Shift og piltastene roterer, og 0 tilbakestiller visningen."
       }
     },
     "confirmLoad": {
@@ -1400,15 +1394,12 @@
     },
     "quality": {
       "title": "Gjengivelseskvalitet",
-      "description": "Justerer detaljnivået for å holde visningen responsiv.",
       "modes": {
         "quality": "Kvalitet",
         "auto": "Auto",
         "performance": "Ytelse"
       },
-      "stateFull": "Full detaljgrad",
-      "stateReduced": "Detaljnivå redusert for å holde følge ({step} av {total})",
-      "stateSquareBeads": "Ekstruderingene tegnes firkantet i stedet for avrundet."
+      "state": "{tier} · skarphet {step} av {total}"
     },
     "color": {
       "title": "Farge",
@@ -1417,8 +1408,7 @@
         "feature": "Funksjon",
         "feedrate": "Matehastighet"
       },
-      "feedRange": "Skalaen dekker {slow}–{fast} mm/s, hastighetene denne filen bruker.",
-      "seams": "Marker skjøter"
+      "feedRange": "Skalaen dekker {slow}–{fast} mm/s, hastighetene denne filen bruker."
     }
   },
   "console": {

@@ -2,10 +2,10 @@ import { createPinia, setActivePinia, type Pinia } from 'pinia'
 import { enableAutoUnmount, flushPromises, mount } from '@vue/test-utils'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { i18n } from '@/i18n'
+import { useGcodeViewerSettings } from '@/composables/useGcodeViewerSettings'
 import { GcodeFileTooLargeError, parseGcodeFile } from '@/features/gcode/loader'
-import { GcodeParser } from '@/features/gcode/parser'
-import type { GcodeBounds, ParsedGcodeSummary } from '@/features/gcode/types'
+import { parseGcode } from '@/features/gcode/parser'
+import { i18n } from '@/i18n'
 import { useAvailabilityStore } from '@/stores/availability'
 import { useMoonrakerStore } from '@/stores/moonraker'
 import { usePrinterStore } from '@/stores/printer'
@@ -14,111 +14,144 @@ import GcodeViewerView from '@/views/GcodeViewerView.vue'
 enableAutoUnmount(afterEach)
 
 /**
- * The page-level net under the viewer: cards, empty and error states, and the
- * streaming load flow that phase 1 introduced. WebGL and the parser worker do
- * not exist in jsdom, so the renderer and loader modules are replaced at their
- * boundaries; the parser between them is real, so batches carry true geometry.
+ * The page-level net under the viewer.
+ *
+ * The renderer is replaced at the seam — `createGcodeSceneRenderer` — rather
+ * than deeper, which is the point of having a seam: these tests describe what
+ * the page asks a renderer to do, and would still hold if the library behind
+ * it changed again. The parser between the loader and the page is real, so the
+ * byte table, layer heights and feature inventory a test asserts on are the
+ * ones a real file would produce.
  */
 
-/**
- * The four things that separate the camera moves from each other: an orbit
- * turns, a dolly closes in, a pan looks somewhere else, and re-anchoring the
- * pivot moves the target and the distance together while the eye stands still.
- */
-interface GcodeCameraSnapshot {
-  distance: number
-  yaw: number
-  pitch: number
-  targetX: number
-  targetY: number
-  targetZ: number
+interface RecordedRenderer {
+  canvas: HTMLCanvasElement
+  tier: number
+  travelsAvailable: boolean
+  recoveredFromFailedLoad: boolean
+  loads: string[]
+  progressBytes: Array<number | null>
+  revealAhead: boolean[]
+  layerRanges: Array<[number | null, number | null]>
+  travels: boolean[]
+  colorModes: string[]
+  tiers: number[]
+  resolutionScales: number[]
+  colorApplications: number
+  disposed: number
+  cleared: number
+  cancelled: number
 }
 
-const rendererInstances = vi.hoisted(
-  () =>
-    [] as Array<{
-      canvas: HTMLCanvasElement
-      streamedBatches: number
-      finishedStreams: number
-      begunStreams: number
-      cleared: number
-      disposed: boolean
-      /**
-       * A snapshot of the camera per frame, not the live object: the view keeps
-       * one reactive camera and mutates it, so holding the reference would only
-       * ever report where it ended up.
-       */
-      cameras: Array<GcodeCameraSnapshot>
-    }>,
-)
+const renderers = vi.hoisted(() => [] as RecordedRenderer[])
+const featureColor = vi.hoisted(() => vi.fn<(labels: readonly string[]) => string | null>())
+const changeTier = vi.hoisted(() => vi.fn())
 
-vi.mock('@/features/gcode/renderer', () => ({
-  GcodeRenderer: class {
-    streamedBatches = 0
-    finishedStreams = 0
-    begunStreams = 0
-    cleared = 0
-    disposed = false
-    constructor(public canvas: HTMLCanvasElement) {
-      rendererInstances.push(this)
-    }
-    cameras: GcodeCameraSnapshot[] = []
-    resize(): void {}
-    desiredSampleScale(): number {
-      return 1
-    }
-    render(camera: GcodeCameraSnapshot): null {
-      const { distance, yaw, pitch, targetX, targetY, targetZ } = camera
-      this.cameras.push({ distance, yaw, pitch, targetX, targetY, targetZ })
-      return null
-    }
-    load(): void {}
-    beginStreamedLoad(): void {
-      this.begunStreams += 1
-    }
-    appendGeometryBatch(): void {
-      this.streamedBatches += 1
-    }
-    finishStreamedLoad(): void {
-      this.finishedStreams += 1
-    }
-    setBedBounds(): void {}
-    sceneBounds(): GcodeBounds {
-      return { minX: 0, maxX: 1, minY: 0, maxY: 1, minZ: 0, maxZ: 1 }
-    }
-    bedBounds(): GcodeBounds {
-      return { minX: 0, maxX: 1, minY: 0, maxY: 1, minZ: 0, maxZ: 1 }
-    }
-    pickSurfacePoint(): null {
-      return null
-    }
-    clear(): void {
-      this.cleared += 1
-    }
-    dispose(): void {
-      this.disposed = true
-    }
-  },
-}))
-
-vi.mock('@/features/gcode/loader', async () => {
-  const actual =
-    await vi.importActual<typeof import('@/features/gcode/loader')>('@/features/gcode/loader')
+vi.mock('@/features/gcode/scene', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/features/gcode/scene')>()
   return {
-    GcodeFileTooLargeError: actual.GcodeFileTooLargeError,
-    parseGcodeFile: vi.fn(),
-    fetchAndParseGcode: vi.fn(),
+    ...actual,
+    createGcodeSceneRenderer: vi.fn(
+      async (canvas: HTMLCanvasElement, options: { tier: number; resolutionScale: number }) => {
+        const recorded: RecordedRenderer = {
+          canvas,
+          tier: options.tier,
+          travelsAvailable: options.tier >= 3,
+          recoveredFromFailedLoad: false,
+          loads: [],
+          progressBytes: [],
+          revealAhead: [],
+          layerRanges: [],
+          travels: [],
+          colorModes: [],
+          tiers: [],
+          resolutionScales: [options.resolutionScale],
+          colorApplications: 0,
+          disposed: 0,
+          cleared: 0,
+          cancelled: 0,
+        }
+        renderers.push(recorded)
+        return {
+          get recoveredFromFailedLoad() {
+            return recorded.recoveredFromFailedLoad
+          },
+          get tier() {
+            return recorded.tier
+          },
+          get travelsAvailable() {
+            return recorded.travelsAvailable
+          },
+          load: async (text: string) => {
+            recorded.loads.push(text)
+          },
+          cancelLoad: () => {
+            recorded.cancelled += 1
+          },
+          clear: () => {
+            recorded.cleared += 1
+          },
+          setProgressBytes: (bytes: number | null) => {
+            recorded.progressBytes.push(bytes)
+          },
+          setRevealAhead: (reveal: boolean) => {
+            recorded.revealAhead.push(reveal)
+          },
+          setLayerRange: (bottom: number | null, top: number | null) => {
+            recorded.layerRanges.push([bottom, top])
+          },
+          setTravels: (visible: boolean) => {
+            recorded.travels.push(visible)
+          },
+          setColorMode: async (mode: string) => {
+            recorded.colorModes.push(mode)
+          },
+          setFeedrateRange: () => {},
+          setTier: async (tier: number) => {
+            recorded.tiers.push(tier)
+            await changeTier(recorded, tier)
+          },
+          setResolutionScale: (scale: number) => {
+            recorded.resolutionScales.push(scale)
+          },
+          applyColors: () => {
+            recorded.colorApplications += 1
+          },
+          setBedBounds: () => {},
+          featureColor,
+          resetCamera: () => {},
+          frameBounds: () => {},
+          orbitBy: () => {},
+          panBy: () => {},
+          zoomBy: () => {},
+          cameraPosition: (): [number, number, number] => [0, 0, 100],
+          project: (): [number, number] => [10, 10],
+          screenshot: () => null,
+          resize: () => {},
+          dispose: () => {
+            recorded.disposed += 1
+          },
+        }
+      },
+    ),
   }
 })
 
-const smallPrint = `G90
-M83
-;LAYER:0
-G1 X10 Y10 Z0.2 E1 F1200
-G1 X20 Y10 E1
-G1 X20 Y20
+vi.mock('@/features/gcode/loader', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/features/gcode/loader')>()),
+  parseGcodeFile: vi.fn(),
+  fetchAndParseGcode: vi.fn(),
+}))
+
+const cubeGcode = `;TYPE:External perimeter
+G1 X0 Y0 Z0.2 F1200
+G1 X10 Y0 Z0.2 E1 F1800
+G1 X10 Y10 Z0.2 E1
+;TYPE:Internal infill
+G1 X0 Y10 Z0.2 E1
 ;LAYER:1
-G1 X10 Y20 Z0.4 E1
+G1 X0 Y0 Z0.4 E1
+G1 X10 Y0 Z0.4 E1
 `
 
 let pinia: Pinia
@@ -143,24 +176,10 @@ async function mountView() {
   return view
 }
 
-/**
- * Runs the real streaming parser over `contents` and replays its batches and
- * summary through the mocked loader, so the view sees the same message order a
- * worker would produce. `batchSegments` of 1 forces a batch per safe cut.
- */
-function streamThroughParser(contents: string, batchSegments = 1) {
+function loadThroughParser(contents: string): void {
   vi.mocked(parseGcodeFile).mockImplementation(async (file, options) => {
     options.onProgress({ loaded: file.size, total: file.size })
-    const parser = new GcodeParser(Math.max(1, file.size))
-    parser.pushText(contents)
-    let batch = parser.drainBatch(batchSegments)
-    while (batch) {
-      options.onBatch?.(batch)
-      batch = parser.drainBatch(batchSegments)
-    }
-    const { batch: last, summary } = parser.finishStream()
-    if (last) options.onBatch?.(last)
-    return summary
+    return { text: contents, summary: parseGcode(contents) }
   })
 }
 
@@ -178,11 +197,29 @@ async function chooseLocalFile(
   await flushPromises()
 }
 
+function latest(): RecordedRenderer {
+  const renderer = renderers.at(-1)
+  if (!renderer) throw new Error('no renderer was created')
+  return renderer
+}
+
 beforeEach(() => {
-  vi.restoreAllMocks()
   vi.clearAllMocks()
-  rendererInstances.length = 0
+  renderers.length = 0
+  featureColor.mockReturnValue(null)
+  changeTier.mockImplementation(async (recorded: RecordedRenderer, tier: number) => {
+    recorded.tier = tier
+    recorded.travelsAvailable = tier >= 3
+  })
   window.localStorage.clear()
+  // The settings composable is module-scoped, so each test resets it through
+  // its own setters rather than relying on a fresh import.
+  const settings = useGcodeViewerSettings()
+  settings.setQualityMode('auto')
+  settings.setTierCeiling(4)
+  settings.setColorMode('single')
+  settings.setShowTravels(false)
+  settings.setFollowByDefault(true)
   // jsdom implements neither; the stage observes its size and the view reads
   // the reduced-motion query the moment setup runs.
   vi.stubGlobal(
@@ -206,372 +243,267 @@ beforeEach(() => {
   useAvailabilityStore(pinia).moonrakerConnected({ klippy_connected: true, klippy_state: 'ready' })
   const printer = usePrinterStore(pinia)
   vi.spyOn(printer, 'refreshFiles').mockResolvedValue(true)
+  vi.spyOn(printer, 'loadMetadata').mockResolvedValue(null)
 })
 
 describe('G-code viewer view', () => {
-  it('shows the control cards and the empty stage before any file loads', async () => {
+  it('offers a way in and nothing else before a file loads', async () => {
     const view = await mountView()
 
-    // Load, Layers and tracking, Color, Rendering quality. View is gone: its
-    // reset and zoom live on the stage now. File statistics appears with a file.
-    expect(view.findAll('.gcode-control-card').length).toBe(4)
-    expect(view.find('.gcode-viewer-empty').exists()).toBe(true)
-    expect(view.find('.gcode-viewer-legend').exists()).toBe(false)
-    expect(view.find('.gcode-statistics').exists()).toBe(false)
-    expect(rendererInstances).toHaveLength(1)
+    expect(view.text()).toContain(i18n.global.t('gcodeViewer.empty.title'))
+    // The file chip is the only control on the stage until there is something
+    // to control; a colour mode for no model is a control that does nothing.
+    expect(view.find('.gcode-chip--file').exists()).toBe(true)
+    expect(view.find('.gcode-transport').exists()).toBe(false)
+    expect(view.find('.gcode-rail').exists()).toBe(false)
+    expect(view.find('.gcode-legend').exists()).toBe(false)
   })
 
-  it('loads a local file into statistics, legend, and the layer slider', async () => {
+  it('puts the model, its controls and its readings on the stage once loaded', async () => {
     const view = await mountView()
-    streamThroughParser(smallPrint)
+    loadThroughParser(cubeGcode)
+    await chooseLocalFile(view, cubeGcode)
 
-    await chooseLocalFile(view, smallPrint)
-
-    // The statistics describe the loaded file, so they sit behind a disclosure
-    // on their own card rather than taking four always-open rows.
-    expect(view.find('.gcode-statistics').exists()).toBe(false)
-    await view.find('.gcode-statistics-toggle').trigger('click')
-    const statistics = view.find('.gcode-statistics')
-    expect(statistics.exists()).toBe(true)
-    // 4 parsed moves: 3 extrusions and 1 travel across 2 layers.
-    expect(statistics.text()).toContain('4')
-    expect(view.find('.gcode-viewer-legend').exists()).toBe(true)
-    expect(view.find('.gcode-viewer-loaded-file').text()).toContain('cube.gcode')
-    const slider = view.find('.app-slider__track')
-    expect(slider.attributes('max')).toBe('1')
-    expect(slider.attributes('disabled')).toBeUndefined()
-    expect(view.find('.gcode-viewer-empty').exists()).toBe(false)
+    expect(latest().loads).toEqual([cubeGcode])
+    expect(view.find('.gcode-transport').exists()).toBe(true)
+    expect(view.find('.gcode-rail').exists()).toBe(true)
+    expect(view.find('.gcode-legend').exists()).toBe(true)
+    // The old sidebar is gone rather than hidden.
+    expect(view.find('.gcode-viewer-controls').exists()).toBe(false)
+    expect(view.find('.gcode-control-card').exists()).toBe(false)
   })
 
   /**
-   * A toolhead marker asserts "the machine is here, in this model", so it may
-   * only appear when its position and the geometry under it describe the same
-   * job. The printer always reports a position, and drawing it over a file
-   * someone opened merely to inspect puts a nozzle in a model the machine is not
-   * making — which is what this once did for every loaded file.
+   * The whole file is shown, and geometry ahead of a frontier is only hidden
+   * when there is a frontier. A viewer that opened a file already clipped
+   * would look like it had failed to load half of it.
    */
-  it('keeps the toolhead off a file the machine is not printing', async () => {
+  it('shows a freshly opened file whole', async () => {
     const view = await mountView()
-    streamThroughParser(smallPrint)
+    loadThroughParser(cubeGcode)
+    await chooseLocalFile(view, cubeGcode)
 
-    await chooseLocalFile(view, smallPrint)
-
-    // Live tracking is on by default and the printer has a position; neither is
-    // enough on its own, because this file is not the one being printed.
-    expect(view.find('.gcode-viewer-legend').exists()).toBe(true)
-    expect(view.find('.gcode-legend-toolhead').exists()).toBe(false)
-    expect(view.find('.gcode-viewer-stage').attributes('data-toolhead-mode')).toBeUndefined()
+    expect(latest().progressBytes.at(-1)).toBeNull()
+    expect(latest().revealAhead.at(-1)).toBe(true)
   })
 
-  it('shows the toolhead once a simulation is playing that same file', async () => {
+  /**
+   * Dragging the scrubber is what enters simulation — there is no separate
+   * button for it any more — and the cursor reaches the renderer as a byte
+   * offset with the reveal rule engaged.
+   */
+  it('turns a scrub into a byte frontier with nothing drawn ahead of it', async () => {
     const view = await mountView()
-    streamThroughParser(smallPrint)
-    await chooseLocalFile(view, smallPrint)
+    loadThroughParser(cubeGcode)
+    await chooseLocalFile(view, cubeGcode)
 
-    const enter = view
-      .findAll('button')
-      .find(
-        (button) =>
-          button.attributes('aria-pressed') === 'false' && /simulation/i.test(button.text()),
-      )
-    expect(enter, 'simulation cannot be entered').toBeDefined()
-    await enter!.trigger('click')
+    const scrubber = view.find('.gcode-transport__input')
+    ;(scrubber.element as HTMLInputElement).value = '3'
+    await scrubber.trigger('input')
     await flushPromises()
 
-    expect(view.find('.gcode-legend-toolhead').exists()).toBe(true)
-    expect(view.find('.gcode-viewer-stage').attributes('data-toolhead-mode')).toBe('simulation')
+    expect(latest().revealAhead.at(-1)).toBe(false)
+    const frontier = latest().progressBytes.at(-1)
+    expect(typeof frontier).toBe('number')
+    expect(frontier as number).toBeGreaterThan(0)
+    // A byte offset inside the file, not a segment index dressed up as one.
+    expect(frontier as number).toBeLessThanOrEqual(cubeGcode.length)
+  })
+
+  it('clips to a layer range from the rail, and lifts the clip while playing', async () => {
+    const view = await mountView()
+    loadThroughParser(cubeGcode)
+    await chooseLocalFile(view, cubeGcode)
+
+    const bottom = view.findAll('.gcode-rail__input')[1]
+    if (!bottom) throw new Error('the rail is missing its second thumb')
+    ;(bottom.element as HTMLInputElement).value = '1'
+    await bottom.trigger('input')
+    await flushPromises()
+
+    const clipped = latest().layerRanges.at(-1)
+    expect(clipped?.[0]).toBeGreaterThan(0)
+
+    // Entering simulation hands the decision to the frontier: clipping to the
+    // active layer as well would hide the completed model below it.
+    const scrubber = view.find('.gcode-transport__input')
+    ;(scrubber.element as HTMLInputElement).value = '2'
+    await scrubber.trigger('input')
+    await flushPromises()
+
+    expect(latest().layerRanges.at(-1)).toEqual([null, null])
   })
 
   /**
-   * The point of phase 1: geometry reaches the GPU in batches during the parse
-   * and the summary only finalizes what is already there. A load that uploads
-   * everything in one shot at the end would pass every other test here.
+   * Feature colour belongs to the renderer, which chooses it per slicer while
+   * parsing. The legend asks for it rather than naming a theme token, so the
+   * swatch and the canvas cannot disagree — and a feature the renderer has no
+   * colour for is left out rather than guessed at.
    */
-  it('streams geometry to the renderer in batches, then finalizes once', async () => {
-    const view = await mountView()
-    streamThroughParser(smallPrint)
-
-    await chooseLocalFile(view, smallPrint)
-
-    const renderer = rendererInstances[0]
-    expect(renderer?.begunStreams).toBe(1)
-    expect(renderer?.streamedBatches).toBeGreaterThan(1)
-    expect(renderer?.finishedStreams).toBe(1)
-  })
-
-  it('states on the loading card that follow and simulation wait for the parse', async () => {
-    const view = await mountView()
-    let release: (() => void) | null = null
-    vi.mocked(parseGcodeFile).mockImplementation(
-      () =>
-        new Promise<ParsedGcodeSummary>((resolve) => {
-          release = () => resolve(undefined as unknown as ParsedGcodeSummary)
-        }),
+  it('colours the feature legend from the renderer, and omits what it cannot answer', async () => {
+    // The renderer knows this file's perimeters and nothing about its infill,
+    // which is the real case: a slicer names features in its own words and the
+    // renderer's palette may not carry all of them.
+    featureColor.mockImplementation((labels) =>
+      labels.includes('external perimeter') ? 'rgb(1, 2, 3)' : null,
     )
+    useGcodeViewerSettings().setColorMode('feature')
+    const view = await mountView()
+    loadThroughParser(cubeGcode)
+    await chooseLocalFile(view, cubeGcode)
 
-    const input = view.find('input[type="file"]')
-    const file = new File([smallPrint], 'cube.gcode', { type: 'text/plain' })
-    Object.defineProperty(input.element, 'files', { value: [file], configurable: true })
-    await input.trigger('change')
-    await flushPromises()
-
-    const card = view.find('.gcode-loading-card')
-    expect(card.exists()).toBe(true)
-    expect(card.text()).toContain('Live follow and simulation unlock when processing completes.')
-    expect(release).not.toBeNull()
+    const swatches = view.findAll('.gcode-legend__swatch')
+    // One row, not two: the category the renderer could not colour is left
+    // out rather than shown in a colour the canvas is not using.
+    expect(swatches).toHaveLength(1)
+    expect(swatches[0]?.attributes('style')).toContain('rgb(1, 2, 3)')
+    expect(view.find('.gcode-legend').text()).toContain(
+      i18n.global.t('gcodeViewer.legend.features.perimeterOuter'),
+    )
   })
 
   it('asks before committing a very large file, and loads nothing until confirmed', async () => {
     const view = await mountView()
-    streamThroughParser(smallPrint)
+    loadThroughParser(cubeGcode)
+    await chooseLocalFile(view, cubeGcode, 'huge.gcode', 400 * 1_048_576)
 
-    await chooseLocalFile(view, smallPrint, 'huge.gcode', 200 * 1_048_576)
-
-    const dialog = view.find('.confirm-dialog')
-    expect(dialog.exists()).toBe(true)
-    expect(dialog.text()).toContain('huge.gcode')
-    expect(parseGcodeFile).not.toHaveBeenCalled()
-
-    await dialog.find('.button--primary').trigger('click')
-    await flushPromises()
-
-    expect(parseGcodeFile).toHaveBeenCalledTimes(1)
-    expect(view.find('.gcode-statistics-toggle').exists()).toBe(true)
-  })
-
-  it('abandons a large file when the confirmation is declined', async () => {
-    const view = await mountView()
-    streamThroughParser(smallPrint)
-
-    await chooseLocalFile(view, smallPrint, 'huge.gcode', 200 * 1_048_576)
-    await view.find('.confirm-dialog .button:not(.button--primary)').trigger('click')
-    await flushPromises()
-
-    expect(parseGcodeFile).not.toHaveBeenCalled()
-    expect(view.find('.confirm-dialog[open]').exists()).toBe(false)
+    expect(view.text()).toContain(i18n.global.t('gcodeViewer.confirmLoad.title'))
+    expect(latest().loads).toEqual([])
   })
 
   it('reports an empty file instead of rendering a blank scene', async () => {
     const view = await mountView()
-    streamThroughParser('; comments only\n')
+    loadThroughParser('; nothing but a comment\n')
+    await chooseLocalFile(view, '; nothing but a comment\n')
 
-    await chooseLocalFile(view, '; comments only\n')
-
-    expect(view.find('.gcode-viewer-empty[role="alert"]').exists()).toBe(true)
-    expect(view.find('.gcode-statistics-toggle').exists()).toBe(false)
+    expect(view.text()).toContain(i18n.global.t('gcodeViewer.errors.empty.title'))
   })
 
   it('names the byte-table limit when a file is too large to map', async () => {
     const view = await mountView()
     vi.mocked(parseGcodeFile).mockRejectedValue(new GcodeFileTooLargeError())
+    await chooseLocalFile(view, cubeGcode)
 
-    await chooseLocalFile(view, smallPrint)
-
-    expect(view.find('.gcode-viewer-empty[role="alert"]').text()).toContain('File too large')
+    expect(view.text()).toContain(i18n.global.t('gcodeViewer.errors.tooLarge.title'))
   })
 
   it('surfaces a failed load as the download error state', async () => {
     const view = await mountView()
-    vi.mocked(parseGcodeFile).mockRejectedValue(new Error('boom'))
+    vi.mocked(parseGcodeFile).mockRejectedValue(new Error('network'))
+    await chooseLocalFile(view, cubeGcode)
 
-    await chooseLocalFile(view, smallPrint, 'broken.gcode')
-
-    expect(view.find('.gcode-viewer-empty[role="alert"]').exists()).toBe(true)
-    expect(rendererInstances[0]?.cleared).toBeGreaterThan(0)
+    expect(view.text()).toContain(i18n.global.t('gcodeViewer.errors.download.title'))
   })
 
   it('keeps an aborted load out of the error state', async () => {
     const view = await mountView()
-    vi.mocked(parseGcodeFile).mockRejectedValue(new DOMException('Aborted', 'AbortError'))
+    vi.mocked(parseGcodeFile).mockRejectedValue(new DOMException('aborted', 'AbortError'))
+    await chooseLocalFile(view, cubeGcode)
 
-    await chooseLocalFile(view, smallPrint, 'slow.gcode')
-
-    expect(view.find('.gcode-viewer-empty[role="alert"]').exists()).toBe(false)
-    expect(view.find('.gcode-viewer-empty').exists()).toBe(true)
+    expect(view.text()).not.toContain(i18n.global.t('gcodeViewer.errors.download.title'))
   })
 
   /**
-   * A lost context takes every GPU buffer with it and the CPU keeps no copy of
-   * the upload-only arrays, so recovery has to re-run the last load. Before
-   * this, a driver reset left a permanently blank canvas.
+   * The library keeps its engine, its scene, every mesh and the whole file
+   * text alive until something disposes them, and it has no disposer of its
+   * own. Leaving the page has to be that something, or a session that visits
+   * the viewer twice holds two of everything.
    */
-  it('rebuilds the renderer and reloads the file after a lost WebGL context', async () => {
+  it('disposes the renderer when the page is left', async () => {
     const view = await mountView()
-    streamThroughParser(smallPrint)
-    await chooseLocalFile(view, smallPrint)
-    expect(parseGcodeFile).toHaveBeenCalledTimes(1)
+    loadThroughParser(cubeGcode)
+    await chooseLocalFile(view, cubeGcode)
 
-    const canvas = view.find('canvas').element
-    canvas.dispatchEvent(new Event('webglcontextlost', { cancelable: true }))
-    canvas.dispatchEvent(new Event('webglcontextrestored'))
+    expect(latest().disposed).toBe(0)
+    view.unmount()
+    expect(latest().disposed).toBe(1)
+  })
+
+  /**
+   * A tier is a vertex budget the renderer meets by rebuilding every mesh, so
+   * it is chosen once per load from the mode and this device's own ceiling —
+   * never dragged, and never moved by the frame-rate governor.
+   */
+  it('chooses the detail tier from the quality mode at load time', async () => {
+    // Set through the composable rather than through storage: it reads its
+    // keys once at import, so a test that seeded storage would be describing
+    // whatever the previous test left behind.
+    useGcodeViewerSettings().setQualityMode('quality')
+    const view = await mountView()
+    loadThroughParser(cubeGcode)
+    await chooseLocalFile(view, cubeGcode)
+
+    // Quality asks for the richest tier the renderer offers.
+    expect(latest().tier).toBe(5)
+  })
+
+  it('serializes rapid quality changes and finishes at the latest mode', async () => {
+    const view = await mountView()
+    loadThroughParser(cubeGcode)
+    await chooseLocalFile(view, cubeGcode)
+
+    let releaseQuality!: () => void
+    const qualityBlocked = new Promise<void>((resolve) => {
+      releaseQuality = resolve
+    })
+    let activeChanges = 0
+    let maximumActiveChanges = 0
+    changeTier.mockImplementation(async (recorded: RecordedRenderer, tier: number) => {
+      activeChanges += 1
+      maximumActiveChanges = Math.max(maximumActiveChanges, activeChanges)
+      if (tier === 5) await qualityBlocked
+      recorded.tier = tier
+      recorded.travelsAvailable = tier >= 3
+      activeChanges -= 1
+    })
+
+    const qualityTrigger = view.find(
+      `button[aria-label="${i18n.global.t('gcodeViewer.quality.title')}"]`,
+    )
+    await qualityTrigger.trigger('click')
+    const qualityChoice = view
+      .findAll('.gcode-popover button')
+      .find((button) => button.text() === i18n.global.t('gcodeViewer.quality.modes.quality'))
+    if (!qualityChoice) throw new Error('the Quality choice is missing')
+    await qualityChoice.trigger('click')
     await flushPromises()
 
-    expect(rendererInstances).toHaveLength(2)
-    expect(rendererInstances[0]?.disposed).toBe(true)
-    expect(parseGcodeFile).toHaveBeenCalledTimes(2)
-    expect(view.find('.gcode-statistics-toggle').exists()).toBe(true)
+    await qualityTrigger.trigger('click')
+    const performanceChoice = view
+      .findAll('.gcode-popover button')
+      .find((button) => button.text() === i18n.global.t('gcodeViewer.quality.modes.performance'))
+    if (!performanceChoice) throw new Error('the Performance choice is missing')
+    await performanceChoice.trigger('click')
+    await flushPromises()
+
+    expect(maximumActiveChanges).toBe(1)
+    expect(latest().tiers).toEqual([4, 5])
+
+    releaseQuality()
+    await flushPromises()
+
+    expect(maximumActiveChanges).toBe(1)
+    expect(latest().tiers).toEqual([4, 5, 2])
+    expect(latest().tier).toBe(2)
+  })
+
+  it('starts a device that could not hold its tier one rung lower', async () => {
+    useGcodeViewerSettings().setTierCeiling(2)
+    const view = await mountView()
+    loadThroughParser(cubeGcode)
+    await chooseLocalFile(view, cubeGcode)
+
+    expect(latest().tier).toBe(2)
+    // And says so where somebody looking at a coarse model would ask why.
+    expect(latest().travelsAvailable).toBe(false)
   })
 
   it('installs the development benchmark for the console and removes it on unmount', async () => {
     const view = await mountView()
+    const handle = '__alabasterGcodeViewerBenchmark'
 
-    const host = window as unknown as Record<string, unknown>
-    expect(host.__alabasterGcodeViewerBenchmark).toBeDefined()
-
+    expect((window as unknown as Record<string, unknown>)[handle]).toBeDefined()
     view.unmount()
-    expect(host.__alabasterGcodeViewerBenchmark).toBeUndefined()
-  })
-
-  describe('two fingers on the stage', () => {
-    /**
-     * The stage renders on an animation frame, so a test that only dispatched
-     * events would assert against the camera as it stood before them. Running
-     * the callback at once is enough: nothing here depends on real time.
-     */
-    function renderSynchronously(): void {
-      // Returning 0 rather than a handle, because the view uses 0 as "no frame
-      // pending" and assigns this return value *after* the callback has already
-      // cleared it — a truthy handle latches the guard shut and nothing renders
-      // again for the rest of the test.
-      vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
-        callback(0)
-        return 0
-      })
-      vi.stubGlobal('cancelAnimationFrame', () => undefined)
-    }
-
-    /**
-     * The stage has no layout in jsdom, so both the pointer arithmetic and the
-     * canvas sizing need a box — and the sizing happens at mount, which is why
-     * this goes on the prototype before the view is mounted rather than on the
-     * element afterwards.
-     */
-    function giveEveryElementABox(): void {
-      vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
-        left: 0,
-        top: 0,
-        width: 800,
-        height: 600,
-        right: 800,
-        bottom: 600,
-      } as DOMRect)
-    }
-
-    function finger(
-      type: 'pointerdown' | 'pointermove' | 'pointerup',
-      pointerId: number,
-      clientX: number,
-      clientY: number,
-    ): PointerEvent {
-      return new PointerEvent(type, {
-        button: 0,
-        pointerType: 'touch',
-        pointerId,
-        clientX,
-        clientY,
-        bubbles: true,
-        cancelable: true,
-      })
-    }
-
-    async function loadedStage() {
-      renderSynchronously()
-      giveEveryElementABox()
-      const view = await mountView()
-      streamThroughParser(smallPrint)
-      await chooseLocalFile(view, smallPrint)
-      const stage = view.get('.gcode-viewer-stage').element as HTMLElement
-      stage.setPointerCapture = () => undefined
-      stage.releasePointerCapture = () => undefined
-      stage.hasPointerCapture = () => false
-      const renderer = rendererInstances[0]
-      renderer?.cameras.splice(0)
-      return { view, stage, renderer }
-    }
-
-    /**
-     * A finger reporting the position it is already at. Landing a finger
-     * re-anchors the pivot, which moves the target without redrawing anything,
-     * so this is what puts a frame on the record to measure the gesture from.
-     */
-    function settle(stage: HTMLElement, pointerId: number, clientX: number, clientY: number) {
-      stage.dispatchEvent(finger('pointermove', pointerId, clientX, clientY))
-    }
-
-    function traveled(before?: GcodeCameraSnapshot, after?: GcodeCameraSnapshot): number {
-      return Math.hypot(
-        (after?.targetX ?? 0) - (before?.targetX ?? 0),
-        (after?.targetY ?? 0) - (before?.targetY ?? 0),
-        (after?.targetZ ?? 0) - (before?.targetZ ?? 0),
-      )
-    }
-
-    it('pinches to zoom rather than orbiting', async () => {
-      const { stage, renderer } = await loadedStage()
-      stage.dispatchEvent(finger('pointerdown', 1, 300, 300))
-      stage.dispatchEvent(finger('pointerdown', 2, 500, 300))
-      settle(stage, 1, 300, 300)
-      const before = renderer?.cameras.at(-1)
-
-      // Fingers spread from 200 px apart to 400 px, about the same midpoint.
-      stage.dispatchEvent(finger('pointermove', 1, 200, 300))
-      stage.dispatchEvent(finger('pointermove', 2, 600, 300))
-
-      const after = renderer?.cameras.at(-1)
-      // Spreading the fingers closes in, and turns nothing.
-      expect(after?.distance).toBeCloseTo((before?.distance ?? 0) / 2, 4)
-      expect(after?.yaw).toBeCloseTo(before?.yaw ?? 0, 6)
-      expect(after?.pitch).toBeCloseTo(before?.pitch ?? 0, 6)
-    })
-
-    it('drags two fingers to pan, without turning the model', async () => {
-      const { stage, renderer } = await loadedStage()
-      stage.dispatchEvent(finger('pointerdown', 1, 300, 300))
-      stage.dispatchEvent(finger('pointerdown', 2, 500, 300))
-      settle(stage, 1, 300, 300)
-      const before = renderer?.cameras.at(-1)
-
-      // Both fingers 120 px to the right: the shape between them never changes,
-      // so the camera looks somewhere else from the same distance and angle.
-      stage.dispatchEvent(finger('pointermove', 1, 420, 300))
-      stage.dispatchEvent(finger('pointermove', 2, 620, 300))
-
-      const after = renderer?.cameras.at(-1)
-      expect(traveled(before, after)).toBeGreaterThan(0)
-      expect(after?.distance).toBeCloseTo(before?.distance ?? 0, 4)
-      expect(after?.yaw).toBeCloseTo(before?.yaw ?? 0, 6)
-      expect(after?.pitch).toBeCloseTo(before?.pitch ?? 0, 6)
-    })
-
-    it('keeps panning on the finger left down as the pinch is released', async () => {
-      // Fingers never leave the glass together, so the last one has to keep
-      // panning: handed back to the one-finger drag it orbited the model a few
-      // degrees at the end of every pinch.
-      const { stage, renderer } = await loadedStage()
-      stage.dispatchEvent(finger('pointerdown', 1, 300, 300))
-      stage.dispatchEvent(finger('pointerdown', 2, 500, 300))
-      stage.dispatchEvent(finger('pointerup', 2, 500, 300))
-      settle(stage, 1, 300, 300)
-      const before = renderer?.cameras.at(-1)
-
-      stage.dispatchEvent(finger('pointermove', 1, 360, 300))
-
-      const after = renderer?.cameras.at(-1)
-      expect(traveled(before, after)).toBeGreaterThan(0)
-      expect(after?.yaw).toBeCloseTo(before?.yaw ?? 0, 6)
-      expect(after?.pitch).toBeCloseTo(before?.pitch ?? 0, 6)
-    })
-
-    it('orbits from one finger, which is the gesture a mouse makes too', async () => {
-      const { stage, renderer } = await loadedStage()
-      stage.dispatchEvent(finger('pointerdown', 1, 300, 300))
-      stage.dispatchEvent(finger('pointermove', 1, 340, 300))
-      const before = renderer?.cameras.at(-1)
-
-      stage.dispatchEvent(finger('pointermove', 1, 420, 300))
-
-      const after = renderer?.cameras.at(-1)
-      expect(after?.yaw).not.toBeCloseTo(before?.yaw ?? 0, 6)
-    })
+    expect((window as unknown as Record<string, unknown>)[handle]).toBeUndefined()
   })
 })

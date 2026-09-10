@@ -1257,61 +1257,71 @@
   },
   "gcodeViewer": {
     "title": "G-code viewer",
-    "loadedFile": "Loaded file",
     "stageLabel": "Interactive G-code toolpath view",
-    "help": "Left-drag to rotate, right-drag to pan, and use the mouse wheel to zoom. On a touchscreen, one finger rotates while two fingers pan and pinch to zoom. With the keyboard, use the arrow keys to pan, Shift plus the arrow keys to rotate, and 0 to reset.",
+    "help": "Left-drag rotates, right-drag pans and the mouse wheel zooms; on a touchscreen one finger rotates while two fingers pan and pinch to zoom; the arrow keys pan, Shift plus the arrow keys rotate, and 0 resets the view.",
     "files": {
-      "title": "Load G-code",
-      "printerFile": "Printer file",
-      "select": "Select a G-code file",
-      "load": "Load",
-      "refresh": "Refresh files",
-      "loadCurrent": "Load current print",
-      "or": "or",
-      "openLocal": "Open local file",
+      "open": "Open a file",
       "search": "Find a file",
-      "searchPlaceholder": "Search {count} files"
+      "searchPlaceholder": "Search {count} files",
+      "printingNow": "Printing now",
+      "openLocal": "Open a local file",
+      "noUpload": "Read here, not uploaded",
+      "noMatches": "No files found."
     },
     "view": {
-      "title": "View",
-      "description": "Perspective 3D view · left button rotates · right button pans",
-      "reset": "Reset",
-      "zoomIn": "Zoom in",
-      "zoomOut": "Zoom out",
+      "reset": "Reset the view",
+      "screenshot": "Save a screenshot",
       "axisX": "X",
       "axisY": "Y",
-      "axisZ": "Z",
-      "screenshot": "Save a screenshot"
+      "axisZ": "Z"
     },
     "layers": {
-      "title": "Layers and tracking",
-      "layer": "Visible layer",
-      "value": "{current} of {total} · Z {height} mm",
-      "previous": "Show previous layers",
-      "travels": "Show travel moves",
-      "toolhead": "Show smooth live toolhead",
-      "floor": "Lowest visible layer"
+      "top": "Highest visible layer",
+      "bottom": "Lowest visible layer",
+      "reading": "Layer {layer} · {height} mm",
+      "travels": "Travel moves",
+      "travelsUnavailable": "This detail level draws no travel moves.",
+      "lockedSimulation": "The simulation is choosing the visible layers.",
+      "lockedFollow": "The print's own position is choosing the visible layers."
     },
     "statistics": {
-      "title": "File statistics",
+      "title": "File information",
       "layers": "Layers",
       "moves": "Rendered moves",
       "extrusions": "Extrusions",
       "travels": "Travel moves",
-      "fileSize": "File size"
+      "fileSize": "File size",
+      "estimatedTime": "Estimated time",
+      "filament": "Filament",
+      "objectHeight": "Object height",
+      "slicer": "Sliced with",
+      "detail": "Detail",
+      "metres": "{value} m",
+      "millimetres": "{value} mm",
+      "recovered": "The file loaded here before never finished, so the viewer started at its lowest detail level.",
+      "tier": {
+        "1": "Lines, no travels",
+        "2": "Lines, heavily thinned",
+        "3": "Solid beads, thinned",
+        "4": "Solid beads, lightly thinned",
+        "5": "Solid beads, full detail"
+      }
     },
-    "simulation": {
-      "title": "Simulation mode",
-      "enter": "Start simulation",
-      "exit": "Exit simulation",
+    "transport": {
+      "follow": "Follow",
+      "followNoPrint": "Nothing is printing.",
+      "followOtherFile": "The printer is running a different file.",
       "position": "Toolpath position",
-      "moveValue": "{current} / {total} moves",
-      "play": "Play simulation",
-      "pause": "Pause simulation",
-      "restart": "Restart simulation",
+      "cancel": "Cancel loading",
+      "restart": "Back to the start",
+      "play": "Play",
+      "pause": "Pause",
       "finish": "Jump to the end",
-      "speedLabel": "Simulation speed",
-      "speedValue": "{speed}×"
+      "speed": "Playback speed",
+      "speedValue": "{speed}×",
+      "loadingReading": "{name} · {percent}%",
+      "liveReading": "{percent}% printed",
+      "moveReading": "Move {current} of {total}"
     },
     "size": {
       "bytes": "{value} B",
@@ -1321,11 +1331,6 @@
     "empty": {
       "title": "Choose a G-code file",
       "description": "Load from Moonraker, or from this device."
-    },
-    "loading": {
-      "title": "Streaming and processing",
-      "cancel": "Cancel",
-      "followGate": "Live follow and simulation unlock when processing completes."
     },
     "errors": {
       "download": {
@@ -1338,7 +1343,7 @@
       },
       "renderer": {
         "title": "Hardware rendering is unavailable",
-        "description": "This viewer requires WebGL 2."
+        "description": "This browser reports no hardware 3D rendering on this device."
       },
       "tooLarge": {
         "title": "File too large",
@@ -1348,9 +1353,8 @@
     "legend": {
       "toolpath": "Toolpath",
       "printed": "Printed",
-      "travel": "Travel",
-      "toolhead": "Live toolhead",
-      "simulationToolhead": "Simulated toolhead",
+      "feedSlow": "{value} mm/s",
+      "feedFast": "{value} mm/s",
       "features": {
         "perimeterOuter": "External perimeter",
         "perimeterInner": "Inner perimeter",
@@ -1360,37 +1364,27 @@
         "support": "Support",
         "skirt": "Skirt and brim",
         "other": "Unclassified"
-      },
-      "feedSlow": "{value} mm/s",
-      "feedFast": "{value} mm/s"
+      }
     },
     "settings": {
       "open": "Viewer settings",
       "title": "Viewer settings",
-      "description": "These settings are stored in this browser.",
       "close": "Done",
-      "appearance": "Appearance",
-      "orbitMode": {
-        "label": "Rotation pivot",
-        "center": "Center of the view",
-        "centerHint": "Rotates around the point the center of the view hits.",
-        "pointer": "Pointer position",
-        "pointerHint": "Rotates around the point under the pointer where the drag starts."
-      },
-      "snapToCenter": {
-        "label": "Snap to center",
-        "hint": "Slides the point you click into the center of the view first."
-      },
-      "highlightSeams": {
-        "label": "Highlight seams",
-        "hint": "Colors the first and last millimetre of every extrusion path."
-      },
       "extrusion": "Extrusion",
       "nozzle": {
         "label": "Nozzle diameter (mm)",
         "hint": "Used only for moves that do not state how much filament they extrude. Empty follows the printer, which reports {value} mm.",
         "hintUnknown": "Used only for moves that do not state how much filament they extrude. The printer has not reported a nozzle diameter, so empty means 0.4 mm.",
         "unknown": "From printer"
+      },
+      "controls": {
+        "title": "Controls",
+        "pointerTerm": "Pointer",
+        "pointer": "Left-drag rotates, right-drag pans, and the mouse wheel zooms.",
+        "touchTerm": "Touch",
+        "touch": "One finger rotates; two fingers pan and pinch to zoom.",
+        "keyboardTerm": "Keyboard",
+        "keyboard": "The arrow keys pan, Shift plus the arrow keys rotate, and 0 resets the view."
       }
     },
     "confirmLoad": {
@@ -1400,15 +1394,12 @@
     },
     "quality": {
       "title": "Rendering quality",
-      "description": "Adjusts detail to keep the view responsive.",
       "modes": {
         "quality": "Quality",
         "auto": "Auto",
         "performance": "Performance"
       },
-      "stateFull": "Full detail",
-      "stateReduced": "Detail reduced to keep up ({step} of {total})",
-      "stateSquareBeads": "Extrusions are drawn square rather than rounded."
+      "state": "{tier} · sharpness {step} of {total}"
     },
     "color": {
       "title": "Color",
@@ -1417,8 +1408,7 @@
         "feature": "Feature",
         "feedrate": "Feed rate"
       },
-      "feedRange": "Ramp spans {slow}–{fast} mm/s, the speeds this file uses.",
-      "seams": "Highlight seams"
+      "feedRange": "Ramp spans {slow}–{fast} mm/s, the speeds this file uses."
     }
   },
   "console": {

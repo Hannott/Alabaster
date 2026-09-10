@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
-import { gcodeFeatureFromComment } from '@/features/gcode/features'
+import { gcodeFeatureFromComment, gcodeFeatureLabels } from '@/features/gcode/features'
 import { parseGcode } from '@/features/gcode/parser'
 import {
   GcodeFeature,
-  defaultGcodeBeadOverlap,
+  gcodeFeatureCount,
   gcodeSegment,
   gcodeSegmentStride,
 } from '@/features/gcode/types'
@@ -177,15 +177,75 @@ G1 X10 Y0 E0.5
     expect(widthAt(parseGcode(source, 0).segments, 1)).toBeCloseTo(assumed, 6)
     expect(widthAt(parseGcode(source, Number.NaN).segments, 1)).toBeCloseTo(assumed, 6)
   })
+})
 
-  /**
-   * A slicer spaces adjacent lines by their extrusion width, so drawn at
-   * exactly that width they leave a hairline of background between every pair
-   * and the surface reads as stripes. Beads are drawn slightly wider so they
-   * overlap, as they do on a real print.
-   */
-  it('draws beads wider than they were extruded, but only slightly', () => {
-    expect(defaultGcodeBeadOverlap).toBeGreaterThan(1)
-    expect(defaultGcodeBeadOverlap).toBeLessThanOrEqual(1.25)
+/**
+ * The reverse table, which is how the legend gets its colours from the renderer
+ * instead of from a guess. The rendering library decides a bead's colour while
+ * parsing, from its own per-slicer palette, and it names features in slicer
+ * words while Alabaster names them in translated ones — so the legend asks it
+ * for the colour of each label a category might carry and takes the first
+ * answer.
+ *
+ * That only works while the two directions agree. A label that appears here but
+ * classifies as something else through `gcodeFeatureFromComment` would paint one
+ * category's swatch in another category's colour, and the legend would be
+ * confidently wrong rather than visibly incomplete — so the round-trip below is
+ * the point of these tests, not the spot checks above it.
+ */
+describe('gcodeFeatureLabels', () => {
+  const categories = [
+    GcodeFeature.Other,
+    GcodeFeature.PerimeterOuter,
+    GcodeFeature.PerimeterInner,
+    GcodeFeature.Infill,
+    GcodeFeature.InfillSolid,
+    GcodeFeature.Bridge,
+    GcodeFeature.Support,
+    GcodeFeature.Skirt,
+  ]
+
+  it('covers every category the viewer names', () => {
+    expect(categories).toHaveLength(gcodeFeatureCount)
+    for (const category of categories) {
+      expect(gcodeFeatureLabels(category).length).toBeGreaterThan(0)
+    }
+  })
+
+  it('offers every slicer word for a category, not the words of one slicer', () => {
+    // One category, four vocabularies: PrusaSlicer, OrcaSlicer, Cura and
+    // ideaMaker. Asking with only one of them would leave three quarters of
+    // real files with an uncoloured swatch.
+    expect(gcodeFeatureLabels(GcodeFeature.PerimeterOuter)).toEqual(
+      expect.arrayContaining(['external perimeter', 'outer wall', 'wall-outer', 'outer-wall']),
+    )
+    expect(gcodeFeatureLabels(GcodeFeature.Infill)).toEqual(
+      expect.arrayContaining(['internal infill', 'sparse infill', 'fill', 'sparse-fill']),
+    )
+  })
+
+  it('returns nothing for a category no slicer word maps onto', () => {
+    // The legend has to omit a swatch it cannot colour rather than fall back to
+    // some other category's labels and paint the wrong one.
+    expect(gcodeFeatureLabels(99 as GcodeFeature)).toEqual([])
+  })
+
+  it('never returns a label that classifies as a different category', () => {
+    for (const category of categories) {
+      for (const label of gcodeFeatureLabels(category)) {
+        expect(gcodeFeatureFromComment(`;TYPE:${label}`)).toBe(category)
+      }
+    }
+  })
+
+  it('places each slicer word in exactly one category', () => {
+    const seen = new Set<string>()
+    for (const category of categories) {
+      for (const label of gcodeFeatureLabels(category)) {
+        expect(seen.has(label)).toBe(false)
+        seen.add(label)
+      }
+    }
+    expect(seen.size).toBeGreaterThan(categories.length)
   })
 })

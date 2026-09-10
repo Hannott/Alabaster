@@ -3,24 +3,18 @@ import { onBeforeUnmount, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import AppButton from '@/components/AppButton.vue'
-import type { GcodeOrbitMode } from '@/composables/useGcodeViewerSettings'
 
 const props = defineProps<{
   open: boolean
-  orbitMode: GcodeOrbitMode
   /** What the printer reports, shown as the value an empty field falls back to. */
   machineNozzleDiameter: number | null
 }>()
 
-const emit = defineEmits<{
-  close: []
-  select: [GcodeOrbitMode]
-}>()
+const emit = defineEmits<{ close: [] }>()
 
 // Named models, not hand-rolled prop/emit pairs — `AppSelect.vue` is the
 // canonical example and says why.
-const snapToCenter = defineModel<boolean>('snapToCenter', { required: true })
-const highlightSeams = defineModel<boolean>('highlightSeams', { required: true })
+//
 // Null means "use the machine's", which is why an empty field is a valid state
 // rather than something to be corrected to a default on blur.
 const nozzleDiameter = defineModel<number | null>('nozzleDiameter', { required: true })
@@ -34,19 +28,6 @@ function handleNozzleInput(event: Event): void {
 
 const { t } = useI18n({ useScope: 'global' })
 const dialog = ref<HTMLDialogElement | null>(null)
-
-const orbitModes: Array<{ value: GcodeOrbitMode; label: string; hint: string }> = [
-  {
-    value: 'center',
-    label: 'gcodeViewer.settings.orbitMode.center',
-    hint: 'gcodeViewer.settings.orbitMode.centerHint',
-  },
-  {
-    value: 'pointer',
-    label: 'gcodeViewer.settings.orbitMode.pointer',
-    hint: 'gcodeViewer.settings.orbitMode.pointerHint',
-  },
-]
 
 /**
  * A native dialog gives modal focus trapping, Escape handling, and the top layer
@@ -79,38 +60,6 @@ onBeforeUnmount(() => {
         @click="emit('close')"
       />
     </header>
-    <p class="gcode-view-description">{{ t('gcodeViewer.settings.description') }}</p>
-
-    <fieldset class="gcode-settings-group">
-      <legend>{{ t('gcodeViewer.settings.orbitMode.label') }}</legend>
-      <label
-        v-for="mode in orbitModes"
-        :key="mode.value"
-        class="check-row check-row--block gcode-settings-option"
-      >
-        <input
-          type="radio"
-          name="gcode-orbit-mode"
-          :value="mode.value"
-          :checked="orbitMode === mode.value"
-          @change="emit('select', mode.value)"
-        />
-        <span>
-          <strong>{{ t(mode.label) }}</strong>
-          <small>{{ t(mode.hint) }}</small>
-        </span>
-      </label>
-      <label
-        class="check-row check-row--block gcode-settings-option"
-        :data-disabled="orbitMode !== 'pointer' || undefined"
-      >
-        <input v-model="snapToCenter" type="checkbox" :disabled="orbitMode !== 'pointer'" />
-        <span>
-          <strong>{{ t('gcodeViewer.settings.snapToCenter.label') }}</strong>
-          <small>{{ t('gcodeViewer.settings.snapToCenter.hint') }}</small>
-        </span>
-      </label>
-    </fieldset>
 
     <fieldset class="gcode-settings-group">
       <legend>{{ t('gcodeViewer.settings.extrusion') }}</legend>
@@ -125,9 +74,9 @@ onBeforeUnmount(() => {
           step="0.05"
           :value="nozzleDiameter ?? ''"
           :placeholder="
-            machineNozzleDiameter === null
+            props.machineNozzleDiameter === null
               ? t('gcodeViewer.settings.nozzle.unknown')
-              : String(machineNozzleDiameter)
+              : String(props.machineNozzleDiameter)
           "
           autocomplete="off"
           data-1p-ignore
@@ -138,22 +87,37 @@ onBeforeUnmount(() => {
       </label>
       <p class="gcode-view-description">
         {{
-          machineNozzleDiameter === null
+          props.machineNozzleDiameter === null
             ? t('gcodeViewer.settings.nozzle.hintUnknown')
-            : t('gcodeViewer.settings.nozzle.hint', { value: machineNozzleDiameter })
+            : t('gcodeViewer.settings.nozzle.hint', { value: props.machineNozzleDiameter })
         }}
       </p>
     </fieldset>
 
+    <!--
+      The stage used to carry a paragraph of pointer and keyboard instructions
+      under it, which cost a line of the model's height on every screen to
+      state what most people discover by dragging once. It lives here instead,
+      where somebody who cannot find a gesture will look. The stage keeps the
+      same words on a visually hidden element for its accessible description,
+      so nothing was taken from a screen reader to save that line.
+    -->
     <fieldset class="gcode-settings-group">
-      <legend>{{ t('gcodeViewer.settings.appearance') }}</legend>
-      <label class="check-row check-row--block gcode-settings-option">
-        <input v-model="highlightSeams" type="checkbox" />
-        <span>
-          <strong>{{ t('gcodeViewer.settings.highlightSeams.label') }}</strong>
-          <small>{{ t('gcodeViewer.settings.highlightSeams.hint') }}</small>
-        </span>
-      </label>
+      <legend>{{ t('gcodeViewer.settings.controls.title') }}</legend>
+      <dl class="gcode-settings-controls">
+        <div>
+          <dt>{{ t('gcodeViewer.settings.controls.pointerTerm') }}</dt>
+          <dd>{{ t('gcodeViewer.settings.controls.pointer') }}</dd>
+        </div>
+        <div>
+          <dt>{{ t('gcodeViewer.settings.controls.touchTerm') }}</dt>
+          <dd>{{ t('gcodeViewer.settings.controls.touch') }}</dd>
+        </div>
+        <div>
+          <dt>{{ t('gcodeViewer.settings.controls.keyboardTerm') }}</dt>
+          <dd>{{ t('gcodeViewer.settings.controls.keyboard') }}</dd>
+        </div>
+      </dl>
     </fieldset>
 
     <div class="mt-5 flex justify-end">

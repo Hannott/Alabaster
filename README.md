@@ -13,9 +13,10 @@ read from across a workshop and driven from a phone.
 - **`printer.cfg` reads like hypertext.** `[include]` targets are clickable,
   moving a file offers to fix the include that pointed at it, and an unsaved
   edit is never lost to a wrong click.
-- **A G-code viewer built for huge files.** A 100 MB print starts drawing in
-  about a quarter second, and can follow a live job bead by bead along the
-  real path rather than sliding between position samples.
+- **A G-code viewer that runs on modest hardware.** Five detail levels, down
+  to plain lines, chosen per file from its size and what the device managed
+  before; it follows a live job bead by bead along the real path rather than
+  sliding between position samples.
 - **Maintenance counted against the printer's own totals** — print hours,
   filament, or days since — and asked about before a print starts into an
   overdue one.

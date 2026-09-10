@@ -1,109 +1,65 @@
-import { fittedCamera } from '@/features/gcode/camera'
-import type { GcodeBounds, GcodeCamera, ParsedGcodeGeometry } from '@/features/gcode/types'
-
 /**
- * Development-only performance harness for the G-code viewer.
+ * The viewer's measurement harness, in development builds only.
  *
- * The redesign work is judged against measured numbers, not impressions, so
- * every phase reruns the same scripted camera sweeps over the same file and
- * compares the resulting report. Nothing in this module renders by itself:
- * the view hands it hooks into the live renderer and camera, and the pure
- * helpers below stay unit-testable without a canvas.
+ * It exists because every performance claim this viewer has ever made was
+ * taken on one desktop GPU, and the architecture that resulted was unusable on
+ * ordinary integrated graphics. A number nobody can reproduce on the machine
+ * that matters is not a number. So the scripts below drive the camera the way
+ * a person does — a slow orbit at the framing the file opens in, an orbit from
+ * close in, and a zoom sweep — and report frame intervals rather than a single
+ * average, because the tail is what reads as stutter.
+ *
+ * Run it from the console on the viewer page:
+ *
+ *     await __alabasterGcodeViewerBenchmark.loadUrl('/bench.gcode')
+ *     await __alabasterGcodeViewerBenchmark.run()
+ *
+ * The three script names are unchanged from the harness that measured the
+ * hand-written renderer, so numbers taken before and after the library swap
+ * describe the same camera motion and can be compared.
  */
 
 export interface GcodeFrameStatistics {
   frames: number
-  seconds: number
-  averageFps: number
-  medianFrameMilliseconds: number
-  p95FrameMilliseconds: number
-  worstFrameMilliseconds: number
+  averageFramesPerSecond: number
+  medianMilliseconds: number
+  percentile95Milliseconds: number
+  worstMilliseconds: number
 }
 
 export function frameIntervalStatistics(intervalsMilliseconds: number[]): GcodeFrameStatistics {
   if (intervalsMilliseconds.length === 0) {
     return {
       frames: 0,
-      seconds: 0,
-      averageFps: 0,
-      medianFrameMilliseconds: 0,
-      p95FrameMilliseconds: 0,
-      worstFrameMilliseconds: 0,
+      averageFramesPerSecond: 0,
+      medianMilliseconds: 0,
+      percentile95Milliseconds: 0,
+      worstMilliseconds: 0,
     }
   }
   const sorted = [...intervalsMilliseconds].sort((left, right) => left - right)
-  const totalMilliseconds = sorted.reduce((sum, value) => sum + value, 0)
-  const middle = sorted.length / 2
+  const total = sorted.reduce((sum, interval) => sum + interval, 0)
+  const middle = Math.floor(sorted.length / 2)
   const median =
     sorted.length % 2 === 0
       ? ((sorted[middle - 1] ?? 0) + (sorted[middle] ?? 0)) / 2
-      : (sorted[Math.floor(middle)] ?? 0)
-  const p95Index = Math.min(sorted.length - 1, Math.ceil(sorted.length * 0.95) - 1)
+      : (sorted[middle] ?? 0)
+  const percentileIndex = Math.min(sorted.length - 1, Math.floor(sorted.length * 0.95))
   return {
     frames: sorted.length,
-    seconds: totalMilliseconds / 1_000,
-    averageFps: totalMilliseconds > 0 ? (sorted.length * 1_000) / totalMilliseconds : 0,
-    medianFrameMilliseconds: median,
-    p95FrameMilliseconds: sorted[p95Index] ?? 0,
-    worstFrameMilliseconds: sorted[sorted.length - 1] ?? 0,
+    averageFramesPerSecond: total > 0 ? (sorted.length / total) * 1_000 : 0,
+    medianMilliseconds: median,
+    percentile95Milliseconds: sorted[percentileIndex] ?? 0,
+    worstMilliseconds: sorted[sorted.length - 1] ?? 0,
   }
 }
 
 export const gcodeBenchmarkScripts = ['fitted-orbit', 'close-orbit', 'zoom-sweep'] as const
 export type GcodeBenchmarkScript = (typeof gcodeBenchmarkScripts)[number]
 
-// How close the close-orbit and the middle of the zoom sweep get, as a share
-// of the fitted distance. Close enough to exercise the full-detail path,
-// far enough that a bed-sized model still fills the frame instead of clipping.
-const closeDistanceShare = 0.15
-const zoomSweepNearShare = 0.08
-
-/**
- * The camera pose a script asks for at a normalized position through its run.
- * Poses are absolute functions of `progress`, never increments, so a slow
- * machine sweeps the same angles across fewer frames instead of orbiting less.
- */
-export function benchmarkCameraPose(
-  script: GcodeBenchmarkScript,
-  bounds: GcodeBounds,
-  progress: number,
-  viewportWidth: number,
-  viewportHeight: number,
-): GcodeCamera {
-  const clamped = Math.min(1, Math.max(0, progress))
-  const base = fittedCamera(bounds, viewportWidth, viewportHeight)
-  if (script === 'fitted-orbit') {
-    return { ...base, yaw: base.yaw + clamped * Math.PI * 2 }
-  }
-  if (script === 'close-orbit') {
-    return {
-      ...base,
-      distance: base.distance * closeDistanceShare,
-      yaw: base.yaw + clamped * Math.PI * 2,
-    }
-  }
-  // zoom-sweep: fitted at both ends, nearest at the middle.
-  const nearness = 1 - Math.abs(2 * clamped - 1)
-  const share = 1 - (1 - zoomSweepNearShare) * nearness
-  return { ...base, distance: base.distance * share }
-}
-
-/**
- * Bytes the renderer uploads for this geometry. `sourceBytes` stays on the
- * CPU for playback synchronization, so it is deliberately not counted here.
- */
-export function geometryGpuByteEstimate(geometry: ParsedGcodeGeometry): number {
-  let tierBytes = 0
-  for (const tier of Object.values(geometry.tiers)) {
-    tierBytes += tier.segments.byteLength + tier.pathDetails.byteLength
-  }
-  return (
-    geometry.segments.byteLength +
-    geometry.pathDetails.byteLength +
-    geometry.caps.byteLength +
-    tierBytes
-  )
-}
+const scriptFrames = 240
+const orbitStepPerFrame = 1_800 / scriptFrames
+const zoomStepPerFrame = 1.012
 
 export interface GcodeBenchmarkFileSummary {
   name: string
@@ -115,163 +71,120 @@ export interface GcodeBenchmarkFileSummary {
 }
 
 export interface GcodeBenchmarkReport {
-  generatedAt: string
-  device: {
-    userAgent: string
-    devicePixelRatio: number
-    hardwareConcurrency: number
-    gpu: string | null
-  }
-  viewport: { width: number; height: number }
   file: GcodeBenchmarkFileSummary
   loadMilliseconds: number | null
-  /**
-   * How long after the load started the first batch of geometry reached the
-   * GPU. This is what the user experiences as the model appearing, and it is
-   * the metric streaming exists to improve; null for a non-streamed load.
-   */
-  firstGeometryMilliseconds: number | null
-  streamedBatches: number
-  /** Governor step the run settled on: 0 is full quality. */
+  tier: number
   qualityStep: number
-  gpuUploadBytes: number | null
-  usedJsHeapBytes: number | null
+  resolutionScale: number
+  viewport: { width: number; height: number }
   scripts: Record<GcodeBenchmarkScript, GcodeFrameStatistics>
 }
 
 export interface GcodeBenchmarkHooks {
-  fileSummary(): GcodeBenchmarkFileSummary | null
-  loadMilliseconds(): number | null
-  firstGeometryMilliseconds(): number | null
-  streamedBatches(): number
-  qualityStep(): number
-  frameDiagnostics(): { lod: string; instances: number; drawCalls: number } | null
-  gpuUploadBytes(): number | null
-  modelBounds(): GcodeBounds | null
-  viewportSize(): { width: number; height: number }
-  applyCamera(camera: GcodeCamera): void
-  renderScene(): void
-  resetView(): void
-  loadUrl(url: string): Promise<void>
-  captureRegion(region: GcodeCaptureRegion | undefined): string | null
-}
-
-/** A crop of the stage in CSS pixels, measured from its top-left corner. */
-export interface GcodeCaptureRegion {
-  x: number
-  y: number
-  width: number
-  height: number
+  fileSummary: () => GcodeBenchmarkFileSummary | null
+  loadMilliseconds: () => number | null
+  qualityStep: () => number
+  tier: () => number
+  resolutionScale: () => number
+  viewportSize: () => { width: number; height: number }
+  resetView: () => void
+  orbitBy: (deltaX: number, deltaY: number) => void
+  zoomBy: (factor: number) => void
+  screenshot: () => string | null
+  loadUrl: (url: string) => Promise<void>
 }
 
 interface GcodeBenchmarkWindowApi {
-  run(secondsPerScript?: number): Promise<GcodeBenchmarkReport>
-  loadUrl(url: string): Promise<void>
-  /** What the last rendered frame drew, for diagnosing a visual problem. */
-  frame(): { lod: string; instances: number; drawCalls: number } | null
-  /**
-   * The current frame as a PNG data URL, at device resolution.
-   *
-   * Shading questions — is this bead aliasing, is that surface flat — cannot be
-   * answered from a scaled screenshot, and they are the ones the viewer keeps
-   * asking. Crop to a region so the result is small enough to move through a
-   * console; the whole stage at device resolution is several megabytes.
-   */
-  capture(region?: GcodeCaptureRegion): string | null
+  loadUrl: (url: string) => Promise<void>
+  run: () => Promise<GcodeBenchmarkReport | null>
+  frame: (script?: GcodeBenchmarkScript) => Promise<GcodeFrameStatistics | null>
+  capture: () => string | null
 }
 
 const windowKey = '__alabasterGcodeViewerBenchmark'
 
-function webglRendererName(): string | null {
-  try {
-    const canvas = document.createElement('canvas')
-    const gl = canvas.getContext('webgl2')
-    if (!gl) return null
-    const info = gl.getExtension('WEBGL_debug_renderer_info')
-    const name = info ? gl.getParameter(info.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER)
-    return typeof name === 'string' ? name : null
-  } catch {
-    return null
-  }
-}
-
-function runScript(
-  script: GcodeBenchmarkScript,
-  hooks: GcodeBenchmarkHooks,
-  bounds: GcodeBounds,
-  durationMilliseconds: number,
-): Promise<GcodeFrameStatistics> {
-  return new Promise((resolve) => {
-    const intervals: number[] = []
-    let started: number | null = null
-    let previous = 0
-    const frame = (timestamp: number): void => {
-      if (started === null) {
-        started = timestamp
-      } else {
-        intervals.push(timestamp - previous)
-      }
-      previous = timestamp
-      const progress = Math.min(1, (timestamp - started) / durationMilliseconds)
-      const { width, height } = hooks.viewportSize()
-      hooks.applyCamera(benchmarkCameraPose(script, bounds, progress, width, height))
-      hooks.renderScene()
-      if (progress >= 1) resolve(frameIntervalStatistics(intervals))
-      else requestAnimationFrame(frame)
-    }
-    requestAnimationFrame(frame)
-  })
+function nextFrame(): Promise<number> {
+  return new Promise((resolve) => requestAnimationFrame(resolve))
 }
 
 /**
- * Exposes the benchmark on `window` for the development console:
+ * Drives one script and reports its frame intervals.
  *
- *   await __alabasterGcodeViewerBenchmark.loadUrl('/bench.gcode')
- *   await __alabasterGcodeViewerBenchmark.run()
- *
- * The caller guards this behind `import.meta.env.DEV`; the report is logged
- * as one copyable JSON block and also returned.
+ * Intervals come from the animation-frame clock rather than from the
+ * renderer's own callback, deliberately: while the camera is moving the
+ * renderer draws on every frame anyway, so the two agree — and this is the
+ * clock the person watching the screen is on.
  */
+async function runScript(
+  script: GcodeBenchmarkScript,
+  hooks: GcodeBenchmarkHooks,
+): Promise<GcodeFrameStatistics> {
+  hooks.resetView()
+  if (script === 'close-orbit') {
+    // Close in first, then orbit: the framing where the old renderer was
+    // slowest, because a camera inside the model's own footprint defeats
+    // every bounds-based culling scheme.
+    for (let step = 0; step < 40; step += 1) hooks.zoomBy(1.06)
+  }
+  await nextFrame()
+
+  const intervals: number[] = []
+  let previous = await nextFrame()
+  for (let frame = 0; frame < scriptFrames; frame += 1) {
+    if (script === 'zoom-sweep') {
+      // In for the first half, out for the second, so the sweep ends where it
+      // started and the two directions are measured together.
+      hooks.zoomBy(frame < scriptFrames / 2 ? zoomStepPerFrame : 1 / zoomStepPerFrame)
+    } else {
+      hooks.orbitBy(orbitStepPerFrame, 0)
+    }
+    const timestamp = await nextFrame()
+    intervals.push(timestamp - previous)
+    previous = timestamp
+  }
+  return frameIntervalStatistics(intervals)
+}
+
 export function installGcodeViewerBenchmark(hooks: GcodeBenchmarkHooks): () => void {
   const api: GcodeBenchmarkWindowApi = {
     loadUrl: (url) => hooks.loadUrl(url),
-    frame: () => hooks.frameDiagnostics(),
-    capture: (region) => hooks.captureRegion(region),
-    async run(secondsPerScript = 6) {
+    capture: () => hooks.screenshot(),
+    frame: async (script = 'fitted-orbit') => {
+      if (!hooks.fileSummary()) {
+        console.warn('[gcode benchmark] load a file first')
+        return null
+      }
+      return runScript(script, hooks)
+    },
+    run: async () => {
       const file = hooks.fileSummary()
-      const bounds = hooks.modelBounds()
-      if (!file || !bounds) throw new Error('Load a G-code file before running the benchmark')
+      if (!file) {
+        console.warn('[gcode benchmark] load a file first')
+        return null
+      }
       const scripts = {} as Record<GcodeBenchmarkScript, GcodeFrameStatistics>
       for (const script of gcodeBenchmarkScripts) {
-        scripts[script] = await runScript(script, hooks, bounds, secondsPerScript * 1_000)
+        scripts[script] = await runScript(script, hooks)
       }
-      hooks.resetView()
-      const memory = (performance as Performance & { memory?: { usedJSHeapSize?: number } }).memory
       const report: GcodeBenchmarkReport = {
-        generatedAt: new Date().toISOString(),
-        device: {
-          userAgent: navigator.userAgent,
-          devicePixelRatio: window.devicePixelRatio || 1,
-          hardwareConcurrency: navigator.hardwareConcurrency ?? 0,
-          gpu: webglRendererName(),
-        },
-        viewport: hooks.viewportSize(),
         file,
         loadMilliseconds: hooks.loadMilliseconds(),
-        firstGeometryMilliseconds: hooks.firstGeometryMilliseconds(),
-        streamedBatches: hooks.streamedBatches(),
+        tier: hooks.tier(),
         qualityStep: hooks.qualityStep(),
-        gpuUploadBytes: hooks.gpuUploadBytes(),
-        usedJsHeapBytes: memory?.usedJSHeapSize ?? null,
+        resolutionScale: hooks.resolutionScale(),
+        viewport: hooks.viewportSize(),
         scripts,
       }
-      console.log(JSON.stringify(report, null, 2))
+      console.info(JSON.stringify(report, null, 2))
       return report
     },
   }
-  const host = window as typeof window & Partial<Record<typeof windowKey, GcodeBenchmarkWindowApi>>
-  host[windowKey] = api
+
+  const target = window as unknown as Record<string, unknown>
+  target[windowKey] = api
   return () => {
-    if (host[windowKey] === api) delete host[windowKey]
+    // Only clears the handle if it is still ours: a second viewer mounting
+    // before this one unmounts would otherwise lose its own API.
+    if (target[windowKey] === api) delete target[windowKey]
   }
 }
