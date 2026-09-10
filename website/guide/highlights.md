@@ -62,15 +62,17 @@ Maintenance, start anyway, or wait.
 
 ## Bed mesh view
 
-The bed mesh renders as a height map, not a grid of colored squares:
+The bed mesh renders as a height map, or a grid of colored squares:
 
 - **Ten projections**: perspective, orthographic, isometric, dimetric,
   trimetric, cavalier, cabinet, one-point, two-point, fisheye.
 - **Five render styles**: surface, bars, contour lines, terraced, mosaic.
 - **A fixed color scale** as well as a self-scaling one. A fixed scale lets
   you compare two meshes directly; a self-scaling one does not.
+- **2D or 3D mode**: quickly swap between 2D grid mode and 3D mesh view,
+  whatever suits your needs.
 
-Two warnings come from the mesh, and both catch a real problem:
+Two warnings come from the mesh:
 
 - **Bed range**: the bed varies by more than the amount you called
   acceptable.
@@ -190,6 +192,9 @@ workshop screen read from two metres away and a phone held at arm's length.
 - **Command browser.** Search every command your machine reports, with the
   help text Klipper provides. This includes macros you wrote yourself, which
   are not covered by any documentation.
+- **Command history.** A full scrollable and searchable list of your sent
+  commands, so you can find the one you want quickly without clicking a
+  hundred times up or down.
 - **Live endstop readout** on Calibration, polled while the printer is idle
   and paused while it prints.
 - **A manual probe brings its own prompt.** The prompt reaches you on any

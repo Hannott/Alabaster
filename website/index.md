@@ -16,7 +16,7 @@ hero:
       link: https://github.com/Hannott/Alabaster
 features:
   - title: A dashboard you build
-    details: Choose from fifteen modules and arrange them across up to three columns. Desktop, tablet, and phone each keep their own layout. Drag a module to reposition it, and duplicate any module you need more than once.
+    details: Choose from fifteen modules and arrange them across up to three columns. Desktop, tablet, and phone each keep their own layout. Drag a module to reposition it, and duplicate macro or camera modules you need more than once.
     link: /interface/customize
   - title: Nothing here needs a reload
     details: Alabaster handles Klipper, Moonraker, and firmware restarts without reloading the page. Values dim while they are stale, then return to normal once fresh data arrives. You keep your place on the page throughout.

@@ -156,16 +156,16 @@ setpoint, so no control here can act on a value from four minutes ago.
 
 Turn on the history chart and choose what it draws.
 
-| Setting                  | What it does                                                  |
-| ------------------------ | ------------------------------------------------------------- |
-| Sensors                  | Which sensors appear in the list, in the chart, or both.      |
-| Color                    | Each sensor's color, from the Okabe-Ito palette.              |
-| Height                   | Compact, standard, or tall.                                   |
-| Time window              | How far back it goes.                                         |
-| Draw target temperatures | The setpoint each trace is climbing toward, as a dashed line. |
-| Scale to current values  | Or keep the scale fixed to the printer's configured maximums. |
-| Start the scale at 0     | For reading absolute values rather than differences.          |
-| Draw heater power        | Each heater's duty, on its own axis up the right-hand side.   |
+| Setting                  | What it does                                                                                           |
+| ------------------------ | ------------------------------------------------------------------------------------------------------ |
+| Sensors                  | Which sensors appear in the list, in the chart, or both.                                               |
+| Color                    | Each sensor's color: one of seven palette swatches, or any color you like from the picker beside them. |
+| Height                   | Compact, standard, or tall.                                                                            |
+| Time window              | How far back it goes.                                                                                  |
+| Draw target temperatures | The setpoint each trace is climbing toward, as a dashed line.                                          |
+| Scale to current values  | Or keep the scale fixed to the printer's configured maximums.                                          |
+| Start the scale at 0     | For reading absolute values rather than differences.                                                   |
+| Draw heater power        | Each heater's duty, on its own axis up the right-hand side.                                            |
 
 History is seeded from Moonraker's own temperature store when you connect,
 so the chart is not empty for the first ten minutes.
