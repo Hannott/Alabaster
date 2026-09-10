@@ -34,12 +34,12 @@ Your browser keeps command history, which survives a reload.
 
 With the pointer:
 
-| Gesture              | Action                                      |
-| -------------------- | ------------------------------------------- |
-| Left drag            | Rotate                                      |
-| Right or middle drag | Pan                                         |
-| Wheel                | Zoom, towards whatever is under the pointer |
-| Double-click         | Reset the framing                           |
+| Gesture              | Action                                                 |
+| -------------------- | ------------------------------------------------------ |
+| Left drag            | Rotate                                                 |
+| Right or middle drag | Pan; the model follows the pointer                     |
+| Wheel                | Zoom by a fixed share of the distance, near or far     |
+| Two fingers          | Pan and pinch to zoom, on a touchscreen                |
 
 ## Configuration
 

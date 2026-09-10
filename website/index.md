@@ -27,8 +27,8 @@ features:
   - title: printer.cfg that reads like hypertext
     details: Ctrl+click an [include] line to open that file. Create a missing file directly from the line that names it. If you move a file, Alabaster offers to update the include.
     link: /interface/configuration
-  - title: A G-code viewer for big files
-    details: A hundred-megabyte print file starts drawing within a quarter of a second. Follow a live print as it happens, or replay a section at 20x speed before you commit filament.
+  - title: A G-code viewer for modest hardware
+    details: Five detail levels down to plain lines keep it turning smoothly on a phone or the Pi's own browser. Follow a live print as it happens, cut the model open layer by layer, or replay a slice at 20x speed before you commit filament.
     link: /interface/gcode-viewer
   - title: Maintenance that counts for you
     details: Alabaster measures service intervals in print hours, metres of filament, or days, and warns you before you start a print that would run into an overdue one.

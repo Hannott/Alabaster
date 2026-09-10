@@ -71,9 +71,13 @@ token contract:
 | Actions                 | Primary action, its text, and the accent.                            |
 | Control interaction     | The hover and press veils.                                           |
 | Availability and safety | Offline, available, recovering, danger, and caution.                 |
-| G-code viewer           | Its surface, grid, shadow, nozzle, extrusion, seams, and axes.       |
-| G-code feature colors   | Perimeters, infill, bridges, support, skirt, and the feed-rate ramp. |
+| G-code viewer           | Its background, bed grid, nozzle marker, single-color toolpath, printed progress, feed-rate ramp, axes, and accent. |
+| Extra tool colors       | The second to fifth extruder of a multi-material file, borrowed from the perimeter, infill, support, and bridge tokens. |
 | Bed mesh height map     | Five height bands plus the level plane.                              |
+
+Feature colors in the viewer's Feature mode — perimeters, infill, bridges,
+support, skirt — are the slicer's own palette, drawn by the renderer, and are
+the one thing on the page a pack does not color.
 
 Every token is declared in both modes, even when the value is the same, so a
 pack never inherits an accidental color from another pack.
