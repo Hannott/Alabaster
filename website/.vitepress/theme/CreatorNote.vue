@@ -3,20 +3,14 @@
     <div class="creator-note-content">
       <h2>Creator's note</h2>
       <p>
-        Thank you for trying Alabaster!
-        I created this project both as an opportunity to learn frontend
-        development through use of AI, and to build the features I wanted
-        in a way that suited my needs and workflow. I have focused heavily
-        on customization and usability, and I hope you find it as easy
-        to use as I have.
-        
-        AI has helped me significantly throughout development, particularly with
-        the documentation. Some sections may therefore be imperfect or overly
-        conversational, and I appreciate your patience and understanding while
-        I go through them manually later in the project development.
-        
-        If you encounter any issues or would like to suggest a feature,
-        please open an issue on GitHub. Your feedback is very welcome.
+        Thank you for trying Alabaster! I created this project both as an opportunity to learn
+        frontend development through use of AI, and to build the features I wanted in a way that
+        suited my needs and workflow. I have focused heavily on customization and usability, and I
+        hope you find it as easy to use as I have. AI has helped me significantly throughout
+        development, particularly with the documentation. Some sections may therefore be imperfect
+        or overly conversational, and I appreciate your patience and understanding while I go
+        through them manually later in the project development. If you encounter any issues or would
+        like to suggest a feature, please open an issue on GitHub. Your feedback is very welcome.
       </p>
     </div>
   </div>

@@ -96,8 +96,7 @@ function beginDrag(event: PointerEvent): void {
   const layer = layerAt(rail, event)
   if (layer === null) return
   event.preventDefault()
-  active.value =
-    Math.abs(layer - props.top) <= Math.abs(layer - props.bottom) ? 'top' : 'bottom'
+  active.value = Math.abs(layer - props.top) <= Math.abs(layer - props.bottom) ? 'top' : 'bottom'
   dragging.value = true
   rail.setPointerCapture(event.pointerId)
   // Focus follows the grab, so the arrow keys continue what the drag started.

@@ -136,8 +136,9 @@ export function parseCssColor(value: string): Rgb | null {
   if (hex) return hex
 
   const trimmed = value.trim()
-  const modern =
-    /^color\(\s*srgb(?:-linear)?\s+([\d.eE+-]+)\s+([\d.eE+-]+)\s+([\d.eE+-]+)/i.exec(trimmed)
+  const modern = /^color\(\s*srgb(?:-linear)?\s+([\d.eE+-]+)\s+([\d.eE+-]+)\s+([\d.eE+-]+)/i.exec(
+    trimmed,
+  )
   if (modern) {
     const [, r, g, b] = modern
     return { r: Number(r) * 255, g: Number(g) * 255, b: Number(b) * 255 }
