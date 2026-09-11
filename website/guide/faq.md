@@ -94,8 +94,9 @@ sideways.
 
 ## The G-code viewer will not open
 
-It needs hardware 3D rendering through WebGL 2. Nothing else in Alabaster
-does, so the rest of the interface works normally on a device without it.
+It needs hardware 3D rendering. The only other thing in Alabaster that does is
+the bed mesh map, so the rest of the interface works normally on a device
+without it.
 
 If it opens but stutters, set **Rendering quality** to Performance, which
 starts every file at a lower detail level. The viewer also remembers a device

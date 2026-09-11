@@ -45,11 +45,11 @@ Moonraker component you do not have installed does not appear.
 
 ## Requirements
 
-| You need               | Notes                                                                                                                                                                                                                           |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Klipper with Moonraker | Any current release.                                                                                                                                                                                                            |
-| A modern browser       | Chrome, Edge, Firefox, or Safari, on desktop or mobile.                                                                                                                                                                         |
-| WebGL 2                | Needed for the [G-code viewer](/interface/gcode-viewer) and for the map on the [bed mesh module](/interface/modules#bed-mesh). Without it, bed mesh still shows its axis numbers and probed readings, but not the rendered map. |
+| You need               | Notes                                                                                                                                                                                                                                                              |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Klipper with Moonraker | Any current release.                                                                                                                                                                                                                                               |
+| A modern browser       | Chrome, Edge, Firefox, or Safari, on desktop or mobile.                                                                                                                                                                                                            |
+| Hardware 3D rendering  | Needed for the [G-code viewer](/interface/gcode-viewer), and for the map on the [bed mesh module](/interface/modules#bed-mesh), which needs WebGL 2 specifically. Without it, bed mesh still shows its axis numbers and probed readings, but not the rendered map. |
 
 ## Where to go next
 

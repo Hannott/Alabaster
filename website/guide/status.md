@@ -18,7 +18,7 @@ Every page below works and carries daily printing. Expect refinement before a
 | [Timelapse](/interface/timelapse)         | Appears only with the timelapse component installed.                                                                 |
 | [Configuration](/interface/configuration) | Editor, include navigation, search, uploads, drag and drop.                                                          |
 | [Machine](/interface/machine)             | Host telemetry, controller modules, peripherals, service start/stop/restart, updates, rollback, repository recovery. |
-| [G-code viewer](/interface/gcode-viewer)  | Five detail levels, live follow, simulation, layer cross-sections.                                                   |
+| [G-code viewer](/interface/gcode-viewer)  | Five detail levels, live follow, replay, layer cross-sections.                                                       |
 | [Console](/interface/console)             | Transcript, filters, command browser, completion.                                                                    |
 | [Settings](/interface/settings)           | Ten categories, backup and restore, opt-in sync to a printer's database.                                             |
 

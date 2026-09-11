@@ -4,19 +4,19 @@ Alabaster is a dashboard plus ten focused pages.
 
 ## Pages
 
-| Page                                      | What it is for                                                                   |
-| ----------------------------------------- | -------------------------------------------------------------------------------- |
-| [Dashboard](/interface/overview)          | Everything you watch and touch while a print runs, in cards you arrange.         |
-| [Farm](/interface/farm)                   | Every saved printer side by side, live, with controls for the one that needs it. |
-| [Print files](/interface/print-files)     | Browsing what is on the printer, with previews and slicer data, and starting it. |
-| [Calibration](/interface/calibration)     | Bed mesh profiles, live probing, endstops, and input-shaper results.             |
-| [History](/interface/history)             | Lifetime totals, statistics over a period, and every completed job.              |
-| [Timelapse](/interface/timelapse)         | Rendered videos from finished prints.                                            |
-| [Configuration](/interface/configuration) | A real editor for `printer.cfg` and everything it includes.                      |
-| [Machine](/interface/machine)             | Host load, controller modules, peripherals, services, and software updates.      |
-| [G-code viewer](/interface/gcode-viewer)  | Toolpath inspection, live following, and simulation.                             |
-| [Console](/interface/console)             | Talking to Klipper directly, and looking up what it can do.                      |
-| [Settings](/interface/settings)           | Connection, printers, language, appearance, and confirmations.                   |
+| Page                                      | What it is for                                                                      |
+| ----------------------------------------- | ----------------------------------------------------------------------------------- |
+| [Dashboard](/interface/overview)          | Everything you watch and touch while a print runs, in cards you arrange.            |
+| [Farm](/interface/farm)                   | Every saved printer on one screen with a live camera, and controls for any of them. |
+| [Print files](/interface/print-files)     | Browsing what is on the printer, with previews and slicer data, and starting it.    |
+| [Calibration](/interface/calibration)     | Bed mesh profiles, live probing, endstops, and input-shaper results.                |
+| [History](/interface/history)             | Lifetime totals, statistics over a period, and every completed job.                 |
+| [Timelapse](/interface/timelapse)         | Rendered videos from finished prints.                                               |
+| [Configuration](/interface/configuration) | A real editor for `printer.cfg` and everything it includes.                         |
+| [Machine](/interface/machine)             | Host load, controller modules, peripherals, services, and software updates.         |
+| [G-code viewer](/interface/gcode-viewer)  | Toolpath inspection, live following, and replay.                                    |
+| [Console](/interface/console)             | Talking to Klipper directly, and looking up what it can do.                         |
+| [Settings](/interface/settings)           | Connection, printers, language, appearance, and confirmations.                      |
 
 A page is hidden entirely when your Moonraker setup does not support it,
 rather than shown empty. See

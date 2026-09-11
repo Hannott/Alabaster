@@ -24,13 +24,13 @@ Your browser keeps command history, which survives a reload.
 
 ## G-code viewer
 
-| Key                                                 | Action                          |
-| --------------------------------------------------- | ------------------------------- |
-| <kbd>←</kbd> <kbd>→</kbd> <kbd>↑</kbd> <kbd>↓</kbd> | Pan                             |
-| <kbd>Shift</kbd> + arrows                           | Rotate                          |
-| <kbd>+</kbd> / <kbd>−</kbd>                         | Zoom in and out                 |
-| <kbd>0</kbd>                                        | Frame the whole model again     |
-| <kbd>Space</kbd>                                    | Play or pause, while simulating |
+| Key                                                 | Action                      |
+| --------------------------------------------------- | --------------------------- |
+| <kbd>←</kbd> <kbd>→</kbd> <kbd>↑</kbd> <kbd>↓</kbd> | Pan                         |
+| <kbd>Shift</kbd> + arrows                           | Rotate                      |
+| <kbd>+</kbd> / <kbd>−</kbd>                         | Zoom in and out             |
+| <kbd>0</kbd>                                        | Frame the whole model again |
+| <kbd>Space</kbd>                                    | Play or pause the replay    |
 
 With the pointer:
 
