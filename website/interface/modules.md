@@ -21,7 +21,14 @@ The Print card shows the state of the current job and the controls for it.
 - **Up next**: Shows what the job queue will start when this job finishes,
   and whether the queue is paused and won't start it automatically.
 
-Drop a G-code file from your desktop onto the card to upload and start it.
+Click the preview beside **Up next**, or beside an expanded recent file, to
+open it full size with zoom and pan.
+
+Uploading a file — with **Upload**, or by dropping it from your desktop onto
+the card — shows the transfer as it goes, then asks whether to start the file
+now or add it to the queue. You can feed the queue from here without going to
+Print files first. **Cancel** during the transfer stops it; afterwards it
+leaves the file on the printer.
 
 The card shows Klipper's own reason for a failed or cancelled print. This is
 the same message that otherwise only appears in `klippy.log`. Select the

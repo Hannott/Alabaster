@@ -9,6 +9,7 @@ import AppDashboardModule from '@/components/dashboard/AppDashboardModule.vue'
 import { useActionGuard } from '@/composables/useActionGuard'
 import { useExternalFileDrop } from '@/composables/useExternalFileDrop'
 import { useDashboardModule } from '@/dashboard/context'
+import { gcodeDisplayName } from '@/services/moonraker/files'
 import { useJobQueueStore } from '@/stores/jobQueue'
 import { usePrinterStore } from '@/stores/printer'
 
@@ -43,11 +44,6 @@ function requestClearQueue(): void {
 function confirmClearQueue(): void {
   confirmingClear.value = false
   void jobQueue.clearQueue()
-}
-
-function filename(path: string): string {
-  const separatorIndex = path.lastIndexOf('/')
-  return separatorIndex < 0 ? path : path.slice(separatorIndex + 1)
 }
 
 /**
@@ -134,7 +130,7 @@ const {
             {{ index + 1 }}
           </span>
           <span class="min-w-0 truncate text-row-name" :title="job.filename">
-            {{ filename(job.filename) }}
+            {{ gcodeDisplayName(job.filename) }}
           </span>
           <AppButton
             variant="danger-quiet"
@@ -142,8 +138,10 @@ const {
             icon-only
             icon="close"
             :disabled="jobQueue.pendingCommands.remove"
-            :aria-label="t('dashboard.jobQueue.remove', { filename: filename(job.filename) })"
-            :title="t('dashboard.jobQueue.remove', { filename: filename(job.filename) })"
+            :aria-label="
+              t('dashboard.jobQueue.remove', { filename: gcodeDisplayName(job.filename) })
+            "
+            :title="t('dashboard.jobQueue.remove', { filename: gcodeDisplayName(job.filename) })"
             @click="jobQueue.removeJob(job.job_id)"
           />
         </li>

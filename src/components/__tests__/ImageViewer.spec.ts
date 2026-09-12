@@ -46,6 +46,47 @@ describe('ImageViewer', () => {
     expect(transformOf(wrapper)).toContain('translate(30px, 50px)')
   })
 
+  /**
+   * jsdom reports every element as 0x0, which is exactly the state a viewer
+   * inside a closed `<dialog>` is in — so this is the real case, not a test
+   * artefact. Fitting against no stage used to leave `scale(1)` with the pan
+   * offset half the image's width in the wrong direction: an image opened
+   * full-size and pushed off its own stage.
+   */
+  it('leaves the view alone when the stage has no layout to fit against', async () => {
+    const wrapper = mount(ImageViewer, {
+      props: { src: 'https://example.test/bed-mesh.png', alt: 'bed-mesh.png' },
+      global: { plugins: [i18n] },
+    })
+    const image = wrapper.get('img')
+    Object.defineProperty(image.element, 'naturalWidth', { value: 800 })
+    Object.defineProperty(image.element, 'naturalHeight', { value: 600 })
+
+    await image.trigger('load')
+
+    expect(transformOf(wrapper)).toContain('translate(0px, 0px)')
+    expect(transformOf(wrapper)).toContain('scale(1)')
+  })
+
+  it('fits and centres the image on load once the stage has been laid out', async () => {
+    const wrapper = mount(ImageViewer, {
+      props: { src: 'https://example.test/bed-mesh.png', alt: 'bed-mesh.png' },
+      global: { plugins: [i18n] },
+    })
+    const stage = wrapper.get('.image-viewer-stage').element
+    stage.getBoundingClientRect = () => ({ left: 0, top: 0, width: 400, height: 400 }) as DOMRect
+    const image = wrapper.get('img')
+    Object.defineProperty(image.element, 'naturalWidth', { value: 800 })
+    Object.defineProperty(image.element, 'naturalHeight', { value: 400 })
+
+    await image.trigger('load')
+
+    // 800x400 into a 400x400 stage fits at half size, leaving 200px of unused
+    // height to split above and below it.
+    expect(transformOf(wrapper)).toContain('scale(0.5)')
+    expect(transformOf(wrapper)).toContain('translate(0px, 100px)')
+  })
+
   it('shows an error message and hides zoom controls when the image fails to load', async () => {
     const wrapper = mount(ImageViewer, {
       props: { src: 'https://example.test/broken.png', alt: 'broken.png' },

@@ -59,6 +59,27 @@ describe('ImageLightbox', () => {
     expect(wrapper.emitted('close')).toHaveLength(1)
   })
 
+  /**
+   * The viewer fits the image to its stage on load, and a closed `<dialog>` has
+   * no stage to fit to. Keeping it mounted meant the image loaded once, while
+   * hidden, and every opening after that showed whatever pan and zoom the last
+   * one was left in — including the un-fitted first one.
+   */
+  it('mounts the viewer only while open, so each opening fits and centres afresh', async () => {
+    const wrapper = mount(ImageLightbox, {
+      props: { open: false, src: 'https://example.test/belts.png', alt: 'belts.png' },
+      global: { plugins: [i18n] },
+    })
+
+    expect(wrapper.find('.image-viewer').exists()).toBe(false)
+
+    await wrapper.setProps({ open: true })
+    expect(wrapper.find('.image-viewer').exists()).toBe(true)
+
+    await wrapper.setProps({ open: false })
+    expect(wrapper.find('.image-viewer').exists()).toBe(false)
+  })
+
   it('shows the image with the given src and alt', () => {
     const wrapper = mountLightbox()
 

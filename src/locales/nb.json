@@ -157,6 +157,7 @@
       "upload": "Last opp",
       "print": "Skriv ut denne filen",
       "addToQueue": "Legg i køen",
+      "addedToQueue": "Lagt i køen",
       "getAccurateEstimate": "Hent nøyaktig tidsestimat",
       "closeDetail": "Lukk fildetaljer"
     },
@@ -635,6 +636,9 @@
       "resetOnCancelled": "Avbrytes",
       "resetOnError": "Feiler",
       "upload": "Last opp",
+      "uploadingTitle": "Laster opp",
+      "uploadProgress": "Opplastingsframdrift",
+      "uploadedTitle": "Vil du skrive ut denne filen nå?",
       "confirmationsTitle": "Bekreftelser",
       "skipStartWarning": "Start en utskrift uten bekreftelse",
       "skipPauseWarning": "Sett utskrift på pause uten bekreftelse",

@@ -57,6 +57,17 @@ function handleDialogClick(event: MouseEvent): void {
         @click="emit('close')"
       />
     </header>
-    <ImageViewer :src="props.src" :alt="props.alt" class="image-lightbox__viewer" />
+    <!--
+      Mounted only while open, so every opening starts from a fresh fit. A
+      viewer kept alive behind a closed dialog loads its image against a stage
+      that has no layout, and then never refits: `ImageViewer` fits on load,
+      and neither a second opening nor the same `src` a second time is a load.
+    -->
+    <ImageViewer
+      v-if="props.open"
+      :src="props.src"
+      :alt="props.alt"
+      class="image-lightbox__viewer"
+    />
   </dialog>
 </template>

@@ -63,6 +63,42 @@ function mountModule(options: { config?: Record<string, unknown>; settingsOpen?:
   return { printer, wrapper, config, pinia, headerAction }
 }
 
+/**
+ * The text of every dialog that is actually open. `wrapper.text()` includes
+ * closed `<dialog>` markup, so a card carrying eight of them cannot be asked
+ * what it is currently showing any other way.
+ */
+function openDialogTexts(wrapper: ReturnType<typeof mountModule>['wrapper']): string {
+  return wrapper
+    .findAll('dialog')
+    .filter((dialog) => dialog.element.open)
+    .map((dialog) => dialog.text())
+    .join('')
+}
+
+/** The button carrying this exact label inside whichever dialog is open. */
+function dialogButton(wrapper: ReturnType<typeof mountModule>['wrapper'], label: string) {
+  return wrapper
+    .findAll('dialog')
+    .filter((dialog) => dialog.element.open)
+    .flatMap((dialog) => dialog.findAll('button'))
+    .find((candidate) => candidate.text() === label)
+}
+
+/** Clicks the button carrying this exact label inside whichever dialog is open. */
+async function clickDialogButton(
+  wrapper: ReturnType<typeof mountModule>['wrapper'],
+  label: string,
+): Promise<void> {
+  const button = wrapper
+    .findAll('dialog')
+    .filter((dialog) => dialog.element.open)
+    .flatMap((dialog) => dialog.findAll('button'))
+    .find((candidate) => candidate.text() === label)
+  expect(button, `no "${label}" button in an open dialog`).toBeDefined()
+  await button?.trigger('click')
+}
+
 /** Puts the store into a running print with a slicer estimate of one hour. */
 function startPrinting(printer: ReturnType<typeof usePrinterStore>) {
   printer.printStats.state = 'printing'
@@ -234,7 +270,7 @@ describe('PrintModule', () => {
     expect(panel.classes()).toContain('module-settings--inset')
   })
 
-  it('uploads a chosen file straight into the start-print confirmation', async () => {
+  it('asks whether a chosen upload should print or queue', async () => {
     const { printer, wrapper } = mountModule()
     await flushPromises()
 
@@ -245,10 +281,169 @@ describe('PrintModule', () => {
     await fileInput.trigger('change')
     await flushPromises()
 
-    expect(uploadPrintFile).toHaveBeenCalledWith(file)
-    // The same confirmation a recent file would open, not a second dialog for
-    // the same decision — uploading is not the risky step, starting is.
-    expect(wrapper.text()).toContain('Start printing vase.gcode?')
+    expect(uploadPrintFile.mock.calls[0]?.[0]).toBe(file)
+    const dialog = openDialogTexts(wrapper)
+    expect(dialog).toContain('Print this file now?')
+    expect(dialog).toContain('Add to queue')
+    // The upload dialog *is* the confirmation. A second "Start this print?" on
+    // top of it would ask one question twice.
+    expect(dialog).not.toContain('Start printing')
+  })
+
+  it('opens the dialog when the upload starts and reports its progress', async () => {
+    const { printer, wrapper } = mountModule()
+    await flushPromises()
+
+    // Held open so the test can look at the card mid-transfer, which is the
+    // whole point of the phase: the dialog exists before there is a file.
+    let finishUpload: (path: string | null) => void = () => {}
+    let report: (fraction: number | null) => void = () => {}
+    vi.spyOn(printer, 'uploadPrintFile').mockImplementation((_file, options) => {
+      report = options?.onProgress ?? report
+      return new Promise((resolve) => {
+        finishUpload = resolve
+      })
+    })
+
+    const fileInput = wrapper.get('input[type="file"]')
+    Object.defineProperty(fileInput.element, 'files', {
+      value: [new File(['x'], 'a very long sliced name.gcode')],
+    })
+    await fileInput.trigger('change')
+    await flushPromises()
+
+    // Open already, naming the file, with nothing to act on yet.
+    expect(openDialogTexts(wrapper)).toContain('Uploading')
+    expect(openDialogTexts(wrapper)).toContain('a very long sliced name')
+    expect(dialogButton(wrapper, 'Start print')?.attributes('disabled')).toBeDefined()
+    expect(dialogButton(wrapper, 'Add to queue')?.attributes('disabled')).toBeDefined()
+
+    report(0.42)
+    await flushPromises()
+    expect(wrapper.get('dialog[open] [role="progressbar"]').attributes('aria-valuenow')).toBe('42')
+    expect(openDialogTexts(wrapper)).toContain('42%')
+
+    finishUpload('a very long sliced name.gcode')
+    await flushPromises()
+
+    // Second phase, same dialog: now there is a file and the choices open up.
+    expect(openDialogTexts(wrapper)).toContain('Print this file now?')
+    expect(dialogButton(wrapper, 'Add to queue')?.attributes('disabled')).toBeUndefined()
+  })
+
+  it('reports a transfer the browser cannot size without drawing a stalled bar', async () => {
+    const { printer, wrapper } = mountModule()
+    await flushPromises()
+
+    let report: (fraction: number | null) => void = () => {}
+    vi.spyOn(printer, 'uploadPrintFile').mockImplementation((_file, options) => {
+      report = options?.onProgress ?? report
+      return new Promise(() => {})
+    })
+
+    const fileInput = wrapper.get('input[type="file"]')
+    Object.defineProperty(fileInput.element, 'files', { value: [new File(['x'], 'vase.gcode')] })
+    await fileInput.trigger('change')
+    await flushPromises()
+
+    report(null)
+    await flushPromises()
+
+    // A bar pinned at zero for the whole transfer reads as a stall, so there
+    // is no bar at all — only the statement that it is uploading.
+    expect(wrapper.find('dialog[open] [role="progressbar"]').exists()).toBe(false)
+    expect(openDialogTexts(wrapper)).toContain('Uploading')
+  })
+
+  it('aborts the transfer when the upload dialog is cancelled mid-flight', async () => {
+    const { printer, wrapper } = mountModule()
+    await flushPromises()
+
+    let signal: AbortSignal | undefined
+    vi.spyOn(printer, 'uploadPrintFile').mockImplementation((_file, options) => {
+      signal = options?.signal
+      return new Promise(() => {})
+    })
+
+    const fileInput = wrapper.get('input[type="file"]')
+    Object.defineProperty(fileInput.element, 'files', { value: [new File(['x'], 'vase.gcode')] })
+    await fileInput.trigger('change')
+    await flushPromises()
+
+    expect(signal?.aborted).toBe(false)
+    await clickDialogButton(wrapper, 'Cancel')
+    await flushPromises()
+
+    // Cancel during the transfer stops the transfer, rather than hiding a
+    // dialog over an upload that keeps running.
+    expect(signal?.aborted).toBe(true)
+    expect(openDialogTexts(wrapper)).toBe('')
+  })
+
+  it('starts an uploaded file without a second confirmation', async () => {
+    const { printer, wrapper } = mountModule()
+    await flushPromises()
+
+    vi.spyOn(printer, 'uploadPrintFile').mockResolvedValue('vase.gcode')
+    vi.spyOn(printer, 'refreshFiles').mockResolvedValue(true)
+    printer.files = [{ path: 'vase.gcode', modified: 0, size: 1 }]
+    const startPrint = vi.spyOn(printer, 'startPrint').mockResolvedValue(true)
+
+    const fileInput = wrapper.get('input[type="file"]')
+    Object.defineProperty(fileInput.element, 'files', { value: [new File(['x'], 'vase.gcode')] })
+    await fileInput.trigger('change')
+    await flushPromises()
+
+    await clickDialogButton(wrapper, 'Start print')
+    await flushPromises()
+
+    expect(startPrint).toHaveBeenCalledWith('vase.gcode')
+    expect(openDialogTexts(wrapper)).toBe('')
+  })
+
+  it('queues an uploaded file instead of starting it', async () => {
+    const { printer, wrapper, pinia } = mountModule()
+    const jobQueue = useJobQueueStore(pinia)
+    await flushPromises()
+
+    vi.spyOn(printer, 'uploadPrintFile').mockResolvedValue('parts/vase.gcode')
+    const startPrint = vi.spyOn(printer, 'startPrint').mockResolvedValue(true)
+    const addJob = vi.spyOn(jobQueue, 'addJob').mockResolvedValue(true)
+
+    const fileInput = wrapper.get('input[type="file"]')
+    Object.defineProperty(fileInput.element, 'files', { value: [new File(['x'], 'vase.gcode')] })
+    await fileInput.trigger('change')
+    await flushPromises()
+
+    await clickDialogButton(wrapper, 'Add to queue')
+    await flushPromises()
+
+    // The full path, not the trimmed name the dialog shows: the queue is given
+    // something Moonraker can resolve.
+    expect(addJob).toHaveBeenCalledWith('parts/vase.gcode')
+    expect(startPrint).not.toHaveBeenCalled()
+    expect(openDialogTexts(wrapper)).toBe('')
+  })
+
+  it('keeps the upload dialog open when the queue refuses the job', async () => {
+    const { printer, wrapper, pinia } = mountModule()
+    const jobQueue = useJobQueueStore(pinia)
+    await flushPromises()
+
+    vi.spyOn(printer, 'uploadPrintFile').mockResolvedValue('vase.gcode')
+    vi.spyOn(jobQueue, 'addJob').mockResolvedValue(false)
+
+    const fileInput = wrapper.get('input[type="file"]')
+    Object.defineProperty(fileInput.element, 'files', { value: [new File(['x'], 'vase.gcode')] })
+    await fileInput.trigger('change')
+    await flushPromises()
+
+    await clickDialogButton(wrapper, 'Add to queue')
+    await flushPromises()
+
+    // A refused command must leave the user somewhere they can retry or choose
+    // the other destination, not silently close on a job that was never added.
+    expect(openDialogTexts(wrapper)).toContain('Print this file now?')
   })
 
   it('leaves the file list untouched when an upload fails', async () => {
@@ -273,7 +468,10 @@ describe('PrintModule', () => {
     printer.printStats.filename = 'parts/cube.gcode'
     await flushPromises()
 
-    expect(wrapper.text()).toContain('cube.gcode')
+    // The name, trimmed of both its folder and the extension every file here
+    // shares; the full path stays on the heading's own `title`.
+    expect(wrapper.text()).toContain('cube')
+    expect(wrapper.text()).not.toContain('cube.gcode')
     expect(wrapper.text()).toContain('Print again')
     // And the other files stay reachable beside it: hiding this the moment the
     // printer had printed anything left the one-click path to a *different*
@@ -615,7 +813,7 @@ describe('PrintModule', () => {
     await flushPromises()
 
     const heading = wrapper.get('p.text-xl')
-    expect(heading.text()).toBe('cube.gcode')
+    expect(heading.text()).toBe('cube')
     expect(heading.attributes('title')).toBe('parts/cube.gcode')
   })
 
@@ -854,7 +1052,8 @@ describe('PrintModule', () => {
       await flushPromises()
 
       expect(wrapper.text()).toContain('Up next')
-      expect(wrapper.text()).toContain('vase.gcode')
+      expect(wrapper.text()).toContain('vase')
+      expect(wrapper.text()).not.toContain('vase.gcode')
     })
 
     it('shows the queued file’s thumbnail beside its stats, sized independently of them', async () => {

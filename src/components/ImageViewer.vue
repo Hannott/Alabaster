@@ -28,11 +28,21 @@ function clampScale(value: number): number {
 /**
  * Fits the image within the stage on load rather than resetting to scale 1, so
  * oversized photos land fully visible instead of cropped to their top-left corner.
+ *
+ * A stage with no layout yet is refused rather than fitted to nothing. Inside a
+ * lightbox the whole viewer sits in a `<dialog>` that is `display: none` until
+ * it opens, and a zero-sized stage does not produce a harmless no-op: the fit
+ * scale computes to 0, falls back to 1, and the centring offsets come out as
+ * half the image's width in the wrong direction — an image that opens
+ * full-size and off-screen, which is exactly what fitting exists to prevent.
+ * `ImageLightbox` mounts this only while open, so the load that follows
+ * measures a real stage.
  */
 function applyFitView(): void {
   const bounds = stage.value?.getBoundingClientRect()
   const image = imageEl.value
-  if (!bounds || !image || !image.naturalWidth || !image.naturalHeight) return
+  if (!bounds || !bounds.width || !bounds.height) return
+  if (!image || !image.naturalWidth || !image.naturalHeight) return
   const fitScale = Math.min(
     bounds.width / image.naturalWidth,
     bounds.height / image.naturalHeight,

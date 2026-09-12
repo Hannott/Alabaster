@@ -12,6 +12,7 @@ import ExcludeObjectDialog from '@/components/ExcludeObjectDialog.vue'
 import FileDropOverlay from '@/components/FileDropOverlay.vue'
 import MaintenanceReminderDialog from '@/components/MaintenanceReminderDialog.vue'
 import PromptDialog from '@/components/PromptDialog.vue'
+import UploadedFileDialog from '@/components/UploadedFileDialog.vue'
 import AppDashboardModule from '@/components/dashboard/AppDashboardModule.vue'
 import FilePreview from '@/components/dashboard/modules/FilePreview.vue'
 import PrintQuickSettings from '@/components/dashboard/modules/PrintQuickSettings.vue'
@@ -35,6 +36,7 @@ import { revealDashboardCard } from '@/dashboard/reveal'
 import { useDashboardViewport } from '@/composables/useDashboardViewport'
 import { useExternalFileDrop } from '@/composables/useExternalFileDrop'
 import { createTimeFormatter } from '@/i18n/formats'
+import { gcodeDisplayName } from '@/services/moonraker/files'
 import type { MoonrakerGcodeMetadata } from '@/services/moonraker'
 import { useActionGuard } from '@/composables/useActionGuard'
 import { useConfirmationsStore } from '@/stores/confirmations'
@@ -112,6 +114,25 @@ const expandedRecentFile = ref<string | null>(null)
 const recentFileMetadata = ref<Record<string, MoonrakerGcodeMetadata | null>>({})
 /** The path waiting on an answer to the overdue-maintenance question, if any. */
 const maintenanceReminderFor = ref<string | null>(null)
+/**
+ * The file this card is currently uploading or asking about. `path` stays
+ * null until Moonraker answers with where it stored the file, which is also
+ * what separates the dialog's two phases: no path means bytes are still going
+ * out and there is nothing to start or queue yet.
+ */
+const pendingUpload = ref<{
+  name: string
+  path: string | null
+  /** 0-100 while sending, or null for a transfer the browser will not size. */
+  progress: number | null
+} | null>(null)
+/*
+ * Deliberately not a `ref`: an `AbortController` inside a reactive proxy is a
+ * host object whose `abort()` would be called on the proxy rather than on the
+ * controller. It also identifies *which* upload a late callback belongs to,
+ * so a superseded transfer cannot write progress into its replacement.
+ */
+let uploadAbort: AbortController | null = null
 const confirmingCancel = ref(false)
 const confirmingPause = ref(false)
 const isExcludeObjectOpen = ref(false)
@@ -235,6 +256,17 @@ const progressFraction = computed(() =>
   }),
 )
 const progressPercent = computed(() => percentFormatter.value.format(progressFraction.value * 100))
+
+/*
+ * Formatted here rather than in the dialog, so the upload's percentage goes
+ * through the same locale-aware formatter as every other number on this card
+ * instead of a second copy living in a component that owns no numbers.
+ */
+const uploadPercentLabel = computed(() => {
+  const progress = pendingUpload.value?.progress ?? null
+  if (progress === null) return null
+  return `${percentFormatter.value.format(progress)}${t('dashboard.percentUnit')}`
+})
 const recentFiles = computed(() => printer.files.slice(0, 8))
 const stateLabel = computed(() => t(`dashboard.print.state.${printer.printStats.state}`))
 
@@ -435,32 +467,96 @@ function formatDuration(seconds: number | null): string {
     : t('dashboard.duration.minutes', { minutes })
 }
 
-function filename(path: string): string {
-  const separatorIndex = path.lastIndexOf('/')
-  return separatorIndex < 0 ? path : path.slice(separatorIndex + 1)
+/**
+ * Uploads a chosen file and asks what it is for, rather than assuming: there
+ * are two answers and only one of them used to be reachable, so a file
+ * uploaded while the queue is how this printer is being fed had to be
+ * uploaded here, started or dismissed, and then queued from Print files.
+ *
+ * The dialog opens on the first byte, not the last. A sliced file is the one
+ * upload in this product routinely measured in tens of megabytes, and until
+ * this the card answered a click on Upload with nothing at all until the
+ * transfer finished — which on a slow link is long enough to read as a dead
+ * button and be clicked again.
+ *
+ * The question it then asks is not a second confirmation stacked on the
+ * first — it *is* the confirmation. Choosing "Start print" starts it, with no
+ * "Start this print?" dialog behind it, which is the same single question an
+ * upload has always asked; uploading was never the risky act, and the risky
+ * one is now named on the button that performs it.
+ */
+async function uploadAndAsk(file: File): Promise<void> {
+  const controller = new AbortController()
+  uploadAbort = controller
+  pendingUpload.value = { name: gcodeDisplayName(file.name), path: null, progress: 0 }
+  const path = await printer.uploadPrintFile(file, {
+    signal: controller.signal,
+    onProgress: (fraction) => {
+      // Ignored unless this is still the upload on screen: a cancelled
+      // transfer can report one last chunk after its dialog has gone.
+      if (uploadAbort !== controller || !pendingUpload.value) return
+      pendingUpload.value.progress = fraction === null ? null : fraction * 100
+    },
+  })
+  if (uploadAbort !== controller) return
+  uploadAbort = null
+  // A refusal has already been surfaced by the store's shared command runner,
+  // and a cancellation was the reader closing this dialog. Either way there
+  // is nothing left to ask about.
+  if (!path) {
+    pendingUpload.value = null
+    return
+  }
+  pendingUpload.value = { name: gcodeDisplayName(path), path, progress: null }
 }
 
-/**
- * A file picked here goes straight to the same "Start this print?" dialog a
- * recent file would, rather than a second confirmation flow for the same
- * decision — uploading is not itself the risky action, starting the print is.
- */
 async function handleUploadSelected(event: Event): Promise<void> {
   const input = event.target
   if (!(input instanceof HTMLInputElement)) return
   const file = input.files?.[0] ?? null
   input.value = ''
   if (!file) return
-  const path = await printer.uploadPrintFile(file)
-  if (path) requestStart(path)
+  await uploadAndAsk(file)
+}
+
+/**
+ * Cancel means something different in each phase, which is why it is offered
+ * in both: mid-transfer it stops the transfer, and afterwards it closes a
+ * question about a file that is already on the printer and stays there.
+ */
+function cancelPendingUpload(): void {
+  uploadAbort?.abort()
+  uploadAbort = null
+  pendingUpload.value = null
+}
+
+/** Starting from the upload dialog skips the confirmation it just stood in for. */
+function startUploadedFile(): void {
+  const path = pendingUpload.value?.path ?? null
+  pendingUpload.value = null
+  if (path) requestStart(path, { alreadyConfirmed: true })
+}
+
+/**
+ * The second place outside Print files that may add to the queue, alongside
+ * the `JobQueue` card's own desktop drop — see the exception in
+ * `docs/design/navigation-plan.md`. The reasoning is that exception's: the
+ * file was chosen in the operating system's own picker, not browsed and
+ * picked from a list on this card, so "enqueue while looking at the files you
+ * are enqueuing" is already satisfied by the act that opened this dialog.
+ */
+async function queueUploadedFile(): Promise<void> {
+  const path = pendingUpload.value?.path ?? null
+  if (!path) return
+  if (await jobQueue.addJob(path)) pendingUpload.value = null
 }
 
 /**
  * A file dropped onto the card goes through the same picker path as
- * `handleUploadSelected` — upload, then the same "Start this print?" request
- * a chosen file gets. Only the first file matters: this card starts one
- * print, not a batch, so a drag carrying several files is not a way to queue
- * the rest of them.
+ * `handleUploadSelected` — upload, then the same print-or-queue question a
+ * chosen file gets. Only the first file matters: this dialog answers for one
+ * file, not a batch, so a drag carrying several files is not a way to queue
+ * the rest of them — the `JobQueue` card's own drop is, and takes all of them.
  */
 const {
   isActive: isFileDropActive,
@@ -476,8 +572,7 @@ const {
   onDrop: async (files) => {
     const file = files[0]
     if (!file) return
-    const path = await printer.uploadPrintFile(file)
-    if (path) requestStart(path)
+    await uploadAndAsk(file)
   },
 })
 
@@ -544,9 +639,20 @@ async function confirmStart(): Promise<void> {
  * already answered both, so it starts rather than opening a second dialog on
  * top of the first — the same thing Print files does with it.
  */
-function requestStart(path: string): void {
+function requestStart(path: string, options?: { alreadyConfirmed?: boolean }): void {
   if (confirmations.shouldShowMaintenanceReminder() && maintenance.hasOverdue) {
     maintenanceReminderFor.value = path
+    return
+  }
+  /*
+   * `alreadyConfirmed` is only ever the upload dialog, whose own affirmative
+   * button asked this question already. It skips the guard's dialog, not the
+   * guard's reason for existing: the overdue-maintenance question above is
+   * still asked first, because that one is about whether to print at all and
+   * an upload dialog has not answered it.
+   */
+  if (options?.alreadyConfirmed) {
+    void startPrintAt(path)
     return
   }
   startGuard.request(
@@ -716,7 +822,7 @@ function requestPause(): void {
               >
                 {{
                   printer.printStats.filename
-                    ? filename(printer.printStats.filename)
+                    ? gcodeDisplayName(printer.printStats.filename)
                     : t('dashboard.print.unnamedFile')
                 }}
               </p>
@@ -821,7 +927,11 @@ function requestPause(): void {
                 class="mt-2 truncate text-xl font-black tracking-[-0.035em]"
                 :title="lastPrintedFile ?? undefined"
               >
-                {{ lastPrintedFile ? filename(lastPrintedFile) : t('dashboard.print.readyTitle') }}
+                {{
+                  lastPrintedFile
+                    ? gcodeDisplayName(lastPrintedFile)
+                    : t('dashboard.print.readyTitle')
+                }}
               </p>
               <p v-if="failureMessage" class="mt-2 flex items-start gap-1.5 text-alert-inline">
                 <AppIcon name="warning" class="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
@@ -1020,7 +1130,7 @@ function requestPause(): void {
               :title="file.path"
               @click="toggleRecentFileDetails(file.path)"
             >
-              <span class="min-w-0 truncate text-row-name">{{ filename(file.path) }}</span>
+              <span class="min-w-0 truncate text-row-name">{{ gcodeDisplayName(file.path) }}</span>
             </button>
             <AppButton
               size="sm"
@@ -1028,7 +1138,9 @@ function requestPause(): void {
               icon="play"
               :label="t('dashboard.print.start')"
               :disabled="printer.pendingCommands.startPrint"
-              :aria-label="t('dashboard.print.startFile', { filename: filename(file.path) })"
+              :aria-label="
+                t('dashboard.print.startFile', { filename: gcodeDisplayName(file.path) })
+              "
               @click="requestStart(file.path)"
             />
           </div>
@@ -1039,6 +1151,7 @@ function requestPause(): void {
                 :estimated-time-label="estimatedTimeLabelFor(recentFileMetadata[file.path])"
                 :filament-label="filamentLabelFor(recentFileMetadata[file.path])"
                 :thumbnail-url="printer.thumbnailUrlFor(file.path, recentFileMetadata[file.path])"
+                :file-name="gcodeDisplayName(file.path)"
               />
             </div>
           </DisclosureReveal>
@@ -1061,6 +1174,7 @@ function requestPause(): void {
         :estimated-time-label="upNextEstimatedTimeLabel"
         :filament-label="upNextFilamentLabel"
         :thumbnail-url="upNextThumbnailUrl"
+        :file-name="gcodeDisplayName(upNextJob.filename)"
       >
         <div class="flex items-center justify-between gap-3">
           <p class="text-eyebrow text-data-sky">{{ t('dashboard.print.upNext') }}</p>
@@ -1068,7 +1182,14 @@ function requestPause(): void {
             {{ t('dashboard.print.upNextMore', { count: jobQueue.jobs.length - 1 }) }}
           </span>
         </div>
-        <p class="mt-1 truncate text-sm font-black">{{ filename(upNextJob.filename) }}</p>
+        <!--
+          The full path as the tooltip, matching the active job's heading and
+          every recent-file row: the reserved preview square means this line
+          is narrower than the card, so a long name truncates here first.
+        -->
+        <p class="mt-1 truncate text-sm font-black" :title="upNextJob.filename">
+          {{ gcodeDisplayName(upNextJob.filename) }}
+        </p>
       </FilePreview>
 
       <!--
@@ -1136,7 +1257,9 @@ function requestPause(): void {
       :open="pendingStart !== null"
       :title="t('dashboard.print.confirmStartTitle')"
       :description="
-        t('dashboard.print.confirmStart', { filename: pendingStart ? filename(pendingStart) : '' })
+        t('dashboard.print.confirmStart', {
+          filename: pendingStart ? gcodeDisplayName(pendingStart) : '',
+        })
       "
       :confirm-label="t('dashboard.print.start')"
       @confirm="confirmStart"
@@ -1170,6 +1293,19 @@ function requestPause(): void {
       tone="danger"
       @confirm="confirmCancel"
       @cancel="confirmingCancel = false"
+    />
+    <UploadedFileDialog
+      :open="pendingUpload !== null"
+      :file-name="pendingUpload?.name ?? ''"
+      :uploading="pendingUpload !== null && pendingUpload.path === null"
+      :progress="pendingUpload?.progress ?? null"
+      :progress-label="uploadPercentLabel"
+      :can-start="!printer.hasActivePrint"
+      :start-pending="printer.pendingCommands.startPrint"
+      :queue-pending="jobQueue.pendingCommands.add"
+      @start="startUploadedFile"
+      @queue="queueUploadedFile"
+      @cancel="cancelPendingUpload"
     />
     <MaintenanceReminderDialog
       :open="maintenanceReminderFor !== null"

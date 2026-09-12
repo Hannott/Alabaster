@@ -272,6 +272,20 @@ interface LevelingState {
   zTiltApplied: boolean | null
 }
 
+/**
+ * A transfer the user stopped, told apart from one that failed. Checked by
+ * name rather than by constructor because the two sources disagree on the
+ * type: `fetch` rejects with a `DOMException`, and the upload's own XHR path
+ * raises a plain `Error` carrying the same name.
+ */
+function isAbortError(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    (error as { name?: string }).name === 'AbortError'
+  )
+}
+
 function finiteNumber(value: unknown): number | undefined {
   return typeof value === 'number' && Number.isFinite(value) ? value : undefined
 }
@@ -1090,14 +1104,41 @@ export const usePrinterStore = defineStore('printer', () => {
    * Uploads a file to the gcodes root and refreshes the list, so it is
    * immediately a candidate for `startPrint`. Filename safety is
    * `uploadMoonrakerFile`'s own concern; this does not duplicate that check.
+   *
+   * `onProgress` and `signal` are forwarded for the one caller that shows a
+   * G-code upload happening — a sliced file is the one upload in the product
+   * big enough to need it — and are optional for every other caller.
    */
-  async function uploadPrintFile(file: File): Promise<string | null> {
+  async function uploadPrintFile(
+    file: File,
+    options: { onProgress?: (fraction: number | null) => void; signal?: AbortSignal } = {},
+  ): Promise<string | null> {
     let uploadedPath: string | null = null
     const succeeded = await runCommand('uploadFile', async () => {
-      const result = await uploadMoonrakerFile('gcodes', '', file, file.name, moonraker.endpoint)
-      uploadedPath = result.item.path
+      try {
+        const result = await uploadMoonrakerFile(
+          'gcodes',
+          '',
+          file,
+          file.name,
+          moonraker.endpoint,
+          options,
+        )
+        uploadedPath = result.item.path
+      } catch (error) {
+        /*
+         * A cancelled upload is the user's own decision, not a refusal to
+         * report back to them: letting it reach the shared command runner
+         * would push an error toast naming the thing they just asked to stop.
+         * Every other error still escapes to that runner, which stays the one
+         * place a failed command is surfaced.
+         */
+        if (!isAbortError(error)) throw error
+      }
     })
-    if (succeeded) await refreshFiles()
+    // Not `succeeded` alone: a cancelled upload swallows its own error above,
+    // so the command "succeeded" with nothing on the printer to list.
+    if (succeeded && uploadedPath) await refreshFiles()
     return uploadedPath
   }
 

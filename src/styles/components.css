@@ -5024,42 +5024,47 @@ input.z-axis__slider {
 }
 
 /*
- * Neither "Up next" nor a Recent files row's preview is the print in
- * progress, so a closer look at it isn't the reason this card is open — this
- * stays a plain `img` rather than the active job's `brand-trigger` button,
- * while still sharing that thumbnail's border and background so the two
- * previews read as the same kind of object.
+ * The third `brand-trigger` instance (button-system.md), and the one case
+ * where that pattern opens a lightbox instead of growing in place. It used to
+ * be a plain `img` on the reasoning that a closer look at a queued file isn't
+ * why this card is open; what that missed is that this preview is the *only*
+ * look at that file anywhere on the dashboard. So it takes a click, and keeps
+ * the active job's border and background so the two previews read as the same
+ * kind of object.
  *
- * The frame has no explicit height of its own on purpose: in the row's
- * default `align-items: stretch`, an empty box with no content-based height
- * takes exactly the row's cross size, which is set by the stats column
- * beside it. Giving the frame a height (or letting the image's own intrinsic
- * size feed into that calculation) would make a large slicer thumbnail grow
- * the row, and the card, past what the stats needed — precisely the
- * regression a fixed `4.5rem` size overcorrected into being too small to
- * read. `position: absolute; inset: 0` on the image is what breaks that
- * feedback loop: an absolutely positioned child contributes nothing to its
- * parent's auto height, so the frame's height comes only from the stretch,
- * and the image then fills whatever height that turns out to be.
+ * A fixed square, pinned to the top of its row, rather than a box that
+ * absorbs whatever width and height the row has spare. Two earlier shapes
+ * both failed, in opposite directions: a fixed `4.5rem` box was too small to
+ * read, and stretching the frame to fill the row drew a wide rectangle around
+ * a square image, so the border framed the empty background rather than the
+ * preview. Slicer thumbnails are square in practice — not by guarantee, which
+ * is why `object-fit: contain` still decides what happens to one that isn't —
+ * so a square reserved area is both the frame that fits the image and the one
+ * that never moves when the next file's thumbnail has a different resolution.
  *
- * `flex: 1 1 auto` with no basis of its own is deliberate too: the stats
- * column keeps `flex-initial` (grow: 0) so it never claims more width than
- * its content needs, and the frame absorbs everything left over instead of
- * splitting the row down the middle with it.
+ * The size therefore belongs to the card, not to the image: this area is the
+ * same on every row of every card whatever the file, and a preview that is
+ * genuinely worth studying is one click from filling the screen. `flex: 0 0
+ * auto` with `align-self: flex-start` is what holds it there — the stats
+ * column keeps `flex-initial`, and the row's `justify-content: space-between`
+ * puts the reserved square in the corner rather than beside the text.
  */
 .file-preview-thumbnail-frame {
-  position: relative;
-  flex: 1 1 auto;
-  min-width: 3rem;
+  display: block;
+  flex: 0 0 auto;
+  align-self: flex-start;
+  width: 5.5rem;
+  aspect-ratio: 1 / 1;
+  padding: 0;
   overflow: hidden;
   border: 1px solid var(--border-subtle);
   border-radius: 0.7rem;
   background: var(--surface-soft);
+  cursor: pointer;
 }
 
 .file-preview-thumbnail {
-  position: absolute;
-  inset: 0;
+  display: block;
   width: 100%;
   height: 100%;
   object-fit: contain;
@@ -5359,6 +5364,89 @@ input.z-axis__slider {
 /* A confirmation carrying body content — the update changelog's `details` slot. */
 .confirm-dialog--wide {
   max-width: min(32rem, calc(100vw - 2rem));
+}
+
+/*
+ * The one dialog with a size of its own rather than one its content gives it.
+ * `.confirm-dialog` sets only a `max-width`, so every other dialog is as wide
+ * as its longest line and as tall as it needs — which is right for a question
+ * whose text is the whole content, and wrong here for two reasons. This box
+ * has two phases, a transfer and then a choice, and a frame that resized
+ * between them would move the buttons out from under the pointer at the exact
+ * moment they became usable. And its body is a filename, which is arbitrary:
+ * content-sizing hands the reader a dialog whose width is a fact about their
+ * slicer's naming, stretching to the cap for one file and shrinking to a
+ * label for the next.
+ *
+ * 16:9 with the width fixed. `min-height` rather than `aspect-ratio` on
+ * purpose: `aspect-ratio` resolves to a used height that content then
+ * overflows, so a wrapped four-line filename would have pushed the actions
+ * out through the bottom edge. `min-height` gives the same proportion in
+ * every ordinary case and yields — growing downward, actions intact — in the
+ * ones that need more, which is what a fixed size should do rather than clip.
+ */
+.uploaded-file-dialog {
+  --uploaded-file-dialog-width: min(32rem, calc(100vw - 2rem));
+  width: var(--uploaded-file-dialog-width);
+  min-height: calc(var(--uploaded-file-dialog-width) * 9 / 16);
+  max-width: none;
+}
+
+/*
+ * `[open]`, per dialog-system.md: any author `display` on a dialog element
+ * overrides the one browser rule that hides a closed one, which draws the
+ * whole body inline in the page on every route. The third instance that needs
+ * this, after `.update-console-dialog[open]` and `.manual-probe-dialog[open]`.
+ */
+.uploaded-file-dialog[open] {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+}
+
+/* Centred in the space between the title and the actions, so the box looks
+   deliberate whether the body is one line or four. */
+.uploaded-file-dialog__body {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.85rem;
+  padding-block: 0.85rem;
+}
+
+/*
+ * A path is a value, so it takes the mono family the way `items` does.
+ * `anywhere` rather than `break-word`: a sliced filename is one unbroken run
+ * of underscores and digits with no spaces to break at, so the ordinary
+ * word-wrap rules leave it overflowing its own dialog.
+ */
+.uploaded-file-dialog__name {
+  overflow-wrap: anywhere;
+  font-family: var(--font-mono);
+  font-size: var(--text-small-size);
+}
+
+.uploaded-file-dialog__progress {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.uploaded-file-dialog__percent {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-meta-size);
+  font-variant-numeric: tabular-nums;
+}
+
+/*
+ * A stacked multi-choice actions grid, the same shape
+ * `maintenance-reminder-dialog__actions` and `update-recovery-dialog__actions`
+ * are — duplicated rather than shared, because the dialogs merely look alike;
+ * they are not one set that has to change together.
+ */
+.uploaded-file-dialog__actions {
+  display: grid;
+  gap: 0.5rem;
+  align-content: end;
 }
 
 /*

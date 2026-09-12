@@ -157,6 +157,7 @@
       "upload": "Upload",
       "print": "Print this file",
       "addToQueue": "Add to queue",
+      "addedToQueue": "Added to queue",
       "getAccurateEstimate": "Get accurate estimate",
       "closeDetail": "Close file details"
     },
@@ -635,6 +636,9 @@
       "resetOnCancelled": "Is cancelled",
       "resetOnError": "Fails",
       "upload": "Upload",
+      "uploadingTitle": "Uploading",
+      "uploadProgress": "Upload progress",
+      "uploadedTitle": "Print this file now?",
       "confirmationsTitle": "Confirmations",
       "skipStartWarning": "Start a print without confirming",
       "skipPauseWarning": "Pause a print without confirming",
