@@ -133,6 +133,23 @@ const chartShowPower = computed(() => configBoolean(config.value, 'chartShowPowe
       />
     </div>
 
+    <div v-if="quick.visible('chartShowPower')" class="settings-row">
+      <label class="check-row">
+        <input
+          type="checkbox"
+          :checked="chartShowPower"
+          @change="updateConfig({ chartShowPower: !chartShowPower })"
+        />
+        <span>{{ t('dashboard.temperature.chartShowPower') }}</span>
+      </label>
+      <QuickSettingToggle
+        v-if="mode === 'pane'"
+        :label="t('dashboard.temperature.chartShowPower')"
+        :shown="quick.isQuick('chartShowPower')"
+        @toggle="quick.setQuick('chartShowPower', $event)"
+      />
+    </div>
+
     <div v-if="quick.visible('chartAutoScale')">
       <div class="settings-row">
         <label class="check-row">
@@ -153,23 +170,6 @@ const chartShowPower = computed(() => configBoolean(config.value, 'chartShowPowe
       <p v-if="mode === 'pane'" class="surface-section__hint">
         {{ t('dashboard.temperature.chartAutoScaleHint') }}
       </p>
-    </div>
-
-    <div v-if="quick.visible('chartShowPower')" class="settings-row">
-      <label class="check-row">
-        <input
-          type="checkbox"
-          :checked="chartShowPower"
-          @change="updateConfig({ chartShowPower: !chartShowPower })"
-        />
-        <span>{{ t('dashboard.temperature.chartShowPower') }}</span>
-      </label>
-      <QuickSettingToggle
-        v-if="mode === 'pane'"
-        :label="t('dashboard.temperature.chartShowPower')"
-        :shown="quick.isQuick('chartShowPower')"
-        @toggle="quick.setQuick('chartShowPower', $event)"
-      />
     </div>
 
     <div v-if="quick.visible('chartZeroBaseline')" class="settings-row">
