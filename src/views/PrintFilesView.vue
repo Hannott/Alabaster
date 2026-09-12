@@ -246,10 +246,24 @@ async function openMaintenanceFromReminder(): Promise<void> {
   if (instance) revealDashboardCard(instance.instance.instanceId)
 }
 
+/**
+ * Enqueuing is the one action on this page whose result is invisible from
+ * where the button is: the queue lives on another card, the file list does not
+ * move, and the only way to find out whether it worked was to press again. So
+ * the control confirms on itself for a second — see `button-system.md`'s
+ * cooldown state.
+ *
+ * It is raised from `addJob`'s own answer rather than from having called it.
+ * The command reports a refusal by returning `false` instead of throwing, so
+ * `await`ing it and then assuming success is exactly how a control ends up
+ * reading "Added to queue" over a request Moonraker declined.
+ */
+const queueConfirmed = ref(false)
+
 async function queueSelectedPrint(): Promise<void> {
   const file = gcodeFiles.selectedFile
   if (!file) return
-  await jobQueue.addJob(file.path)
+  queueConfirmed.value = await jobQueue.addJob(file.path)
 }
 
 function openUploadPicker(): void {
@@ -638,6 +652,11 @@ const {
               icon="jobs"
               :label="t('printFiles.actions.addToQueue')"
               :disabled="!canQueueSelected"
+              :cooldown="queueConfirmed"
+              :cooldown-ms="1000"
+              :cooldown-label="t('printFiles.actions.addedToQueue')"
+              cooldown-icon="check"
+              @cooldown-end="queueConfirmed = false"
               @click="queueSelectedPrint"
             />
             <p v-if="printer.hasActivePrint" class="print-files-note">

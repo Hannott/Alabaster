@@ -7,6 +7,7 @@ import { i18n } from '@/i18n'
 import { useAvailabilityStore } from '@/stores/availability'
 import { useConfirmationsStore } from '@/stores/confirmations'
 import { useHistoryStore } from '@/stores/history'
+import { useJobQueueStore } from '@/stores/jobQueue'
 import { useMaintenanceStore } from '@/stores/maintenance'
 import { useMoonrakerStore } from '@/stores/moonraker'
 import { usePrinterStore } from '@/stores/printer'
@@ -140,6 +141,54 @@ describe('Print files view', () => {
     await view.find('.print-files-detail__actions button').trigger('click')
 
     expect(startPrint).toHaveBeenCalledWith('cube.gcode')
+  })
+
+  /**
+   * Enqueuing is the one action here whose result is invisible from where the
+   * button is — the queue lives on another card and the list does not move —
+   * so the control confirms on itself for a second afterwards.
+   */
+  it('confirms an enqueue on the button that did it, then gives the button back', async () => {
+    vi.useFakeTimers()
+    try {
+      const jobQueue = useJobQueueStore(pinia)
+      vi.spyOn(jobQueue, 'addJob').mockResolvedValue(true)
+      const view = await mountView()
+
+      await view.findAll('.print-files-row')[1]!.trigger('click')
+      await flushPromises()
+      const queueButton = view.findAll('.print-files-detail__actions button')[1]!
+      await queueButton.trigger('click')
+      await flushPromises()
+
+      expect(queueButton.text()).toContain('Added to queue')
+      expect(queueButton.attributes('data-cooldown')).toBe('true')
+      expect(queueButton.find('.button__cooldown').attributes('style')).toContain('1000ms')
+
+      vi.advanceTimersByTime(1000)
+      await flushPromises()
+      expect(queueButton.text()).toContain('Add to queue')
+      expect(queueButton.attributes('data-cooldown')).toBeUndefined()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('says nothing when the queue refused the file', async () => {
+    // `addJob` reports a refusal by returning false rather than throwing, so a
+    // control that confirms on having called it confirms a command that failed.
+    const jobQueue = useJobQueueStore(pinia)
+    vi.spyOn(jobQueue, 'addJob').mockResolvedValue(false)
+    const view = await mountView()
+
+    await view.findAll('.print-files-row')[1]!.trigger('click')
+    await flushPromises()
+    const queueButton = view.findAll('.print-files-detail__actions button')[1]!
+    await queueButton.trigger('click')
+    await flushPromises()
+
+    expect(queueButton.text()).toContain('Add to queue')
+    expect(queueButton.attributes('data-cooldown')).toBeUndefined()
   })
 
   /**

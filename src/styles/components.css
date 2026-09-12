@@ -720,6 +720,84 @@ input[type='radio']:focus-visible,
   animation: pending-breathe var(--motion-duration-pending) var(--motion-ease-standard) infinite;
 }
 
+/*
+ * Cooldown — a control that has just acted, says so on itself, and declines the
+ * next click until a named duration has run out. See button-system.md's state
+ * model; `AppButton` owns when it applies.
+ *
+ * Two departures from the disabled treatment, both deliberate:
+ *
+ * `opacity` stays at 1. The `[aria-disabled='true']` rule above would dim this
+ * to half, and a state whose entire job is to be read cannot also be the state
+ * that is hardest to read — the swapped label is the whole message. What makes
+ * that safe is that the control is not merely dimmed-looking: the label has
+ * changed and a bar is counting down, so neither the availability nor the
+ * confirmation is carried by color.
+ *
+ * `position` and `overflow` are scoped to the state rather than added to
+ * `.button`, because clipping every control in the product to add a bar to a
+ * handful of them is how an unrelated badge or focus ring gets cut off later.
+ */
+.button[data-cooldown='true'],
+.button[data-cooldown='true'][aria-disabled='true'] {
+  position: relative;
+  overflow: hidden;
+  opacity: 1;
+  cursor: default;
+}
+
+/*
+ * The bar is the control's own `currentColor`, which is the one value already
+ * contrast-checked against that variant's fill — a neutral control gets light
+ * grey, `primary` gets its label colour over blue, and a theme pack that
+ * restyles a variant carries the bar along without a rule per variant. `linear`
+ * for the same reason a countdown is never eased.
+ */
+.button__cooldown {
+  position: absolute;
+  inset-inline: 0;
+  inset-block-end: 0;
+  block-size: 0.2rem;
+  background: color-mix(in srgb, currentColor 45%, transparent);
+  transform-origin: left;
+  animation-name: control-countdown-shrink;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+}
+
+/*
+ * The named tones, for a cooldown whose meaning differs from the emphasis of
+ * the control it sits on: a neutral button confirming a successful append is
+ * the case that asks for one. Keep this list and `AppButtonCooldownTone` in
+ * step — a tone with no rule here draws the `auto` bar and looks like it worked.
+ */
+.button--cooldown-success .button__cooldown {
+  background: color-mix(in srgb, var(--status-available) 70%, transparent);
+}
+
+.button--cooldown-primary .button__cooldown {
+  background: color-mix(in srgb, var(--action-primary) 70%, transparent);
+}
+
+.button--cooldown-danger .button__cooldown {
+  background: color-mix(in srgb, var(--status-danger) 70%, transparent);
+}
+
+/*
+ * One countdown shrink for the product, shared with `.toast__progress`. The
+ * two were the same animation written twice, and a second copy is a second
+ * thing to keep honest about direction and origin.
+ */
+@keyframes control-countdown-shrink {
+  from {
+    transform: scaleX(1);
+  }
+
+  to {
+    transform: scaleX(0);
+  }
+}
+
 .button--sm {
   min-height: 2rem;
   padding-inline: 0.5rem;
@@ -13196,6 +13274,10 @@ body.machine-editor-fullscreen-open {
  * duration is the toast's actual `durationMs`, not a token off the motion
  * scale, because it is standing in for that countdown rather than decorating
  * a state change. `linear` for the same reason a countdown is never eased.
+ *
+ * The shrink itself is `control-countdown-shrink`, up beside the button rules
+ * and shared with a control's cooldown bar — the two were the same animation
+ * written twice.
  */
 .toast__progress {
   position: absolute;
@@ -13204,18 +13286,9 @@ body.machine-editor-fullscreen-open {
   height: 0.2rem;
   background: var(--color-danger-strong);
   transform-origin: left;
-  animation-name: toast-progress-shrink;
+  animation-name: control-countdown-shrink;
   animation-timing-function: linear;
   animation-fill-mode: forwards;
-}
-
-@keyframes toast-progress-shrink {
-  from {
-    transform: scaleX(1);
-  }
-  to {
-    transform: scaleX(0);
-  }
 }
 
 .toast-enter-active,
@@ -13753,5 +13826,19 @@ body.machine-editor-fullscreen-open {
    */
   .toast__progress {
     display: none;
+  }
+
+  /*
+   * A button's bar stays, frozen at full width, where the toast's goes away —
+   * and the difference is what each one is redundant with. A toast dismisses
+   * itself whether or not anything is drawn; a cooling control is refusing
+   * clicks, and the bar is half of what says so. Removing it would leave a
+   * control that looks ordinary, reads as available, and does nothing when
+   * pressed. The blanket rule above already collapses the animation to nothing,
+   * so naming the resting transform is all this needs.
+   */
+  .button__cooldown {
+    animation: none !important;
+    transform: scaleX(1);
   }
 }

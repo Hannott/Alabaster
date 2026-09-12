@@ -1,5 +1,5 @@
 import { mount } from '@vue/test-utils'
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { computed, defineComponent, h, ref } from 'vue'
 
 import AppButton from '@/components/AppButton.vue'
@@ -147,6 +147,127 @@ describe('AppButton', () => {
 
     const idle = mount(AppButton, { props: { label: 'Save' } })
     expect(idle.attributes('data-pending')).toBeUndefined()
+  })
+
+  describe('cooldown', () => {
+    beforeEach(() => vi.useFakeTimers())
+    afterEach(() => vi.useRealTimers())
+
+    it('swaps the label and draws a bar for the duration, then ends itself', async () => {
+      const wrapper = mount(AppButton, {
+        props: {
+          label: 'Add to queue',
+          cooldownMs: 2500,
+          cooldownLabel: 'Added to queue',
+          cooldownIcon: 'check',
+          cooldown: false,
+        },
+      })
+      expect(wrapper.find('.button__cooldown').exists()).toBe(false)
+
+      await wrapper.setProps({ cooldown: true })
+      expect(wrapper.find('span').text()).toBe('Added to queue')
+      expect(wrapper.attributes('data-cooldown')).toBe('true')
+      // The bar counts the real remaining time rather than a motion token.
+      expect(wrapper.find('.button__cooldown').attributes('style')).toContain('2500ms')
+
+      vi.advanceTimersByTime(2500)
+      await wrapper.vm.$nextTick()
+      expect(wrapper.emitted('cooldown-end')).toHaveLength(1)
+      expect(wrapper.find('span').text()).toBe('Add to queue')
+      expect(wrapper.find('.button__cooldown').exists()).toBe(false)
+      expect(wrapper.attributes('data-cooldown')).toBeUndefined()
+    })
+
+    it('swallows a click that arrives while it is cooling, listener order included', async () => {
+      /*
+       * The whole reason the guard is a capture-phase listener: a call site's
+       * handler arrives by attribute fallthrough onto this same element, and
+       * listeners on the event's own target run in registration order whatever
+       * their phase. What orders the guard first is that Vue merges a
+       * component's own props ahead of its inherited attrs — Vue's ordering
+       * rather than ours, so it is pinned here.
+       */
+      let clicks = 0
+      const wrapper = mount(AppButton, {
+        props: { label: 'Add to queue', cooldownMs: 2500, cooldown: false },
+        attrs: { onClick: () => (clicks += 1) },
+      })
+      await wrapper.trigger('click')
+      expect(clicks).toBe(1)
+
+      await wrapper.setProps({ cooldown: true })
+      await wrapper.trigger('click')
+      expect(clicks).toBe(1)
+
+      vi.advanceTimersByTime(2500)
+      await wrapper.vm.$nextTick()
+      await wrapper.trigger('click')
+      expect(clicks).toBe(2)
+    })
+
+    it('is aria-disabled rather than disabled, so focus survives the swap', async () => {
+      // The native attribute drops focus, which loses a keyboard user their
+      // place and the label that replaced the one they pressed.
+      const wrapper = mount(AppButton, {
+        props: { label: 'Add to queue', cooldownMs: 2500, cooldown: true },
+      })
+      expect(wrapper.attributes('aria-disabled')).toBe('true')
+      expect(wrapper.attributes('disabled')).toBeUndefined()
+    })
+
+    it('enters a cooldown it was mounted into, and leaves one the caller lowers', async () => {
+      // A list that re-renders its rows mounts the control mid-cooldown; a
+      // watcher without `immediate` would render that instance as available.
+      const mounted = mount(AppButton, {
+        props: { label: 'Go', cooldownMs: 2500, cooldown: true },
+      })
+      expect(mounted.attributes('data-cooldown')).toBe('true')
+
+      // Lowering the flag early is a legitimate exit, and nothing counted down,
+      // so nothing ended.
+      await mounted.setProps({ cooldown: false })
+      expect(mounted.attributes('data-cooldown')).toBeUndefined()
+      vi.advanceTimersByTime(5000)
+      expect(mounted.emitted('cooldown-end')).toBeUndefined()
+    })
+
+    it('keeps an icon-only control square, swapping only its glyph', async () => {
+      // A square control has no room for words, and widening it mid-cooldown
+      // would shift every sibling in its row.
+      const wrapper = mount(AppButton, {
+        props: {
+          icon: 'close',
+          cooldownMs: 2500,
+          cooldownLabel: 'Removed',
+          cooldownIcon: 'check',
+          cooldown: true,
+        },
+      })
+      expect(wrapper.classes()).toContain('button--icon')
+      expect(wrapper.text()).toBe('')
+    })
+
+    it('adds a tone class only while cooling, and never for the default tone', async () => {
+      const wrapper = mount(AppButton, {
+        props: { label: 'Go', cooldownMs: 2500, cooldownTone: 'success', cooldown: false },
+      })
+      expect(wrapper.classes()).not.toContain('button--cooldown-success')
+
+      await wrapper.setProps({ cooldown: true })
+      expect(wrapper.classes()).toContain('button--cooldown-success')
+
+      const auto = mount(AppButton, {
+        props: { label: 'Go', cooldownMs: 2500, cooldownTone: 'auto', cooldown: true },
+      })
+      expect(auto.classes().some((name) => name.startsWith('button--cooldown-'))).toBe(false)
+    })
+
+    it('does nothing at all without a duration to count', async () => {
+      const wrapper = mount(AppButton, { props: { label: 'Go', cooldown: true } })
+      expect(wrapper.attributes('data-cooldown')).toBeUndefined()
+      expect(wrapper.find('.button__cooldown').exists()).toBe(false)
+    })
   })
 
   it('passes every attribute and listener it does not declare straight through', () => {

@@ -43,7 +43,17 @@
  * of them may be built from this component; reaching for it there is how
  * button chrome ends up on a file name again.
  */
-import { Comment, Fragment, Text, computed, ref, useSlots, type VNode } from 'vue'
+import {
+  Comment,
+  Fragment,
+  Text,
+  computed,
+  onBeforeUnmount,
+  ref,
+  useSlots,
+  watch,
+  type VNode,
+} from 'vue'
 
 import AppIcon, { type AppIconName } from '@/components/AppIcon.vue'
 import type { ActionGuardResult } from '@/composables/useActionGuard'
@@ -53,6 +63,20 @@ export type AppButtonVariant =
   'critical' | 'primary' | 'danger' | 'neutral' | 'quiet' | 'danger-quiet'
 
 export type AppButtonSize = 'md' | 'sm' | 'xs'
+
+/**
+ * The colour of a cooldown's countdown bar.
+ *
+ * `auto` is the default and is not a fallback: the bar draws in the control's
+ * own `currentColor` at reduced alpha, which is the one value guaranteed to
+ * have been contrast-checked against that variant's fill already. A grey
+ * control gets a light grey bar, `primary` gets its own label colour over
+ * blue, `danger` gets vermillion, and a theme pack that restyles a variant
+ * moves the bar with it. The named tones exist for a cooldown whose meaning
+ * differs from the control's emphasis — a neutral button confirming a
+ * successful queue append is the case that asks for one.
+ */
+export type AppButtonCooldownTone = 'auto' | 'success' | 'primary' | 'danger'
 
 const props = withDefaults(
   defineProps<{
@@ -155,6 +179,39 @@ const props = withDefaults(
     pending?: boolean | undefined
     disabled?: boolean | undefined
     /**
+     * How long the control stays in cooldown, in milliseconds. Its presence is
+     * what enables the state at all — a control with no duration has nothing to
+     * count down and nothing to draw.
+     */
+    cooldownMs?: number | undefined
+    /**
+     * The label for the duration of the cooldown, replacing `label`. Already
+     * translated by the caller, exactly like `label`.
+     *
+     * It is not rendered on an icon-only control. A square button has no room
+     * for words, and widening one mid-cooldown would shift every sibling in its
+     * row — so there the icon swap and the bar carry the state, and a caller
+     * that needs words uses a labeled control.
+     */
+    cooldownLabel?: string | undefined
+    /** Glyph for the duration, replacing `icon`. `check` is the ordinary case. */
+    cooldownIcon?: AppIconName | undefined
+    /** Countdown bar colour. See `AppButtonCooldownTone`; `auto` is right almost always. */
+    cooldownTone?: AppButtonCooldownTone | undefined
+    /**
+     * Enters the cooldown on its rising edge, and leaves it early on its
+     * falling one.
+     *
+     * The caller raises this **after** the command resolved, never in the click
+     * handler that sent it — the failure being prevented is a control that says
+     * "Added to queue" over a request Moonraker refused. Lowering it again is
+     * ordinarily the `cooldown-end` handler's job, and lowering it sooner than
+     * that is a legitimate early exit rather than a mistake: a caller whose
+     * state changed underneath it (the queue was cleared, the file went away)
+     * gets its control back immediately.
+     */
+    cooldown?: boolean | undefined
+    /**
      * Defaults to `button`, which is the whole reason this is a prop. A
      * `<button>` with no type inside a `<form>` submits it.
      */
@@ -162,6 +219,14 @@ const props = withDefaults(
   }>(),
   { size: 'sm', type: 'button' },
 )
+
+/**
+ * Fired when the countdown runs out, not when the caller lowers `cooldown`.
+ * The ordinary handler puts the flag back down, which is why this has to be an
+ * emit rather than something the caller times for itself: a second timer beside
+ * this one is a second answer to when the bar reaches zero.
+ */
+const emit = defineEmits<{ 'cooldown-end': [] }>()
 
 const slots = useSlots()
 
@@ -223,9 +288,80 @@ const iconClass = computed(() => {
   return props.size === 'md' ? 'size-5 shrink-0' : 'size-4 shrink-0'
 })
 
+/**
+ * Cooldown — the one piece of state this component owns.
+ *
+ * Everything else here is derived from props, deliberately, but a countdown is
+ * a duration rather than a value and somebody has to hold its timer. Holding it
+ * at the call site meant every such site repeated the same three lines and the
+ * `clearTimeout` was the line that got left out, which leaks a callback into a
+ * component that has already gone away.
+ */
+const cooling = ref(false)
+let cooldownTimer: number | null = null
+
+function stopCooldownTimer(): void {
+  if (cooldownTimer === null) return
+  window.clearTimeout(cooldownTimer)
+  cooldownTimer = null
+}
+
+/**
+ * Enters the cooldown. Restarting one already running is the intended
+ * behaviour for a caller that lowered and raised `cooldown` again — the second
+ * action gets its own full duration rather than inheriting what was left of the
+ * first one's.
+ */
+function startCooldown(): void {
+  if (props.cooldownMs === undefined || props.cooldownMs <= 0) return
+  stopCooldownTimer()
+  cooling.value = true
+  cooldownTimer = window.setTimeout(() => {
+    cooldownTimer = null
+    cooling.value = false
+    emit('cooldown-end')
+  }, props.cooldownMs)
+}
+
+/** Leaves it early, without the emit: nothing counted down, so nothing ended. */
+function endCooldown(): void {
+  stopCooldownTimer()
+  cooling.value = false
+}
+
+watch(
+  () => props.cooldown,
+  (next) => (next ? startCooldown() : endCooldown()),
+  {
+    // A control can be mounted into an already-cooling state — a list that
+    // re-renders its rows, a dialog reopened over the same action — and reading
+    // the prop only on change would leave that one instance looking available.
+    immediate: true,
+  },
+)
+
+onBeforeUnmount(stopCooldownTimer)
+
+/**
+ * The cooldown's own presentation, all of it conditional on `cooling` so that
+ * nothing about a resting control changes when these props are merely present.
+ */
+const showsCooldownLabel = computed(
+  () => cooling.value && props.cooldownLabel !== undefined && !isIconOnly.value,
+)
+
+const displayLabel = computed(() => (showsCooldownLabel.value ? props.cooldownLabel : props.label))
+
+const displayIcon = computed(() =>
+  cooling.value && props.cooldownIcon ? props.cooldownIcon : props.icon,
+)
+
 const classes = computed(() => [
   'button',
   variantClass.value,
+  cooling.value && props.cooldownTone && props.cooldownTone !== 'auto'
+    ? `button--cooldown-${props.cooldownTone}`
+    : null,
   props.size !== 'md' ? `button--${props.size}` : null,
   isIconOnly.value ? 'button--icon' : null,
   props.iconLg ? 'button--icon-lg' : null,
@@ -249,8 +385,38 @@ const classes = computed(() => [
  */
 const el = ref<HTMLButtonElement | null>(null)
 
+/**
+ * Swallows a click that arrives while the control is cooling down.
+ *
+ * A cooling control is `aria-disabled`, not `disabled`, and that choice is what
+ * makes this function necessary. The native attribute would be simpler and
+ * would block the click for free, but it also drops focus: a keyboard user who
+ * just pressed the control loses their place in the list and never hears the
+ * label that replaced it. `aria-disabled` keeps focus and states the same thing
+ * to assistive technology, at the cost of leaving activation to be stopped by
+ * hand — including keyboard activation, which reaches here as a click too.
+ *
+ * It has to be the capture-phase listener. Every handler a call site writes
+ * arrives by attribute fallthrough as a plain `onClick` on this same element,
+ * and listeners on the event's own target run in registration order regardless
+ * of phase — so what actually orders this one first is that a component's own
+ * props are merged ahead of its inherited attributes. `AppButton.spec.ts` pins
+ * that, because it is Vue's ordering rather than ours.
+ */
+function guardCooldownClick(event: MouseEvent): void {
+  if (!cooling.value) return
+  event.preventDefault()
+  event.stopImmediatePropagation()
+}
+
 defineExpose({
   focus: (options?: FocusOptions) => el.value?.focus(options),
+  /**
+   * Starts a cooldown without the `cooldown` prop, for a call site that would
+   * rather not carry a flag of its own — a list rendering one control per row,
+   * where the flag would have to be keyed by row.
+   */
+  startCooldown,
   /** The element itself, for a caller that needs geometry rather than focus. */
   el,
 })
@@ -263,9 +429,12 @@ defineExpose({
     :class="classes"
     :disabled="disabled || pending"
     :data-pending="pending ? 'true' : undefined"
+    :data-cooldown="cooling ? 'true' : undefined"
+    :aria-disabled="cooling ? 'true' : undefined"
     v-bind="guard?.bind.value"
+    @click.capture="guardCooldownClick"
   >
-    <AppIcon v-if="icon" :name="icon" :class="iconClass" aria-hidden="true" />
+    <AppIcon v-if="displayIcon" :name="displayIcon" :class="iconClass" aria-hidden="true" />
     <!--
       The label renders before the slot so a caller may pass both: the string is
       the control's name, and the slot is whatever hangs off it.
@@ -277,8 +446,26 @@ defineExpose({
       truncates a section name to the outline's width. Both predate this
       component and both match the markup it now generates.
     -->
-    <span v-if="label !== undefined">{{ label }}</span>
-    <slot />
+    <span v-if="displayLabel !== undefined">{{ displayLabel }}</span>
+    <!--
+      A cooldown label replaces the control's content rather than joining it, so
+      the slot stands down while one is showing. The alternative — a
+      confirmation reading beside whatever the slot renders — produces "Added to
+      queue 3 files", which is a sentence nobody wrote.
+    -->
+    <slot v-if="!showsCooldownLabel" />
     <AppIcon v-if="iconEnd" :name="iconEnd" :class="iconClass" aria-hidden="true" />
+    <!--
+      The countdown names its own real remaining time, the way the toast's does:
+      the animation duration is `cooldownMs` itself rather than a token off the
+      motion scale, because it is standing in for a timer rather than decorating
+      a state change.
+    -->
+    <span
+      v-if="cooling"
+      class="button__cooldown"
+      :style="{ animationDuration: `${cooldownMs}ms` }"
+      aria-hidden="true"
+    />
   </button>
 </template>
