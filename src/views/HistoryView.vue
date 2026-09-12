@@ -230,8 +230,17 @@ const canQueueJob = computed(
   () => moonrakerAvailability.value.isAvailable && !jobQueue.pendingCommands.add,
 )
 
+/**
+ * The same silence Print files' own enqueue answers: the queue is a card on
+ * another page, this detail pane does not move, and a successful post looks
+ * exactly like a failed one from here — so the control confirms on itself for
+ * a second. Raised from what `addJob` answered rather than from having called
+ * it, since a refusal comes back as `false` rather than as a throw.
+ */
+const queueConfirmed = ref(false)
+
 async function queueJob(job: HistoryJob): Promise<void> {
-  await jobQueue.addJob(job.filename)
+  queueConfirmed.value = await jobQueue.addJob(job.filename)
 }
 
 const deletingJob = ref<HistoryJob | null>(null)
@@ -246,6 +255,10 @@ const selectedJob = ref<HistoryJob | null>(null)
 
 function selectJob(job: HistoryJob): void {
   selectedJob.value = job
+  // A confirmation names the job that was on screen when it was earned. Moving
+  // to another one mid-cooldown would leave "Added to queue" sitting over a
+  // file nobody enqueued.
+  queueConfirmed.value = false
 }
 
 function closeJobDetail(): void {
@@ -575,6 +588,11 @@ function requestReprint(job: HistoryJob): void {
                   :label="t('history.jobs.detail.addToQueue')"
                   :disabled="!canQueueJob || !selectedJob.fileExists"
                   :title="selectedJob.fileExists ? undefined : t('history.jobs.fileGone')"
+                  :cooldown="queueConfirmed"
+                  :cooldown-ms="1000"
+                  :cooldown-label="t('history.jobs.detail.addedToQueue')"
+                  cooldown-icon="check"
+                  @cooldown-end="queueConfirmed = false"
                   @click="queueJob(selectedJob)"
                 />
                 <AppButton

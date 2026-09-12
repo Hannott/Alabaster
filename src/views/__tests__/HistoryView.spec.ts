@@ -1,5 +1,5 @@
 import { createPinia, setActivePinia } from 'pinia'
-import { mount } from '@vue/test-utils'
+import { flushPromises, mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { i18n } from '@/i18n'
@@ -202,6 +202,29 @@ describe('HistoryView', () => {
     await queueButton?.trigger('click')
 
     expect(addJob).toHaveBeenCalledWith('prints/cube.gcode')
+  })
+
+  it('confirms the enqueue on the button, and drops it when another job is picked', async () => {
+    // The queue is a card on another page and this pane does not move, so a
+    // successful post looks exactly like a refused one from here.
+    useAvailabilityStore().moonrakerConnected({ klippy_connected: true, klippy_state: 'ready' })
+    const history = useHistoryStore()
+    history.jobs = [job({ filename: 'prints/cube.gcode' }), job({ filename: 'prints/cone.gcode' })]
+    const jobQueue = useJobQueueStore()
+    vi.spyOn(jobQueue, 'addJob').mockResolvedValue(true)
+    const wrapper = mountView()
+
+    await wrapper.findAll('.history-job')[0]!.trigger('click')
+    const queueButton = wrapper.findAll('button').find((button) => button.text() === 'Add to queue')
+    await queueButton?.trigger('click')
+    await flushPromises()
+    expect(queueButton?.text()).toBe('Added to queue')
+    expect(queueButton?.attributes('data-cooldown')).toBe('true')
+
+    // A confirmation names the job that was on screen when it was earned.
+    await wrapper.findAll('.history-job')[1]!.trigger('click')
+    expect(queueButton?.text()).toBe('Add to queue')
+    expect(queueButton?.attributes('data-cooldown')).toBeUndefined()
   })
 
   it('reads an aggregate auxiliary field back through its sensor declaration', () => {

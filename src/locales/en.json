@@ -366,7 +366,8 @@
         "printDuration": "Print time",
         "occupiedTime": "Time occupied",
         "filament": "Filament used",
-        "addToQueue": "Add to queue"
+        "addToQueue": "Add to queue",
+        "addedToQueue": "Added to queue"
       }
     },
     "outcome": {

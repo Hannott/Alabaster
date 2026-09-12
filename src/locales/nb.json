@@ -366,7 +366,8 @@
         "printDuration": "Utskriftstid",
         "occupiedTime": "Tid opptatt",
         "filament": "Filament brukt",
-        "addToQueue": "Legg i køen"
+        "addToQueue": "Legg i køen",
+        "addedToQueue": "Lagt i køen"
       }
     },
     "outcome": {
