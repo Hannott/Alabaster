@@ -133,6 +133,26 @@ Three switches under **Explorer settings** decide what the list shows:
 Folders and files sort independently of each other. Folders always come
 first.
 
+## Pinning files
+
+Pin a file from its row menu to keep it at the top of the list, in every
+folder, until you unpin it — a shortcut for the handful of files you return
+to constantly, wherever they live in the tree.
+
+Clicking a pinned file opens it without leaving the folder you're browsing —
+unlike opening the last file you edited, pinning a file is for reaching it
+from wherever you already are.
+
+A pinned row shows the same size, modified date, and unsaved or read-only
+marks as any other row, with an unpin button that appears on hover so it
+never shifts the columns beside it. Renaming, moving, or deleting the file —
+or a folder it lives in — carries the pin along or drops it, so a pin never
+points at a path that no longer exists.
+
+Pins stay in this browser rather than syncing to the printer, and drop out of
+the list while you are searching: a search already looks across the whole
+root, so a pinned match would otherwise show twice.
+
 ## Automatic list updates
 
 Moonraker sends a notification whenever a file under a watched root is

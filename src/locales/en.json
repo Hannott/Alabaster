@@ -1492,6 +1492,8 @@
     "contextMenu": {
       "label": "Actions for {name}",
       "rename": "Rename",
+      "pin": "Pin",
+      "unpin": "Unpin",
       "download": "Download",
       "addToPrinterConfig": "Add to printer.cfg",
       "removeFromPrinterConfig": "Remove from printer.cfg",
@@ -1564,6 +1566,8 @@
       "title": "Configuration explorer",
       "path": "Current configuration path",
       "pathLabel": "Path:",
+      "pinnedFiles": "Pinned files",
+      "unpin": "Unpin {name}",
       "recentFiles": "Last edited files",
       "recentFileLabel": "Last edited:",
       "recentFileNone": "Nothing opened yet",

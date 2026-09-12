@@ -10705,6 +10705,71 @@ body.machine-editor-fullscreen-open {
 }
 
 /*
+ * A pinned row can't be one button top to bottom the way an ordinary file row
+ * is: the unpin control has to sit beside the row rather than inside it, since
+ * a button cannot nest inside another button. It is positioned over the row
+ * rather than beside it in flow, so it never claims width from the
+ * name/size/modified grid the row shares with every other file row — a
+ * sibling element that took its own share of the row's width shifted the size
+ * and modified columns out of alignment with the header above them and with
+ * every ordinary row below. Revealed only on hover or focus, since a pinned
+ * row otherwise looks exactly like the row it would be if it were not pinned,
+ * and unpinning is deliberate enough an action that it does not need a
+ * permanently visible control. Overlapping the modified date once revealed is
+ * fine: nothing here needs both at once.
+ */
+.machine-pinned-row {
+  position: relative;
+  border-block-end: 1px solid var(--border-subtle);
+}
+
+.machine-pinned-row .machine-file-row {
+  border-block-end: 0;
+}
+
+.machine-pinned-row__unpin {
+  position: absolute;
+  inset-inline-end: 0.5rem;
+  inset-block-start: 50%;
+  transform: translateY(-50%);
+  opacity: 0;
+  transition: opacity var(--motion-duration-fast) var(--motion-ease-standard);
+}
+
+.machine-pinned-row:hover .machine-pinned-row__unpin,
+.machine-pinned-row:focus-within .machine-pinned-row__unpin {
+  opacity: 1;
+}
+
+/*
+ * States once for the whole group rather than on every row, the same reason a
+ * read-only root is stated on its tab rather than on each of its files: every
+ * row here is pinned, so marking that per row would repeat the one fact this
+ * caption already states.
+ */
+.machine-pinned-label {
+  padding: 0.35rem 1rem;
+  color: var(--text-muted);
+  font-size: var(--text-label-caps-size);
+  font-weight: var(--font-weight);
+  letter-spacing: var(--text-label-caps-tracking);
+  text-transform: uppercase;
+}
+
+/*
+ * Closes the pinned group with an accent rule rather than the same neutral
+ * hairline every row already carries — that hairline reads as "next row," not
+ * "different group," which is indistinguishable from an ordinary file
+ * boundary. Reuses `--action-primary`, the accent the active-file bar and the
+ * drop-target ring already use, rather than adding a second accent hue for
+ * the same "this matters" meaning.
+ */
+.machine-pinned-divider {
+  height: 0.125rem;
+  background-color: var(--action-primary);
+}
+
+/*
  * Unlike other file selects, these rows switch their hover color instantly
  * instead of fading it. Navigating a folder patches the row under the pointer
  * in place (see the list comment in FileExplorerView), so when a ".." row

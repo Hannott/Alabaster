@@ -37,6 +37,8 @@ export type AppIconName =
   | 'fan'
   | 'fileCode'
   | 'fileJpg'
+  | 'filePin'
+  | 'filePinSlash'
   | 'filePlus'
   | 'filePng'
   | 'filePrinter'
@@ -744,6 +746,21 @@ defineProps<{ name: AppIconName }>()
         d="M12.5 3.505h-7V12H4V2h9.56L20 8.44V12h-1.5V9.5h-4.75c-.69 0-1.25-.56-1.25-1.25zM17.44 8L14 4.56V8zM9.5 13.5h3.75c.69 0 1.25.56 1.25 1.25v3c0 .69-.56 1.25-1.25 1.25H11v3H9.5zm1.5 4h2V15h-2zm9.5-1.5v-1.25c0-.69-.56-1.25-1.25-1.25h-2.5c-.69 0-1.25.56-1.25 1.25v6c0 .69.56 1.25 1.25 1.25h2.5c.69 0 1.25-.56 1.25-1.25V17.5H18V19h1v1.5h-2V15h2v1zM7 15H4v-1.5h4.5v7.25c0 .69-.56 1.25-1.25 1.25h-2.5c-.69 0-1.25-.56-1.25-1.25V18.5H5v2h2z"
       />
     </g>
+    <!--
+      Iconoir's "pin" glyph (MIT licensed) — a thumbtack, for pinning a file to
+      the top of the Configuration explorer regardless of which folder is
+      open. Kept distinct from `pin` above, the map-pin glyph for a bed-mesh
+      saved point: the two are unrelated things pinned to unrelated places.
+    -->
+    <path
+      v-else-if="name === 'filePin'"
+      d="M9.5 14.5L3 21M5 9.485l9.193 9.193l1.697-1.697l-.393-3.787l5.51-4.673l-5.85-5.85l-4.674 5.51l-3.786-.393z"
+    />
+    <!-- Iconoir's "pin-slash" glyph (MIT licensed) — the same thumbtack struck through, for the unpin action on a pinned row. -->
+    <path
+      v-else-if="name === 'filePinSlash'"
+      d="M9.5 14.5L3 21M7.676 7.89l-.979-.102L5 9.485l9.193 9.193l1.697-1.697l-.102-.981m-4.303-9l3.672-4.329l5.85 5.85l-4.308 3.654M3 3l18 18"
+    />
     <!-- Griddy Icons' "png-file" glyph (MIT licensed). -->
     <g v-else-if="name === 'filePng'" fill="currentColor" stroke="none">
       <path

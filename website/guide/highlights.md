@@ -99,6 +99,8 @@ Configuration in Alabaster is a linked document, not a plain text box.
   pointing at nothing is enough by itself to stop Klipper from starting.
 - **Add to printer.cfg** and **Remove from printer.cfg** are on each file's
   own menu, and the list marks files already included.
+- **Pin a file** to keep it at the top of the list, in every folder, until
+  you unpin it.
 
 Edits survive everything except a browser reload. Each file keeps its own
 buffer for as long as the tab is open, and Alabaster flags an unsaved edit on

@@ -322,6 +322,40 @@ describe('machine files store', () => {
     expect(machineFiles.editorContent).toBe('[bed_mesh]\n')
   })
 
+  it('opens a pinned file at its own path without navigating there', async () => {
+    const availability = useAvailabilityStore()
+    availability.moonrakerConnected({ klippy_connected: true, klippy_state: 'ready' })
+    const moonraker = useMoonrakerStore()
+    const rpcCall = vi.spyOn(moonraker, 'rpcCall')
+    vi.stubGlobal(
+      'fetch',
+      vi.fn<typeof fetch>().mockResolvedValue(
+        new Response('[bed_mesh]\n', {
+          status: 200,
+          headers: { 'content-type': 'text/plain' },
+        }),
+      ),
+    )
+    const machineFiles = useMachineFilesStore()
+    machineFiles.currentPath = 'sub'
+
+    await expect(
+      machineFiles.openPinnedFile({
+        kind: 'file',
+        name: 'bed.cfg',
+        path: 'hardware/bed.cfg',
+        modified: 50,
+        size: 50,
+        permissions: 'rw',
+      }),
+    ).resolves.toBe(true)
+
+    expect(rpcCall).not.toHaveBeenCalled()
+    expect(machineFiles.currentPath).toBe('sub')
+    expect(machineFiles.currentFile?.path).toBe('hardware/bed.cfg')
+    expect(machineFiles.editorContent).toBe('[bed_mesh]\n')
+  })
+
   it('opens image files without fetching their contents as text', async () => {
     const availability = useAvailabilityStore()
     availability.moonrakerConnected({ klippy_connected: true, klippy_state: 'ready' })

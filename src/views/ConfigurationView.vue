@@ -16,6 +16,7 @@ import HtmlFileViewer from '@/components/machine/HtmlFileViewer.vue'
 import { useAvailability } from '@/composables/useAvailability'
 import { useConfigFileHistory } from '@/composables/useConfigFileHistory'
 import { useEditorIndent } from '@/composables/useEditorIndent'
+import { useMachineFilePins } from '@/composables/useMachineFilePins'
 import { useMachineFilesSettings } from '@/composables/useMachineFilesSettings'
 import {
   codeWindow,
@@ -106,6 +107,7 @@ const {
 const { indentWidth } = useEditorIndent()
 const { fileHistory, fileHistoryIndex, pushFileHistory, setFileHistoryIndex } =
   useConfigFileHistory()
+const { pinnedFiles, isPinned, pinFile, unpinFile, repointPinned } = useMachineFilePins()
 const search = ref('')
 const sortKey = ref<FileSortKey>('name')
 const sortDirection = ref<'ascending' | 'descending'>('ascending')
@@ -263,6 +265,18 @@ const filteredEntries = computed(() => {
     return left.name.localeCompare(right.name, locale.value, { numeric: true, sensitivity: 'base' })
   })
 })
+/*
+ * Pinned files sit above every folder-navigation row precisely because they
+ * don't belong to the folder on screen — that's the point of pinning one.
+ * Suppressed during a search: a query already surfaces matches from the whole
+ * root through `filteredEntries`, so keeping this band up too would offer the
+ * same file twice for no reason.
+ */
+const pinnedEntries = computed(() =>
+  search.value.trim()
+    ? []
+    : pinnedFiles.value.filter((entry) => entry.root === machineFiles.currentRoot),
+)
 const pathSegments = computed(() => {
   const segments = machineFiles.currentPath ? machineFiles.currentPath.split('/') : []
   return [
@@ -709,6 +723,30 @@ function isIncludableEntry(entry: MachineFileEntry): boolean {
   )
 }
 
+/** Whether this entry is pinned to the top of the explorer, in the root currently browsed. */
+function isEntryPinned(entry: MachineFileEntry): boolean {
+  return isPinned(machineFiles.currentRoot, entryPathOf(entry))
+}
+
+function togglePinEntry(entry: MachineFileEntry): void {
+  closeContextMenu()
+  if (entry.kind !== 'file') return
+  const path = entryPathOf(entry)
+  if (isPinned(machineFiles.currentRoot, path)) {
+    unpinFile(machineFiles.currentRoot, path)
+    return
+  }
+  pinFile({
+    kind: 'file',
+    root: machineFiles.currentRoot,
+    path,
+    name: entry.name,
+    size: entry.size,
+    modified: entry.modified,
+    permissions: entry.permissions,
+  })
+}
+
 async function toggleIncludeInPrinterConfig(
   entry: MachineFileEntry,
   isIncluded: boolean,
@@ -745,7 +783,12 @@ async function confirmRename(name: string): Promise<void> {
   const entry = pendingRename.value
   pendingRename.value = null
   if (!entry) return
-  await machineFiles.renameEntry(entry, name)
+  const previousPath = entryPathOf(entry)
+  const filename = name.trim()
+  const nextPath = machineFiles.currentPath ? `${machineFiles.currentPath}/${filename}` : filename
+  if (await machineFiles.renameEntry(entry, name)) {
+    repointPinned(machineFiles.currentRoot, previousPath, nextPath)
+  }
 }
 
 /*
@@ -782,15 +825,22 @@ function downloadEntry(entry: MachineFileEntry): void {
 
 function requestDeleteEntry(entry: MachineFileEntry): void {
   closeContextMenu()
-  if (confirmations.shouldConfirm('deleteFileEntry')) pendingDelete.value = entry
-  else void machineFiles.deleteEntry(entry)
+  if (confirmations.shouldConfirm('deleteFileEntry')) {
+    pendingDelete.value = entry
+    return
+  }
+  const path = entryPathOf(entry)
+  void machineFiles.deleteEntry(entry).then((deleted) => {
+    if (deleted) repointPinned(machineFiles.currentRoot, path, null)
+  })
 }
 
 async function confirmDeleteEntry(): Promise<void> {
   const entry = pendingDelete.value
   pendingDelete.value = null
   if (!entry) return
-  await machineFiles.deleteEntry(entry)
+  const path = entryPathOf(entry)
+  if (await machineFiles.deleteEntry(entry)) repointPinned(machineFiles.currentRoot, path, null)
 }
 
 /** True while the drag carries OS files rather than one of our own rows. */
@@ -984,7 +1034,8 @@ async function onDrop(event: DragEvent, target: MachineFileEntry | 'parent'): Pr
   // the broken include after the fact.
   const { rewrite } = await machineFiles.checkMoveInclude(dragged, destination)
   if (!rewrite) {
-    await machineFiles.moveEntryTo(dragged, destination)
+    const moved = await machineFiles.moveEntryTo(dragged, destination)
+    if (moved) repointPinned(machineFiles.currentRoot, moved.previousPath, moved.nextPath)
     return
   }
   pendingMove.value = { entry: dragged, destination, rewrite }
@@ -998,14 +1049,19 @@ async function confirmMoveWithInclude(): Promise<void> {
   if (moveDialog.value?.open) moveDialog.value.close()
   if (!pending) return
   const moved = await machineFiles.moveEntryTo(pending.entry, pending.destination)
-  if (moved) await machineFiles.applyIncludeUpdate(pending.rewrite.content)
+  if (moved) {
+    repointPinned(machineFiles.currentRoot, moved.previousPath, moved.nextPath)
+    await machineFiles.applyIncludeUpdate(pending.rewrite.content)
+  }
 }
 
 async function confirmMoveWithoutInclude(): Promise<void> {
   const pending = pendingMove.value
   pendingMove.value = null
   if (moveDialog.value?.open) moveDialog.value.close()
-  if (pending) await machineFiles.moveEntryTo(pending.entry, pending.destination)
+  if (!pending) return
+  const moved = await machineFiles.moveEntryTo(pending.entry, pending.destination)
+  if (moved) repointPinned(machineFiles.currentRoot, moved.previousPath, moved.nextPath)
 }
 
 function cancelPendingMove(event?: Event): void {
@@ -1047,6 +1103,22 @@ async function openRecentFile(file: OpenMachineFile): Promise<void> {
   await openWithWarningGate(file.name, file.size, async () => {
     search.value = ''
     await machineFiles.openRecentFile(file)
+  })
+}
+
+/*
+ * Unlike `openRecentFile`, this never navigates: a pin exists precisely so a
+ * file outside the folder currently open stays reachable, and following it
+ * into the editor should not also drag the explorer along to wherever it
+ * lives.
+ */
+async function openPinnedFile(file: OpenMachineFile): Promise<void> {
+  if (machineFiles.currentFile?.path === file.path) {
+    machineFiles.closeFile()
+    return
+  }
+  await openWithWarningGate(file.name, file.size, async () => {
+    await machineFiles.openPinnedFile(file)
   })
 }
 
@@ -2039,6 +2111,83 @@ onBeforeUnmount(() => {
             @dragleave="onExternalDragLeave"
             @drop="onExternalDrop"
           >
+            <li v-if="pinnedEntries.length > 0" class="machine-pinned-label" aria-hidden="true">
+              {{ t('configuration.files.pinnedFiles') }}
+            </li>
+            <li
+              v-for="entry in pinnedEntries"
+              :key="`pin:${entry.root}:${entry.path}`"
+              class="machine-pinned-row"
+            >
+              <button
+                type="button"
+                class="file-select machine-file-row"
+                :class="{
+                  'machine-file-row--active': machineFiles.currentFile?.path === entry.path,
+                }"
+                :disabled="!moonrakerAvailability.isAvailable"
+                :title="entry.path"
+                @click="openPinnedFile(entry)"
+              >
+                <span class="machine-file-name">
+                  <span
+                    class="machine-file-icon-hover"
+                    :title="
+                      isEntryIncluded(entry)
+                        ? t('configuration.files.includedInPrimaryConfig')
+                        : undefined
+                    "
+                  >
+                    <AppIcon
+                      :name="fileIcon(entry.name)"
+                      :class="[
+                        'size-5 shrink-0',
+                        {
+                          'machine-file-icon--included': isEntryIncluded(entry),
+                          'machine-file-icon--dirty': isEntryDirty(entry),
+                        },
+                      ]"
+                      aria-hidden="true"
+                    />
+                  </span>
+                  <span class="machine-file-name__details">
+                    <span
+                      class="machine-file-name__label"
+                      :class="{ 'machine-file-name__label--dirty': isEntryDirty(entry) }"
+                      >{{ entry.name }}</span
+                    >
+                    <span v-if="isEntryDirty(entry)" class="machine-dirty-mark">{{
+                      t('configuration.editor.unsaved')
+                    }}</span>
+                    <span
+                      v-if="machineFiles.isRootEditable && !entry.permissions.includes('w')"
+                      class="machine-readonly-mark"
+                    >
+                      {{ t('configuration.files.readOnlyShort') }}
+                    </span>
+                  </span>
+                </span>
+                <span class="machine-file-meta font-mono text-xs tabular-nums text-muted">
+                  {{ formatSize(entry.size) }}
+                </span>
+                <span
+                  class="machine-file-meta text-xs text-muted"
+                  :title="formatModified(entry.modified)"
+                  >{{ formatModified(entry.modified) }}</span
+                >
+              </button>
+              <AppButton
+                variant="quiet"
+                size="xs"
+                icon-only
+                icon="filePinSlash"
+                class="machine-pinned-row__unpin"
+                :aria-label="t('configuration.files.unpin', { name: entry.name })"
+                :title="t('configuration.files.unpin', { name: entry.name })"
+                @click="unpinFile(entry.root, entry.path)"
+              />
+            </li>
+            <li v-if="pinnedEntries.length > 0" class="machine-pinned-divider" aria-hidden="true"></li>
             <li v-if="machineFiles.currentPath && !search.trim()" class="machine-parent-entry">
               <button
                 type="button"
@@ -2641,6 +2790,22 @@ onBeforeUnmount(() => {
         :label="t('configuration.contextMenu.rename')"
         :disabled="!isWritable(contextMenu.entry)"
         @click="renameEntry(contextMenu.entry)"
+      />
+      <AppButton
+        v-if="contextMenu.entry.kind === 'file'"
+        variant="quiet"
+        size="sm"
+        start
+        block
+        :icon="isEntryPinned(contextMenu.entry) ? 'filePinSlash' : 'filePin'"
+        :label="
+          t(
+            isEntryPinned(contextMenu.entry)
+              ? 'configuration.contextMenu.unpin'
+              : 'configuration.contextMenu.pin',
+          )
+        "
+        @click="togglePinEntry(contextMenu.entry)"
       />
       <AppButton
         v-if="contextMenu.entry.kind === 'file'"

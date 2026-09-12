@@ -1492,6 +1492,8 @@
     "contextMenu": {
       "label": "Handlinger for {name}",
       "rename": "Gi nytt navn",
+      "pin": "Fest",
+      "unpin": "Løsne",
       "download": "Last ned",
       "addToPrinterConfig": "Legg til i printer.cfg",
       "removeFromPrinterConfig": "Fjern fra printer.cfg",
@@ -1564,6 +1566,8 @@
       "title": "Konfigurasjonsutforsker",
       "path": "Gjeldende konfigurasjonssti",
       "pathLabel": "Sti:",
+      "pinnedFiles": "Festede filer",
+      "unpin": "Løsne {name}",
       "recentFiles": "Sist redigerte filer",
       "recentFileLabel": "Sist redigert:",
       "recentFileNone": "Ingenting åpnet ennå",

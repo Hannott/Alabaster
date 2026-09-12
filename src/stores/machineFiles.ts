@@ -518,11 +518,13 @@ export const useMachineFilesStore = defineStore('machineFiles', () => {
     return navigate(joinPath(currentPath.value, name))
   }
 
-  async function openFile(entry: MachineFileEntry): Promise<boolean> {
-    if (entry.kind !== 'file' || !validMoonrakerFilename(entry.name)) return false
+  /*
+   * Shared by `openFile` (path derived from the folder currently browsed) and
+   * `openPinnedFile` (path already absolute, from the pin itself) — the two
+   * differ only in where `path` comes from, never in what opening it does.
+   */
+  async function openFileAtPath(path: string, entry: MachineFileEntry): Promise<boolean> {
     const generation = ++fileGeneration
-    const path = joinPath(currentPath.value, entry.name)
-
     const kind = classifyFileKind(entry.name)
     if (kind === 'image') {
       currentFile.value = { ...entry, kind: 'file', path }
@@ -562,6 +564,11 @@ export const useMachineFilesStore = defineStore('machineFiles', () => {
     }
   }
 
+  async function openFile(entry: MachineFileEntry): Promise<boolean> {
+    if (entry.kind !== 'file' || !validMoonrakerFilename(entry.name)) return false
+    return openFileAtPath(joinPath(currentPath.value, entry.name), entry)
+  }
+
   async function openRecentFile(file: OpenMachineFile): Promise<boolean> {
     const segments = file.path.split('/')
     const filename = segments.pop()
@@ -569,6 +576,17 @@ export const useMachineFilesStore = defineStore('machineFiles', () => {
     const directory = segments.join('/')
     if (directory !== currentPath.value) await navigate(directory)
     return openFile({ ...file, kind: 'file', name: filename })
+  }
+
+  /*
+   * Opens a pinned file at its own absolute path without navigating there —
+   * the point of a pin is that it isn't wherever the explorer happens to be
+   * standing, and following it into the editor should not also drag the
+   * folder listing along behind it the way `openRecentFile` deliberately does.
+   */
+  async function openPinnedFile(file: OpenMachineFile): Promise<boolean> {
+    if (!validMoonrakerFilename(file.name)) return false
+    return openFileAtPath(file.path, file)
   }
 
   function closeFile(): void {
@@ -1366,6 +1384,7 @@ export const useMachineFilesStore = defineStore('machineFiles', () => {
     enterDirectory,
     openFile,
     openRecentFile,
+    openPinnedFile,
     closeFile,
     saveFile,
     saveAllFiles,
