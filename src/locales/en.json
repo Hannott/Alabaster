@@ -1006,7 +1006,6 @@
       "feedratePresets": "Feedrate presets",
       "setLength": "Set filament length to {value} mm",
       "setFeedrate": "Set feedrate to {value} mm/s",
-      "ready": "Ready to extrude",
       "tooCold": "Heat the hotend above {value}{unit} to extrude",
       "retract": "Retract",
       "extrude": "Extrude",

@@ -384,10 +384,9 @@ onUnmounted(() => {
  *
  * Without it a slow purge and an extrude Klipper silently refused look
  * identical — the same defect Movement named for the toolhead and fixed only
- * there. It sits beside the state sentence rather than replacing it: what the
- * extruder is allowed to do and what it is doing are different facts, and
- * during a print the state never changes while this is the only line that
- * does.
+ * there. It remains visible at rest so a refused move and an idle extruder do
+ * not collapse into the same blank state; the too-cold warning joins it only
+ * when the user has something actionable to resolve.
  *
  * It never animates. ADR 0004 forbids animating telemetry at its own update
  * frequency; the number changes when the peak-hold above says it changed.
@@ -395,33 +394,30 @@ onUnmounted(() => {
 const isMoving = computed(() => isExtruderMoving(peakExtruderVelocity.value))
 
 /**
- * Volumetric flow, when the filament's diameter is known — which is to say,
- * when Spoolman has an active spool whose filament records one. Absent
- * otherwise rather than computed from an assumed 1.75 mm, since flow scales
- * with the square of the diameter and this is a figure people compare against
- * a hotend's rated limit.
+ * Volumetric flow from the loaded spool's diameter, falling back to the
+ * printer's configured filament diameter when Spoolman has no more specific
+ * answer. Absent otherwise rather than computed from an assumed 1.75 mm,
+ * since flow scales with the square of the diameter and this is a figure
+ * people compare against a hotend's rated limit.
  */
 const flowValue = computed(() =>
-  volumetricFlow(peakExtruderVelocity.value, spool.activeSpool?.filament?.diameter),
-)
-
-/**
- * The number this card shows, whichever of flow or filament speed it is.
- * Re-checked for negative zero here too: multiplying the peak by the
- * filament's cross-section can round a value that was already clean back
- * into one that isn't.
- */
-const readoutValue = computed(() =>
-  numberFormatter.value.format(
-    withoutNegativeZero(flowValue.value ?? peakExtruderVelocity.value, 1),
+  volumetricFlow(
+    peakExtruderVelocity.value,
+    spool.activeSpool?.filament?.diameter ?? printerConfig.extruderGeometry.filamentDiameter,
   ),
 )
 
-/** The unit beside it — never derived from the number, since a diameter answers "which unit", not "which value". */
-const readoutUnit = computed(() =>
+/**
+ * The volumetric-flow number this card shows. Without either a spool or
+ * configured filament diameter the value is unavailable rather than replaced
+ * with a differently dimensioned linear-speed reading. Re-checked for
+ * negative zero here too: multiplying the peak by the filament's cross-section
+ * can round a value that was already clean back into one that isn't.
+ */
+const readoutValue = computed(() =>
   flowValue.value === null
-    ? t('dashboard.extruder.millimetresPerSecondUnit')
-    : t('dashboard.extruder.cubicMillimetresPerSecondUnit'),
+    ? t('dashboard.unavailableValue')
+    : numberFormatter.value.format(withoutNegativeZero(flowValue.value, 1)),
 )
 </script>
 
@@ -435,11 +431,10 @@ const readoutUnit = computed(() =>
       What this card can do right now, and nothing else. The eyebrow read
       "EXTRUDER" under a header that now says the same thing, and the bare
       hotend reading beside it was Temperatures' subject shown a second time
-      without a target or any way to change it. What survives is the gate: too
-      cold to extrude, or ready. That a running print owns the extruder is not
-      stated — the disabled buttons below already say so, and a print is not a
-      state this card needs to explain. The temperature in the too-cold
-      sentence is the threshold, not a readout.
+      without a target or any way to change it. What survives is the actionable
+      too-cold gate. The positive "ready" state was redundant with the enabled
+      controls below, while the temperature in the too-cold sentence is the
+      threshold the user needs rather than a second hotend readout.
     -->
     <div class="extruder-status">
       <p v-if="!canExtrude" class="flex items-center gap-1.5 text-alert-inline">
@@ -451,15 +446,15 @@ const readoutUnit = computed(() =>
           })
         }}
       </p>
-      <p v-else class="text-xs text-muted">{{ t('dashboard.extruder.ready') }}</p>
       <!--
         What the extruder is doing outranks what it is allowed to do, so it is
         always on screen rather than only while turning — the same posture
         Movement's own feed-rate readout takes, dimming rather than
         disappearing at rest so a stalled move never looks identical to an
-        idle one. Flow when the filament's diameter is known, filament speed
-        otherwise. `text-value-micro` is Movement's own feed-rate size, not
-        `text-value`, so the two read as the same kind of number, and
+        idle one. It remains volumetric flow; without a reported filament
+        diameter the value is unavailable rather than changing dimensions.
+        `text-value-micro` is Movement's own feed-rate size, not `text-value`,
+        so the two read as the same kind of number, and
         `text-value-slot` reserves the same fixed digit width Movement's own
         readout does, so the number never shifts as its own digit count
         changes. No decorative icon here, unlike Movement's readout: every
@@ -469,7 +464,7 @@ const readoutUnit = computed(() =>
       -->
       <p class="text-value-micro" :class="isMoving ? 'text-data-sky' : 'text-muted'">
         <span class="text-value-slot">{{ readoutValue }}</span>
-        {{ readoutUnit }}
+        {{ t('dashboard.extruder.cubicMillimetresPerSecondUnit') }}
       </p>
     </div>
 

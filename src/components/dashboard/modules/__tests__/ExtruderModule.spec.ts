@@ -59,6 +59,13 @@ function warmExtruder(telemetry: ReturnType<typeof useTelemetryStore>, temperatu
   }
 }
 
+function configureFilamentDiameter(
+  printerConfig: ReturnType<typeof usePrinterConfigStore>,
+  diameter = 1.75,
+): void {
+  printerConfig.settings = { extruder: { filament_diameter: diameter } }
+}
+
 describe('ExtruderModule', () => {
   beforeEach(() => {
     window.localStorage.clear()
@@ -85,7 +92,7 @@ describe('ExtruderModule', () => {
     printer.extruder.canExtrude = true
     await flushPromises()
 
-    expect(wrapper.text()).toContain('Ready to extrude')
+    expect(wrapper.text()).not.toContain('Ready to extrude')
 
     await wrapper.get('.button--primary').trigger('click')
     expect(extrude).toHaveBeenLastCalledWith(25, 5)
@@ -165,11 +172,6 @@ describe('ExtruderModule', () => {
     printer.printStats.state = 'printing'
     await flushPromises()
 
-    // The hotend is hot enough, so the status line still reads "ready" — a
-    // running print owning the extruder is not a state this card explains,
-    // since the disabled buttons already say so.
-    expect(wrapper.text()).toContain('Ready to extrude')
-
     const buttons = wrapper.findAll('.extruder-feed__actions > button')
     expect(buttons.every((button) => button.attributes('disabled') !== undefined)).toBe(true)
     await buttons[0]?.trigger('click')
@@ -182,7 +184,6 @@ describe('ExtruderModule', () => {
 
     printer.printStats.state = 'standby'
     await flushPromises()
-    expect(wrapper.text()).toContain('Ready to extrude')
     expect(buttons.every((button) => button.attributes('disabled') === undefined)).toBe(true)
   })
 
@@ -569,18 +570,18 @@ describe('ExtruderModule', () => {
    * the same rate as the toolhead's own. Without it a slow purge and an extrude
    * Klipper silently refused look identical.
    */
-  it('says what the extruder is doing while it is doing it', async () => {
-    const { printer, telemetry, wrapper } = mountModule()
+  it('shows the extruder motion as volumetric flow', async () => {
+    const { printer, telemetry, printerConfig, wrapper } = mountModule()
     warmExtruder(telemetry, 220)
+    configureFilamentDiameter(printerConfig)
     printer.extruder.canExtrude = true
     await flushPromises()
-    expect(wrapper.text()).toContain('Ready to extrude')
 
     printer.motion.liveExtruderVelocity = 4
     await flushPromises()
-    // No spool, so no diameter, so the filament speed rather than a flow it
-    // cannot derive.
-    expect(wrapper.text()).toContain('4 mm/s')
+    // The printer-configured 1.75 mm filament makes 4 mm/s of filament
+    // equivalent to 9.6 mm³/s of volumetric flow.
+    expect(wrapper.get('.extruder-status').text()).toContain('9.6 mm³/s')
   })
 
   it('states volumetric flow once the filament diameter is known', async () => {
@@ -593,44 +594,55 @@ describe('ExtruderModule', () => {
 
     // 5 mm/s of 1.75 mm filament is 12.0 mm³/s, the units a hotend is rated in.
     expect(wrapper.text()).toContain('12 mm³/s')
-    // Beside the state rather than instead of it: what the extruder is allowed
-    // to do and what it is doing are different facts, and during a print the
-    // second line is the only one that changes.
-    expect(wrapper.findAll('.extruder-status p')).toHaveLength(2)
+    expect(wrapper.findAll('.extruder-status p')).toHaveLength(1)
   })
 
   /*
-   * Flow scales with the square of the diameter, so assuming 1.75 on a 2.85 mm
-   * machine would show a number the real flow is 165% above — in exactly the
-   * units someone compares against their hotend's limit.
+   * The active spool is the most specific source, but a printer already
+   * declares its filament diameter in `[extruder]`. That machine value keeps
+   * the live readout volumetric when Spoolman has no diameter to add.
    */
-  it('falls back to filament speed rather than assuming a diameter', async () => {
-    const { printer, telemetry, spool, wrapper } = mountModule()
+  it('falls back to the configured filament diameter when the active spool has none', async () => {
+    const { printer, telemetry, printerConfig, spool, wrapper } = mountModule()
     warmExtruder(telemetry, 220)
+    configureFilamentDiameter(printerConfig)
     printer.extruder.canExtrude = true
     spool.activeSpool = { id: 1, filament: { id: 1 } } as never
     printer.motion.liveExtruderVelocity = 5
     await flushPromises()
 
-    expect(wrapper.text()).toContain('5 mm/s')
-    expect(wrapper.text()).not.toContain('mm³/s')
+    const status = wrapper.get('.extruder-status').text()
+    expect(status).toContain('12 mm³/s')
+    expect(status).not.toContain('mm/s')
+  })
+
+  it('keeps the volumetric unit when no filament diameter is available', async () => {
+    const { printer, telemetry, wrapper } = mountModule()
+    warmExtruder(telemetry, 220)
+    printer.extruder.canExtrude = true
+    printer.motion.liveExtruderVelocity = 5
+    await flushPromises()
+
+    const status = wrapper.get('.extruder-status').text()
+    expect(status).toContain('— mm³/s')
+    expect(status).not.toContain('mm/s')
   })
 
   it('ignores the tail of a settling move rather than flickering', async () => {
-    const { printer, telemetry, wrapper } = mountModule()
+    const { printer, telemetry, printerConfig, wrapper } = mountModule()
     warmExtruder(telemetry, 220)
+    configureFilamentDiameter(printerConfig)
     printer.extruder.canExtrude = true
     printer.motion.liveExtruderVelocity = 0.01
     await flushPromises()
 
-    // The speed row stays on screen at rest rather than disappearing — same
+    // The flow row stays on screen at rest rather than disappearing — same
     // posture as Movement's own feed-rate readout — but a settling tail must
     // not read as "moving": the row is present and muted rather than sky.
     const rows = wrapper.findAll('.extruder-status p')
-    expect(rows).toHaveLength(2)
-    expect(rows[1]?.classes()).toContain('text-muted')
-    expect(rows[1]?.classes()).not.toContain('text-data-sky')
-    expect(wrapper.text()).toContain('Ready to extrude')
+    expect(rows).toHaveLength(1)
+    expect(rows[0]?.classes()).toContain('text-muted')
+    expect(rows[0]?.classes()).not.toContain('text-data-sky')
   })
 
   /*
@@ -642,24 +654,25 @@ describe('ExtruderModule', () => {
   it('holds the highest reading from the last second rather than the newest', async () => {
     vi.useFakeTimers()
     try {
-      const { printer, telemetry, wrapper } = mountModule()
+      const { printer, telemetry, printerConfig, wrapper } = mountModule()
       warmExtruder(telemetry, 220)
+      configureFilamentDiameter(printerConfig)
       printer.extruder.canExtrude = true
       await flushPromises()
 
       printer.motion.liveExtruderVelocity = 8
       await flushPromises()
-      expect(wrapper.text()).toContain('8 mm/s')
+      expect(wrapper.get('.extruder-status').text()).toContain('19.2 mm³/s')
 
       printer.motion.liveExtruderVelocity = 0
       await flushPromises()
       // Still inside the one-second window: the window's peak, not the
       // newest sample.
-      expect(wrapper.text()).toContain('8 mm/s')
+      expect(wrapper.get('.extruder-status').text()).toContain('19.2 mm³/s')
 
       await vi.advanceTimersByTimeAsync(1100)
       await flushPromises()
-      expect(wrapper.text()).toContain('0 mm/s')
+      expect(wrapper.get('.extruder-status').text()).toContain('0 mm³/s')
     } finally {
       vi.useRealTimers()
     }
@@ -675,18 +688,19 @@ describe('ExtruderModule', () => {
   it('keeps crediting an unchanging reading rather than decaying it to zero', async () => {
     vi.useFakeTimers()
     try {
-      const { printer, telemetry, wrapper } = mountModule()
+      const { printer, telemetry, printerConfig, wrapper } = mountModule()
       warmExtruder(telemetry, 220)
+      configureFilamentDiameter(printerConfig)
       printer.extruder.canExtrude = true
       printer.motion.liveExtruderVelocity = 6
       await flushPromises()
-      expect(wrapper.text()).toContain('6 mm/s')
+      expect(wrapper.get('.extruder-status').text()).toContain('14.4 mm³/s')
 
       // Several seconds pass with no change to the reported velocity at all —
       // the reading must still show the same steady speed, not zero.
       await vi.advanceTimersByTimeAsync(3000)
       await flushPromises()
-      expect(wrapper.text()).toContain('6 mm/s')
+      expect(wrapper.get('.extruder-status').text()).toContain('14.4 mm³/s')
     } finally {
       vi.useRealTimers()
     }
@@ -699,13 +713,14 @@ describe('ExtruderModule', () => {
    * something that means precisely zero.
    */
   it('shows a settled retract as zero, never negative zero', async () => {
-    const { printer, telemetry, wrapper } = mountModule()
+    const { printer, telemetry, printerConfig, wrapper } = mountModule()
     warmExtruder(telemetry, 220)
+    configureFilamentDiameter(printerConfig)
     printer.extruder.canExtrude = true
     printer.motion.liveExtruderVelocity = -0
     await flushPromises()
 
-    expect(wrapper.text()).toContain('0 mm/s')
+    expect(wrapper.get('.extruder-status').text()).toContain('0 mm³/s')
     expect(wrapper.text()).not.toContain('-0')
   })
 

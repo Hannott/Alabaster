@@ -1006,7 +1006,6 @@
       "feedratePresets": "Forhåndsvalg for hastighet",
       "setLength": "Sett filamentlengde til {value} mm",
       "setFeedrate": "Sett hastighet til {value} mm/s",
-      "ready": "Klar til ekstrudering",
       "tooCold": "Varm dysen over {value}{unit} for å ekstrudere",
       "retract": "Trekk tilbake",
       "extrude": "Ekstruder",
