@@ -549,7 +549,17 @@ onBeforeUnmount(() => {
   <section class="standard-page machine-system-page">
     <PageHeading :title="t('machine.title')" />
 
-    <AvailabilityRegion requires="moonraker" class="min-h-0">
+    <!--
+      No `flex-1`/`min-h-0`: this page has no nested scroll region, so the
+      region should take its content's natural height like any other flex
+      item. `min-h-0` used to sit here needlessly and, combined with the
+      default `flex-shrink: 1`, let `.standard-page`'s flex layout shrink the
+      region below its content height once Updates made the page taller than
+      the viewport -- the overflow stayed in `.standard-page`'s scrollable
+      area but past where its own `padding-block-end` reserves room for the
+      mobile nav bar, so the last update row rendered underneath it.
+    -->
+    <AvailabilityRegion requires="moonraker">
       <div v-if="machine.error" class="machine-system-error selectable" role="alert">
         {{ t('machine.error') }}
       </div>
