@@ -60,7 +60,9 @@ function pinFile(entry: PinnedMachineFile): void {
 
 function unpinFile(root: MachineFileRoot, path: string): void {
   if (!isPinned(root, path)) return
-  pinnedFiles.value = pinnedFiles.value.filter((entry) => !(entry.root === root && entry.path === path))
+  pinnedFiles.value = pinnedFiles.value.filter(
+    (entry) => !(entry.root === root && entry.path === path),
+  )
   persist()
 }
 

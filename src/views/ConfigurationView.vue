@@ -2187,7 +2187,11 @@ onBeforeUnmount(() => {
                 @click="unpinFile(entry.root, entry.path)"
               />
             </li>
-            <li v-if="pinnedEntries.length > 0" class="machine-pinned-divider" aria-hidden="true"></li>
+            <li
+              v-if="pinnedEntries.length > 0"
+              class="machine-pinned-divider"
+              aria-hidden="true"
+            ></li>
             <li v-if="machineFiles.currentPath && !search.trim()" class="machine-parent-entry">
               <button
                 type="button"
