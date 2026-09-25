@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   addConfigInclude,
+  expandIncludeTarget,
   findConfigIncludes,
   findIncludeRewrite,
   includeTargetFor,
@@ -237,5 +238,56 @@ describe('config includes', () => {
     const source = '[include sub/*.cfg]\n'
 
     expect(removeConfigInclude(source, 'printer.cfg', 'sub/macros.cfg')).toBeNull()
+  })
+})
+
+describe('expandIncludeTarget', () => {
+  const available = [
+    'printer.cfg',
+    'macros/a.cfg',
+    'macros/b.cfg',
+    'macros/c1.cfg',
+    'macros/.hidden.cfg',
+    'macros/deep/d.cfg',
+    'hw/x.cfg',
+  ]
+
+  it('yields a literal target only when it exists', () => {
+    expect(expandIncludeTarget('printer.cfg', 'macros/a.cfg', available)).toEqual(['macros/a.cfg'])
+    expect(expandIncludeTarget('printer.cfg', 'macros/z.cfg', available)).toEqual([])
+  })
+
+  it('matches wildcards within one segment, sorted, skipping hidden files', () => {
+    expect(expandIncludeTarget('printer.cfg', 'macros/*.cfg', available)).toEqual([
+      'macros/a.cfg',
+      'macros/b.cfg',
+      'macros/c1.cfg',
+    ])
+    expect(expandIncludeTarget('printer.cfg', 'macros/.*.cfg', available)).toEqual([
+      'macros/.hidden.cfg',
+    ])
+    expect(expandIncludeTarget('printer.cfg', 'macros/?.cfg', available)).toEqual([
+      'macros/a.cfg',
+      'macros/b.cfg',
+    ])
+  })
+
+  it('reads character classes the way fnmatch does', () => {
+    expect(expandIncludeTarget('printer.cfg', 'macros/[ab].cfg', available)).toEqual([
+      'macros/a.cfg',
+      'macros/b.cfg',
+    ])
+    expect(expandIncludeTarget('printer.cfg', 'macros/[!a]*.cfg', available)).toEqual([
+      'macros/b.cfg',
+      'macros/c1.cfg',
+    ])
+  })
+
+  it('resolves relative to the declaring file and never names an absolute path', () => {
+    expect(expandIncludeTarget('hw/main.cfg', '../macros/a.cfg', available)).toEqual([
+      'macros/a.cfg',
+    ])
+    expect(expandIncludeTarget('hw/main.cfg', '*.cfg', available)).toEqual(['hw/x.cfg'])
+    expect(expandIncludeTarget('printer.cfg', '/printer.cfg', available)).toEqual([])
   })
 })

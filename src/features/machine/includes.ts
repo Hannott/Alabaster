@@ -95,7 +95,79 @@ export function includeTargetFor(declaringFilePath: string, targetPath: string):
  * safely is not possible — the pattern may cover other files too.
  */
 export function isGlob(target: string): boolean {
-  return target.includes('*') || target.includes('?')
+  // Python's glob.has_magic, which is the test Klipper's include resolution uses.
+  return /[*?[]/.test(target)
+}
+
+/** One path segment of a glob, translated the way Python's fnmatch reads it. */
+function globSegmentPattern(segment: string): RegExp {
+  let source = ''
+  for (let index = 0; index < segment.length; index += 1) {
+    const char = segment[index] as string
+    if (char === '*') {
+      source += '[^/]*'
+    } else if (char === '?') {
+      source += '[^/]'
+    } else if (char === '[') {
+      let end = index + 1
+      if (segment[end] === '!') end += 1
+      if (segment[end] === ']') end += 1
+      while (end < segment.length && segment[end] !== ']') end += 1
+      if (end >= segment.length) {
+        source += '\\['
+        continue
+      }
+      let body = segment.slice(index + 1, end).replace(/\\/g, '\\\\')
+      if (body.startsWith('!')) body = `^${body.slice(1)}`
+      else if (body.startsWith('^')) body = `\\${body}`
+      source += `[${body}]`
+      index = end
+    } else {
+      source += char.replace(/[.+^${}()|\\\]]/g, '\\$&')
+    }
+  }
+  return new RegExp(`^${source}$`)
+}
+
+/**
+ * The files an `[include]` target names, in the order Klipper reads them.
+ *
+ * Klipper hands the target to Python's `glob.glob` and sorts the result, so a
+ * literal target yields itself only when it exists and a pattern yields every
+ * existing match in code-point order. Two of glob's rules would be easy to
+ * miss: a wildcard never crosses a `/`, and it never matches a name starting
+ * with `.` unless the pattern segment does too — which is what keeps an
+ * editor's `.printer.cfg.swp` out of `[include *.cfg]`.
+ *
+ * `availablePaths` is every file in the config root, relative to it.
+ */
+export function expandIncludeTarget(
+  declaringFilePath: string,
+  target: string,
+  availablePaths: Iterable<string>,
+): string[] {
+  // An absolute target is outside what these root-relative paths can name.
+  if (target.startsWith('/')) return []
+  const resolved = resolveIncludeTarget(declaringFilePath, target)
+  const available = [...availablePaths].map(normalizeConfigPath)
+  if (!isGlob(target)) return available.includes(resolved) ? [resolved] : []
+
+  const segments = resolved.split('/')
+  const patterns = segments.map((segment) => ({
+    pattern: globSegmentPattern(segment),
+    allowsHidden: segment.startsWith('.'),
+  }))
+  return available
+    .filter((path) => {
+      const parts = path.split('/')
+      if (parts.length !== patterns.length) return false
+      return parts.every((part, index) => {
+        const { pattern, allowsHidden } = patterns[index] as (typeof patterns)[number]
+        if (part.startsWith('.') && !allowsHidden) return false
+        return pattern.test(part)
+      })
+    })
+    .sort((left, right) => (left < right ? -1 : left > right ? 1 : 0))
 }
 
 /**
