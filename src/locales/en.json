@@ -1716,6 +1716,47 @@
       "title": "File structure",
       "expand": "Expand file structure",
       "collapse": "Collapse file structure"
+    },
+    "quickConfig": {
+      "views": {
+        "label": "Configuration view",
+        "files": "Files",
+        "quickConfig": "Quick config"
+      },
+      "unsavedCount": "Unsaved changes: {count}",
+      "save": "Save",
+      "saveRestart": "Save and restart",
+      "discard": "Discard changes",
+      "discardTitle": "Discard Quick config changes?",
+      "discardDescription": "Unsaved changes in these files will be lost:",
+      "discardConfirm": "Discard",
+      "restartRequired": "A value in the SAVE_CONFIG block changed. Only a restart keeps it.",
+      "printing": "Unavailable while printing",
+      "originalValue": "Original value: {value}",
+      "originalDefault": "Original value: default",
+      "revert": "Revert {option}",
+      "unapplied": "Restart to apply",
+      "default": "Default, not in file",
+      "openLocation": "Open {path} at line {line}",
+      "openLocationAutosave": "Open {path} at line {line}, in the SAVE_CONFIG block",
+      "unpin": "Unpin {option}",
+      "lockPending": "Klipper holds unsaved calibration results",
+      "lockMultiline": "Spans several lines",
+      "lockUnknown": "Klipper does not read this option",
+      "invalidValue": "Klipper cannot read this value",
+      "missingSection": "Not in this printer’s config",
+      "unpinSection": "Unpin",
+      "files": "{count} files",
+      "empty": "No options pinned",
+      "loadFailed": "Some config files could not be read",
+      "units": {
+        "millimetres": "mm",
+        "mmPerSecond": "mm/s",
+        "mmPerSecondSquared": "mm/s²",
+        "seconds": "s",
+        "hertz": "Hz",
+        "degreesCelsius": "°C"
+      }
     }
   },
   "imageViewer": {

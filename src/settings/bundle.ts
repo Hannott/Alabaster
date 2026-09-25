@@ -33,6 +33,8 @@ import {
   type StoredConfirmations,
 } from '@/stores/confirmations'
 import { normalizeDashboardProfile, useDashboardLayoutStore } from '@/stores/dashboardLayout'
+import type { QuickConfigPin } from '@/features/config/quickConfigFields'
+import { useQuickConfigStore } from '@/stores/quickConfig'
 import { defaultThemePackId, isThemePackId, type ThemePackId } from '@/themes/registry'
 import { isRecord } from '@/utils/records'
 
@@ -82,6 +84,12 @@ export interface SettingsBundle {
   confirmations: StoredConfirmations
   dashboardProfile: DashboardProfile
   gcodeViewer: GcodeViewerBundle
+  /**
+   * The active printer's pinned Quick config options, like its dashboard
+   * profile. Null while the defaults stand, so a restore onto a printer with
+   * other sections keeps choosing defaults from that printer's own config.
+   */
+  quickConfigPins: QuickConfigPin[] | null
 }
 
 function isGcodeColorMode(value: unknown): value is GcodeColorMode {
@@ -103,6 +111,7 @@ export function collectSettingsBundle(): SettingsBundle {
   const confirmations = useConfirmationsStore()
   const layout = useDashboardLayoutStore()
   const gcodeViewer = useGcodeViewerSettings()
+  const quickConfig = useQuickConfigStore()
 
   return {
     version: 1,
@@ -133,6 +142,7 @@ export function collectSettingsBundle(): SettingsBundle {
       qualityMode: gcodeViewer.qualityMode.value,
       followByDefault: gcodeViewer.followByDefault.value,
     },
+    quickConfigPins: quickConfig.storedPins,
   }
 }
 
@@ -160,6 +170,7 @@ export async function applySettingsBundle(input: unknown): Promise<void> {
   const confirmations = useConfirmationsStore()
   const layout = useDashboardLayoutStore()
   const gcodeViewer = useGcodeViewerSettings()
+  const quickConfig = useQuickConfigStore()
 
   if (isRecord(input.theme)) {
     if (typeof input.theme.mode === 'string' && isThemeMode(input.theme.mode)) {
@@ -203,6 +214,7 @@ export async function applySettingsBundle(input: unknown): Promise<void> {
   }
   if (input.confirmations !== undefined) confirmations.replaceAll(input.confirmations)
   if (input.dashboardProfile !== undefined) layout.replaceProfile(input.dashboardProfile)
+  if (input.quickConfigPins !== undefined) quickConfig.replacePins(input.quickConfigPins)
   if (isRecord(input.gcodeViewer)) {
     const viewer = input.gcodeViewer
     if (isGcodeColorMode(viewer.colorMode)) gcodeViewer.setColorMode(viewer.colorMode)
@@ -245,5 +257,6 @@ export function defaultSettingsBundle(): SettingsBundle {
       qualityMode: 'auto',
       followByDefault: true,
     },
+    quickConfigPins: null,
   }
 }

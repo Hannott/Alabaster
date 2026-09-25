@@ -1716,6 +1716,47 @@
       "title": "Filstruktur",
       "expand": "Utvid filstruktur",
       "collapse": "Skjul filstruktur"
+    },
+    "quickConfig": {
+      "views": {
+        "label": "Konfigurasjonsvisning",
+        "files": "Filer",
+        "quickConfig": "Hurtigoppsett"
+      },
+      "unsavedCount": "Ulagrede endringer: {count}",
+      "save": "Lagre",
+      "saveRestart": "Lagre og start på nytt",
+      "discard": "Forkast endringer",
+      "discardTitle": "Forkaste endringer i hurtigoppsettet?",
+      "discardDescription": "Ulagrede endringer i disse filene går tapt:",
+      "discardConfirm": "Forkast",
+      "restartRequired": "En verdi i SAVE_CONFIG-blokken er endret. Bare en omstart beholder den.",
+      "printing": "Utilgjengelig under utskrift",
+      "originalValue": "Opprinnelig verdi: {value}",
+      "originalDefault": "Opprinnelig verdi: standard",
+      "revert": "Tilbakestill {option}",
+      "unapplied": "Start på nytt for å ta i bruk",
+      "default": "Standard, ikke i filen",
+      "openLocation": "Åpne {path} på linje {line}",
+      "openLocationAutosave": "Åpne {path} på linje {line}, i SAVE_CONFIG-blokken",
+      "unpin": "Løsne {option}",
+      "lockPending": "Klipper har ulagrede kalibreringsresultater",
+      "lockMultiline": "Går over flere linjer",
+      "lockUnknown": "Klipper leser ikke denne opsjonen",
+      "invalidValue": "Klipper kan ikke lese denne verdien",
+      "missingSection": "Finnes ikke i denne printerens konfigurasjon",
+      "unpinSection": "Løsne",
+      "files": "{count} filer",
+      "empty": "Ingen opsjoner festet",
+      "loadFailed": "Noen konfigurasjonsfiler kunne ikke leses",
+      "units": {
+        "millimetres": "mm",
+        "mmPerSecond": "mm/s",
+        "mmPerSecondSquared": "mm/s²",
+        "seconds": "s",
+        "hertz": "Hz",
+        "degreesCelsius": "°C"
+      }
     }
   },
   "imageViewer": {

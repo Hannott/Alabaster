@@ -13,6 +13,7 @@ import HeaderMenu from '@/components/HeaderMenu.vue'
 import EditorShortcutsDialog from '@/components/machine/EditorShortcutsDialog.vue'
 import FileContextMenu from '@/components/machine/FileContextMenu.vue'
 import HtmlFileViewer from '@/components/machine/HtmlFileViewer.vue'
+import QuickConfigView from '@/components/machine/QuickConfigView.vue'
 import { useAvailability } from '@/composables/useAvailability'
 import { useConfigFileHistory } from '@/composables/useConfigFileHistory'
 import { useEditorIndent } from '@/composables/useEditorIndent'
@@ -62,6 +63,7 @@ import {
   type MachineFileRoot,
   type OpenMachineFile,
 } from '@/stores/machineFiles'
+import { useQuickConfigStore, type ConfigurationViewMode } from '@/stores/quickConfig'
 
 type PendingFileOpenReason = 'unsupported' | 'large'
 
@@ -91,6 +93,8 @@ function initialEditorDisplayMode(): EditorDisplayMode {
 
 const { locale, t } = useI18n({ useScope: 'global' })
 const machineFiles = useMachineFilesStore()
+const quickConfig = useQuickConfigStore()
+const viewModes: ConfigurationViewMode[] = ['files', 'quickConfig']
 const confirmations = useConfirmationsStore()
 const { availability: moonrakerAvailability } = useAvailability('moonraker')
 const { availability: klipperAvailability } = useAvailability('klipper')
@@ -1398,7 +1402,7 @@ function hasOpenDialog(): boolean {
 }
 
 function handleWindowKeydown(event: KeyboardEvent): void {
-  if (hasOpenDialog()) return
+  if (hasOpenDialog() || quickConfig.viewMode !== 'files') return
   /*
    * The keyboard twin of the mouse's back and forward buttons, and the chord the
    * browser itself uses for them — which, unlike Ctrl+Tab, a page is allowed to
@@ -1668,6 +1672,15 @@ function goToLine(line: number): void {
   syncEditorScroll()
 }
 
+/** Quick config's file-and-line link: the way out to anything a field cannot express. */
+async function openQuickConfigLocation(path: string, line: number): Promise<void> {
+  quickConfig.viewMode = 'files'
+  if (machineFiles.currentRoot !== 'config') await machineFiles.setRoot('config')
+  await openFileAtPath(path)
+  await nextTick()
+  goToLine(line + 1)
+}
+
 async function navigateFileHistory(direction: -1 | 1): Promise<void> {
   const nextIndex = fileHistoryIndex.value + direction
   const entry = fileHistory.value[nextIndex]
@@ -1809,7 +1822,33 @@ onBeforeUnmount(() => {
   >
     <PageHeading :title="t('configuration.files.title')" />
 
-    <AvailabilityRegion requires="moonraker" class="machine-availability">
+    <div
+      class="configuration-views"
+      role="group"
+      :aria-label="t('configuration.quickConfig.views.label')"
+    >
+      <button
+        v-for="mode in viewModes"
+        :key="mode"
+        type="button"
+        class="tab-select"
+        :aria-pressed="quickConfig.viewMode === mode"
+        @click="quickConfig.viewMode = mode"
+      >
+        {{ t(`configuration.quickConfig.views.${mode}`) }}
+      </button>
+    </div>
+
+    <!--
+      Shown and hidden rather than mounted and unmounted: the editor holds a
+      whole file in its textarea, and remounting it on every switch back is
+      the cost interface-standards.md measures for arriving on this route.
+    -->
+    <AvailabilityRegion
+      v-show="quickConfig.viewMode === 'files'"
+      requires="moonraker"
+      class="machine-availability"
+    >
       <div
         class="machine-workspace"
         :class="{
@@ -2709,6 +2748,14 @@ onBeforeUnmount(() => {
           </div>
         </section>
       </div>
+    </AvailabilityRegion>
+
+    <AvailabilityRegion
+      v-if="quickConfig.viewMode === 'quickConfig'"
+      requires="moonraker"
+      class="machine-availability"
+    >
+      <QuickConfigView @open-location="openQuickConfigLocation" />
     </AvailabilityRegion>
 
     <ConfirmDialog

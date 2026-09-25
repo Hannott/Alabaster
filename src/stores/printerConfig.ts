@@ -117,6 +117,20 @@ function sectionName(section: string): string {
   return separatorIndex < 0 ? section : section.slice(separatorIndex + 1).trim()
 }
 
+function lowerCasedConfig(value: unknown): Record<string, Record<string, string>> {
+  if (!isRecord(value)) return {}
+  const result: Record<string, Record<string, string>> = {}
+  for (const [section, options] of Object.entries(value)) {
+    if (!isRecord(options)) continue
+    const entries: Record<string, string> = {}
+    for (const [option, raw] of Object.entries(options)) {
+      if (typeof raw === 'string') entries[option.toLowerCase()] = raw
+    }
+    result[section.toLowerCase()] = entries
+  }
+  return result
+}
+
 /**
  * Klipper only reports configured limits and hardware through
  * `configfile.settings`, so capability questions — which fans can be driven,
@@ -127,6 +141,14 @@ export const usePrinterConfigStore = defineStore('printerConfig', () => {
   const availability = useAvailabilityStore()
   const moonraker = useMoonrakerStore()
   const settings = ref<Record<string, unknown>>({})
+  /*
+   * The raw text of every option Klipper loaded, keyed by lower-cased section
+   * and option. Quick config compares it against the file on disk to say a
+   * saved change is still waiting for a restart; `settings` cannot answer
+   * that, because its values are already typed and `0.3` against `0.300` is a
+   * decision about zeros nobody asked for.
+   */
+  const loadedConfig = ref<Record<string, Record<string, string>>>({})
   const hasSettings = ref(false)
   const isLoading = ref(false)
   const failed = ref(false)
@@ -412,7 +434,7 @@ export const usePrinterConfigStore = defineStore('printerConfig', () => {
     await load.run(
       () =>
         moonraker.rpcCall('printer.objects.query', {
-          objects: { configfile: ['settings'] },
+          objects: { configfile: ['settings', 'config'] },
         }),
       (result) => {
         const configfile = result.status.configfile
@@ -422,6 +444,7 @@ export const usePrinterConfigStore = defineStore('printerConfig', () => {
           return
         }
         settings.value = values
+        loadedConfig.value = lowerCasedConfig(isRecord(configfile) ? configfile.config : null)
         hasSettings.value = true
       },
     )
@@ -437,6 +460,7 @@ export const usePrinterConfigStore = defineStore('printerConfig', () => {
   function printerChanged(): void {
     load.invalidate()
     settings.value = {}
+    loadedConfig.value = {}
     hasSettings.value = false
     failed.value = false
   }
@@ -466,6 +490,7 @@ export const usePrinterConfigStore = defineStore('printerConfig', () => {
 
   return {
     settings,
+    loadedConfig,
     hasSettings,
     isLoading,
     failed,

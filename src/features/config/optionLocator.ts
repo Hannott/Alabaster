@@ -479,3 +479,23 @@ export function writeOption(
     autosave: target.autosave,
   }
 }
+
+/**
+ * The file without the effective line of `section.option`, for undoing an
+ * option Quick config added. Refuses a multi-line value, whose continuation
+ * lines a one-line removal would leave behind as part of whatever precedes it.
+ */
+export function removeOption(
+  index: ConfigIndex,
+  files: ReadonlyMap<string, string>,
+  section: string,
+  option: string,
+): { path: string; content: string } | null {
+  const existing = effectiveOption(index, section, option)
+  if (!existing || existing.multiline) return null
+  const text = files.get(existing.path)
+  if (text === undefined) return null
+  const lines = text.split('\n')
+  lines.splice(existing.line, 1)
+  return { path: existing.path, content: lines.join('\n') }
+}

@@ -4,6 +4,7 @@ import {
   effectiveOption,
   includedConfigFiles,
   indexConfig,
+  removeOption,
   writeOption,
   type OptionWrite,
 } from '@/features/config/optionLocator'
@@ -348,5 +349,26 @@ describe('writeOption', () => {
       ok: false,
       reason: 'sectionMissing',
     })
+  })
+})
+
+describe('removeOption', () => {
+  it('undoes an inserted option exactly', () => {
+    const { map, index } = config({ 'printer.cfg': '[printer]\nmax_accel: 5000\n' })
+    const inserted = written(writeOption(index, map, 'printer', 'max_velocity', '600'))
+    const next = new Map([['printer.cfg', inserted.content]])
+    const nextIndex = indexConfig('printer.cfg', next, next.keys())
+
+    expect(removeOption(nextIndex, next, 'printer', 'max_velocity')).toEqual({
+      path: 'printer.cfg',
+      content: '[printer]\nmax_accel: 5000\n',
+    })
+  })
+
+  it('refuses a multi-line value and an option that is not there', () => {
+    const { map, index } = config({ 'printer.cfg': '[z_tilt]\nz_positions:\n  0, 0\n' })
+
+    expect(removeOption(index, map, 'z_tilt', 'z_positions')).toBeNull()
+    expect(removeOption(index, map, 'z_tilt', 'retries')).toBeNull()
   })
 })

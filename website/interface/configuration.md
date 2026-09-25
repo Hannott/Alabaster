@@ -9,6 +9,46 @@ does not appear.
 Switch between the **Config** and **Logs** roots at the top. The header shows
 available configuration storage next to them.
 
+## Quick config
+
+**Quick config** changes Klipper options without finding the line they live
+on. Each pinned option is a field, grouped into one card per section.
+
+Alabaster reads `printer.cfg` and every file it includes in the same order
+Klipper does, and edits the line Klipper actually uses. When a section is
+split across files, or an option is set twice, the later definition is the one
+that changes. An option still at its default shows Klipper's value, and
+editing it adds the line to the section.
+
+Quick config and the file editor share the same unsaved changes. An edit in
+one shows as unsaved in the other, and saving from either writes both.
+
+- **Original value** appears under a field you changed, with a button that
+  reverts just that field.
+- **Restart to apply** appears when the file holds a value Klipper has not
+  loaded yet.
+- The popout button opens the file at the option's line.
+
+A value in the `SAVE_CONFIG` block at the end of `printer.cfg` can only be
+saved together with a restart. Klipper rewrites that block from memory the
+next time it saves, which would otherwise undo the change.
+
+Some fields cannot be edited here, and say why:
+
+- The value spans several lines. Edit it in the file.
+- Klipper holds unsaved calibration results for it. Save or discard those
+  first.
+- Klipper does not read the option at all. Adding it would stop Klipper from
+  starting.
+
+**Save and restart** is not available during a print.
+
+The pinned options are saved per printer and included in settings sync and
+backups. On first use, Quick config shows common limits, bed mesh, leveling,
+input shaper, pressure advance, and retraction options, limited to the ones
+your configuration has. A pinned section that is later removed from the
+configuration stays as a card until you unpin it.
+
 ## Unsaved changes
 
 Each file you edit gets its own buffer, keyed by its path. The buffer stays

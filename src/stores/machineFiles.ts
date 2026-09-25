@@ -620,11 +620,15 @@ export const useMachineFilesStore = defineStore('machineFiles', () => {
    */
   async function uploadFileContent(path: string, content: string): Promise<void> {
     if (!isRootEditable.value) throw new Error('The browsed root is read-only')
+    await uploadConfigFile(path, content)
+  }
+
+  async function uploadConfigFile(path: string, content: string): Promise<void> {
     const segments = path.split('/')
     const filename = segments.pop()
     if (!filename) throw new Error(`Invalid path: ${path}`)
     await uploadMoonrakerFile(
-      currentRoot.value,
+      'config',
       segments.join('/'),
       new Blob([content], { type: 'text/plain;charset=utf-8' }),
       filename,
@@ -726,6 +730,92 @@ export const useMachineFilesStore = defineStore('machineFiles', () => {
       notice.value = restartFirmware ? 'savedAllRestarting' : 'savedAll'
       if (restartFirmware && !(await firmwareRestartNow())) return false
       void refreshDirectory()
+      return true
+    } finally {
+      isMutating.value = false
+    }
+  }
+
+  /*
+   * Quick config edits the same files the editor does, through these same
+   * buffers, so the two views can never race each other to disk: an edit made
+   * in either one marks the file unsaved in both, and whichever saves writes
+   * both edits. Everything below is pinned to the config root rather than the
+   * browsed one, because Quick config reads configuration whatever the file
+   * browser happens to be showing.
+   */
+
+  /** Every file in the config root, relative to it. */
+  async function listConfigFiles(): Promise<string[]> {
+    const files = await moonraker.rpcCall('server.files.list', { root: 'config' })
+    return files.map((file) => normalizeMoonrakerRelativePath(file.path))
+  }
+
+  /** The buffer for a config file, or undefined if it has never been loaded. */
+  function configBuffer(path: string): { content: string; saved: string } | undefined {
+    return fileBuffers.value.get(path)
+  }
+
+  /**
+   * Reads each file from disk into its buffer. A dirty buffer is left alone,
+   * since it already holds the edit that matters; a clean one is refreshed in
+   * case something else changed the file.
+   */
+  async function loadConfigFiles(paths: readonly string[]): Promise<boolean> {
+    let allLoaded = true
+    await Promise.all(
+      paths.map(async (path) => {
+        if (isPathDirty(path)) return
+        try {
+          const content = await fetchMoonrakerTextFile('config', path, moonraker.endpoint)
+          if (isPathDirty(path)) return
+          fileBuffers.value.set(path, { content, saved: content })
+        } catch {
+          allLoaded = false
+        }
+      }),
+    )
+    return allLoaded
+  }
+
+  function setConfigBufferContent(path: string, content: string): void {
+    const buffer = fileBuffers.value.get(path)
+    if (!buffer) return
+    fileBuffers.value.set(path, { content, saved: buffer.saved })
+  }
+
+  /**
+   * Writes the named files that have unsaved edits, then optionally restarts.
+   * Like `saveAllFiles`, a failure leaves the failed paths dirty and skips the
+   * restart, so a restart never runs against a config half written.
+   */
+  async function saveConfigFiles(
+    paths: readonly string[],
+    restartFirmware = false,
+  ): Promise<boolean> {
+    if (!availability.isMoonrakerConnected || isMutating.value) return false
+    isMutating.value = true
+    clearFeedback()
+    let allSaved = true
+    try {
+      for (const path of paths) {
+        const buffer = fileBuffers.value.get(path)
+        if (!buffer || buffer.content === buffer.saved) continue
+        try {
+          await uploadConfigFile(path, buffer.content)
+          fileBuffers.value.set(path, { content: buffer.content, saved: buffer.content })
+          if (path === PRIMARY_CONFIG) applyIncludedConfigPaths(buffer.content)
+          hasUnappliedConfigChanges.value = true
+        } catch {
+          allSaved = false
+        }
+      }
+      if (!allSaved) {
+        lastError.value = 'saveAll'
+        return false
+      }
+      if (restartFirmware && !(await firmwareRestartNow())) return false
+      if (isRootEditable.value) void refreshDirectory()
       return true
     } finally {
       isMutating.value = false
@@ -1390,6 +1480,12 @@ export const useMachineFilesStore = defineStore('machineFiles', () => {
     saveAllFiles,
     discardCurrentFileChanges,
     discardAllChanges,
+    discardChangesAt,
+    listConfigFiles,
+    configBuffer,
+    loadConfigFiles,
+    setConfigBufferContent,
+    saveConfigFiles,
     createFile,
     createDirectory,
     createDirectoryAt,

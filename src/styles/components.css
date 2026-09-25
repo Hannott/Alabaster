@@ -9544,6 +9544,193 @@ select {
   flex: 1 1 0;
 }
 
+/*
+ * Files and Quick config: two views of the same configuration, so a
+ * `tab-select` strip naming which one is on screen, closed by its own border
+ * like the root tabs inside the explorer.
+ */
+.configuration-views {
+  display: flex;
+  height: 2.9rem;
+  min-height: 2.9rem;
+  flex: 0 0 2.9rem;
+  align-items: center;
+  gap: 0.9rem;
+  border-block-end: 1px solid var(--border-subtle);
+}
+
+.quick-config {
+  display: flex;
+  height: 100%;
+  min-height: 0;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.quick-config__toolbar {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.quick-config__count,
+.quick-config__notice {
+  margin: 0;
+  font-size: var(--text-note-size);
+  font-weight: 800;
+}
+
+.quick-config__count {
+  color: var(--action-primary);
+}
+
+.quick-config__notice {
+  color: var(--status-caution-text);
+}
+
+.quick-config__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-inline-start: auto;
+}
+
+/* A stated basis, so the region scrolls rather than growing the workspace to fit every card. */
+.quick-config__scroll {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.quick-config__empty {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.quick-config__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 26rem), 1fr));
+  align-items: start;
+  gap: 1rem;
+}
+
+.quick-config-card {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 1.25rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: 1.35rem;
+  background: var(--surface-raised);
+}
+
+.quick-config-card--missing {
+  border-style: dashed;
+  background: transparent;
+}
+
+.quick-config-card__header {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  align-items: baseline;
+  gap: 0.75rem;
+}
+
+.quick-config-card__title {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-card-title-size);
+  font-weight: 800;
+}
+
+.quick-config-card__files {
+  overflow: hidden;
+  margin-inline-start: auto;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-note-size);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.quick-config-card__missing {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.quick-config-card__fields {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+/*
+ * Option names stay exactly as Klipper spells them, in mono, so they match the
+ * file and the Klipper documentation — the one field-label context where Title
+ * Case would hide the name the user is looking for.
+ */
+.quick-config-field {
+  --control-label-transform: none;
+  --control-label-letter-spacing: normal;
+
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+/* The field and its two icon actions share one line, so a resting field is one row. */
+.quick-config-field__row {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.quick-config-field__control {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.quick-config-field .app-field__label-text,
+.quick-config-field__name {
+  font-family: var(--font-mono);
+}
+
+.quick-config-field__status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.6rem;
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--text-hint-size);
+}
+
+.quick-config-field__was {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: var(--action-primary);
+  font-weight: 700;
+}
+
+.quick-config-field__unapplied {
+  color: var(--status-caution-text);
+  font-weight: 700;
+}
+
+.quick-config-field__error {
+  color: var(--status-danger-text);
+  font-weight: 700;
+}
+
 .machine-system-grid {
   display: grid;
   min-height: 0;
