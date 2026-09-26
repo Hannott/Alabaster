@@ -1756,6 +1756,17 @@
         "seconds": "s",
         "hertz": "Hz",
         "degreesCelsius": "°C"
+      },
+      "addOption": "Legg til opsjon",
+      "editCard": "Rediger opsjoner i [{section}]",
+      "picker": {
+        "title": "Opsjoner på kortet",
+        "section": "Seksjon",
+        "chooseSection": "Velg en seksjon",
+        "hint": "Markerte opsjoner er på kortet, i denne rekkefølgen. Dra for å endre rekkefølge, eller Alt+Opp/Ned.",
+        "unavailable": "Klipper har ikke rapportert konfigurasjonen ennå",
+        "defaultValue": "{value} · standard",
+        "save": "Lagre"
       }
     }
   },

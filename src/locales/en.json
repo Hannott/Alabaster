@@ -1756,6 +1756,17 @@
         "seconds": "s",
         "hertz": "Hz",
         "degreesCelsius": "°C"
+      },
+      "addOption": "Add option",
+      "editCard": "Edit options in [{section}]",
+      "picker": {
+        "title": "Card options",
+        "section": "Section",
+        "chooseSection": "Choose a section",
+        "hint": "Highlighted options are on the card, in this order. Drag to reorder, or Alt+Up/Down.",
+        "unavailable": "Klipper has not reported its configuration yet",
+        "defaultValue": "{value} · default",
+        "save": "Save"
       }
     }
   },

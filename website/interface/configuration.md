@@ -43,6 +43,10 @@ Some fields cannot be edited here, and say why:
 
 **Save and restart** is not available during a print.
 
+**Add option**, or the edit button on a card, lists every option a section
+has, including the ones still at their default. Click an option to put it on
+the card or take it off, and drag to set the order the card shows them in.
+
 The pinned options are saved per printer and included in settings sync and
 backups. On first use, Quick config shows common limits, bed mesh, leveling,
 input shaper, pressure advance, and retraction options, limited to the ones

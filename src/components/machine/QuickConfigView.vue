@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 import AppButton from '@/components/AppButton.vue'
 import AppField from '@/components/AppField.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
+import QuickConfigOptionDialog from '@/components/machine/QuickConfigOptionDialog.vue'
 import { useAvailability } from '@/composables/useAvailability'
 import type { QuickConfigField } from '@/features/config/quickConfigFields'
 import { useConfirmationsStore } from '@/stores/confirmations'
@@ -23,6 +24,8 @@ const { availability: moonrakerAvailability } = useAvailability('moonraker')
 const { availability: klipperAvailability } = useAvailability('klipper')
 
 const pendingDiscard = ref(false)
+const pickerOpen = ref(false)
+const pickerSection = ref<string | null>(null)
 const pendingSaveAllAndRestart = ref(false)
 
 const hasUnsaved = computed(() => quickConfig.unsavedPaths.length > 0)
@@ -155,6 +158,16 @@ async function confirmSaveAllAndRestart(): Promise<void> {
   }
 }
 
+function openPicker(section: string | null): void {
+  pickerSection.value = section
+  pickerOpen.value = true
+}
+
+function saveCard(section: string, options: string[]): void {
+  pickerOpen.value = false
+  quickConfig.setSectionPins(section, options)
+}
+
 function requestDiscard(): void {
   if (confirmations.shouldConfirm('discardAllFiles')) pendingDiscard.value = true
   else quickConfig.discard()
@@ -179,6 +192,12 @@ onBeforeUnmount(() => quickConfig.stop())
         {{ t('configuration.quickConfig.loadFailed') }}
       </p>
       <div class="quick-config__actions">
+        <AppButton
+          icon="add"
+          :label="t('configuration.quickConfig.addOption')"
+          :disabled="!quickConfig.hasLoaded"
+          @click="openPicker(null)"
+        />
         <AppButton
           variant="primary"
           icon="save"
@@ -226,6 +245,17 @@ onBeforeUnmount(() => quickConfig.stop())
             <span v-else-if="card.files.length > 1" class="quick-config-card__files">{{
               t('configuration.quickConfig.files', { count: card.files.length })
             }}</span>
+            <AppButton
+              v-if="!card.missing"
+              variant="quiet"
+              size="xs"
+              icon-only
+              icon="edit"
+              class="quick-config-card__edit"
+              :aria-label="t('configuration.quickConfig.editCard', { section: card.section })"
+              :title="t('configuration.quickConfig.editCard', { section: card.section })"
+              @click="openPicker(card.key)"
+            />
           </header>
 
           <template v-if="card.missing">
@@ -327,6 +357,15 @@ onBeforeUnmount(() => quickConfig.stop())
         </section>
       </div>
     </div>
+
+    <QuickConfigOptionDialog
+      :open="pickerOpen"
+      :catalogue="quickConfig.catalogue"
+      :pins="quickConfig.pins"
+      :initial-section="pickerSection"
+      @save="saveCard"
+      @cancel="pickerOpen = false"
+    />
 
     <ConfirmDialog
       :open="pendingDiscard"

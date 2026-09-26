@@ -202,6 +202,31 @@ describe('quick config store', () => {
   })
 })
 
+describe('quick config card options', () => {
+  it('replaces one section’s options in order and leaves the others', async () => {
+    const quickConfig = await loadedStore()
+
+    quickConfig.setSectionPins('printer', ['square_corner_velocity', 'max_accel'])
+
+    expect(quickConfig.pins).toEqual([
+      { section: 'input_shaper', option: 'shaper_freq_x' },
+      { section: 'printer', option: 'square_corner_velocity' },
+      { section: 'printer', option: 'max_accel' },
+    ])
+    expect(
+      quickConfig.cards.find((card) => card.key === 'printer')?.fields.map((field) => field.option),
+    ).toEqual(['square_corner_velocity', 'max_accel'])
+  })
+
+  it('removes the card when a section is left with no options', async () => {
+    const quickConfig = await loadedStore()
+
+    quickConfig.setSectionPins('printer', [])
+
+    expect(quickConfig.cards.map((card) => card.key)).toEqual(['input_shaper'])
+  })
+})
+
 describe('normalizeQuickConfigPins', () => {
   it('lower-cases, drops invalid entries and duplicates, and keeps null for untouched', () => {
     expect(normalizeQuickConfigPins(undefined)).toBeNull()

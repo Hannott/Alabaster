@@ -11,6 +11,7 @@ import {
   type OptionWriteFailure,
 } from '@/features/config/optionLocator'
 import {
+  buildOptionCatalogue,
   buildQuickConfigCards,
   visiblePins,
   type QuickConfigPin,
@@ -156,6 +157,8 @@ export const useQuickConfigStore = defineStore('quickConfig', () => {
     }),
   )
 
+  const catalogue = computed(() => buildOptionCatalogue(currentIndex.value, printerConfig.settings))
+
   const fields = computed(() => cards.value.flatMap((card) => card.fields))
   const unsavedCount = computed(() => fields.value.filter((field) => field.unsaved).length)
   const unsavedPaths = computed(() =>
@@ -283,6 +286,15 @@ export const useQuickConfigStore = defineStore('quickConfig', () => {
     persistPins()
   }
 
+  /** Replaces one card's options, in order; an empty list removes the card. */
+  function setSectionPins(section: string, options: readonly string[]): void {
+    const key = section.toLowerCase()
+    setStoredPins([
+      ...pins.value.filter((candidate) => candidate.section !== key),
+      ...options.map((option) => ({ section: key, option })),
+    ])
+  }
+
   function unpin(pin: QuickConfigPin): void {
     const key = fieldKey(pin)
     setStoredPins(pins.value.filter((candidate) => fieldKey(candidate) !== key))
@@ -346,6 +358,7 @@ export const useQuickConfigStore = defineStore('quickConfig', () => {
     storedPins,
     pins,
     cards,
+    catalogue,
     hasLoaded,
     isLoading,
     loadFailed,
@@ -357,6 +370,7 @@ export const useQuickConfigStore = defineStore('quickConfig', () => {
     save,
     revert,
     discard,
+    setSectionPins,
     unpin,
     unpinSection,
     replacePins,

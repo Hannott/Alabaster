@@ -233,3 +233,84 @@ export function buildQuickConfigCards(inputs: QuickConfigInputs): QuickConfigCar
     return left.key.localeCompare(right.key)
   })
 }
+
+export interface OptionCatalogueEntry {
+  option: string
+  /** The value in the file, or Klipper's default when the file does not set it. */
+  value: string | null
+  isDefault: boolean
+}
+
+export interface OptionCatalogueSection {
+  section: string
+  key: string
+  options: OptionCatalogueEntry[]
+}
+
+/*
+ * Sections that are either not options at all or data a calibration writes:
+ * a macro's body, a shell command registered as G-code, an include, a pin
+ * alias table, and a saved mesh profile's grid (`bed_mesh default`, as opposed
+ * to `bed_mesh` itself).
+ */
+const unpinnableSectionTypes = new Set([
+  'gcode_macro',
+  'delayed_gcode',
+  'gcode_shell_command',
+  'include',
+  'board_pins',
+])
+
+function isPinnableSection(key: string): boolean {
+  const type = key.split(/\s+/)[0] ?? ''
+  if (unpinnableSectionTypes.has(type)) return false
+  return !(type === 'bed_mesh' && key.includes(' '))
+}
+
+/**
+ * Every option Quick config can pin, grouped by section: what the files set
+ * plus every default Klipper resolved, which is the reason to search here at
+ * all. A value that spans lines is left out, since it cannot be a field.
+ */
+export function buildOptionCatalogue(
+  current: ConfigIndex,
+  settings: QuickConfigInputs['settings'],
+): OptionCatalogueSection[] {
+  const sections = new Map<string, OptionCatalogueSection>()
+
+  function add(section: string, option: string, value: string | null, isDefault: boolean): void {
+    const key = sectionKey(section)
+    if (!isPinnableSection(key)) return
+    let entry = sections.get(key)
+    if (!entry) {
+      entry = { section: current.sections.get(key)?.[0]?.section ?? section, key, options: [] }
+      sections.set(key, entry)
+    }
+    const name = option.toLowerCase()
+    if (entry.options.some((existing) => existing.option === name)) return
+    entry.options.push({ option: name, value, isDefault })
+  }
+
+  for (const occurrences of current.options.values()) {
+    const effective = occurrences.at(-1)
+    if (!effective || effective.multiline) continue
+    add(effective.section, effective.option, effective.value, false)
+  }
+  for (const [section, values] of Object.entries(settings)) {
+    if (values === null || typeof values !== 'object') continue
+    for (const [option, setting] of Object.entries(values as Record<string, unknown>)) {
+      if (current.options.has(optionKey(section, option))) continue
+      if (Array.isArray(setting) && setting.some(Array.isArray)) continue
+      const text = textOf(setting)
+      if (text === null || text.includes('\n')) continue
+      add(section, option, text, true)
+    }
+  }
+
+  return [...sections.values()]
+    .map((entry) => ({
+      ...entry,
+      options: [...entry.options].sort((left, right) => left.option.localeCompare(right.option)),
+    }))
+    .sort((left, right) => left.key.localeCompare(right.key))
+}
