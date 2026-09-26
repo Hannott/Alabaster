@@ -43,6 +43,12 @@ Some fields cannot be edited here, and say why:
 
 **Save and restart** is not available during a print.
 
+When a saved change has not been loaded yet, **Waiting for a restart** lists
+it, for every option in your configuration and not only pinned ones, with the
+value Klipper runs and the value in the file. **Klipper warnings** shows the
+deprecation warnings Klipper found while loading, which it otherwise only
+writes to its log.
+
 **Add option**, or the edit button on a card, lists every option a section
 has, including the ones still at their default. Click an option to put it on
 the card or take it off, and drag to set the order the card shows them in.

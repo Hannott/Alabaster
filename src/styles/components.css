@@ -9831,6 +9831,71 @@ select {
   font-size: var(--text-hint-size);
 }
 
+.quick-config-card__title--plain {
+  font-family: inherit;
+}
+
+.quick-config-card__warnings {
+  display: grid;
+  gap: 0.25rem;
+  margin: 0;
+  padding: 0;
+  color: var(--status-caution-text);
+  font-size: var(--text-note-size);
+  list-style: none;
+}
+
+/* Capped so a long list of pending edits scrolls inside its card. */
+.quick-config-notice__list {
+  display: grid;
+  width: 100%;
+  max-block-size: 18rem;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  list-style: none;
+}
+
+.quick-config-notice__row {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.quick-config-notice__text {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+}
+
+.quick-config-notice__name,
+.quick-config-notice__detail {
+  overflow: hidden;
+  font-family: var(--font-mono);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.quick-config-notice__name {
+  font-size: var(--text-note-size);
+  font-weight: 700;
+}
+
+.quick-config-notice__detail {
+  color: var(--text-muted);
+  font-size: var(--text-hint-size);
+}
+
+.quick-config-notice__detail--warning {
+  color: var(--status-caution-text);
+  font-family: inherit;
+  white-space: normal;
+}
+
 .quick-config-card__edit {
   flex-shrink: 0;
 }

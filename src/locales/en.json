@@ -1034,7 +1034,14 @@
         "unretract_extra_length": "Unretract extra length",
         "unretract_speed": "Unretract speed",
         "z_hop_height": "Z hop height"
-      }
+      },
+      "keepAdvance": "Save to config",
+      "keepAdvanceSaved": "Pressure advance saved to {path}",
+      "keepAdvanceBuffered": "Pressure advance written to {path}, which has other unsaved changes. Save it in Configuration.",
+      "keepAdvanceUnchanged": "The config already has this pressure advance",
+      "keepAdvanceAutosave": "Pressure advance is in the SAVE_CONFIG block. Change it in Quick config, which saves it with a restart.",
+      "keepAdvancePending": "Klipper holds unsaved calibration results for pressure advance",
+      "keepAdvanceFailed": "Pressure advance could not be written to the config"
     },
     "spool": {
       "eyebrow": "Active spool",
@@ -1767,7 +1774,13 @@
         "unavailable": "Klipper has not reported its configuration yet",
         "defaultValue": "{value} · default",
         "save": "Save"
-      }
+      },
+      "unappliedTitle": "Waiting for a restart",
+      "unappliedChanged": "{loaded} → {disk}",
+      "unappliedAdded": "added: {disk}",
+      "unappliedRemoved": "{loaded} → removed",
+      "unappliedMultiline": "Several lines changed",
+      "warningsTitle": "Klipper warnings"
     }
   },
   "imageViewer": {

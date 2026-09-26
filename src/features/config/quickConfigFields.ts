@@ -314,3 +314,114 @@ export function buildOptionCatalogue(
     }))
     .sort((left, right) => left.key.localeCompare(right.key))
 }
+
+export interface UnappliedChange {
+  section: string
+  option: string
+  /** On disk now, or null when the line has been removed since Klipper loaded it. */
+  disk: string | null
+  /** What Klipper loaded, or null for a line added since. */
+  loaded: string | null
+  location: { path: string; line: number } | null
+  multiline: boolean
+}
+
+/**
+ * Every option whose text on disk differs from what Klipper loaded, across
+ * the whole configuration rather than only pinned options — the answer to
+ * "why does my change not work?" is usually an edit nobody restarted for, in
+ * a file nobody has open. Empty until Klipper has reported its config, since
+ * without that there is nothing to compare against.
+ */
+export function unappliedChanges(
+  saved: ConfigIndex,
+  loadedConfig: QuickConfigInputs['loadedConfig'],
+): UnappliedChange[] {
+  if (Object.keys(loadedConfig).length === 0) return []
+  const changes: UnappliedChange[] = []
+  const seen = new Set<string>()
+
+  for (const [key, occurrences] of saved.options) {
+    const effective = occurrences.at(-1)
+    if (!effective) continue
+    seen.add(key)
+    const section = sectionKey(effective.section)
+    if (section.startsWith('include ')) continue
+    const loaded = loadedConfig[section]?.[effective.option.toLowerCase()] ?? null
+    if (loaded !== null && comparable(loaded) === comparable(effective.value)) continue
+    changes.push({
+      section: effective.section,
+      option: effective.option,
+      disk: effective.value,
+      loaded,
+      location: { path: effective.path, line: effective.line },
+      multiline: effective.multiline || (loaded?.includes('\n') ?? false),
+    })
+  }
+
+  /*
+   * A loaded option with no line on disk counts as removed only where its
+   * section is still on disk. A whole section missing from the files is not a
+   * removal: plugins register sections into Klipper's config at startup —
+   * Shake&Tune's macros are the case that found this — and a file the files API
+   * could not read leaves its sections out of the index too.
+   */
+  for (const [section, options] of Object.entries(loadedConfig)) {
+    if (!saved.sections.has(section)) continue
+    for (const [option, loaded] of Object.entries(options)) {
+      if (seen.has(optionKey(section, option))) continue
+      changes.push({
+        section,
+        option,
+        disk: null,
+        loaded,
+        location: null,
+        multiline: loaded.includes('\n'),
+      })
+    }
+  }
+
+  return changes.sort(
+    (left, right) =>
+      sectionKey(left.section).localeCompare(sectionKey(right.section)) ||
+      left.option.localeCompare(right.option),
+  )
+}
+
+export interface ConfigWarning {
+  kind: 'deprecatedOption' | 'deprecatedValue' | 'runtime'
+  /** Klipper's own sentence, shown as it wrote it. */
+  message: string
+  section: string | null
+  option: string | null
+  value: string | null
+}
+
+/**
+ * `configfile.warnings`, the deprecations Klipper found while loading and any
+ * warning raised since. Klipper otherwise only writes these to `klippy.log`,
+ * where nobody reads them until an upgrade removes the option outright.
+ */
+export function readConfigWarnings(value: unknown): ConfigWarning[] {
+  if (!Array.isArray(value)) return []
+  return value.flatMap((entry): ConfigWarning[] => {
+    if (entry === null || typeof entry !== 'object') return []
+    const record = entry as Record<string, unknown>
+    if (typeof record.message !== 'string') return []
+    const kind =
+      record.type === 'deprecated_option'
+        ? 'deprecatedOption'
+        : record.type === 'deprecated_value'
+          ? 'deprecatedValue'
+          : 'runtime'
+    return [
+      {
+        kind,
+        message: record.message,
+        section: typeof record.section === 'string' ? record.section : null,
+        option: typeof record.option === 'string' ? record.option : null,
+        value: typeof record.value === 'string' ? record.value : null,
+      },
+    ]
+  })
+}

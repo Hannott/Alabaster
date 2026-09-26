@@ -14,6 +14,7 @@ import {
   moonrakerThumbnailUrl,
   uploadMoonrakerFile,
 } from '@/services/moonraker'
+import { readConfigWarnings, type ConfigWarning } from '@/features/config/quickConfigFields'
 import { configBoolean } from '@/dashboard/context'
 import { useAvailabilityStore } from '@/stores/availability'
 import { createCommandRunner } from '@/stores/commandRunner'
@@ -110,8 +111,13 @@ const printerSelection: PrinterObjectSelection = {
    * the lines `SAVE_CONFIG` would write; `configfile.settings` holds the loaded
    * values it replaces. See `features/config/pendingConfig.ts`, which reads the
    * two together.
+   *
+   * `warnings` is the deprecations Klipper found while loading plus any it
+   * raised at runtime; Quick config shows them on the section they concern.
+   * Subscribed rather than read at load because a runtime warning arrives
+   * without a restart.
    */
-  configfile: ['save_config_pending', 'save_config_pending_items'],
+  configfile: ['save_config_pending', 'save_config_pending_items', 'warnings'],
   /*
    * Whether the gantry or the Z steppers have actually been aligned since the
    * motors were last off. Both objects share Klipper's own `ZAdjustStatus`,
@@ -483,6 +489,7 @@ export const usePrinterStore = defineStore('printer', () => {
    * with the loaded values from `printerConfig.settings`.
    */
   const saveConfigPendingItems = ref<Record<string, Record<string, string | undefined>>>({})
+  const configWarnings = ref<ConfigWarning[]>([])
   const buildVolume = reactive<BuildVolumeState>(initialBuildVolume())
   /**
    * `display_status.progress`, which the slicer drives with `M73`. Null until the
@@ -877,6 +884,9 @@ export const usePrinterStore = defineStore('printer', () => {
         >
       } else if (pendingItems === null) {
         saveConfigPendingItems.value = {}
+      }
+      if (configfile.warnings !== undefined) {
+        configWarnings.value = readConfigWarnings(configfile.warnings)
       }
     }
 
@@ -1654,6 +1664,7 @@ export const usePrinterStore = defineStore('printer', () => {
     currentMetadata.value = null
     saveConfigPending.value = false
     saveConfigPendingItems.value = {}
+    configWarnings.value = []
     displayProgress.value = null
     displayMessage.value = ''
     files.value = []
@@ -1706,6 +1717,7 @@ export const usePrinterStore = defineStore('printer', () => {
     buildVolume,
     saveConfigPending,
     saveConfigPendingItems,
+    configWarnings,
     toolheadPosition,
     displayMessage,
     displayProgress,

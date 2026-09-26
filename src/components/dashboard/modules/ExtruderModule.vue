@@ -28,11 +28,15 @@ import { formatMacroLabel, useMacrosStore } from '@/stores/macros'
 import { useSpoolStore } from '@/stores/spool'
 import { usePrinterStore } from '@/stores/printer'
 import { usePrinterConfigStore } from '@/stores/printerConfig'
+import { useQuickConfigStore, type PersistResult } from '@/stores/quickConfig'
+import { useToastsStore } from '@/stores/toasts'
 import { useTelemetryStore } from '@/stores/telemetry'
 
 const { locale, t } = useI18n({ useScope: 'global' })
 const printer = usePrinterStore()
 const printerConfig = usePrinterConfigStore()
+const quickConfig = useQuickConfigStore()
+const toasts = useToastsStore()
 const telemetry = useTelemetryStore()
 const macros = useMacrosStore()
 const spool = useSpoolStore()
@@ -166,6 +170,81 @@ function applyPressureAdvance(): void {
  * them behaves, and stating it under two of this card's blocks was telling
  * the reader what they already know about their own firmware.
  */
+/*
+ * Keeping a tuned value. `SET_PRESSURE_ADVANCE` is gone on the next restart,
+ * so the value someone just dialed in by test prints had to be copied into
+ * the config by hand, into whichever included file sets it. The running value
+ * is written to the line Klipper reads (see `optionLocator.ts`) and saved;
+ * it is already live, so nothing restarts.
+ *
+ * Offered only while the running value differs from the configured one. The
+ * configured one is the file's when Quick config has read the files, so the
+ * button goes away once the value is saved, and Klipper's loaded value before
+ * that.
+ */
+function configuredNumber(option: string): number | null {
+  const disk = quickConfig.savedValue('extruder', option)
+  const raw = disk === undefined || disk === null ? printerConfig.extruderSettings?.[option] : disk
+  const value = Number(raw)
+  return raw === undefined || raw === null || !Number.isFinite(value) ? null : value
+}
+
+function differs(live: number | null, configured: number | null): boolean {
+  return live !== null && (configured === null || Math.abs(live - configured) > 1e-9)
+}
+
+function configText(value: number): string {
+  return String(Number(value.toFixed(6)))
+}
+
+const canKeepAdvance = computed(
+  () =>
+    differs(printer.extruder.pressureAdvance, configuredNumber('pressure_advance')) ||
+    differs(printer.extruder.smoothTime, configuredNumber('pressure_advance_smooth_time')),
+)
+const isKeepingAdvance = ref(false)
+
+function keepResultMessage(result: PersistResult): string {
+  if (result.status === 'refused') {
+    if (result.reason === 'autosave') return t('dashboard.extruder.keepAdvanceAutosave')
+    if (result.reason === 'pending') return t('dashboard.extruder.keepAdvancePending')
+    return t('dashboard.extruder.keepAdvanceFailed')
+  }
+  if (result.status === 'unchanged') return t('dashboard.extruder.keepAdvanceUnchanged')
+  return result.status === 'saved'
+    ? t('dashboard.extruder.keepAdvanceSaved', { path: result.path })
+    : t('dashboard.extruder.keepAdvanceBuffered', { path: result.path })
+}
+
+async function keepPressureAdvance(): Promise<void> {
+  const advance = printer.extruder.pressureAdvance
+  if (advance === null || isKeepingAdvance.value) return
+  isKeepingAdvance.value = true
+  try {
+    let result = await quickConfig.persistOption(
+      'extruder',
+      'pressure_advance',
+      configText(advance),
+    )
+    const smoothTime = printer.extruder.smoothTime
+    if (
+      (result.status === 'saved' || result.status === 'unchanged') &&
+      differs(smoothTime, configuredNumber('pressure_advance_smooth_time')) &&
+      smoothTime !== null
+    ) {
+      const smoothResult = await quickConfig.persistOption(
+        'extruder',
+        'pressure_advance_smooth_time',
+        configText(smoothTime),
+      )
+      if (smoothResult.status !== 'unchanged') result = smoothResult
+    }
+    toasts.push(keepResultMessage(result))
+  } finally {
+    isKeepingAdvance.value = false
+  }
+}
+
 const activeAdvanceLabel = computed(() =>
   t('dashboard.extruder.currentAdvance', {
     value: advanceFormatter.value.format(printer.extruder.pressureAdvance ?? 0),
@@ -765,6 +844,15 @@ const readoutValue = computed(() =>
           :label="t('dashboard.extruder.applyAdvance')"
           type="submit"
           :disabled="printer.pendingCommands.pressureAdvance"
+        />
+        <AppButton
+          v-if="canKeepAdvance"
+          variant="quiet"
+          size="sm"
+          icon="save"
+          :label="t('dashboard.extruder.keepAdvance')"
+          :pending="isKeepingAdvance"
+          @click="keepPressureAdvance"
         />
         <span class="text-[0.7rem] text-muted">{{ activeAdvanceLabel }}</span>
       </div>

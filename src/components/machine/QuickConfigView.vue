@@ -7,7 +7,7 @@ import AppField from '@/components/AppField.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import QuickConfigOptionDialog from '@/components/machine/QuickConfigOptionDialog.vue'
 import { useAvailability } from '@/composables/useAvailability'
-import type { QuickConfigField } from '@/features/config/quickConfigFields'
+import type { QuickConfigField, UnappliedChange } from '@/features/config/quickConfigFields'
 import { useConfirmationsStore } from '@/stores/confirmations'
 import { useMachineFilesStore } from '@/stores/machineFiles'
 import { usePrinterStore } from '@/stores/printer'
@@ -106,6 +106,27 @@ function checked(field: QuickConfigField): boolean {
 
 function fieldError(field: QuickConfigField) {
   return quickConfig.fieldError(pinOf(field))
+}
+
+function pathLabel(location: { path: string; line: number }): string {
+  return t('configuration.quickConfig.openLocation', {
+    path: location.path,
+    line: location.line + 1,
+  })
+}
+
+function changeLabel(change: UnappliedChange): string {
+  if (change.multiline) return t('configuration.quickConfig.unappliedMultiline')
+  if (change.disk === null) {
+    return t('configuration.quickConfig.unappliedRemoved', { loaded: change.loaded ?? '' })
+  }
+  if (change.loaded === null) {
+    return t('configuration.quickConfig.unappliedAdded', { disk: change.disk })
+  }
+  return t('configuration.quickConfig.unappliedChanged', {
+    loaded: change.loaded,
+    disk: change.disk,
+  })
 }
 
 function locationLabel(field: QuickConfigField): string {
@@ -230,6 +251,75 @@ onBeforeUnmount(() => quickConfig.stop())
       </p>
 
       <div v-if="quickConfig.hasLoaded" class="quick-config__grid">
+        <!--
+          Across the whole configuration, not only pinned options: an edit
+          nobody restarted for usually sits in a file nobody has open.
+        -->
+        <section
+          v-if="quickConfig.unapplied.length > 0"
+          class="quick-config-card quick-config-card--notice"
+          :aria-label="t('configuration.quickConfig.unappliedTitle')"
+        >
+          <header class="quick-config-card__header">
+            <h2 class="quick-config-card__title quick-config-card__title--plain">
+              {{ t('configuration.quickConfig.unappliedTitle') }}
+            </h2>
+          </header>
+          <ul class="quick-config-notice__list">
+            <li
+              v-for="change in quickConfig.unapplied"
+              :key="`${change.section}
+${change.option}`"
+              class="quick-config-notice__row"
+            >
+              <span class="quick-config-notice__text">
+                <span class="quick-config-notice__name"
+                  >[{{ change.section }}] {{ change.option }}</span
+                >
+                <span class="quick-config-notice__detail">{{ changeLabel(change) }}</span>
+              </span>
+              <AppButton
+                v-if="change.location"
+                variant="quiet"
+                size="xs"
+                icon-only
+                icon="popout"
+                :aria-label="pathLabel(change.location)"
+                :title="pathLabel(change.location)"
+                @click="emit('openLocation', change.location.path, change.location.line)"
+              />
+            </li>
+          </ul>
+        </section>
+
+        <section
+          v-if="printer.configWarnings.length > 0"
+          class="quick-config-card quick-config-card--notice"
+          :aria-label="t('configuration.quickConfig.warningsTitle')"
+        >
+          <header class="quick-config-card__header">
+            <h2 class="quick-config-card__title quick-config-card__title--plain">
+              {{ t('configuration.quickConfig.warningsTitle') }}
+            </h2>
+          </header>
+          <ul class="quick-config-notice__list">
+            <li
+              v-for="(warning, index) in printer.configWarnings"
+              :key="index"
+              class="quick-config-notice__row"
+            >
+              <span class="quick-config-notice__text">
+                <span v-if="warning.section" class="quick-config-notice__name"
+                  >[{{ warning.section }}] {{ warning.option ?? '' }}</span
+                >
+                <span class="quick-config-notice__detail quick-config-notice__detail--warning">{{
+                  warning.message
+                }}</span>
+              </span>
+            </li>
+          </ul>
+        </section>
+
         <section
           v-for="card in quickConfig.cards"
           :key="card.key"
@@ -257,6 +347,15 @@ onBeforeUnmount(() => quickConfig.stop())
               @click="openPicker(card.key)"
             />
           </header>
+
+          <ul
+            v-if="quickConfig.warningsFor(card.key).length > 0"
+            class="quick-config-card__warnings"
+          >
+            <li v-for="(warning, index) in quickConfig.warningsFor(card.key)" :key="index">
+              {{ warning.message }}
+            </li>
+          </ul>
 
           <template v-if="card.missing">
             <p class="quick-config-card__missing">

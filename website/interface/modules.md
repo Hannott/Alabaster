@@ -393,9 +393,14 @@ with them.
 
 Set the advance and smooth time; the active value is shown.
 
+A value set from the card lasts until Klipper restarts. When it differs from
+your configuration, **Save to config** writes it to the line Klipper reads,
+in whichever included file that is, without restarting. If that file has
+other unsaved edits in Configuration, the value is added there for you to save
+instead of saving those edits along with it.
+
 If the model is set in `printer.cfg` instead, the card reads the values
-rather than adjusting them. A value set from the card is lost on restart,
-and the card states this.
+rather than adjusting them.
 
 ### Firmware retraction
 

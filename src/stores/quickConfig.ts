@@ -6,6 +6,7 @@ import {
   includedConfigFiles,
   indexConfig,
   optionKey,
+  effectiveOption,
   removeOption,
   writeOption,
   type OptionWriteFailure,
@@ -13,6 +14,7 @@ import {
 import {
   buildOptionCatalogue,
   buildQuickConfigCards,
+  unappliedChanges,
   visiblePins,
   type QuickConfigPin,
 } from '@/features/config/quickConfigFields'
@@ -26,6 +28,16 @@ import { usePrintersStore } from '@/stores/printers'
 import { isRecord } from '@/utils/records'
 
 export type ConfigurationViewMode = 'files' | 'quickConfig'
+
+/**
+ * What writing a running value to the config did. `buffered` means the file
+ * already held someone's unsaved edits, so the value went into that buffer
+ * rather than saving their edits along with it.
+ */
+export type PersistResult =
+  | { status: 'saved' | 'buffered'; path: string }
+  | { status: 'unchanged' }
+  | { status: 'refused'; reason: 'unavailable' | 'autosave' | 'pending' | OptionWriteFailure }
 
 const pinsStorageKey = 'alabaster.quickConfig.pins'
 
@@ -159,6 +171,16 @@ export const useQuickConfigStore = defineStore('quickConfig', () => {
 
   const catalogue = computed(() => buildOptionCatalogue(currentIndex.value, printerConfig.settings))
 
+  /** Everything saved but not yet loaded, only once the files have been read. */
+  const unapplied = computed(() =>
+    hasLoaded.value ? unappliedChanges(savedIndex.value, printerConfig.loadedConfig) : [],
+  )
+
+  function warningsFor(section: string) {
+    const key = section.toLowerCase()
+    return printer.configWarnings.filter((warning) => warning.section?.toLowerCase() === key)
+  }
+
   const fields = computed(() => cards.value.flatMap((card) => card.fields))
   const unsavedCount = computed(() => fields.value.filter((field) => field.unsaved).length)
   const unsavedPaths = computed(() =>
@@ -248,6 +270,48 @@ export const useQuickConfigStore = defineStore('quickConfig', () => {
     if (result.content === currentFiles.value.get(result.path)) return
     machineFiles.setConfigBufferContent(result.path, result.content)
     touchedPaths.value = new Set([...touchedPaths.value, result.path])
+  }
+
+  /** The value on disk, null when the file does not set it, undefined until the files are read. */
+  function savedValue(section: string, option: string): string | null | undefined {
+    if (!hasLoaded.value) return undefined
+    return effectiveOption(savedIndex.value, section, option)?.value ?? null
+  }
+
+  /*
+   * For a runtime control that wants to keep what it set — the Extruder card's
+   * pressure advance. The value is already running, so this only has to reach
+   * disk; no restart. It refuses the two cases where the write would be
+   * silently undone: a line in the `SAVE_CONFIG` block, which the next
+   * `SAVE_CONFIG` regenerates from memory, and an option among the pending
+   * calibration results.
+   */
+  async function persistOption(
+    section: string,
+    option: string,
+    value: string,
+  ): Promise<PersistResult> {
+    if (!availability.isMoonrakerConnected) return { status: 'refused', reason: 'unavailable' }
+    if (!hasLoaded.value) await load()
+    if (!hasLoaded.value) return { status: 'refused', reason: 'unavailable' }
+    const existing = effectiveOption(currentIndex.value, section, option)
+    if (existing?.autosave) return { status: 'refused', reason: 'autosave' }
+    if (
+      printer.saveConfigPendingItems[section.toLowerCase()]?.[option.toLowerCase()] !== undefined
+    ) {
+      return { status: 'refused', reason: 'pending' }
+    }
+    const result = writeOption(currentIndex.value, currentFiles.value, section, option, value)
+    if (!result.ok) return { status: 'refused', reason: result.reason }
+    if (result.content === currentFiles.value.get(result.path)) return { status: 'unchanged' }
+    const hadOtherEdits = machineFiles.isPathDirty(result.path)
+    machineFiles.setConfigBufferContent(result.path, result.content)
+    touchedPaths.value = new Set([...touchedPaths.value, result.path])
+    if (hadOtherEdits) return { status: 'buffered', path: result.path }
+    if (!(await machineFiles.saveConfigFiles([result.path]))) {
+      return { status: 'buffered', path: result.path }
+    }
+    return { status: 'saved', path: result.path }
   }
 
   async function save(restart: boolean): Promise<boolean> {
@@ -359,6 +423,8 @@ export const useQuickConfigStore = defineStore('quickConfig', () => {
     pins,
     cards,
     catalogue,
+    unapplied,
+    warningsFor,
     hasLoaded,
     isLoading,
     loadFailed,
@@ -370,6 +436,8 @@ export const useQuickConfigStore = defineStore('quickConfig', () => {
     save,
     revert,
     discard,
+    savedValue,
+    persistOption,
     setSectionPins,
     unpin,
     unpinSection,

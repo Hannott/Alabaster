@@ -6,6 +6,8 @@ import {
   buildOptionCatalogue,
   buildQuickConfigCards,
   defaultQuickConfigPins,
+  readConfigWarnings,
+  unappliedChanges,
   visiblePins,
   type QuickConfigInputs,
 } from '@/features/config/quickConfigFields'
@@ -270,5 +272,82 @@ describe('buildOptionCatalogue', () => {
       { option: 'max_accel', value: '5000', isDefault: false },
       { option: 'square_corner_velocity', value: '5', isDefault: true },
     ])
+  })
+})
+
+describe('unappliedChanges', () => {
+  const text = '[printer]\nmax_accel: 7000\nmax_velocity: 600\n\n[z_tilt]\nz_positions:\n  0, 0\n'
+  const files = new Map([['printer.cfg', text]])
+  const saved = indexConfig('printer.cfg', files, files.keys())
+
+  it('lists what differs from what Klipper loaded, across the whole config', () => {
+    const changes = unappliedChanges(saved, {
+      printer: { max_accel: '5000', max_velocity: '600', square_corner_velocity: '5' },
+      z_tilt: { z_positions: '\n1, 1' },
+    })
+
+    expect(changes.map((change) => [change.option, change.loaded, change.disk])).toEqual([
+      ['max_accel', '5000', '7000'],
+      ['square_corner_velocity', '5', null],
+      ['z_positions', '\n1, 1', '\n0, 0'],
+    ])
+    expect(changes[2]?.multiline).toBe(true)
+  })
+
+  it('does not report sections a plugin registered without a file', () => {
+    const changes = unappliedChanges(saved, {
+      printer: { max_accel: '7000', max_velocity: '600' },
+      z_tilt: { z_positions: '\n0, 0' },
+      'gcode_macro axes_map_calibration': { gcode: '\n_AXES_MAP' },
+    })
+
+    expect(changes).toEqual([])
+  })
+
+  it('says nothing before Klipper has reported its config', () => {
+    expect(unappliedChanges(saved, {})).toEqual([])
+  })
+})
+
+describe('readConfigWarnings', () => {
+  it('reads Klipper’s three warning shapes and drops anything else', () => {
+    expect(
+      readConfigWarnings([
+        {
+          type: 'deprecated_option',
+          message: "Option 'max_accel_to_decel' in section 'printer' is deprecated.",
+          section: 'printer',
+          option: 'max_accel_to_decel',
+          value: null,
+        },
+        {
+          type: 'deprecated_value',
+          message: 'old value',
+          section: 'extruder',
+          option: 'sensor_type',
+          value: 'NTC 100K beta 3950',
+        },
+        { type: 'runtime_warning', message: 'Timer too close' },
+        { type: 'deprecated_option' },
+        'nonsense',
+      ]),
+    ).toEqual([
+      {
+        kind: 'deprecatedOption',
+        message: "Option 'max_accel_to_decel' in section 'printer' is deprecated.",
+        section: 'printer',
+        option: 'max_accel_to_decel',
+        value: null,
+      },
+      {
+        kind: 'deprecatedValue',
+        message: 'old value',
+        section: 'extruder',
+        option: 'sensor_type',
+        value: 'NTC 100K beta 3950',
+      },
+      { kind: 'runtime', message: 'Timer too close', section: null, option: null, value: null },
+    ])
+    expect(readConfigWarnings(undefined)).toEqual([])
   })
 })

@@ -227,6 +227,50 @@ describe('quick config card options', () => {
   })
 })
 
+describe('keeping a running value', () => {
+  it('writes it to the effective line and saves, without a restart', async () => {
+    const quickConfig = useQuickConfigStore()
+
+    const result = await quickConfig.persistOption('printer', 'max_accel', '6500')
+
+    expect(result).toEqual({ status: 'saved', path: 'hardware/limits.cfg' })
+    expect(uploads).toHaveLength(1)
+    expect(useMachineFilesStore().isPathDirty('hardware/limits.cfg')).toBe(false)
+    expect(quickConfig.savedValue('printer', 'max_accel')).toBe('6500')
+  })
+
+  it('leaves it in the buffer when the file holds someone else’s unsaved edits', async () => {
+    const quickConfig = await loadedStore()
+    const machineFiles = useMachineFilesStore()
+    machineFiles.setConfigBufferContent(
+      'hardware/limits.cfg',
+      `${disk['hardware/limits.cfg']}# editor edit
+`,
+    )
+
+    const result = await quickConfig.persistOption('printer', 'max_accel', '6500')
+
+    expect(result).toEqual({ status: 'buffered', path: 'hardware/limits.cfg' })
+    expect(uploads).toHaveLength(0)
+  })
+
+  it('refuses a SAVE_CONFIG line and an option among pending results', async () => {
+    const quickConfig = await loadedStore()
+
+    expect(await quickConfig.persistOption('input_shaper', 'shaper_freq_x', '60')).toEqual({
+      status: 'refused',
+      reason: 'autosave',
+    })
+
+    usePrinterStore().saveConfigPendingItems = { printer: { max_accel: '6000' } }
+    expect(await quickConfig.persistOption('printer', 'max_accel', '6500')).toEqual({
+      status: 'refused',
+      reason: 'pending',
+    })
+    expect(uploads).toHaveLength(0)
+  })
+})
+
 describe('normalizeQuickConfigPins', () => {
   it('lower-cases, drops invalid entries and duplicates, and keeps null for untouched', () => {
     expect(normalizeQuickConfigPins(undefined)).toBeNull()

@@ -1034,7 +1034,14 @@
         "unretract_extra_length": "Ekstra lengde ved utmating",
         "unretract_speed": "Utmatingshastighet",
         "z_hop_height": "Z-hopphøyde"
-      }
+      },
+      "keepAdvance": "Lagre i konfig",
+      "keepAdvanceSaved": "Pressure advance lagret i {path}",
+      "keepAdvanceBuffered": "Pressure advance skrevet til {path}, som har andre ulagrede endringer. Lagre den under Konfigurasjon.",
+      "keepAdvanceUnchanged": "Konfigurasjonen har allerede denne pressure advance-verdien",
+      "keepAdvanceAutosave": "Pressure advance ligger i SAVE_CONFIG-blokken. Endre den i hurtigoppsettet, som lagrer med omstart.",
+      "keepAdvancePending": "Klipper har ulagrede kalibreringsresultater for pressure advance",
+      "keepAdvanceFailed": "Pressure advance kunne ikke skrives til konfigurasjonen"
     },
     "spool": {
       "eyebrow": "Aktiv spole",
@@ -1767,7 +1774,13 @@
         "unavailable": "Klipper har ikke rapportert konfigurasjonen ennå",
         "defaultValue": "{value} · standard",
         "save": "Lagre"
-      }
+      },
+      "unappliedTitle": "Venter på omstart",
+      "unappliedChanged": "{loaded} → {disk}",
+      "unappliedAdded": "lagt til: {disk}",
+      "unappliedRemoved": "{loaded} → fjernet",
+      "unappliedMultiline": "Flere linjer endret",
+      "warningsTitle": "Advarsler fra Klipper"
     }
   },
   "imageViewer": {

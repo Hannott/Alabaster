@@ -9,8 +9,10 @@ import { i18n } from '@/i18n'
 import { useMacrosStore } from '@/stores/macros'
 import { usePrinterStore } from '@/stores/printer'
 import { usePrinterConfigStore } from '@/stores/printerConfig'
+import { useQuickConfigStore } from '@/stores/quickConfig'
 import { useSpoolStore } from '@/stores/spool'
 import { useTelemetryStore } from '@/stores/telemetry'
+import { useToastsStore } from '@/stores/toasts'
 
 function mountModule(initialConfig: Record<string, unknown> = {}) {
   const pinia = createPinia()
@@ -367,6 +369,46 @@ describe('ExtruderModule', () => {
     const form = wrapper.get('form')
     expect(form.text()).toContain('Active: 0.045')
     expect(form.text()).not.toContain('restart')
+  })
+
+  /*
+   * A value dialed in with SET_PRESSURE_ADVANCE is gone on the next restart,
+   * so the card offers to keep it — but only while it differs from what the
+   * config holds, or the button would sit there permanently doing nothing.
+   */
+  it('offers to save a running pressure advance only while it differs from the config', async () => {
+    const { printer, printerConfig, wrapper } = mountModule({ showPressureAdvance: true })
+    printerConfig.settings = {
+      extruder: { pressure_advance: 0.04, pressure_advance_smooth_time: 0.04 },
+    }
+    printer.extruder.pressureAdvance = 0.04
+    printer.extruder.smoothTime = 0.04
+    await flushPromises()
+    expect(wrapper.text()).not.toContain('Save to config')
+
+    printer.extruder.pressureAdvance = 0.035
+    await flushPromises()
+    expect(wrapper.text()).toContain('Save to config')
+  })
+
+  it('writes the running value through Quick config and reports where it went', async () => {
+    const { printer, printerConfig, wrapper } = mountModule({ showPressureAdvance: true })
+    printerConfig.settings = { extruder: { pressure_advance: 0.04 } }
+    printer.extruder.pressureAdvance = 0.035
+    await flushPromises()
+    const quickConfig = useQuickConfigStore()
+    const persist = vi
+      .spyOn(quickConfig, 'persistOption')
+      .mockResolvedValue({ status: 'saved', path: 'hardware/extruder.cfg' })
+
+    const button = wrapper.findAll('button').find((entry) => entry.text() === 'Save to config')
+    await button!.trigger('click')
+    await flushPromises()
+
+    expect(persist).toHaveBeenCalledWith('extruder', 'pressure_advance', '0.035')
+    expect(useToastsStore().entries.map((entry) => entry.message)).toContain(
+      'Pressure advance saved to hardware/extruder.cfg',
+    )
   })
 
   it('drops the optional sections the card configuration turns off', async () => {
