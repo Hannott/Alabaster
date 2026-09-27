@@ -1,3 +1,4 @@
+import { axisSteppers } from '@/features/calibration/axisRotation'
 import type { CalibrationStageId } from '@/features/calibration/stages'
 import {
   latestShaperRecommendations,
@@ -22,6 +23,7 @@ import {
 export type ProcedureId =
   | 'endstops'
   | 'stepperBuzz'
+  | 'axisRotation'
   | 'zEndstop'
   | 'endstopPhase'
   | 'tmcAutotune'
@@ -68,7 +70,8 @@ export type ProcedureDuration = 'seconds' | 'minute' | 'minutes' | 'interactive'
  * already does the job better than a form could — a live readout, a wizard,
  * or a list that is its own result.
  */
-export type ProcedurePanel = 'endstops' | 'rotationDistance' | 'heaterCheck' | 'runoutSensors'
+export type ProcedurePanel =
+  'endstops' | 'axisRotation' | 'rotationDistance' | 'heaterCheck' | 'runoutSensors'
 
 /** User-facing text as data: a message key, or a Klipper name shown as it is spelled. */
 export type ProcedureText = { key: string; params?: Record<string, string> } | { literal: string }
@@ -697,6 +700,17 @@ export const calibrationProcedures: readonly CalibrationProcedure[] = [
     params: [stepperParameter(true)],
     build: (values) => buildWithWords('STEPPER_BUZZ', values, ['STEPPER']),
     parse: (lines) => outcomeOnly(lines),
+  },
+  {
+    id: 'axisRotation',
+    stage: 'axes',
+    command: 'rotation_distance',
+    available: (context) => axisSteppers(context.sections).length > 0,
+    requires: [],
+    effects: ['moves'],
+    duration: 'minute',
+    staleAfterDays: null,
+    panel: 'axisRotation',
   },
   {
     id: 'zEndstop',

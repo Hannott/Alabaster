@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 
+import AxisRotationPanel from '@/components/calibration/AxisRotationPanel.vue'
 import CalibrationProcedureList from '@/components/calibration/CalibrationProcedureList.vue'
 import CalibrationProcedureWorkspace from '@/components/calibration/CalibrationProcedureWorkspace.vue'
 import CalibrationReadiness from '@/components/calibration/CalibrationReadiness.vue'
@@ -72,6 +73,7 @@ const selected = computed(() => {
 
       <div v-if="selected" class="calibration-bench__column calibration-bench__column--work">
         <EndstopsPanel v-if="selected.panel === 'endstops'" />
+        <AxisRotationPanel v-else-if="selected.panel === 'axisRotation'" />
         <RunoutSensorsPanel v-else-if="selected.panel === 'runoutSensors'" />
         <HeaterCheckPanel v-else-if="selected.panel === 'heaterCheck'" />
         <RotationDistancePanel v-else-if="selected.panel === 'rotationDistance'" />

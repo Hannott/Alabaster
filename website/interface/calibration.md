@@ -12,7 +12,7 @@ there.
 
 | Job              | Calibrations                                                                                                                           | Beside them           |
 | ---------------- | -------------------------------------------------------------------------------------------------------------------------------------- | --------------------- |
-| **Axes & frame** | Endstop check, stepper check, Z endstop position, endstop phase, TMC autotune, axis map                                                | The Movement controls |
+| **Axes & frame** | Endstop check, stepper check, axis rotation distance, Z endstop position, endstop phase, TMC autotune, axis map                        | The Movement controls |
 | **Bed & probe**  | Bed mesh, quad gantry level or Z tilt, bed screws, delta calibration, probe Z offset, probe accuracy, bed tilt, eddy and plugin probes | The height map        |
 | **Heaters**      | Heater model (PID or MPC), heater limits                                                                                               | The temperature chart |
 | **Resonance**    | Input shaper calibration, Shake&Tune shaper, belts and vibrations, accelerometer check and noise                                       | The Shake&Tune graphs |
@@ -176,6 +176,31 @@ on the dashboard keeps its **Level bed** button.
 **Stepper check** moves one motor 1 mm back and forth ten times, to confirm
 which motor it is and which way it turns.
 
+## Axis rotation distance
+
+Works out `rotation_distance` for any axis motor from the parts it drives:
+
+- **Belt and pulley:** belt pitch × pulley teeth. A GT2 belt on a 20-tooth
+  pulley is 40.
+- **Lead screw:** thread pitch × starts. A T8 screw with 8 mm lead is 8.
+- **Gear ratio:** a reduction between the motor and the pulley or screw, such
+  as `80:20`.
+- **Motor step angle:** 1.8° or 0.9°. The step angle goes in
+  `full_steps_per_rotation`, not in `rotation_distance`. A 0.9° motor doubles
+  steps per mm and halves the travel per step, and the result shows both next
+  to what the printer has now.
+
+**Measure a move** moves the axis a set distance slowly, and takes the distance
+it really moved from a dial indicator or caliper. It is meant for a lead screw.
+On a belt axis the calculated value is the better one. A move that went half or
+twice as far as asked is a motor set up with the wrong step angle, and the panel
+proposes the right `full_steps_per_rotation` instead of a wrong
+`rotation_distance`.
+
+**Write to the config** updates every motor that has to match: all Z motors
+together, and both motors of a CoreXY. Untick any you drive differently. A
+firmware restart loads the new values.
+
 ## Heater models
 
 **Heater model** runs `PID_CALIBRATE` or `MPC_CALIBRATE`, whichever the heater
@@ -229,6 +254,11 @@ Heat the hotend, mark the filament above the extruder, extrude a set length
 slowly from the panel, and enter what is left to the mark. The panel works out
 the corrected `rotation_distance` and writes it to the config line Klipper
 uses. A firmware restart loads it.
+
+For a new extruder, **From the hardware** gives the starting value: the drive
+gear's effective diameter, the gear ratio of a geared extruder (such as `50:17`
+for a BMG), and the motor's step angle. Measure an extrude afterwards, since a
+drive gear bites deeper or shallower than its stated size.
 
 **Pressure advance** sets a value and its smoothing time on the running
 printer until the next restart. **Keep in the file** writes one that prints

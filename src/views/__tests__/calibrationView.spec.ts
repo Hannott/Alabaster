@@ -312,11 +312,6 @@ describe('Calibration view', () => {
     expect(view.text()).toContain('Homing & levelling')
   })
 
-  /**
-   * A heater calibration used to be reachable only from behind the Temperatures
-   * card's gear, on another route — which is exactly what sent somebody to the
-   * Dashboard in the middle of their own calibration sitting.
-   */
   it('lays a short choice out as rows rather than a dropdown', async () => {
     const printerConfig = await import('@/stores/printerConfig')
     vi.spyOn(printerConfig.usePrinterConfigStore(pinia), 'settings', 'get').mockReturnValue({
@@ -333,6 +328,84 @@ describe('Calibration view', () => {
     expect(view.get('.calibration-run__script').text()).toBe('STEPPER_BUZZ STEPPER=stepper_y')
   })
 
+  /**
+   * The step angle is the part a Marlin habit gets wrong: it lives in its own
+   * option and changes steps per mm, never rotation_distance, and a CoreXY's
+   * two motors have to be written together or the axes stop agreeing.
+   */
+  it('works out an axis rotation distance from the belt and writes both CoreXY motors', async () => {
+    const printerConfig = await import('@/stores/printerConfig')
+    const quickConfig = await import('@/stores/quickConfig')
+    printerConfig.usePrinterConfigStore(pinia).settings = {
+      printer: { kinematics: 'corexy' },
+      stepper_x: { rotation_distance: 32, microsteps: 16 },
+      stepper_y: { rotation_distance: 32, microsteps: 16 },
+      stepper_z: { rotation_distance: 8, microsteps: 16 },
+    }
+    const persist = vi
+      .spyOn(quickConfig.useQuickConfigStore(pinia), 'persistOption')
+      .mockResolvedValue({ status: 'saved', path: 'printer.cfg' })
+    const view = await mountView()
+    await selectProcedure(view, 'axisRotation')
+
+    // A GT2 belt on a 20-tooth pulley, the calculator's first guess for X.
+    const cells = () =>
+      view
+        .findAll('.calibration-result__table tbody tr')
+        .map((row) => row.findAll('th, td').map((cell) => cell.text()))
+    expect(cells()[0]).toEqual(['rotation_distance', '32', '40'])
+    expect(cells()).toContainEqual([i18n.global.t('calibration.drive.stepsPerMm'), '100', '80'])
+
+    const fine = view
+      .findAll('.calibration-choice__row')
+      .find((row) => row.text() === i18n.global.t('calibration.drive.angle.400'))
+    await fine!.get('input').setValue(true)
+    expect(cells()[0]).toEqual(['rotation_distance', '32', '40'])
+    expect(cells()).toContainEqual([i18n.global.t('calibration.drive.stepsPerMm'), '100', '160'])
+
+    const write = view
+      .findAll('button')
+      .find((button) => button.text() === i18n.global.t('calibration.drive.write'))
+    await write!.trigger('click')
+    await flushPromises()
+
+    expect(persist.mock.calls).toEqual([
+      ['stepper_x', 'rotation_distance', '40'],
+      ['stepper_x', 'full_steps_per_rotation', '400'],
+      ['stepper_y', 'rotation_distance', '40'],
+      ['stepper_y', 'full_steps_per_rotation', '400'],
+    ])
+  })
+
+  it('reads a move that went half as far as a step-angle fault, not a pulley one', async () => {
+    const printerConfig = await import('@/stores/printerConfig')
+    printerConfig.usePrinterConfigStore(pinia).settings = {
+      printer: { kinematics: 'cartesian' },
+      stepper_z: { rotation_distance: 8, microsteps: 16 },
+    }
+    const view = await mountView()
+    await selectProcedure(view, 'axisRotation')
+
+    const measure = view
+      .findAll('.calibration-choice__row')
+      .find((row) => row.text() === i18n.global.t('calibration.drive.methodMeasure'))
+    await measure!.get('input').setValue(true)
+    const moved = view
+      .findAll('.app-field')
+      .find((field) => field.text().includes(i18n.global.t('calibration.drive.measure.measured')))
+    await moved!.get('input').setValue('5')
+    await flushPromises()
+
+    expect(view.text()).toContain(i18n.global.t('calibration.drive.measure.half', { steps: 400 }))
+    const first = view.get('.calibration-result__table tbody tr').findAll('th, td')
+    expect(first.map((cell) => cell.text())).toEqual(['rotation_distance', '8', '8'])
+  })
+
+  /**
+   * A heater calibration used to be reachable only from behind the Temperatures
+   * card's gear, on another route — which is exactly what sent somebody to the
+   * Dashboard in the middle of their own calibration sitting.
+   */
   it('offers the heater model as a procedure with the heater and target to choose', async () => {
     const telemetry = await import('@/stores/telemetry')
     const printerConfig = await import('@/stores/printerConfig')

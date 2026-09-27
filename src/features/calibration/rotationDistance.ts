@@ -1,3 +1,5 @@
+import { measuredRotationDistance } from '@/features/calibration/axisRotation'
+
 /**
  * The corrected `rotation_distance` from one measurement: filament marked
  * `marked` mm above the extruder, `requested` mm extruded, `remaining` mm left
@@ -18,7 +20,5 @@ export function rotationDistanceFrom(
 ): number | null {
   if (![current, requested, marked, remaining].every(Number.isFinite)) return null
   if (current <= 0 || requested <= 0 || remaining < 0 || remaining >= marked) return null
-  const actual = marked - remaining
-  if (actual <= 0 || actual > marked) return null
-  return (current * actual) / requested
+  return measuredRotationDistance(current, requested, marked - remaining)
 }

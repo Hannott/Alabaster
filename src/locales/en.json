@@ -403,6 +403,11 @@
         "description": "Moves one motor back and forth, to confirm its wiring and direction.",
         "detail": "Moves the chosen stepper 1 mm forward and back ten times. Watch which motor moves, and that it moves the way the axis should."
       },
+      "axisRotation": {
+        "name": "Axis rotation distance",
+        "description": "Works out rotation_distance from the belt and pulley or the lead screw, or from a measured move.",
+        "detail": "Belt pitch × pulley teeth, or screw pitch × starts. The gear ratio and the motor step angle are options of their own, and the step angle changes steps per mm, not rotation_distance. A measured move checks a lead screw, and shows a motor set up with the wrong step angle."
+      },
       "zEndstop": {
         "name": "Z endstop position",
         "description": "Paper test under the nozzle; sets position_endstop for Z.",
@@ -545,8 +550,8 @@
       },
       "rotationDistance": {
         "name": "Rotation distance",
-        "description": "Measures how far the extruder really moves filament, and corrects it.",
-        "detail": "Mark the filament above the extruder, extrude a known length slowly, and measure what is left to the mark. The new rotation_distance is the old one scaled by how far the filament actually moved."
+        "description": "Works out how far the extruder moves filament, from its drive gear or a measured extrude.",
+        "detail": "A new extruder starts from its drive gear and gear ratio. A measured extrude corrects it: mark the filament above the extruder, extrude a known length slowly, and measure what is left to the mark."
       },
       "pressureAdvance": {
         "name": "Pressure advance",
@@ -557,6 +562,66 @@
         "name": "Filament sensors",
         "description": "Each runout sensor's state, live.",
         "detail": "Pull the filament back past a sensor and watch it change. A sensor that reads no filament while filament is loaded is a fault, not an empty spool."
+      }
+    },
+    "drive": {
+      "method": "Method",
+      "methodHardware": "From the hardware",
+      "methodMeasure": "Measure a move",
+      "methodMeasureExtrude": "Measure an extrude",
+      "kind": "Drive",
+      "belt": "Belt and pulley",
+      "leadScrew": "Lead screw",
+      "driveGear": "Drive gear",
+      "beltType": "Belt",
+      "screwType": "Screw",
+      "preset": {
+        "2gt": "2GT · 2 mm pitch",
+        "3gt": "3GT · 3 mm pitch",
+        "htd5m": "HTD 5M · 5 mm pitch",
+        "t8l8": "T8 · 8 mm lead, 4 starts",
+        "t8l4": "T8 · 4 mm lead, 2 starts",
+        "t8l2": "T8 · 2 mm lead, 1 start",
+        "sfu1204": "SFU1204 ball screw · 4 mm lead",
+        "sfu1605": "SFU1605 ball screw · 5 mm lead",
+        "custom": "Other"
+      },
+      "pitch": "Pitch",
+      "teeth": "Pulley teeth",
+      "starts": "Starts",
+      "diameter": "Effective diameter",
+      "diameterHint": "Where the teeth bite, a little under the gear's outside diameter. A measured extrude corrects it.",
+      "gearRatio": "Gear ratio",
+      "gearRatioNone": "None",
+      "gearRatioHint": "Only for a reduction between the motor and what it drives, as driven:driving — 50:17, 80:20.",
+      "gearRatioInvalid": "A gear ratio is driven:driving, such as 50:17 or 80:20.",
+      "stepAngle": "Motor step angle",
+      "angle": {
+        "200": "1.8° · 200 steps",
+        "400": "0.9° · 400 steps",
+        "other": "{steps} steps, as configured"
+      },
+      "stepsPerMm": "Steps per mm",
+      "fullStep": "mm per full step",
+      "microstep": "mm per microstep",
+      "alsoWrite": "Also write to",
+      "write": "Write to the config",
+      "nothingToWrite": "The config already has these values.",
+      "removeGearRatio": "The config sets gear_ratio for {section}. It has to be removed in Configuration first.",
+      "measure": {
+        "belt": "Belt axis: Klipper recommends the calculated value. A measured move mostly measures the caliper and the belt's stretch.",
+        "place": "Set a dial indicator or caliper against the moving part of the {axis} axis.",
+        "move": "Move the axis a known distance, slowly.",
+        "distance": "Distance",
+        "moveBy": "Move {axis} {distance}",
+        "read": "Read how far it actually moved.",
+        "measured": "Moved",
+        "outOfRange": "Either way would pass the axis limits from where the toolhead is.",
+        "notMoved": "This is what your measurement gives. Move from this panel for it to count.",
+        "half": "Half the distance: a 0.9° motor set up as 1.8°. The fix is full_steps_per_rotation: {steps}, not rotation_distance.",
+        "double": "Twice the distance: a 1.8° motor set up as 0.9°. The fix is full_steps_per_rotation: {steps}, not rotation_distance.",
+        "halfExtrude": "Half the length: a 0.9° motor set up as 1.8°. The fix is full_steps_per_rotation: {steps}, not rotation_distance.",
+        "doubleExtrude": "Twice the length: a 1.8° motor set up as 0.9°. The fix is full_steps_per_rotation: {steps}, not rotation_distance."
       }
     }
   },

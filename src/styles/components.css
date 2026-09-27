@@ -13040,7 +13040,7 @@ body.machine-editor-fullscreen-open {
     grid-template-areas:
       'list work'
       'list live';
-    grid-template-columns: 17rem minmax(0, 40rem);
+    grid-template-columns: 20rem minmax(0, 40rem);
     justify-content: start;
   }
 
@@ -13065,12 +13065,12 @@ body.machine-editor-fullscreen-open {
      * dashboard column rather than a sidebar: capped at 28rem, the Movement
      * card's eight Z-offset steps wrapped one onto a row of its own.
      */
-    grid-template-columns: 17rem 34rem minmax(24rem, 36rem);
+    grid-template-columns: 20rem 34rem minmax(24rem, 36rem);
   }
 
   /* The stage's artifact — the height map, the graphs — takes the width instead. */
   .calibration-bench--wide-live .calibration-bench__columns {
-    grid-template-columns: 17rem minmax(24rem, 32rem) minmax(0, 1fr);
+    grid-template-columns: 20rem minmax(24rem, 32rem) minmax(0, 1fr);
   }
 }
 
@@ -13327,7 +13327,7 @@ body.machine-editor-fullscreen-open {
   border-radius: 0.2rem;
   background: var(--surface-soft);
   font-family: var(--font-mono);
-  font-size: var(--text-meta-size);
+  font-size: var(--text-mono-name-size);
 }
 
 .calibration-result {
@@ -13483,10 +13483,15 @@ body.machine-editor-fullscreen-open {
   font-size: var(--text-hint-size);
 }
 
+/*
+ * Centred, not end-aligned: AppField centres its box inside a fixed envelope
+ * that also holds the notched label, so aligning ends put a same-tier button's
+ * bottom on the envelope's clearance, half a rem below the box beside it.
+ */
 .calibration-step__controls {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-end;
+  align-items: center;
   gap: 0.5rem;
 }
 

@@ -403,6 +403,11 @@
         "description": "Beveger én motor frem og tilbake for å bekrefte kobling og retning.",
         "detail": "Beveger valgt motor 1 mm frem og tilbake ti ganger. Se hvilken motor som beveger seg, og at den går riktig vei."
       },
+      "axisRotation": {
+        "name": "Rotasjonsdistanse for akser",
+        "description": "Regner ut rotation_distance fra reim og trinse eller gjengestang, eller fra en målt bevegelse.",
+        "detail": "Reimdeling × tenner på trinsa, eller stigning × gjengestarter. Utveksling og motorens stegvinkel er egne innstillinger, og stegvinkelen endrer steg per mm, ikke rotation_distance. En målt bevegelse sjekker en gjengestang og avslører en motor satt opp med feil stegvinkel."
+      },
       "zEndstop": {
         "name": "Z-endestoppens posisjon",
         "description": "Papirtest under dysen; setter position_endstop for Z.",
@@ -545,8 +550,8 @@
       },
       "rotationDistance": {
         "name": "Rotasjonsdistanse",
-        "description": "Måler hvor langt ekstruderen faktisk flytter filamentet, og korrigerer.",
-        "detail": "Merk filamentet over ekstruderen, ekstruder en kjent lengde sakte, og mål det som er igjen til merket. Ny rotation_distance er den gamle skalert etter hvor langt filamentet faktisk flyttet seg."
+        "description": "Regner ut hvor langt ekstruderen flytter filamentet, fra drivhjulet eller en målt ekstrudering.",
+        "detail": "En ny ekstruder starter fra drivhjulet og utvekslingen. En målt ekstrudering korrigerer: merk filamentet over ekstruderen, ekstruder en kjent lengde sakte, og mål det som er igjen til merket."
       },
       "pressureAdvance": {
         "name": "Trykkforsprang",
@@ -557,6 +562,66 @@
         "name": "Filamentsensorer",
         "description": "Hver filamentsensors tilstand, direkte.",
         "detail": "Trekk filamentet tilbake forbi en sensor og se den endre seg. En sensor som viser tomt mens filament er lastet er en feil, ikke en tom spole."
+      }
+    },
+    "drive": {
+      "method": "Metode",
+      "methodHardware": "Fra maskinvaren",
+      "methodMeasure": "Mål en bevegelse",
+      "methodMeasureExtrude": "Mål en ekstrudering",
+      "kind": "Drift",
+      "belt": "Reim og trinse",
+      "leadScrew": "Gjengestang",
+      "driveGear": "Drivhjul",
+      "beltType": "Reim",
+      "screwType": "Stang",
+      "preset": {
+        "2gt": "2GT · 2 mm deling",
+        "3gt": "3GT · 3 mm deling",
+        "htd5m": "HTD 5M · 5 mm deling",
+        "t8l8": "T8 · 8 mm per omdreining, 4 starter",
+        "t8l4": "T8 · 4 mm per omdreining, 2 starter",
+        "t8l2": "T8 · 2 mm per omdreining, 1 start",
+        "sfu1204": "SFU1204 kuleskrue · 4 mm per omdreining",
+        "sfu1605": "SFU1605 kuleskrue · 5 mm per omdreining",
+        "custom": "Annen"
+      },
+      "pitch": "Stigning",
+      "teeth": "Tenner på trinsa",
+      "starts": "Starter",
+      "diameter": "Effektiv diameter",
+      "diameterHint": "Der tennene biter, litt under hjulets ytre diameter. En målt ekstrudering korrigerer den.",
+      "gearRatio": "Utveksling",
+      "gearRatioNone": "Ingen",
+      "gearRatioHint": "Bare for en utveksling mellom motoren og det den driver, som drevet:drivende — 50:17, 80:20.",
+      "gearRatioInvalid": "En utveksling skrives drevet:drivende, for eksempel 50:17 eller 80:20.",
+      "stepAngle": "Motorens stegvinkel",
+      "angle": {
+        "200": "1,8° · 200 steg",
+        "400": "0,9° · 400 steg",
+        "other": "{steps} steg, som konfigurert"
+      },
+      "stepsPerMm": "Steg per mm",
+      "fullStep": "mm per fullsteg",
+      "microstep": "mm per mikrosteg",
+      "alsoWrite": "Skriv også til",
+      "write": "Skriv til konfigurasjonen",
+      "nothingToWrite": "Konfigurasjonen har allerede disse verdiene.",
+      "removeGearRatio": "Konfigurasjonen setter gear_ratio for {section}. Den må fjernes i Konfigurasjon først.",
+      "measure": {
+        "belt": "Reimakse: Klipper anbefaler den utregnede verdien. En målt bevegelse måler mest skyvelæret og strekket i reima.",
+        "place": "Sett et måleur eller skyvelær mot den delen av {axis}-aksen som beveger seg.",
+        "move": "Flytt aksen en kjent lengde, sakte.",
+        "distance": "Lengde",
+        "moveBy": "Flytt {axis} {distance}",
+        "read": "Les av hvor langt den faktisk flyttet seg.",
+        "measured": "Flyttet",
+        "outOfRange": "Begge veier går forbi akseområdet fra der verktøyhodet står.",
+        "notMoved": "Dette er verdien målingen din gir. Flytt fra dette panelet for at den skal telle.",
+        "half": "Halve lengden: en 0,9°-motor satt opp som 1,8°. Rettelsen er full_steps_per_rotation: {steps}, ikke rotation_distance.",
+        "double": "Dobbel lengde: en 1,8°-motor satt opp som 0,9°. Rettelsen er full_steps_per_rotation: {steps}, ikke rotation_distance.",
+        "halfExtrude": "Halve lengden: en 0,9°-motor satt opp som 1,8°. Rettelsen er full_steps_per_rotation: {steps}, ikke rotation_distance.",
+        "doubleExtrude": "Dobbel lengde: en 1,8°-motor satt opp som 0,9°. Rettelsen er full_steps_per_rotation: {steps}, ikke rotation_distance."
       }
     }
   },

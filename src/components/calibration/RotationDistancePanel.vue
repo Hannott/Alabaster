@@ -4,32 +4,41 @@ import { useI18n } from 'vue-i18n'
 
 import AppButton from '@/components/AppButton.vue'
 import AppField from '@/components/AppField.vue'
+import RotationHardwareFields, {
+  type RotationProposal,
+} from '@/components/calibration/RotationHardwareFields.vue'
+import RotationResult from '@/components/calibration/RotationResult.vue'
 import { useAvailability } from '@/composables/useAvailability'
 import { useProcedureText } from '@/composables/useProcedureText'
+import { formatNumber, stepperDrive, suggestedFullSteps } from '@/features/calibration/axisRotation'
 import { rotationDistanceFrom } from '@/features/calibration/rotationDistance'
-import { useCalibrationStore, type PersistActionOutcome } from '@/stores/calibration'
+import { useCalibrationStore } from '@/stores/calibration'
 import { usePrinterStore } from '@/stores/printer'
 import { usePrinterConfigStore } from '@/stores/printerConfig'
-import { useQuickConfigStore } from '@/stores/quickConfig'
 import { useTelemetryStore } from '@/stores/telemetry'
 
 /**
- * Rotation distance, measured the way the Klipper documentation describes:
- * mark the filament a known length above the extruder, extrude less than
- * that, measure what is left, and scale the configured value by how far the
- * filament actually moved.
+ * The extruder's rotation distance, two ways.
  *
+ * Measured, the way the Klipper documentation describes: mark the filament a
+ * known length above the extruder, extrude less than that, measure what is
+ * left, and scale the configured value by how far the filament actually moved.
  * A guided panel rather than a form because the measurement is the reader's,
- * taken with a ruler between two steps the printer does. The new value goes to
- * the config line Klipper uses, through the same locator Quick config writes
- * with — never silently: it is offered, and it takes a firmware restart to
- * apply, which the header's restart already says.
+ * taken with a ruler between two steps the printer does.
+ *
+ * From the hardware: the drive gear's effective diameter, the gear ratio of a
+ * geared extruder, and the motor's step angle. A drive gear bites to a depth
+ * the part's own numbers do not state, so this is the starting value a new
+ * extruder needs before the first measurement, not a replacement for it.
+ *
+ * Either result goes to the config lines Klipper uses, through the same
+ * locator Quick config writes with — never silently: it is offered, and it
+ * takes a firmware restart to apply, which the header's restart already says.
  */
 const { t } = useI18n({ useScope: 'global' })
 const calibration = useCalibrationStore()
 const printer = usePrinterStore()
 const printerConfig = usePrinterConfigStore()
-const quickConfig = useQuickConfigStore()
 const telemetry = useTelemetryStore()
 const { when } = useProcedureText()
 const { availability: klipperAvailability } = useAvailability('klipper')
@@ -44,10 +53,12 @@ const marked = ref(requested.value + 20)
 const remaining = ref<number | null>(null)
 const heatTarget = ref(200)
 
-const current = computed(() => {
-  const value = printerConfig.section('extruder')?.rotation_distance
-  return typeof value === 'number' && Number.isFinite(value) ? value : null
-})
+type Method = 'measure' | 'hardware'
+const method = ref<Method>('measure')
+
+const configured = computed(() => stepperDrive(printerConfig.section('extruder')))
+const current = computed(() => configured.value.rotationDistance)
+const hardwareProposal = ref<RotationProposal | null>(null)
 const hotend = computed(() => telemetry.hotend)
 const hotEnough = computed(
   () => (hotend.value.temperature ?? 0) >= printerConfig.minExtrudeTemperature,
@@ -58,6 +69,42 @@ const proposed = computed(() =>
     ? null
     : rotationDistanceFrom(current.value, requested.value, marked.value, remaining.value),
 )
+
+/*
+ * An extruder that fed half or twice what it was asked is a motor configured
+ * with the wrong step angle, the same as on an axis — see `suggestedFullSteps`.
+ */
+const fullStepsHint = computed(() =>
+  remaining.value === null
+    ? null
+    : suggestedFullSteps(
+        configured.value.fullSteps,
+        requested.value,
+        marked.value - remaining.value,
+      ),
+)
+
+const measuredProposal = computed(() => {
+  if (proposed.value === null || current.value === null) return null
+  const base = { gearRatio: configured.value.gearRatio, fullSteps: configured.value.fullSteps }
+  return fullStepsHint.value === null
+    ? { ...base, rotationDistance: Number(formatNumber(proposed.value, 4)) }
+    : { ...base, rotationDistance: current.value, fullSteps: fullStepsHint.value }
+})
+
+const proposal = computed(() =>
+  method.value === 'hardware' ? hardwareProposal.value : measuredProposal.value,
+)
+const logValues = computed((): Record<string, string> => {
+  if (method.value === 'hardware')
+    return { method: 'hardware', ...(hardwareProposal.value?.values ?? {}) }
+  return {
+    method: 'measure',
+    requested: String(requested.value),
+    marked: String(marked.value),
+    remaining: String(remaining.value),
+  }
+})
 
 const extruding = ref(false)
 const extruded = ref(false)
@@ -86,33 +133,6 @@ async function extrude(): Promise<void> {
   }
 }
 
-const writeOutcome = ref<PersistActionOutcome | null>(null)
-const writing = ref(false)
-
-async function write(): Promise<void> {
-  if (proposed.value === null || current.value === null) return
-  writing.value = true
-  try {
-    const value = proposed.value.toFixed(3)
-    const result = await quickConfig.persistOption('extruder', 'rotation_distance', value)
-    writeOutcome.value = result.status
-    if (result.status !== 'refused') {
-      calibration.recordManual(
-        'rotationDistance',
-        {
-          requested: String(requested.value),
-          marked: String(marked.value),
-          remaining: String(remaining.value),
-        },
-        [{ label: { literal: 'rotation_distance' }, before: String(current.value), after: value }],
-        'measured',
-      )
-    }
-  } finally {
-    writing.value = false
-  }
-}
-
 const history = computed(() =>
   [...calibration.historyFor('rotationDistance')].reverse().slice(0, 5),
 )
@@ -138,7 +158,28 @@ const history = computed(() =>
       {{ t('calibration.procedure.rotationDistance.detail') }}
     </p>
 
-    <ol class="calibration-steps">
+    <fieldset class="calibration-choice">
+      <legend class="calibration-choice__legend">{{ t('calibration.drive.method') }}</legend>
+      <label class="check-row check-row--block calibration-choice__row">
+        <input v-model="method" type="radio" name="extruder-rotation-method" value="measure" />
+        <span>{{ t('calibration.drive.methodMeasureExtrude') }}</span>
+      </label>
+      <label class="check-row check-row--block calibration-choice__row">
+        <input v-model="method" type="radio" name="extruder-rotation-method" value="hardware" />
+        <span>{{ t('calibration.drive.methodHardware') }}</span>
+      </label>
+    </fieldset>
+
+    <RotationHardwareFields
+      v-if="method === 'hardware'"
+      v-model:proposal="hardwareProposal"
+      :drives="['driveGear']"
+      initial-drive="driveGear"
+      :configured="configured"
+      name="extruder-rotation"
+    />
+
+    <ol v-else class="calibration-steps">
       <li class="calibration-step">
         <span class="calibration-step__text">{{
           t('calibration.rotation.heat', {
@@ -223,45 +264,33 @@ const history = computed(() =>
       </li>
     </ol>
 
-    <p v-if="!hotEnough" class="calibration-panel__hint">{{ t('calibration.rotation.tooCold') }}</p>
-
-    <div v-if="proposed !== null && current !== null" class="calibration-result" role="status">
-      <table class="calibration-result__table">
-        <thead>
-          <tr>
-            <th scope="col">{{ t('calibration.result.value') }}</th>
-            <th scope="col">{{ t('calibration.result.before') }}</th>
-            <th scope="col">{{ t('calibration.result.now') }}</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <th scope="row">rotation_distance</th>
-            <td class="calibration-result__number">{{ current }}</td>
-            <td class="calibration-result__number calibration-result__number--changed">
-              {{ proposed.toFixed(3) }}
-            </td>
-          </tr>
-        </tbody>
-      </table>
-      <div class="calibration-result__actions">
-        <AppButton
-          size="sm"
-          variant="primary"
-          icon="save"
-          :label="t('calibration.result.keepInFile', { option: 'rotation_distance' })"
-          :pending="writing"
-          :disabled="!klipperAvailability.isAvailable || writing"
-          @click="write"
-        />
-        <span v-if="writeOutcome" class="calibration-panel__hint">{{
-          t(`calibration.result.persist.${writeOutcome}`)
-        }}</span>
-      </div>
-      <p v-if="!extruded" class="calibration-panel__hint">
+    <template v-if="method === 'measure'">
+      <p v-if="!hotEnough" class="calibration-panel__hint">
+        {{ t('calibration.rotation.tooCold') }}
+      </p>
+      <p v-if="fullStepsHint !== null" class="calibration-panel__hint">
+        {{
+          t(
+            fullStepsHint > configured.fullSteps
+              ? 'calibration.drive.measure.halfExtrude'
+              : 'calibration.drive.measure.doubleExtrude',
+            { steps: fullStepsHint },
+          )
+        }}
+      </p>
+      <p v-if="measuredProposal && !extruded" class="calibration-panel__hint">
         {{ t('calibration.rotation.notExtruded') }}
       </p>
-    </div>
+    </template>
+
+    <RotationResult
+      v-if="proposal"
+      :configured="configured"
+      :proposed="proposal"
+      :targets="['extruder']"
+      log-id="rotationDistance"
+      :log-values="logValues"
+    />
 
     <div v-if="history.length > 0" class="calibration-history">
       <h3 class="calibration-history__title">{{ t('calibration.bench.history') }}</h3>
