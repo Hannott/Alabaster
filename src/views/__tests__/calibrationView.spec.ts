@@ -98,6 +98,37 @@ function stageLabels(view: VueWrapper): string[] {
   return stageTabs(view).map((button) => button.text())
 }
 
+function tuningResult(folder: string, stem: string, modified: number): ShakeTuneResult {
+  const path = `K-ShakeTune_results/${folder}/${stem}.png`
+  return {
+    name: `${stem}.png`,
+    path,
+    modified,
+    url: `https://printer.local/server/files/config/${path}`,
+  }
+}
+
+/**
+ * Shake&Tune installed, so the resonance stage exists to be asked for. Results
+ * are seeded after mount, because the panel's own `start()` refreshes the
+ * directory as it mounts and would clear anything seeded before it.
+ */
+async function mountResonance() {
+  vi.spyOn(useMacrosStore(pinia), 'hasMacro').mockImplementation(
+    (name: string) => name === 'AXES_SHAPER_CALIBRATION',
+  )
+  return mountView('resonance')
+}
+
+function seedTuningResults(): void {
+  const shakeTune = useShakeTuneStore(pinia)
+  shakeTune.resultsByCategory.inputShaper = [
+    tuningResult('input_shaper', 'shaper_x_new', 300),
+    tuningResult('input_shaper', 'shaper_x_old', 100),
+  ]
+  shakeTune.resultsByCategory.belts = [tuningResult('belts', 'belts_mid', 200)]
+}
+
 describe('Calibration view', () => {
   /**
    * The stage strip is the page's answer to "what is this destination for". The page
@@ -541,40 +572,136 @@ describe('Calibration view', () => {
   })
 
   /**
-   * A thumbnail used to be a plain link to the PNG, which a browser either
-   * downloads or opens in its own tab — neither lets Escape, an [x], or a
-   * click outside get back to the gallery the way the file explorer's own
-   * image preview does.
+   * The rows name results and carry no image, and only the graph being read is
+   * fetched: these PNGs are several megabytes each, served by the printer's own
+   * host, and the thumbnail strip this replaced downloaded every one of them at
+   * full size just to paint a crop.
    */
-  it('opens a tuning thumbnail in a lightbox instead of linking to the file', async () => {
-    // Shake&Tune installed, so the resonance stage exists to be asked for. The
-    // results themselves land after mount, because the panel's own `start()`
-    // refreshes the directory as it mounts and would clear anything seeded
-    // before it.
-    vi.spyOn(useMacrosStore(pinia), 'hasMacro').mockImplementation(
-      (name: string) => name === 'COMPARE_BELTS_RESPONSES',
-    )
-    const view = await mountView('resonance')
-
-    const result: ShakeTuneResult = {
-      name: 'belts_20260810_090000_x.png',
-      path: 'K-ShakeTune_results/belts/belts_20260810_090000_x.png',
-      modified: 10,
-      url: 'https://printer.local/server/files/config/K-ShakeTune_results/belts/belts_20260810_090000_x.png',
-    }
-    useShakeTuneStore(pinia).resultsByCategory.belts = [result]
+  it('lists tuning results as rows and fetches only the graph on screen', async () => {
+    const view = await mountResonance()
+    seedTuningResults()
     await flushPromises()
 
-    const thumb = view.find('.calibration-tuning-thumb')
-    expect(thumb.exists()).toBe(true)
-    expect(thumb.element.tagName).toBe('BUTTON')
-    expect(thumb.attributes('href')).toBeUndefined()
+    const rows = view.findAll('.calibration-tuning-result')
+    expect(rows.map((row) => row.find('.calibration-tuning-result__name').text())).toEqual([
+      'shaper_x_new',
+      'shaper_x_old',
+      'belts_mid',
+    ])
+    expect(rows.every((row) => !row.find('img').exists())).toBe(true)
 
-    await thumb.trigger('click')
+    const images = view.findAll('.calibration-tuning__pane img')
+    expect(images).toHaveLength(1)
+    expect(images[0]!.attributes('src')).toBe(tuningResult('input_shaper', 'shaper_x_new', 300).url)
+    expect(view.findAll('.calibration-panel img')).toHaveLength(1)
+    expect(rows[0]!.attributes('aria-current')).toBe('true')
+  })
+
+  it('shows the graph for whichever row is picked', async () => {
+    const view = await mountResonance()
+    seedTuningResults()
+    await flushPromises()
+
+    const belts = view
+      .findAll('.calibration-tuning-result')
+      .find((row) => row.text().includes('belts_mid'))
+    await belts!.trigger('click')
+
+    expect(view.get('.calibration-tuning__pane img').attributes('src')).toBe(
+      tuningResult('belts', 'belts_mid', 200).url,
+    )
+    expect(belts!.attributes('aria-current')).toBe('true')
+  })
+
+  /**
+   * Any two rows, across categories: a belts graph beside an input shaper graph
+   * is how "did tensioning the belts change the shaper result" gets read. The
+   * second row says so in words, not only with a differently colored bar.
+   */
+  it('puts a second graph beside the first in compare mode', async () => {
+    const view = await mountResonance()
+    seedTuningResults()
+    await flushPromises()
+
+    const compare = view
+      .findAll('.calibration-panel__actions button')
+      .find((button) => button.text() === 'Compare')
+    await compare!.trigger('click')
+    expect(compare!.attributes('aria-pressed')).toBe('true')
+    expect(view.text()).toContain('Choose a graph to compare')
+
+    const belts = view
+      .findAll('.calibration-tuning-result')
+      .find((row) => row.text().includes('belts_mid'))
+    await belts!.trigger('click')
+
+    const sources = view
+      .findAll('.calibration-tuning__pane img')
+      .map((img) => img.attributes('src'))
+    expect(sources).toEqual([
+      tuningResult('input_shaper', 'shaper_x_new', 300).url,
+      tuningResult('belts', 'belts_mid', 200).url,
+    ])
+    expect(belts!.text()).toContain('Compared')
+
+    await compare!.trigger('click')
+    expect(view.findAll('.calibration-tuning__pane img')).toHaveLength(1)
+    expect(belts!.text()).not.toContain('Compared')
+  })
+
+  /**
+   * A run that finishes presents its own graph — but only a result newer than
+   * the previous newest does, so deleting a file never yanks the pane away
+   * from a graph the reader chose.
+   */
+  it('moves to a freshly written graph, and never to one that only became newest', async () => {
+    const view = await mountResonance()
+    seedTuningResults()
+    await flushPromises()
+
+    const old = view
+      .findAll('.calibration-tuning-result')
+      .find((row) => row.text().includes('shaper_x_old'))
+    await old!.trigger('click')
+
+    const shakeTune = useShakeTuneStore(pinia)
+    shakeTune.resultsByCategory.inputShaper = shakeTune.resultsByCategory.inputShaper.filter(
+      (result) => !result.name.startsWith('shaper_x_new'),
+    )
+    await flushPromises()
+    expect(view.get('.calibration-tuning__pane img').attributes('src')).toBe(
+      tuningResult('input_shaper', 'shaper_x_old', 100).url,
+    )
+
+    shakeTune.resultsByCategory.inputShaper = [
+      tuningResult('input_shaper', 'shaper_y_fresh', 400),
+      ...shakeTune.resultsByCategory.inputShaper,
+    ]
+    await flushPromises()
+    expect(view.get('.calibration-tuning__pane img').attributes('src')).toBe(
+      tuningResult('input_shaper', 'shaper_y_fresh', 400).url,
+    )
+  })
+
+  /**
+   * The graph used to be reachable only as a plain link to the PNG, which a
+   * browser either downloads or opens in its own tab — neither lets Escape, an
+   * [x], or a click outside get back to the page.
+   */
+  it('opens the graph being read in a lightbox', async () => {
+    const view = await mountResonance()
+    seedTuningResults()
+    await flushPromises()
+
+    const graph = view.get('.calibration-tuning__graph')
+    expect(graph.element.tagName).toBe('BUTTON')
+    await graph.trigger('click')
 
     const lightbox = view.get('dialog.image-lightbox')
     expect((lightbox.element as HTMLDialogElement).open).toBe(true)
-    expect(lightbox.get('img').attributes('src')).toBe(result.url)
+    expect(lightbox.get('img').attributes('src')).toBe(
+      tuningResult('input_shaper', 'shaper_x_new', 300).url,
+    )
 
     await lightbox.get('button').trigger('click')
     expect((lightbox.element as HTMLDialogElement).open).toBe(false)

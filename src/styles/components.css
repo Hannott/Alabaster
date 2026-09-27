@@ -13294,33 +13294,148 @@ body.machine-editor-fullscreen-open {
 }
 
 /*
- * A horizontal strip, not a wrapping grid: these are read newest-first, and a
- * row keeps that order legible instead of reflowing into a block a wide
- * category and a narrow one would size differently.
+ * The resonance stage reads a graph rather than browsing crops of them. It used
+ * to be one horizontal strip of `object-fit: cover` thumbnails per category,
+ * and three failures shared that one rule: a cover-crop of a dense diagnostic
+ * PNG shows the same corner of every graph, so no two results could be told
+ * apart without opening them; the lightbox was the only place a graph was
+ * legible, so comparing two runs meant alternating a modal from memory; and
+ * every result in every category was fetched at full size — several megabytes
+ * each, from the printer's own host — just to paint those crops.
+ *
+ * So the rows name the results (file name, date) and carry no image, and a
+ * standing pane renders the one or two being read. Pane first, list second,
+ * for the reason the bed stage's map leads: the artifact is what the stage is
+ * for, and a stacked narrow viewport opens on it.
  */
-.calibration-tuning-strip {
-  display: flex;
-  gap: 0.5rem;
-  overflow-x: auto;
-  padding-block-end: 0.25rem;
+.calibration-tuning {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.25rem;
+  align-items: start;
 }
 
-.calibration-tuning-thumb {
+@container calibration-canvas (min-width: 56rem) {
+  .calibration-tuning--reading {
+    grid-template-columns: minmax(0, 1fr) minmax(17rem, 22rem);
+  }
+}
+
+.calibration-tuning__pane {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+/*
+ * Side by side only where each graph still gets a readable width; below that a
+ * comparison stacks, which costs scrolling rather than legibility.
+ */
+@container calibration-canvas (min-width: 92rem) {
+  .calibration-tuning__pane--comparing {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.calibration-tuning__figure {
+  display: grid;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+/*
+ * A `brand-trigger` (button-system.md): the graph is the whole control and is
+ * sized by the pane, not by the button scale. The block-size cap keeps a tall
+ * graph on screen with its caption rather than pushing it below the fold; the
+ * PNG carries its own white plot background, so nothing here tints it.
+ */
+.calibration-tuning__graph {
+  display: flex;
+  justify-content: center;
+  inline-size: 100%;
+  cursor: zoom-in;
+}
+
+.calibration-tuning__graph img {
   display: block;
-  flex: 0 0 auto;
-  overflow: hidden;
-  padding: 0;
+  max-inline-size: 100%;
+  max-block-size: min(70vh, 52rem);
   border: 1px solid var(--border-subtle);
   border-radius: 0.6rem;
-  background: var(--surface-soft);
-  cursor: pointer;
 }
 
-.calibration-tuning-thumb img {
-  display: block;
-  width: 10rem;
-  height: 7rem;
-  object-fit: cover;
+.calibration-tuning__caption {
+  overflow: hidden;
+  font-family: var(--font-mono);
+  font-size: var(--text-meta-size);
+  color: var(--text-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.calibration-tuning__pick {
+  align-self: center;
+  justify-self: center;
+  padding: 2rem 1rem;
+}
+
+.calibration-tuning__index {
+  display: grid;
+  min-width: 0;
+  align-content: start;
+}
+
+.calibration-tuning-results {
+  display: grid;
+  gap: 0.15rem;
+}
+
+/*
+ * Composed on `file-select`, which owns the type, color, hover, and focus, as
+ * `history-job` is — a Shake&Tune result and a finished job pick themselves out
+ * of a list the same way. Name over date rather than beside it, because the
+ * index column is narrow and Shake&Tune's file names are long.
+ */
+.calibration-tuning-result {
+  display: grid;
+  inline-size: 100%;
+  gap: 0.1rem;
+  min-height: 2.75rem;
+  padding: 0.4rem 0.65rem;
+}
+
+.calibration-tuning-result:hover:not(:disabled) {
+  background-color: var(--surface-raised);
+}
+
+.calibration-tuning-result--selected {
+  background-color: var(--surface-raised);
+  box-shadow: inset 0.22rem 0 var(--action-primary);
+  color: var(--text-primary);
+}
+
+/*
+ * The comparison is the same bar in the muted role, plus the word "Compared"
+ * in the row's own meta line — the word is what carries the difference, so it
+ * never rests on the two colors alone.
+ */
+.calibration-tuning-result--compared {
+  box-shadow: inset 0.22rem 0 var(--text-muted);
+  color: var(--text-primary);
+}
+
+.calibration-tuning-result__name {
+  overflow: hidden;
+  font-family: var(--font-mono);
+  font-size: var(--text-meta-size);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.calibration-tuning-result__meta {
+  font-size: var(--text-meta-size);
+  color: var(--text-muted);
 }
 
 /*

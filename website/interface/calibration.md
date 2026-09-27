@@ -220,7 +220,12 @@ folder.
 | Axes map           | The accelerometer orientation check.   |
 | Static frequency   | A single-frequency measurement.        |
 
-Open any of them at full size.
+Every graph is listed by name and date, and the newest one is open beside the
+list. A test you run from here opens its own graph when it finishes.
+
+**Compare** puts two graphs side by side, from any two tests: a belts
+comparison beside an input shaper result shows what tensioning the belts did.
+Click a graph to open it at full size.
 
 Tuning results appear on the same page as the mesh and the belts you are
 comparing them against.
