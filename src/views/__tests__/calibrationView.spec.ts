@@ -1,5 +1,5 @@
 import { createPinia, setActivePinia, type Pinia } from 'pinia'
-import { enableAutoUnmount, flushPromises, mount } from '@vue/test-utils'
+import { enableAutoUnmount, flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMemoryHistory, createRouter, type Router } from 'vue-router'
 
@@ -69,7 +69,7 @@ function testRouter(): Router {
 
 /**
  * Mounts the page and, when asked, selects a stage the way a reader does —
- * by clicking its rail entry. There is no URL to mount straight onto: the stage
+ * by clicking its tab. There is no URL to mount straight onto: the stage
  * is component state on purpose, because `App.vue` keys the routed component on
  * `route.fullPath` and a query change would remount the page under the docked
  * console. Passing nothing is what somebody arriving from the sidebar gets.
@@ -81,22 +81,26 @@ async function mountView(stage?: string) {
   await flushPromises()
   if (stage) {
     const label = i18n.global.t(`calibration.stages.${stage}`)
-    const entry = view.findAll('.calibration-rail-button').find((b) => b.text() === label)
-    if (!entry) throw new Error(`the rail offers no "${label}" stage on this machine`)
+    const entry = stageTabs(view).find((b) => b.text() === label)
+    if (!entry) throw new Error(`the strip offers no "${label}" stage on this machine`)
     await entry.trigger('click')
     await flushPromises()
   }
   return view
 }
 
-/** The rail's own entries, which are what the page offers this machine. */
-function railLabels(view: Awaited<ReturnType<typeof mountView>>): string[] {
-  return view.findAll('.calibration-rail-button').map((button) => button.text())
+function stageTabs(view: VueWrapper) {
+  return view.findAll('.calibration-stages [role="group"] .tab-select')
+}
+
+/** The strip's own tabs, which are what the page offers this machine. */
+function stageLabels(view: VueWrapper): string[] {
+  return stageTabs(view).map((button) => button.text())
 }
 
 describe('Calibration view', () => {
   /**
-   * The rail is the page's answer to "what is this destination for". The page
+   * The stage strip is the page's answer to "what is this destination for". The page
    * heading may not carry a standing description — `interface-standards.md`
    * forbids one — so what tells a first-time visitor is the list of jobs itself,
    * and it has to be this machine's jobs rather than a menu of everything
@@ -110,24 +114,20 @@ describe('Calibration view', () => {
 
     const view = await mountView()
 
-    expect(railLabels(view)).toEqual(['Axes & frame', 'Bed & probe', 'Extrusion'])
+    expect(stageLabels(view)).toEqual(['Axes & frame', 'Bed & probe', 'Extrusion'])
   })
 
   /**
-   * The stage lives in the route query, so a link into the tuning graphs is a
-   * link somebody can keep — and `replace` rather than `push`, so stepping
-   * through five stages of one sitting leaves no trail for the back button to
-   * walk out of.
+   * A group of toggles rather than a tablist, per `button-system.md`'s
+   * `tab-select` entry, so the selection is carried by `aria-pressed`.
    */
-  it('shows only the selected stage and marks its rail entry current', async () => {
+  it('shows only the selected stage and marks its tab pressed', async () => {
     const printerConfig = await import('@/stores/printerConfig')
     vi.spyOn(printerConfig.usePrinterConfigStore(pinia), 'hasBedMesh', 'get').mockReturnValue(true)
 
     const view = await mountView('bed')
 
-    const current = view
-      .findAll('.calibration-rail-button')
-      .filter((button) => button.attributes('aria-current') === 'true')
+    const current = stageTabs(view).filter((button) => button.attributes('aria-pressed') === 'true')
     expect(current).toHaveLength(1)
     expect(current[0]!.text()).toBe('Bed & probe')
     expect(view.text()).toContain('Bed mesh profiles')
@@ -135,9 +135,30 @@ describe('Calibration view', () => {
   })
 
   /**
+   * Below 48rem CSS swaps the strip for a `<select>`, and both are always in
+   * the DOM — so they have to offer the same stages and drive the same
+   * selection, or the two representations of "pick a job" disagree.
+   */
+  it('offers the same stages in the narrow-screen select, and switches with it', async () => {
+    const printerConfig = await import('@/stores/printerConfig')
+    vi.spyOn(printerConfig.usePrinterConfigStore(pinia), 'hasBedMesh', 'get').mockReturnValue(true)
+
+    const view = await mountView()
+    const select = view.get('.calibration-stages__select')
+    expect(select.findAll('option').map((option) => option.text())).toEqual(stageLabels(view))
+
+    await select.setValue('bed')
+    await flushPromises()
+
+    const pressed = stageTabs(view).find((button) => button.attributes('aria-pressed') === 'true')
+    expect(pressed?.text()).toBe('Bed & probe')
+    expect(view.text()).toContain('Bed mesh profiles')
+  })
+
+  /**
    * A stage whose hardware disappears mid-sitting — a Shake&Tune uninstall, a
    * config reload without `[bed_mesh]` — falls back rather than leaving the
-   * canvas empty under a rail entry that no longer exists.
+   * canvas empty under a tab that no longer exists.
    */
   it('falls back when the selected stage stops being available', async () => {
     const printerConfig = await import('@/stores/printerConfig')
@@ -153,7 +174,7 @@ describe('Calibration view', () => {
     config.settings = {} as never
     await flushPromises()
 
-    expect(railLabels(view)).toEqual(['Axes & frame'])
+    expect(stageLabels(view)).toEqual(['Axes & frame'])
     expect(view.text()).toContain('Endstops')
     expect(view.text()).not.toContain('Bed mesh profiles')
   })
@@ -231,7 +252,7 @@ describe('Calibration view', () => {
 
     const view = await mountView('heaters')
 
-    expect(railLabels(view)).toContain('Heaters')
+    expect(stageLabels(view)).toContain('Heaters')
     expect(view.findComponent(HeaterCalibrationPanel).exists()).toBe(true)
   })
 
@@ -269,14 +290,14 @@ describe('Calibration view', () => {
 
   /**
    * The gate moved up a level: a printer that can neither mesh, probe, nor level
-   * has no bed job at all, so the rail never offers the stage rather than
+   * has no bed job at all, so the strip never offers the stage rather than
    * offering one whose cards are all absent. A stage nobody can act on reads as
-   * a broken page; a rail entry fewer reads as a machine without that hardware.
+   * a broken page; a tab fewer reads as a machine without that hardware.
    */
   it('offers no bed stage at all on a printer that cannot mesh, probe or level', async () => {
     const view = await mountView()
 
-    expect(railLabels(view)).toEqual(['Axes & frame'])
+    expect(stageLabels(view)).toEqual(['Axes & frame'])
     expect(view.text()).not.toContain('Bed mesh profiles')
   })
 
@@ -286,7 +307,7 @@ describe('Calibration view', () => {
 
     const view = await mountView('bed')
 
-    expect(railLabels(view)).toContain('Bed & probe')
+    expect(stageLabels(view)).toContain('Bed & probe')
     expect(view.text()).toContain('Probe accuracy')
     expect(view.text()).not.toContain('Bed mesh profiles')
   })
@@ -749,7 +770,7 @@ describe('Calibration view', () => {
   it('offers no extrusion stage on a printer with neither an extruder nor sensors', async () => {
     const view = await mountView()
 
-    expect(railLabels(view)).not.toContain('Extrusion')
+    expect(stageLabels(view)).not.toContain('Extrusion')
     expect(view.text()).not.toContain('Runout sensors')
   })
 
@@ -767,7 +788,7 @@ describe('Calibration view', () => {
   it('offers no resonance stage with neither results, an accelerometer, nor Shake&Tune', async () => {
     const view = await mountView()
 
-    expect(railLabels(view)).not.toContain('Resonance')
+    expect(stageLabels(view)).not.toContain('Resonance')
     expect(view.text()).not.toContain('Tuning results')
   })
 

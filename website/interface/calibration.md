@@ -5,8 +5,8 @@ leaving it. Each job has its own controls, readings, and console output.
 
 ## The jobs
 
-A rail lists the calibration jobs, in the order the physical dependencies run.
-Picking one gives it the page.
+The tabs under the page title list the calibration jobs, in the order the
+physical dependencies run. Picking one gives it the page.
 
 | Job              | What it covers                                                                                            |
 | ---------------- | --------------------------------------------------------------------------------------------------------- |

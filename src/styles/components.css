@@ -12438,7 +12438,7 @@ body.machine-editor-fullscreen-open {
  * "Load older jobs" — so the pane holding the chosen job's figures and its
  * three actions used to scroll away while the rows it was describing kept
  * going. Sticky against `.standard-page`'s own scrolling, the same mechanism
- * `.settings-rail` and `.calibration-rail` use. It needs no z-index and no
+ * `.settings-rail` and `.calibration-stages` use. It needs no z-index and no
  * backdrop, unlike those two: the panes sit side by side and never overlap.
  *
  * **The offset cancels the page shell's top padding**, which is why it is
@@ -12446,7 +12446,7 @@ body.machine-editor-fullscreen-open {
  * edge — inside its own padding — so a bare `1rem` here is 1rem *plus* a page
  * inset that grows with the viewport: measured at 41.6 px on a 1280 px-wide
  * window, which reads as stopping short of the top rather than at it. Both
- * rails carry a negative offset for exactly this reason.
+ * carry a negative offset for exactly this reason.
  *
  * **The height cap is what makes the pin safe rather than a trap.** A pinned
  * box taller than the scrollport stops moving with its own bottom still below
@@ -12820,7 +12820,7 @@ body.machine-editor-fullscreen-open {
  * page card and adds only the two lists' own shapes.
  */
 /*
- * The bench: a rail naming the calibration jobs, and one canvas for the
+ * The bench: a tab strip naming the calibration jobs, and one canvas for the
  * selected one.
  *
  * This replaced a wrapping flex row whose three items each carried their own
@@ -12837,30 +12837,38 @@ body.machine-editor-fullscreen-open {
  * A stage renders one small, fixed set of cards, so its arrangement can be
  * stated instead of computed: an explicit grid per stage, below.
  *
- * The rail's own measure is Settings' — see `.settings-rail`, which this
- * mirrors down to the `<select>` swap and the negative sticky offset, because
- * two rails in one application that behave differently is one rail too many.
+ * The strip is a `tab-select` band, Configuration's shape: the band's height,
+ * its gap, and its own bottom border, so the selected underline lands on that
+ * border. It replaced a 13rem rail, which held about 14.5rem of the canvas for
+ * five short words for the whole visit — and the stages below answer container
+ * queries, so that rail was often what pushed a stage under its own split
+ * threshold on a laptop viewport.
+ *
+ * Unlike Configuration's strips it is sticky, because this page scrolls as a
+ * whole (a stage plus the docked console) where Configuration's bands sit in a
+ * bounded workspace. The negative offset is the one `.settings-rail` carries,
+ * for the reason `.history-job-detail`'s note records; the canvas fill is what
+ * lets the stage scroll under the band rather than through its labels.
  */
-.calibration-bench {
-  display: grid;
-  grid-template-columns: 13rem minmax(0, 1fr);
-  gap: 1.5rem;
-}
-
-.calibration-rail {
-  display: flex;
-  flex-direction: column;
-  align-self: start;
-  gap: 0.15rem;
+.calibration-stages {
   position: sticky;
   top: calc(-1 * var(--page-shell-pad-top, 0rem));
   z-index: 1;
-  padding-block: 0.5rem;
+  flex: 0 0 auto;
   background: var(--surface-canvas);
 }
 
+.calibration-stages__tabs {
+  display: flex;
+  height: 2.9rem;
+  min-height: 2.9rem;
+  align-items: center;
+  gap: 0.9rem;
+  border-block-end: 1px solid var(--border-subtle);
+}
+
 /* Hidden above the mobile breakpoint; see `.settings-rail-select`'s own note. */
-.calibration-rail-select {
+.calibration-stages__select {
   display: none;
 }
 
@@ -12870,17 +12878,25 @@ body.machine-editor-fullscreen-open {
  * name, a console line — otherwise widens the track past the canvas and every
  * other card on the page inherits that width.
  */
-.calibration-bench__canvas {
+.calibration-canvas {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: 1rem;
   /*
    * Stages answer their own width, not the viewport's. The canvas is what the
-   * rail, the collapsible desktop sidebar and the page padding leave over, and
-   * a media query tuned to one arrangement of those is wrong for the others.
+   * collapsible desktop sidebar and the page padding leave over, and a media
+   * query tuned to one arrangement of those is wrong for the others.
    */
   container-type: inline-size;
   container-name: calibration-canvas;
+  /*
+   * The stages scroll under the sticky strip, and the modules they host stack
+   * their own layers — the mesh viewer's overlay canvas is `z-index: 1`, which
+   * tied the strip's and won on DOM order, painting the map over the tabs.
+   * Isolating the canvas keeps every stage's internal z-index inside it, rather
+   * than the strip having to outbid whatever number a hosted module picks next.
+   */
+  isolation: isolate;
 }
 
 .calibration-stage {
@@ -12948,16 +12964,22 @@ body.machine-editor-fullscreen-open {
   }
 }
 
+/*
+ * The `<select>` swap, not a wrapping strip: the selected underline sits over
+ * the band's bottom border, so on a strip wrapped to two lines every first-line
+ * tab's underline would float over the second line — the "reads as two lines"
+ * failure `tab-select`'s `-1px` offset exists to prevent.
+ */
 @media (max-width: 47.999rem) {
-  .calibration-bench {
-    grid-template-columns: minmax(0, 1fr);
+  .calibration-stages {
+    padding-block: 0.5rem;
   }
 
-  .calibration-rail-button {
+  .calibration-stages__tabs {
     display: none;
   }
 
-  .calibration-rail-select {
+  .calibration-stages__select {
     display: block;
   }
 }

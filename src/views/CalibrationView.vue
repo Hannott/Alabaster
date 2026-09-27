@@ -6,7 +6,7 @@ import AvailabilityRegion from '@/components/AvailabilityRegion.vue'
 import PageHeading, { type PageHeadingAction } from '@/components/PageHeading.vue'
 import AxesStage from '@/components/calibration/AxesStage.vue'
 import BedStage from '@/components/calibration/BedStage.vue'
-import CalibrationStageRail from '@/components/calibration/CalibrationStageRail.vue'
+import CalibrationStageTabs from '@/components/calibration/CalibrationStageTabs.vue'
 import ExtrusionStage from '@/components/calibration/ExtrusionStage.vue'
 import HeatersStage from '@/components/calibration/HeatersStage.vue'
 import ResonanceStage from '@/components/calibration/ResonanceStage.vue'
@@ -35,7 +35,7 @@ import { useTelemetryStore } from '@/stores/telemetry'
  * card's gear, and the console text all of them answer in on the Console page.
  * A calibration sitting was therefore a tour of the application.
  *
- * So the page is a bench now. The rail lists the jobs this printer can be
+ * So the page is a bench now. A tab strip lists the jobs this printer can be
  * calibrated for, in the order the physical dependencies run; a selected stage
  * gets the whole canvas and brings the controls that job needs, hosted from the
  * modules that already implement them rather than reimplemented here; and one
@@ -107,8 +107,8 @@ const stages = computed(() =>
  * something — but `App.vue` keys the routed component on `route.fullPath`
  * inside a crossfade, so *any* query change unmounts and remounts the whole
  * page. On this page that is the opposite of the point: the console docked
- * below would lose its scroll position and any half-typed command on every rail
- * click, which is the same continuity Alabaster protects across a Klipper
+ * below would lose its scroll position and any half-typed command on every
+ * stage switch, which is the same continuity Alabaster protects across a Klipper
  * restart. No route uses a query today, so this is the first place that trap
  * could have been stepped in; a stage in local state avoids it without changing
  * how every other route behaves.
@@ -128,7 +128,7 @@ function selectStage(stage: CalibrationStageId): void {
 /**
  * The console dock, on by default: it is the reason a command's answer is
  * readable without leaving. The toggle exists because a wide-enough screen is
- * not a given and somebody working from the rail alone should be able to give
+ * not a given and somebody working from the stages alone should be able to give
  * the stage the height back. Held in memory rather than in the query — it is a
  * device ergonomic, not something worth putting in a shared link.
  */
@@ -148,59 +148,53 @@ const consoleAction = computed<PageHeadingAction>(() => ({
   <section class="standard-page calibration-view">
     <PageHeading :title="t('calibration.title')" :action="consoleAction" />
 
-    <div class="calibration-bench">
-      <CalibrationStageRail :stages="stages" :active="activeStage" @select="selectStage($event)" />
+    <CalibrationStageTabs :stages="stages" :active="activeStage" @select="selectStage($event)" />
 
-      <div class="calibration-bench__canvas">
+    <div class="calibration-canvas">
+      <!--
+        Klipper's own requirement, not this page's: every command on every
+        stage here moves a motor, drives a heater, or reads a probe, so the
+        stages live inside one `klipper` region rather than each panel
+        declaring its own. The console below is deliberately outside it — see
+        its own region.
+      -->
+      <AvailabilityRegion requires="klipper">
         <!--
-          Klipper's own requirement, not this page's: every command on every
-          stage here moves a motor, drives a heater, or reads a probe, so the
-          stages live inside one `klipper` region rather than each panel
-          declaring its own. The console below is deliberately outside it — see
-          its own region.
+          `:key` on the stage, so switching stages mounts the new one clean
+          rather than letting a shared child keep the previous stage's state.
+          It is also what stops a poll belonging to one stage — Shake&Tune's
+          directory read — from running behind another.
         -->
-        <AvailabilityRegion requires="klipper">
-          <!--
-            `:key` on the stage, so switching stages mounts the new one clean
-            rather than letting a shared child keep the previous stage's state.
-            It is also what stops a poll belonging to one stage — Shake&Tune's
-            directory read — from running behind another.
-          -->
-          <div
-            :key="activeStage"
-            :aria-label="t(`calibration.stages.${activeStage}`)"
-            role="region"
-          >
-            <AxesStage v-if="activeStage === 'axes'" />
-            <BedStage v-else-if="activeStage === 'bed'" />
-            <HeatersStage v-else-if="activeStage === 'heaters'" />
-            <ResonanceStage v-else-if="activeStage === 'resonance'" />
-            <ExtrusionStage v-else-if="activeStage === 'extrusion'" />
-          </div>
-        </AvailabilityRegion>
+        <div :key="activeStage" :aria-label="t(`calibration.stages.${activeStage}`)" role="region">
+          <AxesStage v-if="activeStage === 'axes'" />
+          <BedStage v-else-if="activeStage === 'bed'" />
+          <HeatersStage v-else-if="activeStage === 'heaters'" />
+          <ResonanceStage v-else-if="activeStage === 'resonance'" />
+          <ExtrusionStage v-else-if="activeStage === 'extrusion'" />
+        </div>
+      </AvailabilityRegion>
 
+      <!--
+        A `moonraker`-only region rather than folding into the one above: the
+        transcript is a buffer this browser already holds, and a printer
+        mid-restart is exactly when somebody wants to read the line that
+        preceded it. The prompt inside disables itself on its own when Klipper
+        is not there to take a command.
+      -->
+      <AvailabilityRegion v-if="consoleOpen" requires="moonraker">
         <!--
-          A `moonraker`-only region rather than folding into the one above: the
-          transcript is a buffer this browser already holds, and a printer
-          mid-restart is exactly when somebody wants to read the line that
-          preceded it. The prompt inside disables itself on its own when Klipper
-          is not there to take a command.
+          The Console route's own console, not the dashboard card. The card
+          looked close enough and was not: it reads its filters from one
+          dashboard instance rather than from the settings somebody set up on
+          the Console page, it has no command browser, and its transcript
+          carries the inset fill it needs as one panel among a card's rows —
+          which standing alone here read as a box inside a box. `ConsolePanel`
+          names what actually differs between the two hosts, and it is only
+          the height: this page has bounded nothing, so the console states its
+          own from `visibleLines` instead of filling a pane.
         -->
-        <AvailabilityRegion v-if="consoleOpen" requires="moonraker">
-          <!--
-            The Console route's own console, not the dashboard card. The card
-            looked close enough and was not: it reads its filters from one
-            dashboard instance rather than from the settings somebody set up on
-            the Console page, it has no command browser, and its transcript
-            carries the inset fill it needs as one panel among a card's rows —
-            which standing alone here read as a box inside a box. `ConsolePanel`
-            names what actually differs between the two hosts, and it is only
-            the height: this page has bounded nothing, so the console states its
-            own from `visibleLines` instead of filling a pane.
-          -->
-          <ConsolePanel />
-        </AvailabilityRegion>
-      </div>
+        <ConsolePanel />
+      </AvailabilityRegion>
     </div>
   </section>
 </template>
