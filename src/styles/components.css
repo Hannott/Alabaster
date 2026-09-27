@@ -4029,15 +4029,50 @@ input.z-axis__slider {
 }
 
 /*
- * The bed-screws shortcut's own cell, column 1, would otherwise stretch to
- * fill it the way every grid item does by default — a lone button spanning
- * the whole minus-side width, most of it dead space around a label nowhere
- * near that wide. `justify-self: end` keeps it its own content width and
- * packs it against the cell's trailing edge — against home-all, the same
- * side every other machine-action button sits snug against — rather than
- * stranding it at the row's far-left edge with a gap of dead space on the
- * side that matters, the one beside the button it's grouped with.
+ * The plus-side cell's own mirror: column 1 would otherwise stretch to fill
+ * the way every grid item does by default — one or two buttons spanning the
+ * whole minus-side width, most of it dead space around labels nowhere near
+ * that wide. This wrapper, not either button, is the grid item now — see the
+ * comment on `.jog-actions` above for why the same cell is explicit about its
+ * own column — so `justify-self: end` packs the pair against the cell's
+ * trailing edge, against home-all, the same side every other machine-action
+ * button sits snug against, rather than stranding them at the row's far-left
+ * edge with a gap of dead space on the side that matters.
  *
+ * Level bed leads and Calibrate Z follows, in that order, the same reason
+ * `.jog-actions` keeps home-xy before motors-off: "beside Level bed" is
+ * simply document order inside one flex row, and either button is free to be
+ * absent (a printer with no leveling method, or no `CALIBRATE_NOZZLE_Z`)
+ * without leaving a gap for the other to fall into.
+ *
+ * `flex-wrap: wrap` is load-bearing, not decoration: measured against the
+ * compiled stylesheet, two `sm` text buttons together ("Level bed" and
+ * "Calibrate Z") need about 196px, and this column is only 103px on a 271px
+ * dashboard card — nowhere close to the "handful of pixels" `nowrap` alone
+ * already spends on `.jog-leveling-shortcut` by itself. Without wrapping, the
+ * pair does not clip at its own trailing edge the way a single overlong label
+ * does; `justify-self: end` anchors the whole box to the cell's right side, so
+ * the overflow pushes the *other* edge left, off the card, which is worse than
+ * either label wrapping. `justify-content: flex-end` keeps both buttons
+ * against that same right edge once they stack, matching `justify-self`
+ * rather than reading as a second, disagreeing alignment. A dashboard card
+ * only reaches one line for both buttons past roughly 450px — a docked
+ * settings card and little else — everywhere narrower shows Level bed above
+ * Calibrate Z, taller than the pivot and jog-actions cells beside it, which is
+ * fine: neither of those is stretched into the extra height, since a fixed
+ * button height is not the `auto` size grid's own default stretch requires.
+ */
+.jog-leveling-shortcuts {
+  grid-column: 1;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  justify-self: end;
+  min-width: 0;
+  gap: 0.4rem;
+}
+
+/*
  * `white-space: nowrap` is deliberate here, unlike the plain step buttons:
  * "Start bed level" is long enough that the default grid stretch left it
  * genuinely wrapping to two lines at the narrowest dashboard column, and a
@@ -4047,10 +4082,11 @@ input.z-axis__slider {
  * `nowrap` trades that for the reverse, smaller defect: at that one width the
  * label can overflow its own cell by a handful of pixels rather than wrap,
  * and every wider card — a docked settings card among them — has room for it
- * on one line with nothing to trade at all.
+ * on one line with nothing to trade at all. `.jog-calibrate-nozzle-shortcut`
+ * carries the same rule for the same reason, against its own shorter label.
  */
-.jog-leveling-shortcut {
-  justify-self: end;
+.jog-leveling-shortcut,
+.jog-calibrate-nozzle-shortcut {
   white-space: nowrap;
 }
 

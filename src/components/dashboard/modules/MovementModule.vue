@@ -27,6 +27,8 @@ import { bedExtents } from '@/dashboard/bedPlan'
 import { configBoolean, configString, useDashboardModule } from '@/dashboard/context'
 import { useActionGuard } from '@/composables/useActionGuard'
 import { useConsoleStore } from '@/stores/console'
+import { useMacrosStore } from '@/stores/macros'
+import { useManualProbeStore } from '@/stores/manualProbe'
 import { parseScrewsTiltResults, usePrinterStore } from '@/stores/printer'
 import { usePrintersStore } from '@/stores/printers'
 import { usePrinterConfigStore, type LevelingMethod } from '@/stores/printerConfig'
@@ -57,11 +59,14 @@ const printer = usePrinterStore()
 const gcodeConsole = useConsoleStore()
 const printerConfig = usePrinterConfigStore()
 const printers = usePrintersStore()
+const macros = useMacrosStore()
+const manualProbe = useManualProbeStore()
 // The card reads its configuration; writing it belongs to the quick settings
 // and the settings pane, which are the two places that present it.
 const { config, isSettingsOpen } = useDashboardModule('movement')
 
 const confirmingMotorsOff = ref(false)
+const confirmingCalibrateNozzleZ = ref(false)
 /**
  * That *this* card staged the offset, which is what makes the notice below
  * about the thing the user just did rather than about the printer's config in
@@ -222,11 +227,25 @@ const showLevelBedShortcut = computed(() =>
 const primaryLevelingMethod = computed<LevelingMethod | null>(
   () => printerConfig.levelingMethods[0] ?? null,
 )
+const showCalibrateNozzleZShortcut = computed(() =>
+  readMovementCardSetting(config.value, 'showCalibrateNozzleZShortcut'),
+)
+/**
+ * `CALIBRATE_NOZZLE_Z` is a community macro, not a Klipper core command — it
+ * only exists on a printer whose own config (typically a probe macro pack)
+ * defines it, so the shortcut is gated on `macros.hasMacro` rather than on
+ * any `printerConfig` capability. See `movementCardSettings.ts` for why
+ * Alabaster ships no gcode of its own for it.
+ */
+const canCalibrateNozzleZ = computed(() => macros.hasMacro('CALIBRATE_NOZZLE_Z'))
 const skipMotorsOffWarning = computed(() =>
   configBoolean(config.value, 'skipMotorsOffWarning', false),
 )
 const skipLevelingWarning = computed(() =>
   configBoolean(config.value, 'skipLevelingWarning', false),
+)
+const skipCalibrateNozzleZWarning = computed(() =>
+  configBoolean(config.value, 'skipCalibrateNozzleZWarning', false),
 )
 // A drawing choice for the slider, never a change to the Z values `moveTo`
 // sends — see `movementCardSettings.ts`.
@@ -637,6 +656,12 @@ const levelingGuard = useActionGuard({
   moduleFlag: skipLevelingWarning,
 })
 
+const calibrateNozzleZGuard = useActionGuard({
+  tier: 'terminal',
+  emphasis: 'neutral',
+  moduleFlag: skipCalibrateNozzleZWarning,
+})
+
 async function confirmMotorsOff(): Promise<void> {
   confirmingMotorsOff.value = false
   await printer.disableMotors()
@@ -677,6 +702,18 @@ function requestLevelingShortcut(): void {
   const method = primaryLevelingMethod.value
   if (!method) return
   requestLeveling(method)
+}
+
+async function confirmCalibrateNozzleZ(): Promise<void> {
+  confirmingCalibrateNozzleZ.value = false
+  await macros.run('CALIBRATE_NOZZLE_Z')
+}
+
+function requestCalibrateNozzleZ(): void {
+  calibrateNozzleZGuard.request(
+    () => void macros.run('CALIBRATE_NOZZLE_Z'),
+    () => (confirmingCalibrateNozzleZ.value = true),
+  )
 }
 
 /**
@@ -970,19 +1007,52 @@ function screwInstruction(screw: (typeof screwResults.value)[number]): string {
               condition exactly, since it is the same action reached from a
               second place, not a second action.
             -->
-              <AppButton
-                v-if="showLevelBedShortcut && primaryLevelingMethod"
-                size="sm"
-                :guard="levelingGuard"
-                :pending="printer.pendingCommands.leveling"
-                :label="t('dashboard.movement.levelBedShort')"
-                class="jog-leveling-shortcut"
-                :aria-busy="printer.pendingCommands.leveling || undefined"
-                :disabled="printer.pendingCommands.leveling || homing || !isFullyHomed"
-                :aria-label="t(`dashboard.movement.leveling.${primaryLevelingMethod}`)"
-                :title="t(`dashboard.movement.leveling.${primaryLevelingMethod}`)"
-                @click="requestLevelingShortcut"
-              />
+              <!--
+              Both shortcuts share this cell — the same room `.jog-actions`
+              gives home-xy beside motors-off in the third column. See
+              `.jog-leveling-shortcuts` in components.css.
+            -->
+              <div class="jog-leveling-shortcuts">
+                <AppButton
+                  v-if="showLevelBedShortcut && primaryLevelingMethod"
+                  size="sm"
+                  :guard="levelingGuard"
+                  :pending="printer.pendingCommands.leveling"
+                  :label="t('dashboard.movement.levelBedShort')"
+                  class="jog-leveling-shortcut"
+                  :aria-busy="printer.pendingCommands.leveling || undefined"
+                  :disabled="printer.pendingCommands.leveling || homing || !isFullyHomed"
+                  :aria-label="t(`dashboard.movement.leveling.${primaryLevelingMethod}`)"
+                  :title="t(`dashboard.movement.leveling.${primaryLevelingMethod}`)"
+                  @click="requestLevelingShortcut"
+                />
+                <!--
+                Gated on `macros.hasMacro`, never on a `printerConfig`
+                capability — see `canCalibrateNozzleZ`'s own doc comment.
+                Disabled while another manual probe is already active, from
+                this shortcut, the console, or a second browser: starting a
+                second one would only orphan Klipper's own helper rather than
+                do anything to the one already waiting.
+              -->
+                <AppButton
+                  v-if="showCalibrateNozzleZShortcut && canCalibrateNozzleZ"
+                  size="sm"
+                  :guard="calibrateNozzleZGuard"
+                  :pending="macros.isRunning('CALIBRATE_NOZZLE_Z')"
+                  :label="t('dashboard.movement.calibrateNozzleZShort')"
+                  class="jog-calibrate-nozzle-shortcut"
+                  :aria-busy="macros.isRunning('CALIBRATE_NOZZLE_Z') || undefined"
+                  :disabled="
+                    macros.isRunning('CALIBRATE_NOZZLE_Z') ||
+                    manualProbe.isActive ||
+                    homing ||
+                    !isFullyHomed
+                  "
+                  :aria-label="t('dashboard.movement.calibrateNozzleZ')"
+                  :title="t('dashboard.movement.calibrateNozzleZ')"
+                  @click="requestCalibrateNozzleZ"
+                />
+              </div>
               <AppButton
                 size="xs"
                 class="jog-pivot jog-pivot--primary"
@@ -1268,5 +1338,13 @@ function screwInstruction(screw: (typeof screwResults.value)[number]): string {
     :confirm-label="t('dashboard.movement.levelingConfirmAction')"
     @confirm="confirmLeveling"
     @cancel="pendingLeveling = null"
+  />
+  <ConfirmDialog
+    :open="confirmingCalibrateNozzleZ"
+    :title="t('dashboard.movement.calibrateNozzleZConfirmTitle')"
+    :description="t('dashboard.movement.calibrateNozzleZConfirmDescription')"
+    :confirm-label="t('dashboard.movement.calibrateNozzleZConfirmAction')"
+    @confirm="confirmCalibrateNozzleZ"
+    @cancel="confirmingCalibrateNozzleZ = false"
   />
 </template>

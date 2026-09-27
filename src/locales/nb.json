@@ -765,6 +765,9 @@
       "showHomeXY": "Vis en knapp som kjører X og Y til nullpunkt",
       "levelBedShort": "Level bedet",
       "showLevelBedShortcut": "Vis bed level makro",
+      "calibrateNozzleZShort": "Kalibrer Z",
+      "calibrateNozzleZ": "Kalibrer dyse-Z",
+      "showCalibrateNozzleZShortcut": "Vis makro for dyse-Z-kalibrering",
       "feedrateUnit": "mm/s",
       "feedrateLabel": "Hastighet på skrivehodet",
       "zOffsetUnsaved": "Lagt inn i proben. Lagre den nye konfigurasjonen for å beholde den.",
@@ -832,6 +835,9 @@
       "levelingConfirmTitle": "Start nivellering?",
       "levelingConfirmDescription": "{method} beveger skriveren og prober bedet, noe som tar noen minutter. Ikke start dette under en utskrift.",
       "levelingConfirmAction": "Start",
+      "calibrateNozzleZConfirmTitle": "Start dyse-Z-kalibrering?",
+      "calibrateNozzleZConfirmDescription": "CALIBRATE_NOZZLE_Z beveger skrivehodet mot bedet. Ikke start dette under en utskrift.",
+      "calibrateNozzleZConfirmAction": "Start",
       "screwBase": "Referanse",
       "screwLevel": "I nivå",
       "screwClockwise": "med klokka",
@@ -845,7 +851,8 @@
       "stepsTitle": "Stegstørrelser",
       "confirmationsTitle": "Bekreftelser",
       "skipMotorsOffWarning": "Slå av motorer uten bekreftelse",
-      "skipLevelingWarning": "Start bednivellering uten bekreftelse"
+      "skipLevelingWarning": "Start bednivellering uten bekreftelse",
+      "skipCalibrateNozzleZWarning": "Start dyse-Z-kalibrering uten bekreftelse"
     },
     "controls": {
       "partFan": "Delevifte",

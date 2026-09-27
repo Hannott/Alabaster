@@ -157,6 +157,11 @@ describe('MovementSettingsPane', () => {
   it.each([
     ['skip motors-off confirming', 'Turn off motors without confirming', 'skipMotorsOffWarning'],
     ['skip leveling confirming', 'Start bed leveling without confirming', 'skipLevelingWarning'],
+    [
+      'skip nozzle Z calibration confirming',
+      'Start nozzle Z calibration without confirming',
+      'skipCalibrateNozzleZWarning',
+    ],
   ])('offers to %s, off by default', async (_label, text, key) => {
     const { wrapper, config } = mountPane()
     await flushPromises()

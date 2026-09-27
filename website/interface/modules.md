@@ -297,6 +297,17 @@ since the motors were last turned off. Every axis reads as homed even on a
 machine that is out of square, so this is the only warning you get before
 the first layer comes out thick at one end.
 
+### Calibrating nozzle Z
+
+**Calibrate Z** sits beside the bed level shortcut for `CALIBRATE_NOZZLE_Z`, a
+macro that walks through a manual nozzle-to-bed touch-off — many probe packs
+(Klicky and similar) provide one. It only appears once your printer's own
+configuration already defines it; Alabaster does not supply this macro
+itself, since your probe's own version usually deploys and stows the probe
+and computes an offset that a generic one could not. Like the other
+levelling actions, it asks for confirmation before starting. Both shortcuts
+can be turned off from the settings pane.
+
 ## Controls
 
 The Controls card shows fans and output pins.

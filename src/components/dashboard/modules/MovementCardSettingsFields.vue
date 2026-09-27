@@ -45,6 +45,9 @@ const showHomeXY = computed(() => readMovementCardSetting(config.value, 'showHom
 const showLevelBedShortcut = computed(() =>
   readMovementCardSetting(config.value, 'showLevelBedShortcut'),
 )
+const showCalibrateNozzleZShortcut = computed(() =>
+  readMovementCardSetting(config.value, 'showCalibrateNozzleZShortcut'),
+)
 const showZOffset = computed(() => readMovementCardSetting(config.value, 'showZOffset'))
 const showSpeedFactor = computed(() => readMovementCardSetting(config.value, 'showSpeedFactor'))
 const swapZDirection = computed(() => readMovementCardSetting(config.value, 'swapZDirection'))
@@ -139,6 +142,23 @@ const swapZDirection = computed(() => readMovementCardSetting(config.value, 'swa
       :label="t('dashboard.movement.showLevelBedShortcut')"
       :shown="quick.isQuick('showLevelBedShortcut')"
       @toggle="quick.setQuick('showLevelBedShortcut', $event)"
+    />
+  </div>
+
+  <div v-if="quick.visible('showCalibrateNozzleZShortcut')" class="settings-row">
+    <label class="check-row">
+      <input
+        type="checkbox"
+        :checked="showCalibrateNozzleZShortcut"
+        @change="updateConfig({ showCalibrateNozzleZShortcut: !showCalibrateNozzleZShortcut })"
+      />
+      <span>{{ t('dashboard.movement.showCalibrateNozzleZShortcut') }}</span>
+    </label>
+    <QuickSettingToggle
+      v-if="mode === 'pane'"
+      :label="t('dashboard.movement.showCalibrateNozzleZShortcut')"
+      :shown="quick.isQuick('showCalibrateNozzleZShortcut')"
+      @toggle="quick.setQuick('showCalibrateNozzleZShortcut', $event)"
     />
   </div>
 

@@ -29,6 +29,9 @@ const skipMotorsOffWarning = computed(() =>
 const skipLevelingWarning = computed(() =>
   configBoolean(config.value, 'skipLevelingWarning', false),
 )
+const skipCalibrateNozzleZWarning = computed(() =>
+  configBoolean(config.value, 'skipCalibrateNozzleZWarning', false),
+)
 </script>
 
 <template>
@@ -66,6 +69,16 @@ const skipLevelingWarning = computed(() =>
           @change="updateConfig({ skipLevelingWarning: !skipLevelingWarning })"
         />
         <span>{{ t('dashboard.movement.skipLevelingWarning') }}</span>
+      </label>
+    </div>
+    <div class="settings-row">
+      <label class="check-row">
+        <input
+          type="checkbox"
+          :checked="skipCalibrateNozzleZWarning"
+          @change="updateConfig({ skipCalibrateNozzleZWarning: !skipCalibrateNozzleZWarning })"
+        />
+        <span>{{ t('dashboard.movement.skipCalibrateNozzleZWarning') }}</span>
       </label>
     </div>
   </SurfaceSection>

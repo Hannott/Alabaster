@@ -9,6 +9,8 @@ import { dashboardModuleContextKey } from '@/dashboard/context'
 import { i18n } from '@/i18n'
 import { useConfirmationsStore } from '@/stores/confirmations'
 import { useConsoleStore } from '@/stores/console'
+import { useMacrosStore } from '@/stores/macros'
+import { useManualProbeStore } from '@/stores/manualProbe'
 import { usePrinterStore } from '@/stores/printer'
 import { usePrinterConfigStore, type LevelingMethod } from '@/stores/printerConfig'
 
@@ -348,6 +350,92 @@ describe('MovementModule', () => {
 
     expect(wrapper.find('.jog-leveling-shortcut').exists()).toBe(false)
     expect(buttonNamed(wrapper, 'Check bed screws')).toBeUndefined()
+  })
+
+  /**
+   * `CALIBRATE_NOZZLE_Z` is a community macro, not a Klipper core command —
+   * unlike the leveling shortcut above, there is no `printerConfig` section to
+   * gate on, so the button appears only once `macros` actually confirms the
+   * name, the same test `PrintModule`'s pause-at-layer row already applies.
+   */
+  it('offers the calibrate-nozzle-Z shortcut only once the printer confirms the macro', async () => {
+    const { printer, wrapper, pinia } = mountModule({
+      config: { showCalibrateNozzleZShortcut: true },
+    })
+    readyToMove(printer)
+    await flushPromises()
+    expect(wrapper.find('.jog-calibrate-nozzle-shortcut').exists()).toBe(false)
+
+    const macros = useMacrosStore(pinia)
+    macros.allMacroNames = new Set(['CALIBRATE_NOZZLE_Z'])
+    macros.hasDiscovered = true
+    await flushPromises()
+
+    const shortcut = wrapper.find('.jog-calibrate-nozzle-shortcut')
+    expect(shortcut.exists()).toBe(true)
+    expect(shortcut.text()).toBe('Calibrate Z')
+    expect(shortcut.attributes('aria-label')).toBe('Calibrate nozzle Z')
+  })
+
+  it('hides the calibrate-nozzle-Z shortcut when its own setting is off, even with the macro present', async () => {
+    const { printer, wrapper, pinia } = mountModule({
+      config: { showCalibrateNozzleZShortcut: false },
+    })
+    readyToMove(printer)
+    const macros = useMacrosStore(pinia)
+    macros.allMacroNames = new Set(['CALIBRATE_NOZZLE_Z'])
+    macros.hasDiscovered = true
+    await flushPromises()
+
+    expect(wrapper.find('.jog-calibrate-nozzle-shortcut').exists()).toBe(false)
+  })
+
+  it('runs CALIBRATE_NOZZLE_Z behind a confirmation, and disables the shortcut while a manual probe is already active', async () => {
+    const { printer, wrapper, pinia } = mountModule({
+      config: { showCalibrateNozzleZShortcut: true },
+    })
+    const macros = useMacrosStore(pinia)
+    macros.allMacroNames = new Set(['CALIBRATE_NOZZLE_Z'])
+    macros.hasDiscovered = true
+    const run = vi.spyOn(macros, 'run').mockResolvedValue(true)
+    readyToMove(printer)
+    await flushPromises()
+
+    const shortcut = wrapper.get('.jog-calibrate-nozzle-shortcut')
+    expect(shortcut.attributes('disabled')).toBeUndefined()
+    await shortcut.trigger('click')
+    await flushPromises()
+    expect(run).not.toHaveBeenCalled()
+
+    await confirmOpenDialog(wrapper)
+    expect(run).toHaveBeenCalledWith('CALIBRATE_NOZZLE_Z')
+
+    const manualProbe = useManualProbeStore(pinia)
+    manualProbe.isActive = true
+    await flushPromises()
+    expect(wrapper.get('.jog-calibrate-nozzle-shortcut').attributes('disabled')).toBeDefined()
+  })
+
+  it('wears the danger variant for calibrate-nozzle-Z exactly when its confirmation is turned off', async () => {
+    const guarded = mountModule({ config: { showCalibrateNozzleZShortcut: true } })
+    useMacrosStore(guarded.pinia).allMacroNames = new Set(['CALIBRATE_NOZZLE_Z'])
+    useMacrosStore(guarded.pinia).hasDiscovered = true
+    readyToMove(guarded.printer)
+    await flushPromises()
+    expect(guarded.wrapper.find('.jog-calibrate-nozzle-shortcut').classes()).not.toContain(
+      'button--danger',
+    )
+
+    const unguarded = mountModule({
+      config: { showCalibrateNozzleZShortcut: true, skipCalibrateNozzleZWarning: true },
+    })
+    useMacrosStore(unguarded.pinia).allMacroNames = new Set(['CALIBRATE_NOZZLE_Z'])
+    useMacrosStore(unguarded.pinia).hasDiscovered = true
+    readyToMove(unguarded.printer)
+    await flushPromises()
+    expect(unguarded.wrapper.find('.jog-calibrate-nozzle-shortcut').classes()).toContain(
+      'button--danger',
+    )
   })
 
   it('shows a dash instead of a stale coordinate for an axis that is not homed', async () => {
