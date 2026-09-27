@@ -9483,14 +9483,10 @@ select {
 }
 
 /*
- * Settings' category rail. Wider than the shared `page-column` measure
- * because it now holds a rail beside the cards rather than the cards alone —
- * `.page-card` still caps its own readable width inside `.settings-content`,
- * so a wide monitor does not turn a Moonraker address field into a full line.
- * `width: 100%` plus `margin-inline: auto` reproduce `page-column`'s own
- * centering by hand rather than composing its class: `.settings-page` sits
- * below a `PageHeading` that must stay full-width like every other route's,
- * so only the body below it — not the heading above it — narrows.
+ * Settings' category rail, then the cards. The rail sits at the page's own
+ * leading edge, under the heading, rather than centered with the cards in a
+ * capped measure: centered, it moved with the window width, so the one list
+ * that says where you are on the page was never in the same place twice.
  *
  * Settings used to give `.settings-content` its own nested `overflow-y: auto`
  * scroll region, with `.settings-page`/`.settings-body` bounded above it
@@ -9521,8 +9517,6 @@ select {
 .settings-page {
   display: flex;
   width: 100%;
-  max-width: 76rem;
-  margin-inline: auto;
   flex-direction: column;
 }
 
@@ -9575,7 +9569,40 @@ select {
 .settings-content {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
+  align-items: start;
   gap: 1rem;
+}
+
+/*
+ * A supporting card — one that qualifies the card before it rather than
+ * standing as a category of its own — takes a right-hand column beside it on
+ * a wide screen, so the category's main card keeps the middle column's width
+ * and the setting that qualifies it is read next to it rather than after it.
+ * Instances, kept here: Printers' Z motion (`ZMotionCard.vue`), beside Saved
+ * printers. Add to this list in the same change that marks a card
+ * `settings-aside`.
+ *
+ * Every card is pinned to a column rather than left to auto-placement: an
+ * unpinned card after a supporting one would take the free right-hand cell
+ * of the next row, beside a card it has nothing to do with. Pinned, the grid's
+ * placement cursor puts each supporting card in the row of the card before
+ * it, and the next main card on a row of its own. The second column exists
+ * only while a supporting card is shown, so a category without one keeps the
+ * full width. Below 90rem the middle column would be too narrow beside it,
+ * so the card falls back into the one column, after the card it qualifies.
+ */
+@media (min-width: 90rem) {
+  .settings-content:has(> .settings-aside) {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 26rem);
+  }
+
+  .settings-content:has(> .settings-aside) > * {
+    grid-column: 1;
+  }
+
+  .settings-content > .settings-aside {
+    grid-column: 2;
+  }
 }
 
 /*
