@@ -20,11 +20,9 @@
  * <https://github.com/aruntj/mjpeg-readable-stream>.
  */
 
-const worker = self as unknown as DedicatedWorkerGlobalScope
+import { createMjpegPartParser } from './mjpegParts'
 
-/** JPEG start-of-image marker: the two bytes that open every frame. */
-const startOfImage = [0xff, 0xd8] as const
-const contentLengthHeader = 'content-length'
+const worker = self as unknown as DedicatedWorkerGlobalScope
 
 let reader: ReadableStreamDefaultReader<Uint8Array> | null = null
 let abort: AbortController | null = null
@@ -64,14 +62,6 @@ type IncomingMessage =
   | { type: 'start'; url: string }
   | { type: 'stop' }
   | { type: 'shutdown' }
-
-function contentLengthOf(headers: string): number {
-  for (const header of headers.split('\n')) {
-    const [name, value] = header.split(':')
-    if (name?.trim().toLowerCase() === contentLengthHeader) return Number(value)
-  }
-  return -1
-}
 
 // `Uint8Array<ArrayBuffer>` rather than the default `ArrayBufferLike`: `Blob`
 // refuses a view that might be over a `SharedArrayBuffer`, and the caller
@@ -128,42 +118,11 @@ function renderFrame(buffer: Uint8Array<ArrayBuffer>): void {
 
 async function readStream(): Promise<void> {
   if (!reader) return
-
-  let headers = ''
-  let contentLength = -1
-  // Backed by a plain `ArrayBuffer` rather than left to `Uint8Array`'s default
-  // `ArrayBufferLike`, so it can be handed straight to `Blob` — which does not
-  // accept a view that might be over a `SharedArrayBuffer`.
-  let imageBuffer = new Uint8Array(new ArrayBuffer(0))
-  let bytesRead = 0
-
+  const parse = createMjpegPartParser(renderFrame)
   for (;;) {
     const { done, value } = await reader.read()
     if (done) break
-    if (!value) continue
-
-    for (let index = 0; index < value.length; index += 1) {
-      if (value[index] === startOfImage[0] && value[index + 1] === startOfImage[1]) {
-        contentLength = contentLengthOf(headers)
-        imageBuffer = new Uint8Array(new ArrayBuffer(Math.max(0, contentLength)))
-      }
-
-      if (contentLength <= 0) {
-        headers += String.fromCharCode(value[index] ?? 0)
-        continue
-      }
-
-      if (bytesRead < contentLength) {
-        imageBuffer[bytesRead] = value[index] ?? 0
-        bytesRead += 1
-        continue
-      }
-
-      renderFrame(imageBuffer)
-      contentLength = 0
-      bytesRead = 0
-      headers = ''
-    }
+    if (value) parse(value)
   }
 }
 
