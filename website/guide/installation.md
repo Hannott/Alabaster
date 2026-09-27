@@ -20,13 +20,14 @@ each change it makes outside its own directory:
    information.
 2. **Add the include to `printer.cfg`?** Only offered when nothing already
    defines the same macros.
-3. **Configure nginx?** Serves Alabaster and proxies Moonraker on a port you
-   choose.
+3. **Configure nginx?** Serves Alabaster, Moonraker, and up to four crowsnest
+   cameras on a port you choose. crowsnest uses ports `8080` to `8083` for
+   its cameras, so pick a port outside that range.
 4. **Let Moonraker manage updates?** Adds an entry for the app. If the macro
    pack was cloned, adds a second entry for it. Both then appear on the
    Machine page alongside Klipper's and Moonraker's own entries.
 
-Then open `http://<your-printer>.local:8081`.
+Then open `http://<your-printer>.local:8090`.
 
 ::: tip Safe to run again
 Run the installer again to update. It installs over the existing copy, never
@@ -40,7 +41,7 @@ edited.
 | ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------- |
 | `--path DIR`                                                       | Where to install. Default `~/alabaster`.                                                    |
 | `--config-repo-path DIR`                                           | Where to clone the macro pack. Default `~/alabaster-config`.                                |
-| `--port PORT`                                                      | The port for the nginx site. Default `8081`.                                                |
+| `--port PORT`                                                      | The port for the nginx site. Default `8090`.                                                |
 | `--moonraker HOST:PORT`                                            | Moonraker's address for the proxy. Default `127.0.0.1:7125`.                                |
 | `--version TAG`                                                    | Install a specific release, such as `v0.2.0`.                                               |
 | `--from-zip FILE`                                                  | Install a local archive instead of downloading.                                             |
@@ -184,11 +185,11 @@ result to the printer. Building on the Pi itself is not supported. See
 
 [OctoEverywhere](https://octoeverywhere.com/klipper) can relay Alabaster from
 outside your network. Its setup only looks for a frontend on a fixed list of
-ports and names. Alabaster's default port (`8081`) is not on that list, so
+ports and names. Alabaster's default port (`8090`) is not on that list, so
 point it at Alabaster explicitly:
 
 - During interactive setup, choose **m** for manual setup and enter your
   Alabaster port.
-- Or edit `octoeverywhere.conf` directly. Set `frontend_port = 8081` (or
+- Or edit `octoeverywhere.conf` directly. Set `frontend_port = 8090` (or
   whichever port you installed Alabaster on) and restart the OctoEverywhere
   service.

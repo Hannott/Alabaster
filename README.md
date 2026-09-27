@@ -36,7 +36,7 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/Hannott/Alabaster/main/s
 
 Downloads the latest release, verifies its checksum, and asks before every
 change it makes outside its own directory. Then open
-`http://<your-printer>.local:8081`.
+`http://<your-printer>.local:8090`.
 
 Re-running the same command updates Alabaster. `bash ~/alabaster/scripts/uninstall.sh`
 reverses it.

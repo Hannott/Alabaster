@@ -192,9 +192,7 @@ describe('a farm connection', () => {
     })
 
     await vi.waitFor(() => expect(harness.latest().cameras).toHaveLength(1))
-    expect(harness.latest().cameras[0]?.streamUrl).toBe(
-      'http://voron.local:7125/webcam/?action=stream',
-    )
+    expect(harness.latest().cameras[0]?.streamUrl).toBe('http://voron.local/webcam/?action=stream')
     harness.connection.dispose()
   })
 

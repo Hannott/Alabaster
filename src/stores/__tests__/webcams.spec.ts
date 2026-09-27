@@ -8,7 +8,7 @@ import { resolveWebcamUrl, useWebcamsStore } from '@/stores/webcams'
 describe('webcam URL resolution', () => {
   it('resolves relative camera streams against the Moonraker host', () => {
     expect(resolveWebcamUrl('/webcam/?action=stream', 'ws://printer.local:7125/websocket')).toBe(
-      'http://printer.local:7125/webcam/?action=stream',
+      'http://printer.local/webcam/?action=stream',
     )
     expect(resolveWebcamUrl('/camera', 'wss://printer.example/websocket')).toBe(
       'https://printer.example/camera',

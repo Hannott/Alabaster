@@ -91,7 +91,14 @@ function positiveIntOr(value: unknown, fallback: number): number {
 }
 
 /**
- * Resolves a camera URL against the printer's Moonraker host.
+ * Moonraker's own ports: 7125 by default, the next few for a second or third
+ * Klipper instance on the same host. A websocket endpoint on one of these is
+ * Moonraker reached directly rather than through a web server.
+ */
+const moonrakerDirectPort = /^71\d\d$/
+
+/**
+ * Resolves a camera URL against the printer's host.
  *
  * The stream may be served from a different port than Moonraker's, or from an
  * entirely different machine, so an absolute URL is left alone; only a path is
@@ -99,6 +106,14 @@ function positiveIntOr(value: unknown, fallback: number): number {
  * certain reaches this printer — it is never the page's own origin, because
  * ADR 0003 supports serving the interface from somewhere other than the
  * printer.
+ *
+ * A path is not Moonraker's to serve, though. `/webcam/` is a location in the
+ * printer's web server, which proxies it to crowsnest; Moonraker answers it
+ * with a 404. So when the endpoint is Moonraker's own port, the path is joined
+ * onto the same host's default web port instead — where every stock Mainsail or
+ * Fluidd install serves `/webcam/`, `/webcam2/` and so on. Keeping the port
+ * here is what made every relative camera on a direct connection look dead.
+ * An endpoint on any other port is a web server already, and keeps it.
  */
 export function resolveCameraUrl(url: string, websocketEndpoint: string): string {
   if (url.trim() === '') return ''
@@ -107,6 +122,7 @@ export function resolveCameraUrl(url: string, websocketEndpoint: string): string
   endpoint.pathname = '/'
   endpoint.search = ''
   endpoint.hash = ''
+  if (moonrakerDirectPort.test(endpoint.port)) endpoint.port = ''
   return new URL(url, endpoint).toString()
 }
 

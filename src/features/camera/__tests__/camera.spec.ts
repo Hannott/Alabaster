@@ -29,12 +29,21 @@ function camera(overrides: Partial<MoonrakerWebcam> = {}): Camera {
 }
 
 describe('camera URL resolution', () => {
-  it('resolves a relative path against the printer, not the page', () => {
+  it("resolves a relative path against the printer's web server, not Moonraker's port", () => {
     expect(resolveCameraUrl('/webcam/?action=stream', endpoint)).toBe(
-      'http://printer.local:7125/webcam/?action=stream',
+      'http://printer.local/webcam/?action=stream',
+    )
+    expect(resolveCameraUrl('/webcam2/', 'ws://printer.local:7126/websocket')).toBe(
+      'http://printer.local/webcam2/',
     )
     expect(resolveCameraUrl('/camera', 'wss://printer.example/websocket')).toBe(
       'https://printer.example/camera',
+    )
+  })
+
+  it('keeps the port of an endpoint that is already a web server', () => {
+    expect(resolveCameraUrl('/webcam/?action=stream', 'ws://printer.local:8090/websocket')).toBe(
+      'http://printer.local:8090/webcam/?action=stream',
     )
   })
 
@@ -47,7 +56,7 @@ describe('camera URL resolution', () => {
   it('keeps the stored path as stored, so editing never pins a camera to one host', () => {
     const entry = camera()
     expect(entry.rawStreamUrl).toBe('/webcam/?action=stream')
-    expect(entry.streamUrl).toBe('http://printer.local:7125/webcam/?action=stream')
+    expect(entry.streamUrl).toBe('http://printer.local/webcam/?action=stream')
   })
 })
 
@@ -88,10 +97,10 @@ describe('camera normalization', () => {
    */
   it('falls back to the other URL when the service’s own one is empty', () => {
     expect(camera({ service: 'mjpegstreamer-adaptive', snapshot_url: '' }).primaryUrl).toBe(
-      'http://printer.local:7125/webcam/?action=stream',
+      'http://printer.local/webcam/?action=stream',
     )
     expect(camera({ stream_url: '' }).primaryUrl).toBe(
-      'http://printer.local:7125/webcam/?action=snapshot',
+      'http://printer.local/webcam/?action=snapshot',
     )
   })
 

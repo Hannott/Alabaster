@@ -14,7 +14,7 @@ REPO='Hannott/Alabaster'
 CONFIG_REPO_ORIGIN="https://github.com/${REPO}.git"
 DEFAULT_PATH="${HOME}/alabaster"
 DEFAULT_CONFIG_REPO_PATH="${HOME}/alabaster-config"
-DEFAULT_PORT='8081'
+DEFAULT_PORT='8090'
 DEFAULT_MOONRAKER='127.0.0.1:7125'
 
 # The macros this pack defines. Another interface's macro pack defines the same
@@ -30,6 +30,7 @@ config_repo_path="${DEFAULT_CONFIG_REPO_PATH}"
 version=''
 from_zip=''
 port="${DEFAULT_PORT}"
+port_given=0
 moonraker_address="${DEFAULT_MOONRAKER}"
 assume_yes=0
 dry_run=0
@@ -109,7 +110,7 @@ Alabaster installer
   --config-repo-path DIR  Where to clone the macro pack (default: ~/alabaster-config)
   --version TAG           Install a specific release, such as v0.2.0
   --from-zip FILE         Install a local alabaster.zip instead of downloading
-  --port PORT             Port for the nginx site (default: 8081)
+  --port PORT             Port for the nginx site (default: 8090)
   --moonraker HOST:PORT   Moonraker's address for the proxy (default: 127.0.0.1:7125)
   --yes                   Do not prompt; take each prompt's default. Defaults
                           never overwrite a file you have edited.
@@ -132,7 +133,7 @@ while [ $# -gt 0 ]; do
         --config-repo-path) config_repo_path="${2:?--config-repo-path needs a directory}"; shift 2 ;;
         --version) version="${2:?--version needs a tag}"; shift 2 ;;
         --from-zip) from_zip="${2:?--from-zip needs a file}"; shift 2 ;;
-        --port) port="${2:?--port needs a port}"; shift 2 ;;
+        --port) port="${2:?--port needs a port}"; port_given=1; shift 2 ;;
         --moonraker) moonraker_address="${2:?--moonraker needs host:port}"; shift 2 ;;
         --yes|-y) assume_yes=1; shift ;;
         --no-config) want_config=0; shift ;;
@@ -537,6 +538,20 @@ configure_nginx() {
     else
         site='/etc/nginx/conf.d/alabaster.conf'
     fi
+
+    # A reinstall keeps the port the existing site already listens on, so the
+    # address people have bookmarked survives a change to the default.
+    if [ -f "$site" ] && [ "$port_given" -eq 0 ]; then
+        local existing_port
+        existing_port="$(grep -m 1 -oE '^[[:space:]]*listen[[:space:]]+[0-9]+' "$site" | grep -oE '[0-9]+$' || true)"
+        [ -n "$existing_port" ] && port="$existing_port"
+    fi
+
+    # crowsnest serves its cameras on 8080 to 8083, and this site proxies
+    # `/webcam/` to `/webcam4/` onto exactly those ports.
+    case "$port" in
+        8080|8081|8082|8083) warn "Port ${port} is also a crowsnest camera port. Use --port to pick another if that camera does not show." ;;
+    esac
 
     if [ -f "$site" ] && ! ask "${site} already exists. Replace it?" n; then
         skipped 'nginx site left unchanged'
