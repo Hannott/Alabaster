@@ -269,6 +269,17 @@
       "compare": "Compare",
       "compared": "Compared",
       "pickComparison": "Choose a graph to compare",
+      "shaper": {
+        "value": "{axis} · {shaper} \\@ {frequency} Hz",
+        "kind": {
+          "performance": "For performance",
+          "lowVibrations": "For low vibrations",
+          "best": "Best shaper"
+        },
+        "apply": "Apply",
+        "applyLabel": "Apply {shaper} at {frequency} Hz to {axis}",
+        "untilRestart": "Applies until Klipper restarts."
+      },
       "checkNoise": "Check accelerometer noise",
       "noiseHint": "Reads background vibration for 2 seconds.",
       "noiseReading": "{axis}-axis accelerometer — x {x}, y {y}, z {z}",

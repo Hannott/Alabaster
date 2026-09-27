@@ -14,6 +14,10 @@ import {
   moonrakerThumbnailUrl,
   uploadMoonrakerFile,
 } from '@/services/moonraker'
+import {
+  setInputShaperCommand,
+  type ShaperRecommendation,
+} from '@/features/calibration/shaperRecommendation'
 import { readConfigWarnings, type ConfigWarning } from '@/features/config/quickConfigFields'
 import { configBoolean } from '@/dashboard/context'
 import { useAvailabilityStore } from '@/stores/availability'
@@ -157,6 +161,7 @@ export const printerCommandKeys = [
   'bedMesh',
   'probeAccuracy',
   'measureAxesNoise',
+  'inputShaper',
   'clearPrint',
   'uploadFile',
   'restartKlipper',
@@ -1566,6 +1571,18 @@ export const usePrinterStore = defineStore('printer', () => {
     return sendGcode('MEASURE_AXES_NOISE', 'measureAxesNoise')
   }
 
+  /**
+   * Live and until the next restart: `SET_INPUT_SHAPER` changes the running
+   * shaper and never touches `[input_shaper]`, and Klipper exposes no status
+   * for it to read back — its own report of the new values is the console
+   * line this command answers with.
+   */
+  async function setInputShaper(recommendation: ShaperRecommendation): Promise<boolean> {
+    const command = setInputShaperCommand(recommendation)
+    if (command === null) return false
+    return sendGcode(command, 'inputShaper')
+  }
+
   async function saveBedMeshProfile(profile: string): Promise<boolean> {
     const name = profile.trim()
     if (name === '') return false
@@ -1791,6 +1808,7 @@ export const usePrinterStore = defineStore('printer', () => {
     calibrateBedMesh,
     probeAccuracy,
     measureAxesNoise,
+    setInputShaper,
     saveBedMeshProfile,
     removeBedMeshProfile,
     renameBedMeshProfile,

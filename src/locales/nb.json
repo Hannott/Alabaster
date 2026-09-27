@@ -269,6 +269,17 @@
       "compare": "Sammenlign",
       "compared": "Sammenlignes",
       "pickComparison": "Velg en graf å sammenligne",
+      "shaper": {
+        "value": "{axis} · {shaper} \\@ {frequency} Hz",
+        "kind": {
+          "performance": "For ytelse",
+          "lowVibrations": "For lave vibrasjoner",
+          "best": "Beste shaper"
+        },
+        "apply": "Bruk",
+        "applyLabel": "Bruk {shaper} på {frequency} Hz for {axis}",
+        "untilRestart": "Gjelder til Klipper startes på nytt."
+      },
       "checkNoise": "Sjekk akselerometerstøy",
       "noiseHint": "Leser bakgrunnsvibrasjon i 2 sekunder.",
       "noiseReading": "{axis}-akse-akselerometer — x {x}, y {y}, z {z}",

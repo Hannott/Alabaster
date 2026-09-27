@@ -10,8 +10,13 @@ import {
   resolveTuningComparison,
   resolveTuningSelection,
 } from '@/features/calibration/tuningSelection'
+import {
+  latestShaperRecommendations,
+  type ShaperRecommendation,
+} from '@/features/calibration/shaperRecommendation'
 import { createDateTimeFormatter } from '@/i18n/formats'
 import { useAxesNoiseStore } from '@/stores/axesNoise'
+import { useConsoleStore } from '@/stores/console'
 import { useMacrosStore } from '@/stores/macros'
 import { usePrinterConfigStore } from '@/stores/printerConfig'
 import { usePrinterStore } from '@/stores/printer'
@@ -25,6 +30,7 @@ import {
 
 const { locale, t } = useI18n({ useScope: 'global' })
 const axesNoise = useAxesNoiseStore()
+const gcodeConsole = useConsoleStore()
 const macros = useMacrosStore()
 const printer = usePrinterStore()
 const printerConfig = usePrinterConfigStore()
@@ -66,6 +72,38 @@ const hasResonanceTester = computed(() => printerConfig.hasSection('resonance_te
  * own `%.6f` prints, rather than judging or coloring them as good or bad on a
  * threshold nobody has confirmed.
  */
+/*
+ * Shake&Tune ends every input shaper run by printing its recommendation, and
+ * that was the one place a finished run's actual product — a shaper and a
+ * frequency per axis — existed: somebody had to copy it by hand into a
+ * `SET_INPUT_SHAPER` line. Read from the transcript the docked console already
+ * holds, so a run typed into the console counts the same as one started here.
+ */
+const shaperRecommendations = computed(() => latestShaperRecommendations(gcodeConsole.consoleLines))
+
+/** `SET_INPUT_SHAPER` is registered only by `[input_shaper]`. */
+const canApplyShaper = computed(() => printerConfig.hasSection('input_shaper'))
+
+const frequencyFormatter = computed(
+  () => new Intl.NumberFormat(locale.value, { minimumFractionDigits: 1, maximumFractionDigits: 1 }),
+)
+
+function recommendationValue(recommendation: ShaperRecommendation): string {
+  return t('calibration.tuning.shaper.value', {
+    axis: recommendation.axis.toUpperCase(),
+    shaper: recommendation.shaperType.toUpperCase(),
+    frequency: frequencyFormatter.value.format(recommendation.frequency),
+  })
+}
+
+function applyLabel(recommendation: ShaperRecommendation): string {
+  return t('calibration.tuning.shaper.applyLabel', {
+    axis: recommendation.axis.toUpperCase(),
+    shaper: recommendation.shaperType.toUpperCase(),
+    frequency: frequencyFormatter.value.format(recommendation.frequency),
+  })
+}
+
 const noiseFormatter = computed(
   () => new Intl.NumberFormat(locale.value, { minimumFractionDigits: 6, maximumFractionDigits: 6 }),
 )
@@ -300,6 +338,40 @@ function displayName(result: ShakeTuneResult): string {
               @click="triggerTuning(category)"
             />
           </header>
+          <div
+            v-if="category === 'inputShaper' && shaperRecommendations.length > 0"
+            class="calibration-shaper"
+          >
+            <ul class="calibration-shaper__list">
+              <li
+                v-for="recommendation in shaperRecommendations"
+                :key="`${recommendation.axis}:${recommendation.kind}`"
+                class="calibration-shaper__item"
+              >
+                <span class="calibration-shaper__reading">
+                  <span class="calibration-shaper__value">
+                    {{ recommendationValue(recommendation) }}
+                  </span>
+                  <span class="calibration-shaper__kind">
+                    {{ t(`calibration.tuning.shaper.kind.${recommendation.kind}`) }}
+                  </span>
+                </span>
+                <AppButton
+                  v-if="canApplyShaper"
+                  variant="quiet"
+                  size="xs"
+                  :label="t('calibration.tuning.shaper.apply')"
+                  :aria-label="applyLabel(recommendation)"
+                  :pending="printer.pendingCommands.inputShaper"
+                  :disabled="!canCommand || printer.pendingCommands.inputShaper"
+                  @click="printer.setInputShaper(recommendation)"
+                />
+              </li>
+            </ul>
+            <p v-if="canApplyShaper" class="calibration-panel__hint">
+              {{ t('calibration.tuning.shaper.untilRestart') }}
+            </p>
+          </div>
           <ul
             v-if="shakeTune.resultsByCategory[category].length > 0"
             class="calibration-tuning-results"

@@ -227,6 +227,10 @@ list. A test you run from here opens its own graph when it finishes.
 comparison beside an input shaper result shows what tensioning the belts did.
 Click a graph to open it at full size.
 
+When an input shaper test finishes, its recommended shaper for each axis appears
+under **Input shaper**. **Apply** puts one into effect right away, until Klipper
+restarts; to keep it, add it to your `[input_shaper]` section.
+
 Tuning results appear on the same page as the mesh and the belts you are
 comparing them against.
 

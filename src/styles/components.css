@@ -13509,6 +13509,49 @@ body.machine-editor-fullscreen-open {
 }
 
 /*
+ * The last run's recommendation, between the Input shaper heading and its
+ * graphs: the reading and its one action per line, divided from the rows below
+ * so it reads as the run's answer rather than as another file.
+ */
+.calibration-shaper {
+  display: grid;
+  gap: 0.35rem;
+  padding-block-end: 0.6rem;
+  margin-block-end: 0.4rem;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.calibration-shaper__list {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.calibration-shaper__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.calibration-shaper__reading {
+  display: grid;
+  min-width: 0;
+}
+
+.calibration-shaper__value {
+  font-family: var(--font-mono);
+  font-size: var(--text-meta-size);
+  font-weight: var(--font-weight-increased);
+  color: var(--text-primary);
+}
+
+.calibration-shaper__kind {
+  font-size: var(--text-meta-size);
+  color: var(--text-muted);
+}
+
+/*
  * Print files. A split workspace like the File Explorer, and deliberately not
  * built from its classes: a row here carries a size and a date beside a name and
  * selects a file to print, where a row there marks an open editor buffer. They

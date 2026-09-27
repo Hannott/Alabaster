@@ -684,6 +684,63 @@ describe('Calibration view', () => {
   })
 
   /**
+   * The run's actual product — a shaper and a frequency per axis — used to
+   * exist only as console text somebody had to copy into a command by hand.
+   */
+  it('lifts the shaper recommendation out of the console and applies it', async () => {
+    const printerConfig = await import('@/stores/printerConfig')
+    vi.spyOn(printerConfig.usePrinterConfigStore(pinia), 'hasSection').mockImplementation(
+      (name: string) => name === 'input_shaper',
+    )
+    const view = await mountResonance()
+    const rpcCall = vi.spyOn(useMoonrakerStore(pinia), 'rpcCall').mockResolvedValue('ok' as never)
+
+    useConsoleStore(pinia).consoleEntries = [
+      { id: 'a', raw: 'AXES_SHAPER_CALIBRATION', kind: 'command', at: 0 },
+      { id: 'b', raw: '// X axis frequency profile generation...', kind: 'response', at: 0 },
+      {
+        id: 'c',
+        raw: '//     -> For performance: MZV @ 48.2 Hz (with a damping ratio of 0.052)',
+        kind: 'response',
+        at: 0,
+      },
+      {
+        id: 'd',
+        raw: '//     -> For low vibrations: EI @ 52.0 Hz (with a damping ratio of 0.052)',
+        kind: 'response',
+        at: 0,
+      },
+    ] as never
+    await flushPromises()
+
+    const items = view.findAll('.calibration-shaper__item')
+    expect(items.map((item) => item.find('.calibration-shaper__value').text())).toEqual([
+      'X · MZV @ 48.2 Hz',
+      'X · EI @ 52.0 Hz',
+    ])
+    expect(items[0]!.text()).toContain('For performance')
+    expect(view.text()).toContain('Applies until Klipper restarts.')
+
+    await items[0]!.get('button').trigger('click')
+    expect(rpcCall).toHaveBeenCalledWith('printer.gcode.script', {
+      script: 'SET_INPUT_SHAPER SHAPER_TYPE_X=mzv SHAPER_FREQ_X=48.2',
+    })
+  })
+
+  it('offers no apply on a printer without an [input_shaper] section', async () => {
+    const view = await mountResonance()
+    useConsoleStore(pinia).consoleEntries = [
+      { id: 'a', raw: 'AXES_SHAPER_CALIBRATION AXIS=Y', kind: 'command', at: 0 },
+      { id: 'b', raw: '//     -> Best shaper: ZV @ 39.6 Hz', kind: 'response', at: 0 },
+    ] as never
+    await flushPromises()
+
+    const item = view.get('.calibration-shaper__item')
+    expect(item.text()).toContain('Y · ZV @ 39.6 Hz')
+    expect(item.find('button').exists()).toBe(false)
+  })
+
+  /**
    * The graph used to be reachable only as a plain link to the PNG, which a
    * browser either downloads or opens in its own tab — neither lets Escape, an
    * [x], or a click outside get back to the page.
