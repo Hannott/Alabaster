@@ -32,6 +32,10 @@ import { useDashboardLayoutStore } from '@/stores/dashboardLayout'
  * grid of cards, and a hosted module is not in one. `ModuleSettingsLink` reads
  * that and hides itself rather than offering a link into a surface nothing
  * would render — see `canOpenSurface`'s own comment in `dashboard/context.ts`.
+ *
+ * `pinAllQuickSettings: true`, for the same reason: with no surface, the gear's
+ * layer is the only settings a hosted module has, so it shows every setting
+ * rather than the few a dashboard card was given.
  */
 const props = defineProps<{
   moduleId: DashboardModuleId
@@ -89,6 +93,7 @@ provide(dashboardModuleContextKey, {
   openSurface: () => {},
   closeSurface: () => {},
   canOpenSurface: false,
+  pinAllQuickSettings: true,
 })
 </script>
 

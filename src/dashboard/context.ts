@@ -38,6 +38,15 @@ export interface DashboardModuleContext {
    * nothing on screen watching it.
    */
   canOpenSurface?: boolean
+  /**
+   * Treats every setting as promoted to the card's quick layer, without
+   * writing that to the instance's `quickSettings`. `true` for a module hosted
+   * on a page outside the dashboard: with no surface to open, the quick layer is
+   * the only settings a reader can reach there, and the promoted set was chosen
+   * for a dashboard card — often a few rows, or none, which left the gear opening
+   * an empty or near-empty layer. See `useQuickSettings`.
+   */
+  pinAllQuickSettings?: boolean
 }
 
 export const dashboardModuleContextKey: InjectionKey<DashboardModuleContext> =

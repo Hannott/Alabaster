@@ -164,7 +164,8 @@ while a round is waiting. See
 **Axes & frame** keeps the movement controls beside its calibrations: home one
 axis or all of them, jog, park, and set the Z offset. These are the same
 controls as the [Movement dashboard module](/interface/modules#movement),
-sharing its settings.
+sharing its settings. On this page, a module's settings button opens all of its
+settings, not only the ones pinned to its dashboard card.
 
 The levelling procedure your printer is configured for (`QUAD_GANTRY_LEVEL`,
 `Z_TILT_ADJUST`, `SCREWS_TILT_CALCULATE`, `BED_SCREWS_ADJUST`,

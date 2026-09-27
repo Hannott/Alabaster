@@ -1,6 +1,6 @@
-import { computed, type ComputedRef } from 'vue'
+import { computed, hasInjectionContext, inject, type ComputedRef } from 'vue'
 
-import { configOptionalStringList } from '@/dashboard/context'
+import { configOptionalStringList, dashboardModuleContextKey } from '@/dashboard/context'
 
 /**
  * Which of a module's settings are also reachable from its card's own
@@ -31,6 +31,12 @@ export interface QuickSettingsController {
  * user changes any one of them the whole resulting set is written out
  * explicitly, so an instance can end up showing nothing at all without that
  * reading as "never configured" — see `configOptionalStringList`.
+ *
+ * `pinAll` shows every row in the quick layer for as long as it is set, and
+ * leaves the stored set alone, so the dashboard card keeps the rows its reader
+ * chose. It defaults to the enclosing module context's `pinAllQuickSettings`,
+ * which `HostedDashboardModule` sets: every fields component reaches it without
+ * each one having to thread the flag through.
  */
 export function useQuickSettings(
   config: ComputedRef<Record<string, unknown>>,
@@ -38,12 +44,14 @@ export function useQuickSettings(
   defaultKeys: readonly string[],
   /** The consuming surface, for `visible`. A caller without one is a pane. */
   mode: () => 'pane' | 'quick' = () => 'pane',
+  pinAll: boolean = hasInjectionContext() &&
+    inject(dashboardModuleContextKey, null)?.pinAllQuickSettings === true,
 ): QuickSettingsController {
   const quickKeys = computed(
     () => configOptionalStringList(config.value, 'quickSettings') ?? [...defaultKeys],
   )
 
-  const isQuick = (key: string): boolean => quickKeys.value.includes(key)
+  const isQuick = (key: string): boolean => pinAll || quickKeys.value.includes(key)
 
   return {
     quickKeys,

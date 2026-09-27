@@ -12994,7 +12994,12 @@ body.machine-editor-fullscreen-open {
 @container calibration-canvas (min-width: 84rem) {
   .calibration-bench__columns {
     grid-template-areas: 'list work live';
-    grid-template-columns: 17rem 34rem minmax(20rem, 28rem);
+    /*
+     * The live column holds a whole dashboard card, which is laid out for a
+     * dashboard column rather than a sidebar: capped at 28rem, the Movement
+     * card's eight Z-offset steps wrapped one onto a row of its own.
+     */
+    grid-template-columns: 17rem 34rem minmax(24rem, 36rem);
   }
 
   /* The stage's artifact — the height map, the graphs — takes the width instead. */
