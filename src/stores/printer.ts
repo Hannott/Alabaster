@@ -14,10 +14,6 @@ import {
   moonrakerThumbnailUrl,
   uploadMoonrakerFile,
 } from '@/services/moonraker'
-import {
-  setInputShaperCommand,
-  type ShaperRecommendation,
-} from '@/features/calibration/shaperRecommendation'
 import { readConfigWarnings, type ConfigWarning } from '@/features/config/quickConfigFields'
 import { configBoolean } from '@/dashboard/context'
 import { useAvailabilityStore } from '@/stores/availability'
@@ -159,9 +155,6 @@ export const printerCommandKeys = [
   'pressureAdvance',
   'retraction',
   'bedMesh',
-  'probeAccuracy',
-  'measureAxesNoise',
-  'inputShaper',
   'clearPrint',
   'uploadFile',
   'restartKlipper',
@@ -191,6 +184,14 @@ export const printerCommandKeys = [
    * what stops a second press landing on a screw the machine has already left.
    */
   'bedScrews',
+  /*
+   * Calibration's own procedures that have no older control of their own —
+   * a stepper buzz, a shaper calibration, an accelerometer read. One key,
+   * because Calibration runs one procedure at a time: the machine is doing one
+   * physical thing, and a second run queued behind it would start from a state
+   * the reader never saw.
+   */
+  'calibration',
 ] as const
 
 export type PrinterCommandKey = (typeof printerCommandKeys)[number]
@@ -1534,53 +1535,21 @@ export const usePrinterStore = defineStore('printer', () => {
    * leveling and heater calibration do. Without it the deadline fires part way
    * through a perfectly healthy calibration and reports a failed command.
    */
-  async function calibrateBedMesh(profile?: string): Promise<boolean> {
+  async function calibrateBedMesh(profile?: string, probeCount?: string): Promise<boolean> {
     const name = profile?.trim() ?? ''
-    const succeeded = await sendGcode(
-      name === '' ? 'BED_MESH_CALIBRATE' : `BED_MESH_CALIBRATE PROFILE="${name}"`,
-      'bedMesh',
-      { timeoutMs: null },
-    )
+    const count = probeCount?.trim().replace(/\s+/g, '') ?? ''
+    if (count !== '' && !/^\d+(,\d+)?$/.test(count)) return false
+    const words = [
+      'BED_MESH_CALIBRATE',
+      ...(name === '' ? [] : [`PROFILE="${name}"`]),
+      ...(count === '' ? [] : [`PROBE_COUNT=${count}`]),
+    ]
+    const succeeded = await sendGcode(words.join(' '), 'bedMesh', { timeoutMs: null })
     if (succeeded) {
       bedMesh.recordCalibration(telemetry.bed.temperature)
       bedMesh.commitProfileTemperature('', name === '' ? 'default' : name)
     }
     return succeeded
-  }
-
-  /**
-   * `PROBE_ACCURACY` repeats a single-point probe (ten samples by default) and
-   * answers only once every sample is in, so this opts out of the transport's
-   * local deadline exactly as `calibrateBedMesh` and leveling already do — a
-   * deadline firing mid-run would report a failed command for a probe that was
-   * never in trouble. Klipper's own result line is read separately, by
-   * `useProbeAccuracyStore`, from the console transcript this dispatch echoes
-   * into; the RPC's own resolution only says the machine is done, not what it
-   * found.
-   */
-  async function probeAccuracy(): Promise<boolean> {
-    return sendGcode('PROBE_ACCURACY', 'probeAccuracy', { timeoutMs: null })
-  }
-
-  /**
-   * `MEASURE_AXES_NOISE` only dwells for `MEAS_TIME` (2 seconds by default)
-   * and moves nothing — unlike `probeAccuracy` above, its own duration never
-   * approaches the transport's default deadline, so this needs no opt-out.
-   */
-  async function measureAxesNoise(): Promise<boolean> {
-    return sendGcode('MEASURE_AXES_NOISE', 'measureAxesNoise')
-  }
-
-  /**
-   * Live and until the next restart: `SET_INPUT_SHAPER` changes the running
-   * shaper and never touches `[input_shaper]`, and Klipper exposes no status
-   * for it to read back — its own report of the new values is the console
-   * line this command answers with.
-   */
-  async function setInputShaper(recommendation: ShaperRecommendation): Promise<boolean> {
-    const command = setInputShaperCommand(recommendation)
-    if (command === null) return false
-    return sendGcode(command, 'inputShaper')
   }
 
   async function saveBedMeshProfile(profile: string): Promise<boolean> {
@@ -1806,9 +1775,6 @@ export const usePrinterStore = defineStore('printer', () => {
     loadBedMeshProfile,
     clearBedMesh,
     calibrateBedMesh,
-    probeAccuracy,
-    measureAxesNoise,
-    setInputShaper,
     saveBedMeshProfile,
     removeBedMeshProfile,
     renameBedMeshProfile,

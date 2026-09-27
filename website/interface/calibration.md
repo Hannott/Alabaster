@@ -1,37 +1,64 @@
 # Calibration
 
-This page runs every calibration job for a printer, start to finish, without
-leaving it. Each job has its own controls, readings, and console output.
+This page runs every calibration a printer supports, start to finish, without
+leaving it. Each calibration shows what it needs, runs, and reports what it
+found next to the value the printer had before.
 
 ## The jobs
 
 The tabs under the page title list the calibration jobs, in the order the
-physical dependencies run. Picking one gives it the page.
+physical dependencies run. Each job lists the calibrations your printer can run
+there.
 
-| Job              | What it covers                                                                                            |
-| ---------------- | --------------------------------------------------------------------------------------------------------- |
-| **Axes & frame** | Homing, jogging, parking, the levelling procedure your printer has, screw turns, Z offset, endstop states |
-| **Bed & probe**  | The height map, probe accuracy, saved mesh profiles                                                       |
-| **Heaters**      | PID or MPC calibration per heater, with the temperature chart beside it                                   |
-| **Resonance**    | Accelerometer noise, and the Shake&Tune graphs                                                            |
-| **Extrusion**    | Pressure advance, retraction, extrude and retract, filament sensor states                                 |
+| Job              | Calibrations                                                                                                                           | Beside them           |
+| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------- | --------------------- |
+| **Axes & frame** | Endstop check, stepper check, Z endstop position, endstop phase, TMC autotune, axis map                                                | The Movement controls |
+| **Bed & probe**  | Bed mesh, quad gantry level or Z tilt, bed screws, delta calibration, probe Z offset, probe accuracy, bed tilt, eddy and plugin probes | The height map        |
+| **Heaters**      | Heater model (PID or MPC), heater limits                                                                                               | The temperature chart |
+| **Resonance**    | Input shaper calibration, Shake&Tune shaper, belts and vibrations, accelerometer check and noise                                       | The Shake&Tune graphs |
+| **Extrusion**    | Rotation distance, pressure advance, filament sensors                                                                                  | The extruder controls |
 
-A job your printer cannot do is not listed. A machine with no probe has no
-**Bed & probe** entry; a machine whose only heater is bang-bang has no
+A calibration your printer cannot run is not listed. A machine with no probe
+has no **Bed & probe** entry; a machine whose only heater is bang-bang has no
 **Heaters** entry. **Axes & frame** is always there, because endstops exist on
-any machine with steppers.
+any machine with steppers. Calibrations from a plugin (Beacon, Cartographer,
+klipper_z_calibration, klipper_tmc_autotune) appear when the plugin is
+installed.
+
+## Running a calibration
+
+Pick a calibration from the list. It shows what it does, how long it takes,
+and whether it moves the toolhead, heats, or probes.
+
+- **Conditions** such as _Homed_ or _No print running_ are listed with a mark
+  each. An unmet one says so and offers the fix, such as **Home all**. The band
+  above the list shows the conditions for the whole job.
+- **Values** you might change, such as a mesh profile name or a heater's
+  target, are fields with Klipper's default shown. The command they build is
+  shown under them.
+- **Run** sends it. One calibration runs at a time.
+- **The result** lists what the calibration found next to what the printer had
+  before, and says where it went: staged for `SAVE_CONFIG`, applied until
+  Klipper restarts, or measured only. **Show output** opens the lines the
+  printer answered with.
+
+Each calibration also shows when it last ran on this printer, and its earlier
+results. The record is kept on the printer, so every browser sees the same
+dates. A calibration that is due, such as a mesh older than 30 days or heater
+models older than 90, is marked as due, and the job opens on it.
 
 ## The console
 
-A console sits below the job you are working on, so the lines Klipper answers
-with arrive where you started the command.
+A console can sit below the job you are working on, with every line Klipper
+answered with. Each calibration's result and output are already in its own
+panel, so the console is for the full transcript.
 
 It is the [Console page](/interface/console)'s own console: the same
 transcript, command history, filters, and command browser. A filter or a
 prompt position set in either place holds in both. Its height follows the
 **Visible lines** setting in its own settings panel.
 
-**Console** in the page heading puts it away and brings it back.
+The console starts closed. **Show console**, under the job, opens it.
 
 ::: info Config changes are still written from the header
 Calibration stages a change instead of writing it. The header's
@@ -134,31 +161,35 @@ while a round is waiting. See
 
 ## Homing and levelling
 
-**Axes & frame** carries the movement controls: home one axis or all of them,
-jog, park, run whichever levelling procedure your printer is configured for
-(`QUAD_GANTRY_LEVEL`, `Z_TILT_ADJUST`, `SCREWS_TILT_CALCULATE`,
-`BED_SCREWS_ADJUST`, `DELTA_CALIBRATE`), read the screw turns Klipper answers
-with, and set the Z offset.
+**Axes & frame** keeps the movement controls beside its calibrations: home one
+axis or all of them, jog, park, and set the Z offset. These are the same
+controls as the [Movement dashboard module](/interface/modules#movement),
+sharing its settings.
 
-These are the same controls as the
-[Movement dashboard module](/interface/modules#movement), sharing its settings:
-a jog step or park position changed in either place holds in both.
+The levelling procedure your printer is configured for (`QUAD_GANTRY_LEVEL`,
+`Z_TILT_ADJUST`, `SCREWS_TILT_CALCULATE`, `BED_SCREWS_ADJUST`,
+`DELTA_CALIBRATE`) is a calibration on **Bed & probe**. Its result shows the
+retries and the final range, or the turn for each screw. The Movement module
+on the dashboard keeps its **Level bed** button.
 
-**Probe accuracy** probes wherever the toolhead currently sits, so jogging it
-into position first is part of that check, on the same page.
+**Stepper check** moves one motor 1 mm back and forth ten times, to confirm
+which motor it is and which way it turns.
 
 ## Heater models
 
-**Heaters** runs `PID_CALIBRATE` or `MPC_CALIBRATE` per heater, whichever the
-heater is configured for. The temperature chart sits beside it, because the run
-drives the heater through its own heat-up cycle for several minutes and the
-climb curve is how you see it behaving.
+**Heater model** runs `PID_CALIBRATE` or `MPC_CALIBRATE`, whichever the heater
+is configured for. Choose the heater and the target; tune at the temperature
+you print at. The run takes several minutes. The temperature chart sits beside
+it, because the climb curve is how you see the heater behaving. The result
+shows the new constants next to the current ones.
 
 A bang-bang (`watermark`) heater has no constants to fit, so it is not offered.
 Calibration is refused while a job is loaded, not only while one is printing:
 the heat-up cycle ends a paused print or ruins a running one.
 
-The result stays staged until you save it from the header.
+**Heater limits** shows each heater's current constants and the
+`verify_heater` limits Klipper shuts the printer down over, with Klipper's
+defaults marked where the config sets none.
 
 ## Endstops
 
@@ -178,22 +209,31 @@ Each reading carries the time it was taken.
 
 ## Probe accuracy
 
-Repeats one point ten times in place and reports the results: **maximum**,
-**minimum**, **range**, **average**, **median**, and **standard deviation**.
+Repeats one point several times in place (ten unless you choose otherwise) and
+reports **maximum**, **minimum**, **range**, **average**, **median**, and
+**standard deviation**. Earlier runs are listed under the result.
 
 This distinguishes a noisy probe from an uneven bed. The two look identical
 on a mesh, but only one is fixed by probing more points. Run this check
 before you rely on a mesh's readings.
 
-This section appears only on a printer with a probe. If the probe's offset
-would carry it off the bed from the toolhead's current position, the page
-states this and the control waits instead of failing mid-run.
+Offered only on a printer with a probe. If the probe's offset would carry it
+off the bed from the toolhead's current position, the calibration says so and
+waits instead of failing mid-run.
 
 ## Extrusion
 
-**Extrusion** carries pressure advance and its smoothing time, the retraction
-figures, and the extrude and retract controls a pressure-advance check needs to
-push filament through. Same controls and same settings as the
+**Rotation distance** measures how far the extruder really moves filament.
+Heat the hotend, mark the filament above the extruder, extrude a set length
+slowly from the panel, and enter what is left to the mark. The panel works out
+the corrected `rotation_distance` and writes it to the config line Klipper
+uses. A firmware restart loads it.
+
+**Pressure advance** sets a value and its smoothing time on the running
+printer until the next restart. **Keep in the file** writes one that prints
+well into your configuration.
+
+The extruder controls sit beside them, the same as the
 [Extruder dashboard module](/interface/modules#extruder).
 
 ## Runout sensors
@@ -207,10 +247,26 @@ here without a page refresh.
 This section reports sensor state without changing it. The **Disarmed**
 mark distinguishes a genuine runout from a sensor that was never active.
 
+## Input shaper and resonance
+
+**Input shaper calibration** runs Klipper's own `SHAPER_CALIBRATE` and needs no
+plugin. Its result shows the recommended shaper and frequency per axis next to
+the configured ones, with the suggested `max_accel`. The result is staged for
+`SAVE_CONFIG`. **Apply** puts a recommendation into effect right away, until
+Klipper restarts.
+
+**Accelerometer check** reads the accelerometer once to see that it answers.
+**Accelerometer noise** reads background vibration for two seconds, so a fan
+touching the toolhead or a loose mount shows before a real test.
+
+With Shake&Tune installed, its shaper, belts, and vibrations tests are
+calibrations too. The shaper test's recommendations appear in its result, with
+**Apply**. The belts comparison is offered only on CoreXY and CoreXZ printers.
+
 ## Tuning results
 
-Shows your input shaper output, read directly from the printer's config
-folder.
+Shake&Tune's graphs sit beside the resonance calibrations, read directly from
+the printer's config folder.
 
 | Category           | What it shows                          |
 | ------------------ | -------------------------------------- |
@@ -221,18 +277,11 @@ folder.
 | Static frequency   | A single-frequency measurement.        |
 
 Every graph is listed by name and date, and the newest one is open beside the
-list. A test you run from here opens its own graph when it finishes.
+list. A test that finishes opens its own graph.
 
 **Compare** puts two graphs side by side, from any two tests: a belts
 comparison beside an input shaper result shows what tensioning the belts did.
 Click a graph to open it at full size.
-
-When an input shaper test finishes, its recommended shaper for each axis appears
-under **Input shaper**. **Apply** puts one into effect right away, until Klipper
-restarts; to keep it, add it to your `[input_shaper]` section.
-
-Tuning results appear on the same page as the mesh and the belts you are
-comparing them against.
 
 ::: info Generated by Shake&Tune
 These graphs come from the Shake&Tune tooling. Alabaster reads the files

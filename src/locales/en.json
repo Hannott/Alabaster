@@ -215,19 +215,12 @@
       }
     },
     "probe": {
-      "title": "Probe accuracy",
-      "hint": "Probes one point ten times in place.",
-      "run": "Run accuracy test",
-      "running": "Probing the same point repeatedly — this takes a moment.",
-      "outsideBed": "The probe's offset would carry it outside the bed from here. Move the toolhead before running this.",
-      "empty": "No accuracy test has been run yet.",
       "maximum": "Maximum",
       "minimum": "Minimum",
       "range": "Range",
       "average": "Average",
       "median": "Median",
-      "standardDeviation": "Standard deviation",
-      "millimetres": "{value} mm"
+      "standardDeviation": "Standard deviation"
     },
     "sensors": {
       "title": "Runout sensors",
@@ -263,26 +256,10 @@
       "hint": "Shake&Tune's diagnostic graphs.",
       "refresh": "Refresh",
       "open": "Open {name} at full size",
-      "run": "Run",
-      "runLabel": "Run {category}",
       "empty": "Nothing recorded for this test yet.",
       "compare": "Compare",
       "compared": "Compared",
       "pickComparison": "Choose a graph to compare",
-      "shaper": {
-        "value": "{axis} · {shaper} \\@ {frequency} Hz",
-        "kind": {
-          "performance": "For performance",
-          "lowVibrations": "For low vibrations",
-          "best": "Best shaper"
-        },
-        "apply": "Apply",
-        "applyLabel": "Apply {shaper} at {frequency} Hz to {axis}",
-        "untilRestart": "Applies until Klipper restarts."
-      },
-      "checkNoise": "Check accelerometer noise",
-      "noiseHint": "Reads background vibration for 2 seconds.",
-      "noiseReading": "{axis}-axis accelerometer — x {x}, y {y}, z {z}",
       "category": {
         "inputShaper": "Input shaper",
         "belts": "Belts comparison",
@@ -291,12 +268,296 @@
         "staticFrequency": "Static frequency"
       }
     },
-    "heaters": {
-      "title": "Heater models",
-      "hint": "Takes several minutes. The new constants are staged, not written."
-    },
     "console": {
-      "toggle": "Console"
+      "show": "Show console",
+      "hide": "Hide console"
+    },
+    "bench": {
+      "procedures": "Procedures",
+      "never": "Never run",
+      "today": "Today {time}",
+      "stale": "{when} · due",
+      "running": "Running",
+      "readiness": "Ready?",
+      "staged": "Staged for SAVE_CONFIG: {count}",
+      "stagedUnknown": "Changes staged for SAVE_CONFIG",
+      "run": "Run",
+      "noScript": "Fill in the values above",
+      "interactive": "A dialog walks through the steps once it starts.",
+      "showOutput": "Show output",
+      "hideOutput": "Hide output",
+      "output": "Output",
+      "waiting": "Waiting for output…",
+      "history": "Earlier runs",
+      "confirmTitle": "Run {name}?",
+      "blocked": {
+        "unavailable": "Klipper is not ready.",
+        "otherRunning": "Another procedure is running.",
+        "requirements": "Meet the conditions above first.",
+        "missing": "Fill in every required value.",
+        "invalid": "A value cannot be sent as it is."
+      },
+      "duration": {
+        "seconds": "Seconds",
+        "minute": "About a minute",
+        "minutes": "Several minutes",
+        "interactive": "Step by step"
+      },
+      "effect": {
+        "moves": "Moves the toolhead",
+        "heats": "Heats",
+        "probes": "Probes the bed"
+      }
+    },
+    "requirement": {
+      "homed": {
+        "met": "Homed",
+        "unmet": "Not homed"
+      },
+      "notPrinting": {
+        "met": "No print running",
+        "unmet": "A print is running"
+      },
+      "probeInBed": {
+        "met": "Probe over the bed",
+        "unmet": "The probe offset would carry it outside the bed. Move the toolhead first."
+      },
+      "homeAll": "Home all"
+    },
+    "result": {
+      "title": "Result",
+      "value": "Value",
+      "before": "Before",
+      "now": "Now",
+      "outcome": {
+        "staged": "Staged for SAVE_CONFIG. Save it from the header to keep it.",
+        "applied": "Applied until Klipper restarts.",
+        "measured": "Measured; nothing on the printer changed.",
+        "done": "Finished.",
+        "failed": "The command failed. The output says why."
+      },
+      "actionApplied": "Applied until Klipper restarts.",
+      "persist": {
+        "saved": "Written to the config file. Restart to load it.",
+        "buffered": "Written into the unsaved edits of that file. Save it in Configuration.",
+        "unchanged": "The file already says this.",
+        "refused": "Not written: the line is in the SAVE_CONFIG block or has a staged change."
+      },
+      "retries": "Retries",
+      "range": "Range",
+      "tolerance": "Tolerance",
+      "suggestedMaxAccel": "Suggested max_accel ({axis})",
+      "applyShaper": "Apply {axis} until restart",
+      "shaperKind": {
+        "performance": "{axis} · for performance",
+        "lowVibrations": "{axis} · for low vibrations",
+        "best": "{axis} · recommended"
+      },
+      "noise": "Noise, {chip} (x · y · z)",
+      "keepInFile": "Keep {option} in the file"
+    },
+    "param": {
+      "stepper": "Stepper",
+      "allSteppers": "All steppers",
+      "chip": "Chip",
+      "profile": "Profile",
+      "probeCount": "Probe count",
+      "samples": "Samples",
+      "probe": "Probe",
+      "target": "Target",
+      "heater": "Heater",
+      "axis": "Axis",
+      "bothAxes": "Both",
+      "defaultChip": "Default",
+      "advance": "Pressure advance",
+      "smoothTime": "Smooth time"
+    },
+    "unit": {
+      "seconds": "s",
+      "millimetres": "mm"
+    },
+    "rotation": {
+      "heat": "Heat the hotend: {current} °C now, at least {minimum} °C to extrude.",
+      "heatAction": "Heat",
+      "mark": "Mark the filament {length} mm above where it enters the extruder.",
+      "markLabel": "Mark",
+      "extrude": "Extrude {length} mm slowly.",
+      "lengthLabel": "Length",
+      "extrudeAction": "Extrude",
+      "measure": "Measure what is left between the extruder and the mark.",
+      "remainingLabel": "Left to the mark",
+      "tooCold": "The hotend is below the minimum extrude temperature.",
+      "notExtruded": "This is the value your measurement gives. Extrude from this panel for it to count."
+    },
+    "heaterCheck": {
+      "default": "Klipper default"
+    },
+    "procedure": {
+      "endstops": {
+        "name": "Endstop check",
+        "description": "Reads every endstop, so a switch that never triggers shows before homing does.",
+        "detail": "Reads each endstop again every couple of seconds while the printer is idle. Press a switch by hand and watch it change."
+      },
+      "stepperBuzz": {
+        "name": "Stepper check",
+        "description": "Moves one motor back and forth, to confirm its wiring and direction.",
+        "detail": "Moves the chosen stepper 1 mm forward and back ten times. Watch which motor moves, and that it moves the way the axis should."
+      },
+      "zEndstop": {
+        "name": "Z endstop position",
+        "description": "Paper test under the nozzle; sets position_endstop for Z.",
+        "detail": "Lowers the nozzle onto a sheet of paper in steps you choose, then stages the new position_endstop for SAVE_CONFIG. A dialog walks you through it."
+      },
+      "endstopPhase": {
+        "name": "Endstop phase",
+        "description": "Records each stepper's phase at its endstop, for more repeatable homing.",
+        "detail": "Reports the stepper phase each endstop triggers at, and stages it for SAVE_CONFIG. Home a few times first so there are readings to use."
+      },
+      "tmcAutotune": {
+        "name": "TMC autotune",
+        "description": "Tunes the stepper drivers from the motor data (klipper_tmc_autotune).",
+        "detail": "Sets the TMC driver registers from each motor's data sheet values. Nothing moves."
+      },
+      "axesMap": {
+        "name": "Axis map",
+        "description": "Finds how the accelerometer's axes line up with the printer's (Shake&Tune).",
+        "detail": "Moves each axis and measures which accelerometer axis responds, then prints the axes_map to use."
+      },
+      "bedMesh": {
+        "name": "Bed mesh",
+        "description": "Probes the bed and saves a mesh profile.",
+        "detail": "Probes a grid across the bed and stores it under a profile name. Take it at the bed temperature you print at: a mesh taken cold does not describe a hot bed."
+      },
+      "quadGantryLevel": {
+        "name": "Quad gantry level",
+        "description": "Levels the gantry with the four Z motors.",
+        "detail": "Probes the four corners and moves each Z motor until the gantry is within tolerance. The result is live until the next home."
+      },
+      "zTilt": {
+        "name": "Z tilt",
+        "description": "Levels the bed with the Z motors.",
+        "detail": "Probes the configured points and moves each Z motor until the bed is within tolerance. The result is live until the next home."
+      },
+      "screwsTilt": {
+        "name": "Bed screws",
+        "description": "Probes next to each screw and says how far to turn it.",
+        "detail": "Probes beside each bed screw and reports the turn that brings it level with the base screw. Turn them, then run it again to check."
+      },
+      "bedScrews": {
+        "name": "Bed screws by hand",
+        "description": "Moves to each screw for a paper test at it.",
+        "detail": "Moves the nozzle over each bed screw in turn. Adjust the screw with a sheet of paper under the nozzle, then accept or mark it adjusted. A dialog walks you through it."
+      },
+      "deltaCalibrate": {
+        "name": "Delta calibration",
+        "description": "Probes the bed and calibrates a delta printer's geometry.",
+        "detail": "Probes points across the bed and stages new endstop positions and radius for SAVE_CONFIG."
+      },
+      "probeZOffset": {
+        "name": "Probe Z offset",
+        "description": "Paper test under the nozzle; sets the probe's z_offset.",
+        "detail": "Probes the bed, then lowers the nozzle onto a sheet of paper in steps you choose, and stages the new z_offset for SAVE_CONFIG. A dialog walks you through it."
+      },
+      "nozzleZ": {
+        "name": "Nozzle Z calibration",
+        "description": "Runs this printer's own nozzle calibration macro.",
+        "detail": "Runs CALIBRATE_NOZZLE_Z, which your probe's macro pack defines, and follows it through the paper test when it asks for one."
+      },
+      "probeAccuracy": {
+        "name": "Probe accuracy",
+        "description": "Probes one point several times and reports the spread.",
+        "detail": "Probes the point under the probe several times without moving and reports how far the readings spread. A standard deviation under about 0.003 mm is typical of a good probe."
+      },
+      "bedTilt": {
+        "name": "Bed tilt",
+        "description": "Measures the bed's tilt for software compensation.",
+        "detail": "Probes the configured points and stages x_adjust and y_adjust for SAVE_CONFIG."
+      },
+      "eddyDriveCurrent": {
+        "name": "Eddy probe drive current",
+        "description": "Finds the drive current for an eddy current probe.",
+        "detail": "Put the nozzle about 20 mm above the bed first. Finds the coil drive current and stages it for SAVE_CONFIG."
+      },
+      "eddyHeight": {
+        "name": "Eddy probe height map",
+        "description": "Maps frequency to height for an eddy current probe.",
+        "detail": "Starts with a paper test, then moves the probe through a range of heights to map its frequency to distance. A dialog walks you through it."
+      },
+      "probeDrift": {
+        "name": "Probe temperature drift",
+        "description": "Measures how the probe's readings drift as it warms.",
+        "detail": "Heats towards the target while probing repeatedly, and records the drift at each temperature."
+      },
+      "beacon": {
+        "name": "Beacon calibration",
+        "description": "Beacon probe calibration.",
+        "detail": "Runs BEACON_CALIBRATE and follows it through the paper test when it asks for one."
+      },
+      "cartographer": {
+        "name": "Cartographer calibration",
+        "description": "Cartographer probe calibration.",
+        "detail": "Runs CARTOGRAPHER_CALIBRATE and follows it through the paper test when it asks for one."
+      },
+      "autoZ": {
+        "name": "Automatic Z calibration",
+        "description": "Sets the Z offset from the Z endstop, the probe and the bed.",
+        "detail": "Runs klipper_z_calibration's CALIBRATE_Z, which measures the nozzle and the probe on the Z endstop and the bed, and applies the offset until the next restart."
+      },
+      "heaterModel": {
+        "name": "Heater model",
+        "description": "Tunes a heater's PID or MPC model at the temperature you print at.",
+        "detail": "Heats the heater to the target and lets it swing around it a few times, which takes several minutes, then stages the new constants for SAVE_CONFIG. Tune at the temperature you print at."
+      },
+      "heaterCheck": {
+        "name": "Heater limits",
+        "description": "What each heater runs on, and what Klipper will shut it down over.",
+        "detail": "Each heater's current control constants, and the verify_heater limits that stop the printer when a heater does not heat as expected."
+      },
+      "shaperCalibrate": {
+        "name": "Input shaper calibration",
+        "description": "Shakes each axis and recommends an input shaper.",
+        "detail": "Excites each axis across a range of frequencies with the accelerometer attached, recommends a shaper and frequency per axis, and stages them for SAVE_CONFIG."
+      },
+      "shakeTuneShaper": {
+        "name": "Input shaper graphs",
+        "description": "Shake&Tune's shaper run, with a graph per axis.",
+        "detail": "Runs Shake&Tune's AXES_SHAPER_CALIBRATION. Its graphs appear beside this panel when they are written, and its recommendation is lifted into the result."
+      },
+      "shakeTuneBelts": {
+        "name": "Belt comparison",
+        "description": "Compares the two belts' responses on a CoreXY printer.",
+        "detail": "Runs Shake&Tune's COMPARE_BELTS_RESPONSES. Two belts at the same tension draw two curves that lie on top of each other."
+      },
+      "shakeTuneVibrations": {
+        "name": "Vibration profile",
+        "description": "Maps the machine's vibrations across speeds and directions.",
+        "detail": "Runs Shake&Tune's CREATE_VIBRATIONS_PROFILE, which moves the toolhead at a range of speeds and angles. The graph shows the speeds to avoid."
+      },
+      "accelerometerQuery": {
+        "name": "Accelerometer check",
+        "description": "Reads the accelerometer once, to see that it answers.",
+        "detail": "Reads one sample from the accelerometer. At rest, one axis reads about 9800 mm/s², which is gravity."
+      },
+      "axesNoise": {
+        "name": "Accelerometer noise",
+        "description": "Reads background vibration for two seconds.",
+        "detail": "Reads the accelerometer for two seconds with the printer still. High noise here means a fan touching the toolhead or a loose mount, and it will show in every graph."
+      },
+      "rotationDistance": {
+        "name": "Rotation distance",
+        "description": "Measures how far the extruder really moves filament, and corrects it.",
+        "detail": "Mark the filament above the extruder, extrude a known length slowly, and measure what is left to the mark. The new rotation_distance is the old one scaled by how far the filament actually moved."
+      },
+      "pressureAdvance": {
+        "name": "Pressure advance",
+        "description": "Tries a pressure advance value live, then keeps it in the file.",
+        "detail": "Sets pressure advance and its smoothing time on the running printer, until the next restart. Keep a value that prints well in the config file from the result."
+      },
+      "runoutSensors": {
+        "name": "Filament sensors",
+        "description": "Each runout sensor's state, live.",
+        "detail": "Pull the filament back past a sensor and watch it change. A sensor that reads no filament while filament is loaded is a fault, not an empty spool."
+      }
     }
   },
   "history": {

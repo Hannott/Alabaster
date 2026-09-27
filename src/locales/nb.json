@@ -215,19 +215,12 @@
       }
     },
     "probe": {
-      "title": "Probenøyaktighet",
-      "hint": "Prober ett punkt ti ganger på samme sted.",
-      "run": "Kjør nøyaktighetstest",
-      "running": "Prober samme punkt gjentatte ganger — dette tar en liten stund.",
-      "outsideBed": "Probens offset vil føre den utenfor bedet herfra. Flytt skrivehodet før du kjører dette.",
-      "empty": "Ingen nøyaktighetstest er kjørt ennå.",
       "maximum": "Høyeste",
       "minimum": "Laveste",
       "range": "Spredning",
       "average": "Gjennomsnitt",
       "median": "Median",
-      "standardDeviation": "Standardavvik",
-      "millimetres": "{value} mm"
+      "standardDeviation": "Standardavvik"
     },
     "sensors": {
       "title": "Tomkjøringssensorer",
@@ -263,26 +256,10 @@
       "hint": "Shake&Tunes diagnosegrafer.",
       "refresh": "Oppdater",
       "open": "Åpne {name} i full størrelse",
-      "run": "Kjør",
-      "runLabel": "Kjør {category}",
       "empty": "Ingenting registrert for denne testen ennå.",
       "compare": "Sammenlign",
       "compared": "Sammenlignes",
       "pickComparison": "Velg en graf å sammenligne",
-      "shaper": {
-        "value": "{axis} · {shaper} \\@ {frequency} Hz",
-        "kind": {
-          "performance": "For ytelse",
-          "lowVibrations": "For lave vibrasjoner",
-          "best": "Beste shaper"
-        },
-        "apply": "Bruk",
-        "applyLabel": "Bruk {shaper} på {frequency} Hz for {axis}",
-        "untilRestart": "Gjelder til Klipper startes på nytt."
-      },
-      "checkNoise": "Sjekk akselerometerstøy",
-      "noiseHint": "Leser bakgrunnsvibrasjon i 2 sekunder.",
-      "noiseReading": "{axis}-akse-akselerometer — x {x}, y {y}, z {z}",
       "category": {
         "inputShaper": "Input shaper",
         "belts": "Belte-sammenligning",
@@ -291,12 +268,296 @@
         "staticFrequency": "Statisk frekvens"
       }
     },
-    "heaters": {
-      "title": "Varmemodeller",
-      "hint": "Tar flere minutter. De nye konstantene klargjøres, de skrives ikke."
-    },
     "console": {
-      "toggle": "Konsoll"
+      "show": "Vis konsoll",
+      "hide": "Skjul konsoll"
+    },
+    "bench": {
+      "procedures": "Prosedyrer",
+      "never": "Aldri kjørt",
+      "today": "I dag {time}",
+      "stale": "{when} · bør kjøres",
+      "running": "Kjører",
+      "readiness": "Klar?",
+      "staged": "Klar for SAVE_CONFIG: {count}",
+      "stagedUnknown": "Endringer klare for SAVE_CONFIG",
+      "run": "Kjør",
+      "noScript": "Fyll inn verdiene over",
+      "interactive": "En dialog viser vei gjennom stegene når den starter.",
+      "showOutput": "Vis utdata",
+      "hideOutput": "Skjul utdata",
+      "output": "Utdata",
+      "waiting": "Venter på utdata …",
+      "history": "Tidligere kjøringer",
+      "confirmTitle": "Kjøre {name}?",
+      "blocked": {
+        "unavailable": "Klipper er ikke klar.",
+        "otherRunning": "En annen prosedyre kjører.",
+        "requirements": "Oppfyll betingelsene over først.",
+        "missing": "Fyll inn alle påkrevde verdier.",
+        "invalid": "En verdi kan ikke sendes slik den er."
+      },
+      "duration": {
+        "seconds": "Sekunder",
+        "minute": "Omtrent ett minutt",
+        "minutes": "Flere minutter",
+        "interactive": "Steg for steg"
+      },
+      "effect": {
+        "moves": "Beveger verktøyhodet",
+        "heats": "Varmer",
+        "probes": "Prober sengen"
+      }
+    },
+    "requirement": {
+      "homed": {
+        "met": "Homet",
+        "unmet": "Ikke homet"
+      },
+      "notPrinting": {
+        "met": "Ingen utskrift pågår",
+        "unmet": "En utskrift pågår"
+      },
+      "probeInBed": {
+        "met": "Proben er over sengen",
+        "unmet": "Probens forskyvning ville ført den utenfor sengen. Flytt verktøyhodet først."
+      },
+      "homeAll": "Hom alle"
+    },
+    "result": {
+      "title": "Resultat",
+      "value": "Verdi",
+      "before": "Før",
+      "now": "Nå",
+      "outcome": {
+        "staged": "Klar for SAVE_CONFIG. Lagre fra toppfeltet for å beholde det.",
+        "applied": "Brukt til Klipper starter på nytt.",
+        "measured": "Målt; ingenting på skriveren ble endret.",
+        "done": "Ferdig.",
+        "failed": "Kommandoen feilet. Utdataene sier hvorfor."
+      },
+      "actionApplied": "Brukt til Klipper starter på nytt.",
+      "persist": {
+        "saved": "Skrevet til konfigurasjonsfilen. Start på nytt for å laste den.",
+        "buffered": "Skrevet inn i ulagrede endringer i den filen. Lagre den i Konfigurasjon.",
+        "unchanged": "Filen sier allerede dette.",
+        "refused": "Ikke skrevet: linjen er i SAVE_CONFIG-blokken eller har en ventende endring."
+      },
+      "retries": "Forsøk",
+      "range": "Spenn",
+      "tolerance": "Toleranse",
+      "suggestedMaxAccel": "Foreslått max_accel ({axis})",
+      "applyShaper": "Bruk {axis} til omstart",
+      "shaperKind": {
+        "performance": "{axis} · for ytelse",
+        "lowVibrations": "{axis} · for lite vibrasjon",
+        "best": "{axis} · anbefalt"
+      },
+      "noise": "Støy, {chip} (x · y · z)",
+      "keepInFile": "Behold {option} i filen"
+    },
+    "param": {
+      "stepper": "Motor",
+      "allSteppers": "Alle motorer",
+      "chip": "Brikke",
+      "profile": "Profil",
+      "probeCount": "Antall probepunkter",
+      "samples": "Målinger",
+      "probe": "Probe",
+      "target": "Mål",
+      "heater": "Varmer",
+      "axis": "Akse",
+      "bothAxes": "Begge",
+      "defaultChip": "Standard",
+      "advance": "Trykkforsprang",
+      "smoothTime": "Utjevningstid"
+    },
+    "unit": {
+      "seconds": "s",
+      "millimetres": "mm"
+    },
+    "rotation": {
+      "heat": "Varm opp hotenden: {current} °C nå, minst {minimum} °C for å ekstrudere.",
+      "heatAction": "Varm opp",
+      "mark": "Merk filamentet {length} mm over der det går inn i ekstruderen.",
+      "markLabel": "Merke",
+      "extrude": "Ekstruder {length} mm sakte.",
+      "lengthLabel": "Lengde",
+      "extrudeAction": "Ekstruder",
+      "measure": "Mål det som er igjen mellom ekstruderen og merket.",
+      "remainingLabel": "Igjen til merket",
+      "tooCold": "Hotenden er under minste ekstruderingstemperatur.",
+      "notExtruded": "Dette er verdien målingen din gir. Ekstruder fra dette panelet for at den skal telle."
+    },
+    "heaterCheck": {
+      "default": "Klippers standard"
+    },
+    "procedure": {
+      "endstops": {
+        "name": "Endestoppsjekk",
+        "description": "Leser alle endestopper, så en bryter som aldri utløses vises før homing gjør det.",
+        "detail": "Leser hver endestopp på nytt hvert par sekund mens skriveren står i ro. Trykk inn en bryter for hånd og se den endre seg."
+      },
+      "stepperBuzz": {
+        "name": "Motorsjekk",
+        "description": "Beveger én motor frem og tilbake for å bekrefte kobling og retning.",
+        "detail": "Beveger valgt motor 1 mm frem og tilbake ti ganger. Se hvilken motor som beveger seg, og at den går riktig vei."
+      },
+      "zEndstop": {
+        "name": "Z-endestoppens posisjon",
+        "description": "Papirtest under dysen; setter position_endstop for Z.",
+        "detail": "Senker dysen ned mot et papirark i steg du velger, og legger den nye position_endstop klar for SAVE_CONFIG. En dialog viser vei."
+      },
+      "endstopPhase": {
+        "name": "Endestoppfase",
+        "description": "Registrerer hver motors fase ved endestoppen, for mer gjentakbar homing.",
+        "detail": "Rapporterer motorfasen hver endestopp utløses ved, og legger den klar for SAVE_CONFIG. Hom noen ganger først så det finnes målinger."
+      },
+      "tmcAutotune": {
+        "name": "TMC-autojustering",
+        "description": "Justerer motordriverne ut fra motordata (klipper_tmc_autotune).",
+        "detail": "Setter TMC-driverens registre ut fra hver motors databladverdier. Ingenting beveger seg."
+      },
+      "axesMap": {
+        "name": "Aksekart",
+        "description": "Finner hvordan akselerometerets akser ligger i forhold til skriverens (Shake&Tune).",
+        "detail": "Beveger hver akse og måler hvilken akselerometerakse som svarer, og skriver ut axes_map som skal brukes."
+      },
+      "bedMesh": {
+        "name": "Sengenett",
+        "description": "Prober sengen og lagrer en nettprofil.",
+        "detail": "Prober et rutenett over sengen og lagrer det under et profilnavn. Ta det ved sengetemperaturen du skriver ut med: et nett tatt kaldt beskriver ikke en varm seng."
+      },
+      "quadGantryLevel": {
+        "name": "Portalnivellering",
+        "description": "Nivellerer portalen med de fire Z-motorene.",
+        "detail": "Prober de fire hjørnene og flytter hver Z-motor til portalen er innenfor toleransen. Resultatet gjelder til neste homing."
+      },
+      "zTilt": {
+        "name": "Z-tilt",
+        "description": "Nivellerer sengen med Z-motorene.",
+        "detail": "Prober de konfigurerte punktene og flytter hver Z-motor til sengen er innenfor toleransen. Resultatet gjelder til neste homing."
+      },
+      "screwsTilt": {
+        "name": "Sengeskruer",
+        "description": "Prober ved hver skrue og sier hvor mye den skal skrus.",
+        "detail": "Prober ved hver sengeskrue og rapporterer hvor mye den skal skrus for å stå i nivå med basisskruen. Skru, og kjør på nytt for å sjekke."
+      },
+      "bedScrews": {
+        "name": "Sengeskruer for hånd",
+        "description": "Flytter til hver skrue for en papirtest der.",
+        "detail": "Flytter dysen over hver sengeskrue etter tur. Juster skruen med et papirark under dysen, og godta eller merk den som justert. En dialog viser vei."
+      },
+      "deltaCalibrate": {
+        "name": "Delta-kalibrering",
+        "description": "Prober sengen og kalibrerer geometrien til en delta-skriver.",
+        "detail": "Prober punkter over sengen og legger nye endestopposisjoner og radius klar for SAVE_CONFIG."
+      },
+      "probeZOffset": {
+        "name": "Probens Z-forskyvning",
+        "description": "Papirtest under dysen; setter probens z_offset.",
+        "detail": "Prober sengen, senker så dysen ned mot et papirark i steg du velger, og legger ny z_offset klar for SAVE_CONFIG. En dialog viser vei."
+      },
+      "nozzleZ": {
+        "name": "Kalibrering av dyse-Z",
+        "description": "Kjører skriverens egen kalibreringsmakro for dysen.",
+        "detail": "Kjører CALIBRATE_NOZZLE_Z, som probens makropakke definerer, og følger den gjennom papirtesten når den ber om det."
+      },
+      "probeAccuracy": {
+        "name": "Probenøyaktighet",
+        "description": "Prober ett punkt flere ganger og rapporterer spredningen.",
+        "detail": "Prober punktet under proben flere ganger uten å flytte seg, og rapporterer spredningen. Et standardavvik under omtrent 0,003 mm er typisk for en god probe."
+      },
+      "bedTilt": {
+        "name": "Sengehelning",
+        "description": "Måler sengens helning for programvarekompensasjon.",
+        "detail": "Prober de konfigurerte punktene og legger x_adjust og y_adjust klar for SAVE_CONFIG."
+      },
+      "eddyDriveCurrent": {
+        "name": "Drivstrøm for virvelstrømsprobe",
+        "description": "Finner drivstrømmen for en virvelstrømsprobe.",
+        "detail": "Sett dysen omtrent 20 mm over sengen først. Finner spolens drivstrøm og legger den klar for SAVE_CONFIG."
+      },
+      "eddyHeight": {
+        "name": "Høydekart for virvelstrømsprobe",
+        "description": "Kobler frekvens til høyde for en virvelstrømsprobe.",
+        "detail": "Starter med en papirtest og flytter så proben gjennom en rekke høyder for å koble frekvens til avstand. En dialog viser vei."
+      },
+      "probeDrift": {
+        "name": "Temperaturdrift for probe",
+        "description": "Måler hvordan probens målinger driver når den blir varm.",
+        "detail": "Varmer mot målet mens den prober gjentatte ganger, og registrerer driften ved hver temperatur."
+      },
+      "beacon": {
+        "name": "Beacon-kalibrering",
+        "description": "Kalibrering av Beacon-probe.",
+        "detail": "Kjører BEACON_CALIBRATE og følger den gjennom papirtesten når den ber om det."
+      },
+      "cartographer": {
+        "name": "Cartographer-kalibrering",
+        "description": "Kalibrering av Cartographer-probe.",
+        "detail": "Kjører CARTOGRAPHER_CALIBRATE og følger den gjennom papirtesten når den ber om det."
+      },
+      "autoZ": {
+        "name": "Automatisk Z-kalibrering",
+        "description": "Setter Z-forskyvningen fra Z-endestoppen, proben og sengen.",
+        "detail": "Kjører CALIBRATE_Z fra klipper_z_calibration, som måler dysen og proben mot Z-endestoppen og sengen, og bruker forskyvningen til neste omstart."
+      },
+      "heaterModel": {
+        "name": "Varmermodell",
+        "description": "Justerer en varmers PID- eller MPC-modell ved temperaturen du skriver ut med.",
+        "detail": "Varmer varmeren til målet og lar den svinge rundt det noen ganger, noe som tar flere minutter, og legger de nye konstantene klar for SAVE_CONFIG. Juster ved temperaturen du skriver ut med."
+      },
+      "heaterCheck": {
+        "name": "Varmergrenser",
+        "description": "Hva hver varmer styres med, og hva Klipper slår den av for.",
+        "detail": "Hver varmers nåværende reguleringskonstanter, og verify_heater-grensene som stopper skriveren når en varmer ikke varmer som forventet."
+      },
+      "shaperCalibrate": {
+        "name": "Kalibrering av inngangsformer",
+        "description": "Rister hver akse og anbefaler en inngangsformer.",
+        "detail": "Rister hver akse gjennom et frekvensområde med akselerometeret montert, anbefaler en former og frekvens per akse, og legger dem klar for SAVE_CONFIG."
+      },
+      "shakeTuneShaper": {
+        "name": "Grafer for inngangsformer",
+        "description": "Shake&Tunes formerkjøring, med en graf per akse.",
+        "detail": "Kjører Shake&Tunes AXES_SHAPER_CALIBRATION. Grafene vises ved siden av dette panelet når de er skrevet, og anbefalingen løftes inn i resultatet."
+      },
+      "shakeTuneBelts": {
+        "name": "Remmesammenligning",
+        "description": "Sammenligner de to remmenes respons på en CoreXY-skriver.",
+        "detail": "Kjører Shake&Tunes COMPARE_BELTS_RESPONSES. To remmer med lik stramming tegner to kurver som ligger oppå hverandre."
+      },
+      "shakeTuneVibrations": {
+        "name": "Vibrasjonsprofil",
+        "description": "Kartlegger maskinens vibrasjoner over hastigheter og retninger.",
+        "detail": "Kjører Shake&Tunes CREATE_VIBRATIONS_PROFILE, som beveger verktøyhodet med ulike hastigheter og vinkler. Grafen viser hvilke hastigheter som bør unngås."
+      },
+      "accelerometerQuery": {
+        "name": "Akselerometersjekk",
+        "description": "Leser akselerometeret én gang for å se at det svarer.",
+        "detail": "Leser én måling fra akselerometeret. I ro viser én akse omtrent 9800 mm/s², som er tyngdekraften."
+      },
+      "axesNoise": {
+        "name": "Akselerometerstøy",
+        "description": "Leser bakgrunnsvibrasjon i to sekunder.",
+        "detail": "Leser akselerometeret i to sekunder mens skriveren står stille. Høy støy her betyr en vifte som berører verktøyhodet eller et løst feste, og det vil synes i hver graf."
+      },
+      "rotationDistance": {
+        "name": "Rotasjonsdistanse",
+        "description": "Måler hvor langt ekstruderen faktisk flytter filamentet, og korrigerer.",
+        "detail": "Merk filamentet over ekstruderen, ekstruder en kjent lengde sakte, og mål det som er igjen til merket. Ny rotation_distance er den gamle skalert etter hvor langt filamentet faktisk flyttet seg."
+      },
+      "pressureAdvance": {
+        "name": "Trykkforsprang",
+        "description": "Prøver en verdi for trykkforsprang direkte, og beholder den i filen.",
+        "detail": "Setter trykkforsprang og utjevningstid på skriveren mens den kjører, til neste omstart. Behold en verdi som skriver godt i konfigurasjonsfilen fra resultatet."
+      },
+      "runoutSensors": {
+        "name": "Filamentsensorer",
+        "description": "Hver filamentsensors tilstand, direkte.",
+        "detail": "Trekk filamentet tilbake forbi en sensor og se den endre seg. En sensor som viser tomt mens filament er lastet er en feil, ikke en tom spole."
+      }
     }
   },
   "history": {

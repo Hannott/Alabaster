@@ -12926,70 +12926,524 @@ body.machine-editor-fullscreen-open {
   isolation: isolate;
 }
 
-.calibration-stage {
+/*
+ * The bench every stage is built on (CalibrationBench.vue): the procedure list,
+ * the selected procedure's workspace, and the live column.
+ *
+ * Every column is its own stack, and no two columns ever share a grid row. The
+ * stages used to set dashboard cards of very different heights side by side in
+ * one grid, and every row took its tallest card's height: measured at
+ * 1920×1200, 388 px sat empty under Endstops and 400 px across the bed stage's
+ * right-hand column. At the middle width the list spans both rows so the
+ * workspace and the live column stack beside it, rather than the live column
+ * starting under whichever of the other two is taller.
+ */
+.calibration-bench {
+  display: grid;
+  gap: 1rem;
+}
+
+.calibration-bench__columns {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: 1rem;
   align-items: start;
 }
 
-@container calibration-canvas (min-width: 52rem) {
+.calibration-bench__column {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.calibration-bench__column--live {
+  container: calibration-live / inline-size;
+}
+
+@container calibration-canvas (min-width: 60rem) {
   /*
-   * The working card leads and its readings sit beside it: movement beside
-   * endstops, heater calibration beside the temperature chart, the extruder
-   * beside its filament sensors. Two stated tracks, so the pair never reorders
-   * itself the way the wrapping row it replaced did.
+   * A reading width rather than stretched: a workspace holding three endstop
+   * readings has no use for half the screen, and a card stretched to the canvas
+   * is the "unstructured" look the bench exists to remove. The tracks stop at a
+   * stated width and the columns keep to the start, so what is left over stays
+   * at the end of the row rather than inside the cards. Stated, not
+   * `fit-content`: sized to each procedure's own content, the workspace changed
+   * width with the selection and slid the live column sideways on every click.
    */
-  .calibration-stage--split {
-    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  .calibration-bench__columns {
+    grid-template-areas:
+      'list work'
+      'list live';
+    grid-template-columns: 17rem minmax(0, 40rem);
+    justify-content: start;
   }
 
-  /*
-   * Unless this printer has only the one card. Both cards on a split stage are
-   * capability-gated, so a machine with no filament sensors, or one whose only
-   * heater is bang-bang, brings a single card to a two-track grid — and leaving
-   * the second track empty stranded that card at three-fifths width with a
-   * third of the canvas void beside it. Which is precisely the "cards sit in
-   * strange places" reading the whole bench exists to remove: the reason for
-   * the gap was invisible, because it was about a card that was not there.
-   * One card takes the canvas.
-   */
-  .calibration-stage--split:has(> :last-child:nth-child(1)) {
-    grid-template-columns: minmax(0, 1fr);
+  .calibration-bench__column--list {
+    grid-area: list;
   }
+
+  .calibration-bench__column--work {
+    grid-area: work;
+  }
+
+  .calibration-bench__column--live {
+    grid-area: live;
+  }
+}
+@container calibration-canvas (min-width: 84rem) {
+  .calibration-bench__columns {
+    grid-template-areas: 'list work live';
+    grid-template-columns: 17rem 34rem minmax(20rem, 28rem);
+  }
+
+  /* The stage's artifact — the height map, the graphs — takes the width instead. */
+  .calibration-bench--wide-live .calibration-bench__columns {
+    grid-template-columns: 17rem minmax(24rem, 32rem) minmax(0, 1fr);
+  }
+}
+
+/* The readiness band: what this stage's procedures need, as words with a glyph each. */
+.calibration-readiness {
+  display: flex;
+  justify-self: start;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: 0.3rem;
+  background: var(--surface-raised);
+}
+
+.calibration-readiness__title {
+  margin-inline-end: 0.25rem;
+  font-size: var(--text-field-label-size);
+  font-weight: var(--font-weight-increased);
+}
+
+.calibration-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.2rem 0.6rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: 999px;
+  background: var(--surface-soft);
+  font-size: var(--text-hint-size);
+  font-weight: var(--font-weight);
+}
+
+.calibration-pill--met {
+  color: var(--status-available);
+}
+
+.calibration-pill--unmet {
+  color: var(--status-caution-text);
+}
+
+/* The procedure list. */
+.calibration-procedures {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.calibration-procedures__header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.calibration-procedures__title {
+  font-size: var(--text-dialog-title-size);
+  font-weight: var(--font-weight);
+  letter-spacing: var(--text-dialog-title-tracking);
+}
+
+.calibration-procedures__count {
+  color: var(--text-muted);
+  font-size: var(--text-hint-size);
+  font-variant-numeric: tabular-nums;
+}
+
+.calibration-procedures__list {
+  display: grid;
+  gap: 0.2rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.calibration-procedures__select {
+  display: none;
+}
+
+
+/*
+ * A `file-select` composing `selection-row`: picking which procedure the
+ * workspace shows is choosing content out of a list, like every other list.
+ */
+.calibration-procedure {
+  display: grid;
+  inline-size: 100%;
+  gap: 0.15rem;
+  padding: calc(0.5rem - var(--selection-row-border)) calc(0.65rem - var(--selection-row-border));
+}
+
+.calibration-procedure:hover:not(:disabled) {
+  background-color: var(--surface-soft);
+}
+
+.calibration-procedure__top {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.calibration-procedure__name {
+  min-width: 0;
+  color: var(--text-primary);
+  font-size: var(--text-row-name-size);
+  font-weight: var(--font-weight);
+}
+
+.calibration-procedure__last {
+  flex: 0 0 auto;
+  color: var(--text-muted);
+  font-size: var(--text-meta-size);
+  font-variant-numeric: tabular-nums;
+}
+
+.calibration-procedure__last--stale {
+  color: var(--status-caution-text);
+}
+
+.calibration-procedure__last--running {
+  color: var(--status-available);
+}
+
+.calibration-procedure__description {
+  color: var(--text-muted);
+  font-size: var(--text-hint-size);
 }
 
 /*
- * The bed stage is map-led rather than a row of peers. The map is the artifact
- * and takes the first track, capped: its own stage is a fixed 3:2 box whose
- * block-size stops at `min(60vh, 34rem)`, worth about 51rem of width at that
- * ratio, so a track any wider than that only buys dead margin inside the card.
- * Probe accuracy — the question of whether the map is worth trusting at all —
- * and the saved profiles fall into the second track, which absorbs whatever
- * width is left over instead of leaving it beside the map.
- *
- * Gated on the map actually being there, and the two beside it are *placed by
- * auto-flow* rather than pinned to a row each. Both matter for the same reason:
- * all three cards are capability-gated, and pinning a card to a cell is a
- * promise about a grid its neighbors might not be in. A mesh-only printer has
- * no probe card, and a `grid-row: 2` on the profile list left an empty cell
- * above it; a probe-only printer has no map at all, and pinning the probe card
- * to the second track stranded it in the right half of an otherwise empty
- * canvas. Auto-flow fills the first free cell instead, and the stage carries
- * `--split` underneath this so a machine without the map falls back to that
- * shape — including its single-card case.
+ * Below the middle width the list is a `<select>` above the workspace, the
+ * choice the stage strip also collapses to, rather than a column of rows
+ * pushing the workspace a screen down.
  */
-@container calibration-canvas (min-width: 68rem) {
-  .calibration-stage--bed:has(> .calibration-stage__map) {
-    grid-template-columns: minmax(0, 56rem) minmax(18rem, 1fr);
-    grid-template-rows: auto auto;
+@container calibration-canvas (max-width: 59.999rem) {
+  .calibration-procedures__header,
+  .calibration-procedures__list {
+    display: none;
   }
 
-  .calibration-stage--bed > .calibration-stage__map {
-    grid-column: 1;
-    grid-row: 1 / span 2;
+  .calibration-procedures__select {
+    display: block;
   }
 }
+/* The workspace. */
+.calibration-workspace {
+  display: grid;
+  gap: 0.85rem;
+  align-content: start;
+}
+
+.calibration-workspace__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.calibration-workspace__title {
+  font-size: var(--text-dialog-title-size);
+  font-weight: var(--font-weight);
+  letter-spacing: var(--text-dialog-title-tracking);
+}
+
+.calibration-workspace__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.75rem;
+  margin-block-start: 0.2rem;
+  color: var(--text-muted);
+  font-size: var(--text-meta-size);
+}
+
+.calibration-workspace__command {
+  font-family: var(--font-mono);
+}
+
+.calibration-workspace__description {
+  max-inline-size: 70ch;
+  color: var(--text-muted);
+  font-size: var(--text-hint-size);
+}
+
+.calibration-checks {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.calibration-check {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--status-available);
+  font-size: var(--text-hint-size);
+}
+
+.calibration-check--unmet {
+  color: var(--status-caution-text);
+}
+
+.calibration-check__text {
+  flex: 1 1 12rem;
+}
+
+.calibration-params {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr));
+  gap: 0.6rem;
+}
+
+/* A short choice as rows takes the whole width of the fields above and below it. */
+.calibration-choice {
+  display: grid;
+  grid-column: 1 / -1;
+  gap: 0.2rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.calibration-choice__legend {
+  margin-block-end: 0.25rem;
+  padding: 0;
+  color: var(--text-muted);
+  font-size: var(--text-field-label-size);
+  font-weight: var(--font-weight);
+}
+
+.calibration-choice__row {
+  font-family: var(--font-mono);
+}
+
+.calibration-console-toggle__chevron {
+  margin-inline-start: auto;
+}
+
+.calibration-run {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.calibration-run__script {
+  min-width: 0;
+  flex: 1 1 16rem;
+  overflow-wrap: anywhere;
+  padding: 0.45rem 0.6rem;
+  border-radius: 0.2rem;
+  background: var(--surface-soft);
+  font-family: var(--font-mono);
+  font-size: var(--text-meta-size);
+}
+
+.calibration-result {
+  display: grid;
+  gap: 0.6rem;
+  padding: 0.75rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: 0.25rem;
+  background: var(--surface-soft);
+}
+
+.calibration-result__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.calibration-result__title {
+  font-size: var(--text-field-label-size);
+  font-weight: var(--font-weight-increased);
+}
+
+.calibration-result__when {
+  color: var(--text-muted);
+  font-size: var(--text-meta-size);
+}
+
+.calibration-result__table {
+  inline-size: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-hint-size);
+}
+
+.calibration-result__table th,
+.calibration-result__table td {
+  padding: 0.3rem 0.5rem;
+  border-block-end: 1px solid var(--border-subtle);
+  text-align: start;
+}
+
+.calibration-result__table thead th {
+  color: var(--text-muted);
+  font-size: var(--text-label-caps-size);
+  font-weight: var(--font-weight);
+  letter-spacing: var(--text-label-caps-tracking);
+  text-transform: uppercase;
+}
+
+.calibration-result__table tbody th {
+  font-family: var(--font-mono);
+  font-weight: var(--font-weight);
+}
+
+.calibration-result__table tbody tr:last-child > * {
+  border-block-end: 0;
+}
+
+.calibration-result__number {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* A changed value is stated by the before column beside it; the weight only draws the eye. */
+.calibration-result__number--changed {
+  color: var(--text-primary);
+  font-weight: var(--font-weight-increased);
+}
+
+.calibration-result__outcome {
+  font-size: var(--text-hint-size);
+}
+
+.calibration-result__outcome--failed {
+  color: var(--status-danger-text);
+}
+
+.calibration-result__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.calibration-result__actions > li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.calibration-result__output {
+  max-block-size: 14rem;
+  overflow: auto;
+}
+
+.calibration-history {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.calibration-history__title {
+  color: var(--text-muted);
+  font-size: var(--text-label-caps-size);
+  font-weight: var(--font-weight);
+  letter-spacing: var(--text-label-caps-tracking);
+  text-transform: uppercase;
+}
+
+.calibration-history__list {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--text-hint-size);
+}
+
+.calibration-history__entry {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.75rem;
+  padding: 0.3rem 0;
+  border-block-end: 1px solid var(--border-subtle);
+}
+
+.calibration-history__entry:last-child {
+  border-block-end: 0;
+}
+
+.calibration-history__when {
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.calibration-history__summary {
+  font-family: var(--font-mono);
+}
+
+/* Rotation distance's steps, and the heater limits table. */
+.calibration-steps {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0;
+  padding-inline-start: 1.25rem;
+}
+
+.calibration-step {
+  display: grid;
+  gap: 0.45rem;
+  font-size: var(--text-hint-size);
+}
+
+.calibration-step__controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.5rem;
+}
+
+/* A field in a step holds its label; the step's button sits beside it. */
+.calibration-step__controls > .app-field {
+  inline-size: 13rem;
+}
+
+.calibration-heater {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.calibration-heater__title {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  font-size: var(--text-field-label-size);
+  font-weight: var(--font-weight-increased);
+}
+
+.calibration-heater__kind,
+.calibration-heater__default {
+  color: var(--text-muted);
+  font-family: var(--font-sans);
+  font-size: var(--text-meta-size);
+}
+
 
 /*
  * The `<select>` swap, not a wrapping strip: the selected underline sits over
@@ -13039,11 +13493,8 @@ body.machine-editor-fullscreen-open {
 }
 
 /*
- * The map at a size worth orbiting, capped so the cards beside and below it
- * stay reachable without scrolling past a full screen of bed. The card's stage
- * is a fixed 3:2 box sized by its container, so this ceiling on its height is
- * also what makes the 56rem cap on its grid track the right number — see
- * `.calibration-stage--bed`.
+ * The map at a size worth orbiting, capped so the profiles below it stay
+ * reachable without scrolling past a full screen of bed.
  */
 .calibration-stage__map .mesh-stage {
   max-block-size: min(60vh, 34rem);
@@ -13338,7 +13789,7 @@ body.machine-editor-fullscreen-open {
   align-items: start;
 }
 
-@container calibration-canvas (min-width: 56rem) {
+@container calibration-live (min-width: 44rem) {
   .calibration-tuning--reading {
     grid-template-columns: minmax(0, 1fr) minmax(17rem, 22rem);
   }
@@ -13355,7 +13806,7 @@ body.machine-editor-fullscreen-open {
  * Side by side only where each graph still gets a readable width; below that a
  * comparison stacks, which costs scrolling rather than legibility.
  */
-@container calibration-canvas (min-width: 92rem) {
+@container calibration-live (min-width: 64rem) {
   .calibration-tuning__pane--comparing {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }

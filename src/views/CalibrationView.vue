@@ -3,7 +3,9 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import AvailabilityRegion from '@/components/AvailabilityRegion.vue'
-import PageHeading, { type PageHeadingAction } from '@/components/PageHeading.vue'
+import AppButton from '@/components/AppButton.vue'
+import AppIcon from '@/components/AppIcon.vue'
+import PageHeading from '@/components/PageHeading.vue'
 import AxesStage from '@/components/calibration/AxesStage.vue'
 import BedStage from '@/components/calibration/BedStage.vue'
 import CalibrationStageTabs from '@/components/calibration/CalibrationStageTabs.vue'
@@ -16,6 +18,7 @@ import {
   resolveCalibrationStage,
   type CalibrationStageId,
 } from '@/features/calibration/stages'
+import { useCalibrationStore } from '@/stores/calibration'
 import { useEndstopsStore } from '@/stores/endstops'
 import { useMacrosStore } from '@/stores/macros'
 import { usePrinterConfigStore } from '@/stores/printerConfig'
@@ -36,11 +39,14 @@ import { useTelemetryStore } from '@/stores/telemetry'
  * A calibration sitting was therefore a tour of the application.
  *
  * So the page is a bench now. A tab strip lists the jobs this printer can be
- * calibrated for, in the order the physical dependencies run; a selected stage
- * gets the whole canvas and brings the controls that job needs, hosted from the
- * modules that already implement them rather than reimplemented here; and one
- * console sits under all of them, because Klipper answers `SCREWS_TILT_CALCULATE`,
- * `PROBE_ACCURACY` and a PID run as console text and nothing else.
+ * calibrated for, in the order the physical dependencies run. A selected stage
+ * lists its procedures — the calibrations this printer can run there, from
+ * `features/calibration/procedures.ts` — opens one in a workspace that shows
+ * what it needs, runs it, and reads what it found out of the console into a
+ * result set against the printer's previous value; the dashboard modules those
+ * procedures act on stay live beside it. One console sits under all of it,
+ * because Klipper answers in console text and the raw lines are sometimes the
+ * thing worth reading.
  *
  * What deliberately did *not* move here: `SAVE_CONFIG`. A calibration stages a
  * change and the header offers to write it, once, for the whole application —
@@ -48,6 +54,7 @@ import { useTelemetryStore } from '@/stores/telemetry'
  * button per surface that staged something.
  */
 const { t } = useI18n({ useScope: 'global' })
+const calibration = useCalibrationStore()
 const endstops = useEndstopsStore()
 const macros = useMacrosStore()
 const printerConfig = usePrinterConfigStore()
@@ -63,10 +70,12 @@ const telemetry = useTelemetryStore()
  */
 onMounted(() => {
   endstops.start()
+  calibration.start()
 })
 
 onBeforeUnmount(() => {
   endstops.stop()
+  calibration.stop()
 })
 
 /**
@@ -126,27 +135,21 @@ function selectStage(stage: CalibrationStageId): void {
 }
 
 /**
- * The console dock, on by default: it is the reason a command's answer is
- * readable without leaving. The toggle exists because a wide-enough screen is
- * not a given and somebody working from the stages alone should be able to give
- * the stage the height back. Held in memory rather than in the query — it is a
- * device ergonomic, not something worth putting in a shared link.
+ * The console dock, closed by default. A procedure's result and its own
+ * output are in its workspace now, so the transcript is what somebody opens
+ * when they want the raw lines, not something every stage has to make room
+ * for. The toggle is a bar on the page itself rather than the page heading's
+ * action: a reader who hides page headers gets the heading's action folded
+ * into a floating menu, which is easy to miss for the one control that brings
+ * the console back. Held in memory rather than in the query — it is a device
+ * ergonomic, not something worth putting in a shared link.
  */
-const consoleOpen = ref(true)
-
-const consoleAction = computed<PageHeadingAction>(() => ({
-  label: t('calibration.console.toggle'),
-  icon: 'console',
-  pressed: consoleOpen.value,
-  onClick: () => {
-    consoleOpen.value = !consoleOpen.value
-  },
-}))
+const consoleOpen = ref(false)
 </script>
 
 <template>
   <section class="standard-page calibration-view">
-    <PageHeading :title="t('calibration.title')" :action="consoleAction" />
+    <PageHeading :title="t('calibration.title')" />
 
     <CalibrationStageTabs :stages="stages" :active="activeStage" @select="selectStage($event)" />
 
@@ -181,6 +184,23 @@ const consoleAction = computed<PageHeadingAction>(() => ({
         preceded it. The prompt inside disables itself on its own when Klipper
         is not there to take a command.
       -->
+      <AppButton
+        variant="quiet"
+        size="sm"
+        block
+        start
+        icon="console"
+        class="calibration-console-toggle"
+        :aria-expanded="consoleOpen"
+        :label="t(consoleOpen ? 'calibration.console.hide' : 'calibration.console.show')"
+        @click="consoleOpen = !consoleOpen"
+      >
+        <AppIcon
+          :name="consoleOpen ? 'up' : 'down'"
+          class="calibration-console-toggle__chevron size-4"
+          aria-hidden="true"
+        />
+      </AppButton>
       <AvailabilityRegion v-if="consoleOpen" requires="moonraker">
         <!--
           The Console route's own console, not the dashboard card. The card

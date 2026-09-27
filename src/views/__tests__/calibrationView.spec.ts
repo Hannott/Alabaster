@@ -12,7 +12,6 @@ import { useMacrosStore } from '@/stores/macros'
 import { useMoonrakerStore } from '@/stores/moonraker'
 import { usePrinterStore } from '@/stores/printer'
 import { useShakeTuneStore, type ShakeTuneResult } from '@/stores/shakeTune'
-import HeaterCalibrationPanel from '@/components/calibration/HeaterCalibrationPanel.vue'
 import BedMeshModule from '@/components/dashboard/modules/BedMeshModule.vue'
 import ConsolePanel from '@/components/console/ConsolePanel.vue'
 import MovementModule from '@/components/dashboard/modules/MovementModule.vue'
@@ -129,6 +128,43 @@ function seedTuningResults(): void {
   shakeTune.resultsByCategory.belts = [tuningResult('belts', 'belts_mid', 200)]
 }
 
+/** Picks a procedure from the stage's list, the way a reader does. */
+async function selectProcedure(view: VueWrapper, id: string): Promise<void> {
+  const name = i18n.global.t(`calibration.procedure.${id}.name`)
+  const row = view.findAll('.calibration-procedure').find((button) => button.text().includes(name))
+  if (!row) throw new Error(`the stage offers no "${name}" procedure on this machine`)
+  await row.trigger('click')
+  await flushPromises()
+}
+
+function runButton(view: VueWrapper) {
+  return view.get('.calibration-run button')
+}
+
+function procedureNames(view: VueWrapper): string[] {
+  return view.findAll('.calibration-procedure__name').map((name) => name.text())
+}
+
+/** What the printer answered with, after the run's own start. */
+function answer(lines: string[]): void {
+  const gcodeConsole = useConsoleStore(pinia)
+  const last = gcodeConsole.consoleEntries.at(-1)?.id ?? 0
+  gcodeConsole.consoleEntries = [
+    ...gcodeConsole.consoleEntries,
+    ...lines.map((raw, index) => ({
+      id: last + index + 1,
+      raw,
+      message: raw.replace(/^\/\/\s?/, ''),
+      kind: 'response' as const,
+      at: 0,
+    })),
+  ]
+}
+
+function homed(): void {
+  usePrinterStore(pinia).motion.homedAxes = 'xyz'
+}
+
 describe('Calibration view', () => {
   /**
    * The stage strip is the page's answer to "what is this destination for". The page
@@ -216,17 +252,24 @@ describe('Calibration view', () => {
    * nothing else, so without it every command here sends the reader to another
    * route to find out what happened.
    */
-  it('docks a real console on the page, and lets the heading put it away', async () => {
+  /*
+   * Closed until asked for, and the toggle is on the page rather than the
+   * heading: a reader who hides page headers gets the heading's action folded
+   * into a floating menu, which is how the console stopped being reachable.
+   */
+  it('docks a real console on the page, closed until its bar opens it', async () => {
     const view = await mountView()
 
-    expect(view.findComponent(ConsolePanel).exists()).toBe(true)
-
-    const toggle = view.get('.page-heading button')
-    expect(toggle.attributes('aria-pressed')).toBe('true')
-    await toggle.trigger('click')
-
     expect(view.findComponent(ConsolePanel).exists()).toBe(false)
-    expect(view.get('.page-heading button').attributes('aria-pressed')).toBe('false')
+    const toggle = view.get('.calibration-console-toggle')
+    expect(toggle.attributes('aria-expanded')).toBe('false')
+
+    await toggle.trigger('click')
+    expect(view.findComponent(ConsolePanel).exists()).toBe(true)
+    expect(view.get('.calibration-console-toggle').attributes('aria-expanded')).toBe('true')
+
+    await view.get('.calibration-console-toggle').trigger('click')
+    expect(view.findComponent(ConsolePanel).exists()).toBe(false)
   })
 
   /**
@@ -237,6 +280,7 @@ describe('Calibration view', () => {
    */
   it('reuses the console page panel, with the command browser and its settings', async () => {
     const view = await mountView()
+    await view.get('.calibration-console-toggle').trigger('click')
 
     const console_ = view.getComponent(ConsolePanel)
     // Not `fill`: this page has bounded nothing, so the console states its own
@@ -273,7 +317,23 @@ describe('Calibration view', () => {
    * card's gear, on another route — which is exactly what sent somebody to the
    * Dashboard in the middle of their own calibration sitting.
    */
-  it('offers heater calibration on its own stage, from the shared panel', async () => {
+  it('lays a short choice out as rows rather than a dropdown', async () => {
+    const printerConfig = await import('@/stores/printerConfig')
+    vi.spyOn(printerConfig.usePrinterConfigStore(pinia), 'settings', 'get').mockReturnValue({
+      stepper_x: {},
+      stepper_y: {},
+      extruder: {},
+    })
+    const view = await mountView()
+    await selectProcedure(view, 'stepperBuzz')
+
+    const rows = view.findAll('.calibration-choice__row')
+    expect(rows.map((row) => row.text())).toEqual(['stepper_x', 'stepper_y', 'extruder'])
+    await rows[1]!.get('input').setValue(true)
+    expect(view.get('.calibration-run__script').text()).toBe('STEPPER_BUZZ STEPPER=stepper_y')
+  })
+
+  it('offers the heater model as a procedure with the heater and target to choose', async () => {
     const telemetry = await import('@/stores/telemetry')
     const printerConfig = await import('@/stores/printerConfig')
     vi.spyOn(telemetry.useTelemetryStore(pinia), 'sensors', 'get').mockReturnValue([
@@ -284,7 +344,10 @@ describe('Calibration view', () => {
     const view = await mountView('heaters')
 
     expect(stageLabels(view)).toContain('Heaters')
-    expect(view.findComponent(HeaterCalibrationPanel).exists()).toBe(true)
+    expect(procedureNames(view)).toContain('Heater model')
+    expect(view.get('.calibration-run__script').text()).toBe(
+      'PID_CALIBRATE HEATER=extruder TARGET=200',
+    )
   })
 
   it('reports each endstop with a word, not a color alone', async () => {
@@ -687,57 +750,38 @@ describe('Calibration view', () => {
    * The run's actual product — a shaper and a frequency per axis — used to
    * exist only as console text somebody had to copy into a command by hand.
    */
-  it('lifts the shaper recommendation out of the console and applies it', async () => {
-    const printerConfig = await import('@/stores/printerConfig')
-    vi.spyOn(printerConfig.usePrinterConfigStore(pinia), 'hasSection').mockImplementation(
-      (name: string) => name === 'input_shaper',
-    )
+  it('lifts the shaper recommendation out of the run and applies it', async () => {
+    homed()
     const view = await mountResonance()
     const rpcCall = vi.spyOn(useMoonrakerStore(pinia), 'rpcCall').mockResolvedValue('ok' as never)
+    await selectProcedure(view, 'shakeTuneShaper')
 
-    useConsoleStore(pinia).consoleEntries = [
-      { id: 'a', raw: 'AXES_SHAPER_CALIBRATION', kind: 'command', at: 0 },
-      { id: 'b', raw: '// X axis frequency profile generation...', kind: 'response', at: 0 },
-      {
-        id: 'c',
-        raw: '//     -> For performance: MZV @ 48.2 Hz (with a damping ratio of 0.052)',
-        kind: 'response',
-        at: 0,
-      },
-      {
-        id: 'd',
-        raw: '//     -> For low vibrations: EI @ 52.0 Hz (with a damping ratio of 0.052)',
-        kind: 'response',
-        at: 0,
-      },
-    ] as never
+    await runButton(view).trigger('click')
+    await flushPromises()
+    expect(rpcCall).toHaveBeenCalledWith(
+      'printer.gcode.script',
+      { script: 'AXES_SHAPER_CALIBRATION' },
+      { timeoutMs: null },
+    )
+    answer([
+      '// X axis frequency profile generation...',
+      '//     -> For performance: MZV @ 48.2 Hz (with a damping ratio of 0.052)',
+      '//     -> For low vibrations: EI @ 52.0 Hz (with a damping ratio of 0.052)',
+    ])
     await flushPromises()
 
-    const items = view.findAll('.calibration-shaper__item')
-    expect(items.map((item) => item.find('.calibration-shaper__value').text())).toEqual([
-      'X · MZV @ 48.2 Hz',
-      'X · EI @ 52.0 Hz',
-    ])
-    expect(items[0]!.text()).toContain('For performance')
-    expect(view.text()).toContain('Applies until Klipper restarts.')
+    const table = view.get('.calibration-result__table').text()
+    expect(table).toContain('X · for performance')
+    expect(table).toContain('mzv @ 48.2 Hz')
+    expect(table).toContain('ei @ 52 Hz')
 
-    await items[0]!.get('button').trigger('click')
+    const apply = view
+      .findAll('.calibration-result__actions button')
+      .find((button) => button.text().includes('Apply X'))
+    await apply!.trigger('click')
     expect(rpcCall).toHaveBeenCalledWith('printer.gcode.script', {
       script: 'SET_INPUT_SHAPER SHAPER_TYPE_X=mzv SHAPER_FREQ_X=48.2',
     })
-  })
-
-  it('offers no apply on a printer without an [input_shaper] section', async () => {
-    const view = await mountResonance()
-    useConsoleStore(pinia).consoleEntries = [
-      { id: 'a', raw: 'AXES_SHAPER_CALIBRATION AXIS=Y', kind: 'command', at: 0 },
-      { id: 'b', raw: '//     -> Best shaper: ZV @ 39.6 Hz', kind: 'response', at: 0 },
-    ] as never
-    await flushPromises()
-
-    const item = view.get('.calibration-shaper__item')
-    expect(item.text()).toContain('Y · ZV @ 39.6 Hz')
-    expect(item.find('button').exists()).toBe(false)
   })
 
   /**
@@ -826,30 +870,28 @@ describe('Calibration view', () => {
   it('runs a probe accuracy test and reports its result', async () => {
     const printerConfig = await import('@/stores/printerConfig')
     vi.spyOn(printerConfig.usePrinterConfigStore(pinia), 'hasProbe', 'get').mockReturnValue(true)
-    const probeAccuracy = vi.spyOn(usePrinterStore(pinia), 'probeAccuracy').mockResolvedValue(true)
+    homed()
     const view = await mountView('bed')
+    const rpcCall = vi.spyOn(useMoonrakerStore(pinia), 'rpcCall').mockResolvedValue('ok' as never)
+    await selectProcedure(view, 'probeAccuracy')
 
-    const run = view
-      .findAll('.calibration-panel__header button')
-      .find((button) => button.text().includes('Run accuracy test'))
-    await run?.trigger('click')
-    expect(probeAccuracy).toHaveBeenCalled()
+    await runButton(view).trigger('click')
+    await flushPromises()
+    expect(rpcCall).toHaveBeenCalledWith(
+      'printer.gcode.script',
+      { script: 'PROBE_ACCURACY' },
+      { timeoutMs: null },
+    )
 
-    useConsoleStore(pinia).consoleEntries = [
-      { id: 'a', raw: 'PROBE_ACCURACY', kind: 'command', at: 0 },
-      {
-        id: 'b',
-        raw:
-          '// probe accuracy results: maximum 1.234000, minimum 1.100000, range 0.134000, ' +
-          'average 1.167000, median 1.170000, standard deviation 0.045000',
-        kind: 'response',
-        at: 0,
-      },
-    ] as never
+    answer([
+      '// probe accuracy results: maximum 1.234000, minimum 1.100000, range 0.134000, ' +
+        'average 1.167000, median 1.170000, standard deviation 0.045000',
+    ])
     await flushPromises()
 
-    expect(view.text()).toContain('1.234 mm')
-    expect(view.text()).toContain('0.134 mm')
+    const table = view.get('.calibration-result__table').text()
+    expect(table).toContain('1.234000')
+    expect(table).toContain('0.134000')
   })
 
   /**
@@ -868,18 +910,13 @@ describe('Calibration view', () => {
     // A nozzle 10mm from the edge, with a probe 20mm further out than the
     // nozzle — the probe itself would land at x=210, past the 200mm limit.
     printer.motion.position = [190, 100, 5]
-    const probeAccuracy = vi.spyOn(printer, 'probeAccuracy').mockResolvedValue(true)
+    homed()
 
     const view = await mountView('bed')
+    await selectProcedure(view, 'probeAccuracy')
 
-    expect(view.text()).toContain("The probe's offset would carry it outside the bed")
-    const run = view
-      .findAll('.calibration-panel__header button')
-      .find((button) => button.text().includes('Run accuracy test'))
-    expect(run?.attributes('disabled')).toBeDefined()
-
-    await run?.trigger('click')
-    expect(probeAccuracy).not.toHaveBeenCalled()
+    expect(view.text()).toContain('The probe offset would carry it outside the bed')
+    expect(runButton(view).attributes('disabled')).toBeDefined()
   })
 
   it('allows the accuracy test once the probe offset keeps it on the bed', async () => {
@@ -892,14 +929,13 @@ describe('Calibration view', () => {
     printer.buildVolume.maximum = [200, 200, 200]
     // The same offset, but from the middle of the bed — well within range.
     printer.motion.position = [100, 100, 5]
+    homed()
 
     const view = await mountView('bed')
+    await selectProcedure(view, 'probeAccuracy')
 
-    expect(view.text()).not.toContain("The probe's offset would carry it outside the bed")
-    const run = view
-      .findAll('.calibration-panel__header button')
-      .find((button) => button.text().includes('Run accuracy test'))
-    expect(run?.attributes('disabled')).toBeUndefined()
+    expect(view.text()).not.toContain('The probe offset would carry it outside the bed')
+    expect(runButton(view).attributes('disabled')).toBeUndefined()
   })
 
   it('hides the probe accuracy panel on a mesh-only printer', async () => {
@@ -979,39 +1015,31 @@ describe('Calibration view', () => {
   /**
    * `MEASURE_AXES_NOISE` is a native Klipper command from `[resonance_tester]`,
    * not a Shake&Tune macro, so it is gated on the config section rather than
-   * on `macros.hasMacro` — see `hasResonanceTester`'s own comment.
+   * on `macros.hasMacro`.
    */
   it('offers a quick accelerometer noise check on a printer with resonance testing configured', async () => {
     const printerConfig = await import('@/stores/printerConfig')
     const config = printerConfig.usePrinterConfigStore(pinia)
     vi.spyOn(config, 'hasSection').mockImplementation((name: string) => name === 'resonance_tester')
     vi.spyOn(useMacrosStore(pinia), 'hasMacro').mockReturnValue(true)
-    const measureAxesNoise = vi
-      .spyOn(usePrinterStore(pinia), 'measureAxesNoise')
-      .mockResolvedValue(true)
 
     const view = await mountView('resonance')
+    const rpcCall = vi.spyOn(useMoonrakerStore(pinia), 'rpcCall').mockResolvedValue('ok' as never)
+    await selectProcedure(view, 'axesNoise')
+    await runButton(view).trigger('click')
+    await flushPromises()
+    expect(rpcCall).toHaveBeenCalledWith(
+      'printer.gcode.script',
+      { script: 'MEASURE_AXES_NOISE' },
+      { timeoutMs: null },
+    )
 
-    const check = view
-      .findAll('.calibration-tuning-noise button')
-      .find((button) => button.text().includes('Check accelerometer noise'))
-    expect(check).toBeDefined()
-    await check?.trigger('click')
-    expect(measureAxesNoise).toHaveBeenCalled()
-
-    useConsoleStore(pinia).consoleEntries = [
-      { id: 'a', raw: 'MEASURE_AXES_NOISE', kind: 'command', at: 0 },
-      {
-        id: 'b',
-        raw: '// Axes noise for x-axis accelerometer: 0.000012 (x), 0.000008 (y), 0.000015 (z)',
-        kind: 'response',
-        at: 0,
-      },
-    ] as never
+    answer(['// Axes noise for x-axis accelerometer: 0.000012 (x), 0.000008 (y), 0.000015 (z)'])
     await flushPromises()
 
-    expect(view.text()).toContain('x-axis accelerometer')
-    expect(view.text()).toContain('0.000012')
+    expect(view.get('.calibration-result__table').text()).toContain(
+      '0.000012 · 0.000008 · 0.000015',
+    )
   })
 
   it('hides the noise check on a printer with no resonance testing configured', async () => {
@@ -1019,20 +1047,19 @@ describe('Calibration view', () => {
 
     const view = await mountView('resonance')
 
-    expect(view.text()).not.toContain('Check accelerometer noise')
+    expect(procedureNames(view)).not.toContain('Accelerometer noise')
   })
 
   /**
-   * Dispatched through `macros.run`, not `printer.sendMacro` directly — `run`
-   * is what tracks `runningMacros`, which the button's disabled state reads.
-   * Mocking `isRunning` itself would prove nothing, since it bypasses the very
-   * reactive state the button depends on; this drives the real mechanism by
-   * holding the underlying RPC open.
+   * Run holds its pending state for as long as the printer is still running
+   * the command, by holding the underlying RPC open — mocking a running flag
+   * would bypass the very state the button reads.
    */
-  it('runs a tuning macro and disables the button while it is pending', async () => {
+  it('runs a tuning macro and disables Run while it is pending', async () => {
     vi.spyOn(useMacrosStore(pinia), 'hasMacro').mockImplementation(
       (name: string) => name === 'AXES_SHAPER_CALIBRATION',
     )
+    homed()
     let resolveRpc: (() => void) | undefined
     vi.spyOn(useMoonrakerStore(pinia), 'rpcCall').mockImplementation(
       (method: string) =>
@@ -1045,20 +1072,16 @@ describe('Calibration view', () => {
         }) as never,
     )
     const view = await mountView('resonance')
+    await selectProcedure(view, 'shakeTuneShaper')
 
-    const run = view
-      .findAll('.calibration-tuning-group__header button')
-      .find((button) => button.text().includes('Run'))
-    expect(run).toBeDefined()
-    await run?.trigger('click')
+    await runButton(view).trigger('click')
     await flushPromises()
-
-    expect(run?.attributes('disabled')).toBeDefined()
+    expect(runButton(view).attributes('disabled')).toBeDefined()
 
     resolveRpc?.()
     await flushPromises()
 
-    expect(run?.attributes('disabled')).toBeUndefined()
+    expect(runButton(view).attributes('disabled')).toBeUndefined()
   })
 
   /**
@@ -1075,10 +1098,7 @@ describe('Calibration view', () => {
     )
     const view = await mountView('resonance')
 
-    const beltsGroup = view
-      .findAll('.calibration-tuning-group')
-      .find((group) => group.text().includes('Belts comparison'))
-    expect(beltsGroup?.find('button').exists()).toBe(false)
+    expect(procedureNames(view)).not.toContain('Belt comparison')
   })
 
   it('offers the belts comparison on a CoreXY printer', async () => {
@@ -1091,7 +1111,7 @@ describe('Calibration view', () => {
     )
     const view = await mountView('resonance')
 
-    expect(view.text()).toContain('Belts comparison')
+    expect(procedureNames(view)).toContain('Belt comparison')
   })
 
   /**
@@ -1103,9 +1123,6 @@ describe('Calibration view', () => {
     vi.spyOn(useMacrosStore(pinia), 'hasMacro').mockReturnValue(true)
     const view = await mountView('resonance')
 
-    const staticFrequencyGroup = view
-      .findAll('.calibration-tuning-group')
-      .find((group) => group.text().includes('Static frequency'))
-    expect(staticFrequencyGroup?.find('button').exists()).toBe(false)
+    expect(view.text()).not.toContain('EXCITATE_AXIS_AT_FREQ')
   })
 })

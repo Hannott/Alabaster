@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { useI18n } from 'vue-i18n'
 
-import HeaterCalibrationPanel from '@/components/calibration/HeaterCalibrationPanel.vue'
+import CalibrationBench from '@/components/calibration/CalibrationBench.vue'
 import HostedDashboardModule from '@/components/dashboard/HostedDashboardModule.vue'
 import TemperaturesModule from '@/components/dashboard/modules/TemperaturesModule.vue'
 import { configBoolean } from '@/dashboard/context'
@@ -19,7 +18,6 @@ import { useDashboardLayoutStore } from '@/stores/dashboardLayout'
  * own calibration, since the run itself was started from behind that card's
  * gear on another route entirely.
  */
-const { t } = useI18n({ useScope: 'global' })
 const layout = useDashboardLayoutStore()
 
 /**
@@ -44,20 +42,11 @@ const skipCalibrationWarning = computed(() =>
 </script>
 
 <template>
-  <div class="calibration-stage calibration-stage--split">
-    <section class="page-card calibration-panel" :aria-label="t('calibration.heaters.title')">
-      <header class="calibration-panel__header">
-        <div>
-          <h2 class="calibration-panel__title">{{ t('calibration.heaters.title') }}</h2>
-          <p class="calibration-panel__hint">{{ t('calibration.heaters.hint') }}</p>
-        </div>
-      </header>
-
-      <HeaterCalibrationPanel :skip-warning="skipCalibrationWarning" />
-    </section>
-
-    <HostedDashboardModule module-id="temperatures">
-      <TemperaturesModule />
-    </HostedDashboardModule>
-  </div>
+  <CalibrationBench stage="heaters" :skip-confirm="skipCalibrationWarning">
+    <template #live>
+      <HostedDashboardModule module-id="temperatures">
+        <TemperaturesModule />
+      </HostedDashboardModule>
+    </template>
+  </CalibrationBench>
 </template>

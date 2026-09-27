@@ -214,37 +214,6 @@ describe('printer store', () => {
   })
 
   /**
-   * `PROBE_ACCURACY` answers only once all ten samples are in, the same reason
-   * `BED_MESH_CALIBRATE` opts out above.
-   */
-  it('runs a probe accuracy test without the transport local deadline, for the same reason', async () => {
-    const moonraker = useMoonrakerStore()
-    const rpcCall = vi.spyOn(moonraker, 'rpcCall').mockResolvedValue('ok' as never)
-    const printer = usePrinterStore()
-
-    await expect(printer.probeAccuracy()).resolves.toBe(true)
-    expect(rpcCall).toHaveBeenCalledWith(
-      'printer.gcode.script',
-      { script: 'PROBE_ACCURACY' },
-      { timeoutMs: null },
-    )
-  })
-
-  /**
-   * Unlike `PROBE_ACCURACY`, this only dwells for its own `MEAS_TIME` (2
-   * seconds by default) and moves nothing — nowhere near the transport's
-   * default deadline, so it keeps that deadline rather than opting out.
-   */
-  it('runs the accelerometer noise check with the ordinary transport deadline', async () => {
-    const moonraker = useMoonrakerStore()
-    const rpcCall = vi.spyOn(moonraker, 'rpcCall').mockResolvedValue('ok' as never)
-    const printer = usePrinterStore()
-
-    await expect(printer.measureAxesNoise()).resolves.toBe(true)
-    expect(rpcCall).toHaveBeenCalledWith('printer.gcode.script', { script: 'MEASURE_AXES_NOISE' })
-  })
-
-  /**
    * Two commands, from two different Klipper objects, and exactly one of them
    * exists on any given printer: the probe object registers
    * `Z_OFFSET_APPLY_PROBE`, and `manual_probe` registers
