@@ -61,10 +61,27 @@ export type DashboardColumnWidths = DashboardColumnWidth[]
 
 export type DashboardColumnWidthsByViewport = Record<DashboardViewport, DashboardColumnWidths>
 
-export interface DashboardProfile {
+/** Which cards exist, where each one sits, and how wide every column is. */
+export interface DashboardArrangement {
   instances: DashboardModuleInstance[]
   placements: DashboardPlacements
   columnWidths: DashboardColumnWidthsByViewport
+}
+
+/**
+ * An arrangement the user named and kept, to return to after rearranging. It
+ * lives inside the profile it was taken from rather than under a storage key
+ * of its own, so it is scoped to the same printer and travels through the same
+ * export, import, and Moonraker sync without any of them knowing it exists.
+ */
+export interface SavedDashboardLayout extends DashboardArrangement {
+  id: string
+  name: string
+  savedAt: string
+}
+
+export interface DashboardProfile extends DashboardArrangement {
+  savedLayouts: SavedDashboardLayout[]
 }
 
 export const dashboardViewports: readonly DashboardViewport[] = ['desktop', 'tablet', 'mobile']

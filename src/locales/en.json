@@ -898,7 +898,21 @@
         "l": "L",
         "xl": "XL"
       },
-      "columnWidthOf": "Column {number}, {width}"
+      "columnWidthOf": "Column {number}, {width}",
+      "savedLayouts": "Saved layouts",
+      "savedLayoutsDescription": "Return to an arrangement you saved, on every screen size at once.",
+      "saveCurrent": "Save layout",
+      "saveTitle": "Save the current layout",
+      "saveDescription": "Saves the arrangement for desktop, tablet, and mobile.",
+      "saveLabel": "Layout name",
+      "save": "Save",
+      "savedNameEmpty": "Enter a name.",
+      "savedNameTaken": "A saved layout already has this name.",
+      "applySaved": "Apply the saved layout {name}",
+      "deleteSaved": "Delete the saved layout {name}",
+      "deleteSavedTitle": "Delete this saved layout?",
+      "deleteSavedConfirm": "The layout saved as {name} will be removed from this printer.",
+      "delete": "Delete"
     },
     "duration": {
       "hoursMinutes": "{hours}h {minutes}m",
@@ -2672,6 +2686,7 @@
       "power": "Power",
       "printInterrupting": "Interrupting an active print",
       "bedMesh": "Bed mesh",
+      "dashboard": "Dashboard",
       "console": "Console",
       "configuration": "Configuration",
       "history": "History",
@@ -2699,6 +2714,7 @@
       "regenerateApiKey": "Regenerate the API key",
       "openLargeGcodeFile": "Open a large file in the G-code viewer",
       "deleteMeshProfile": "Delete a mesh profile, from the Calibration page",
+      "deleteSavedLayout": "Delete a saved dashboard layout",
       "clearConsole": "Clear the console transcript",
       "clearCommandHistory": "Clear the typed-command history",
       "discardFileChanges": "Discard unsaved changes to a file",

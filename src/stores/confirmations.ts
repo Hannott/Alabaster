@@ -33,6 +33,7 @@ export const confirmationKeys = [
   'rebootHost',
   'shutdownHost',
   'deleteMeshProfile',
+  'deleteSavedLayout',
   'clearConsole',
   'clearCommandHistory',
   'discardFileChanges',

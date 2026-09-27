@@ -3,6 +3,7 @@ import {
   dashboardViewports,
   defaultColumnForIndex,
   defaultColumnWidths,
+  type DashboardArrangement,
   type DashboardColumnWidthsByViewport,
   type DashboardModuleId,
   type DashboardPlacements,
@@ -55,7 +56,7 @@ export function presetVisibleModules(preset: DashboardPresetId): readonly Dashbo
  * Every module keeps an instance so it can be restored from the module tray
  * without losing its configuration; the preset only decides visibility.
  */
-export function dashboardProfileForPreset(preset: DashboardPresetId): DashboardProfile {
+export function dashboardProfileForPreset(preset: DashboardPresetId): DashboardArrangement {
   const visibleModules = new Set(presetModules[preset])
   const orderedModules = [
     ...presetModules[preset],
@@ -91,5 +92,5 @@ export function dashboardProfileForPreset(preset: DashboardPresetId): DashboardP
 }
 
 export function defaultDashboardProfile(): DashboardProfile {
-  return dashboardProfileForPreset(defaultDashboardPresetId)
+  return { ...dashboardProfileForPreset(defaultDashboardPresetId), savedLayouts: [] }
 }

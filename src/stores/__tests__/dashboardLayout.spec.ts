@@ -6,6 +6,7 @@ import { presetVisibleModules } from '@/dashboard/presets'
 import {
   migrateLegacyProfile,
   normalizeDashboardProfile,
+  savedLayoutNameIssue,
   useDashboardLayoutStore,
 } from '@/stores/dashboardLayout'
 
@@ -539,5 +540,132 @@ describe('copying a profile between printers', () => {
       window.localStorage.getItem('alabaster.dashboard.profiles.v3') ?? '{}',
     ) as { scopes?: Record<string, unknown> }
     expect(stored.scopes?.['']).toBeUndefined()
+  })
+})
+
+describe('saved layouts', () => {
+  beforeEach(() => {
+    window.localStorage.clear()
+    setActivePinia(createPinia())
+  })
+
+  function placementOf(
+    layout: ReturnType<typeof useDashboardLayoutStore>,
+    instanceId: string,
+  ): { column: number; visible: boolean } | undefined {
+    return layout.profile.placements.desktop.find(
+      (placement) => placement.instanceId === instanceId,
+    )
+  }
+
+  it('returns to the saved arrangement on every viewport, and survives a reload', () => {
+    const layout = useDashboardLayoutStore()
+    layout.setVisible('desktop', 'bedMesh', true)
+    layout.moveColumn('desktop', 'print', 1)
+    layout.setColumnWidth('desktop', 1, 'xl')
+    layout.setVisible('mobile', 'camera', false)
+    const id = layout.saveLayout('  Printing  ')
+    expect(id).not.toBeNull()
+    expect(layout.profile.savedLayouts[0]?.name).toBe('Printing')
+
+    layout.reset('desktop')
+    layout.reset('mobile')
+    expect(placementOf(layout, 'bedMesh')?.visible).toBe(false)
+
+    setActivePinia(createPinia())
+    const reloaded = useDashboardLayoutStore()
+    expect(reloaded.profile.savedLayouts.map((saved) => saved.name)).toEqual(['Printing'])
+    reloaded.applySavedLayout(id ?? '')
+
+    expect(placementOf(reloaded, 'bedMesh')?.visible).toBe(true)
+    expect(placementOf(reloaded, 'print')?.column).toBe(1)
+    expect(reloaded.columnWidthsFor('desktop')[1]).toBe('xl')
+    expect(
+      reloaded.profile.placements.mobile.find((placement) => placement.instanceId === 'camera')
+        ?.visible,
+    ).toBe(false)
+  })
+
+  it('is not changed by edits made after it was saved', () => {
+    const layout = useDashboardLayoutStore()
+    const id = layout.saveLayout('Base') ?? ''
+    layout.setVisible('desktop', 'print', false)
+    layout.updateConfig('macros', { macros: ['HOME'] })
+
+    const saved = layout.profile.savedLayouts.find((candidate) => candidate.id === id)
+    expect(saved?.placements.desktop.find((p) => p.instanceId === 'print')?.visible).toBe(true)
+    expect(saved?.instances.find((instance) => instance.instanceId === 'macros')?.config).toEqual(
+      {},
+    )
+  })
+
+  it('keeps current configuration and hides cards added since, rather than deleting them', () => {
+    const layout = useDashboardLayoutStore()
+    const id = layout.saveLayout('Base') ?? ''
+    layout.updateConfig('macros', { macros: ['HOME'] })
+    const added = layout.duplicateInstance('desktop', 'macros') ?? ''
+
+    layout.applySavedLayout(id)
+
+    expect(
+      layout.profile.instances.find((instance) => instance.instanceId === 'macros')?.config,
+    ).toEqual({ macros: ['HOME'] })
+    expect(layout.profile.instances.some((instance) => instance.instanceId === added)).toBe(true)
+    expect(placementOf(layout, added)?.visible).toBe(false)
+  })
+
+  it('brings back a card removed since, with the configuration it was saved with', () => {
+    const layout = useDashboardLayoutStore()
+    const duplicate = layout.duplicateInstance('desktop', 'macros') ?? ''
+    layout.updateConfig(duplicate, { macros: ['PURGE'] })
+    const id = layout.saveLayout('Two groups') ?? ''
+    layout.removeInstance(duplicate)
+
+    layout.applySavedLayout(id)
+
+    expect(
+      layout.profile.instances.find((instance) => instance.instanceId === duplicate)?.config,
+    ).toEqual({ macros: ['PURGE'] })
+    expect(placementOf(layout, duplicate)?.visible).toBe(true)
+  })
+
+  it('rejects an empty or already used name, ignoring case', () => {
+    const layout = useDashboardLayoutStore()
+    expect(savedLayoutNameIssue('   ', [])).toBe('empty')
+    layout.saveLayout('Printing')
+    expect(savedLayoutNameIssue('printing', layout.profile.savedLayouts)).toBe('taken')
+    expect(layout.saveLayout('PRINTING')).toBeNull()
+    expect(layout.profile.savedLayouts).toHaveLength(1)
+  })
+
+  it('survives presets, duplicates, removal, and deletes only the one asked for', () => {
+    const layout = useDashboardLayoutStore()
+    const first = layout.saveLayout('First') ?? ''
+    layout.saveLayout('Second')
+    layout.applyPreset('tuning')
+    const duplicate = layout.duplicateInstance('desktop', 'macros') ?? ''
+    layout.removeInstance(duplicate)
+    expect(layout.profile.savedLayouts.map((saved) => saved.name)).toEqual(['First', 'Second'])
+
+    layout.deleteSavedLayout(first)
+    expect(layout.profile.savedLayouts.map((saved) => saved.name)).toEqual(['Second'])
+  })
+
+  it('drops malformed saved layouts and repairs the rest', () => {
+    const profile = normalizeDashboardProfile({
+      savedLayouts: [
+        { id: 'a', name: 'Kept', placements: { desktop: [{ instanceId: 'print', column: 2 }] } },
+        { id: 'a', name: 'Duplicate id' },
+        { id: 'b', name: '   ' },
+        'nonsense',
+      ],
+    })
+
+    expect(profile.savedLayouts.map((saved) => saved.name)).toEqual(['Kept'])
+    const kept = profile.savedLayouts[0]
+    expect(kept?.placements.desktop.find((p) => p.instanceId === 'print')?.column).toBe(2)
+    expect(new Set(kept?.instances.map((instance) => instance.moduleId))).toEqual(
+      new Set(dashboardModuleIds),
+    )
   })
 })

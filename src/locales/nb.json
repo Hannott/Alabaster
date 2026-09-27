@@ -898,7 +898,21 @@
         "l": "L",
         "xl": "XL"
       },
-      "columnWidthOf": "Kolonne {number}, {width}"
+      "columnWidthOf": "Kolonne {number}, {width}",
+      "savedLayouts": "Lagrede oppsett",
+      "savedLayoutsDescription": "Gå tilbake til et oppsett du har lagret, for alle skjermstørrelser samtidig.",
+      "saveCurrent": "Lagre oppsett",
+      "saveTitle": "Lagre gjeldende oppsett",
+      "saveDescription": "Lagrer oppsettet for datamaskin, nettbrett og mobil.",
+      "saveLabel": "Navn på oppsettet",
+      "save": "Lagre",
+      "savedNameEmpty": "Skriv inn et navn.",
+      "savedNameTaken": "Et lagret oppsett har allerede dette navnet.",
+      "applySaved": "Bruk det lagrede oppsettet {name}",
+      "deleteSaved": "Slett det lagrede oppsettet {name}",
+      "deleteSavedTitle": "Slette dette lagrede oppsettet?",
+      "deleteSavedConfirm": "Oppsettet lagret som {name} fjernes fra denne skriveren.",
+      "delete": "Slett"
     },
     "duration": {
       "hoursMinutes": "{hours} t {minutes} min",
@@ -2672,6 +2686,7 @@
       "power": "Strøm",
       "printInterrupting": "Avbryter en aktiv utskrift",
       "bedMesh": "Bednett",
+      "dashboard": "Dashbord",
       "console": "Konsoll",
       "configuration": "Konfigurasjon",
       "history": "Historikk",
@@ -2699,6 +2714,7 @@
       "regenerateApiKey": "Generer API-nøkkelen på nytt",
       "openLargeGcodeFile": "Åpne en stor fil i G-kode-viseren",
       "deleteMeshProfile": "Slett en bednettprofil, fra Kalibrering-siden",
+      "deleteSavedLayout": "Slett et lagret dashbordoppsett",
       "clearConsole": "Tøm konsolltranskriptet",
       "clearCommandHistory": "Tøm historikken over skrevne kommandoer",
       "discardFileChanges": "Forkast ulagrede endringer i en fil",

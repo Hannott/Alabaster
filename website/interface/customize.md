@@ -59,6 +59,20 @@ change the other two profiles.
 A preset changes visibility only. It does not discard any card's
 configuration, so you can try a preset and switch back.
 
+## Saved layouts
+
+Arrange the dashboard once for printing and once for tuning, and switch
+between the two with a single click. **Save layout** stores the current
+arrangement under a name, for Desktop, Tablet, and Mobile at once. Choose a
+saved layout's name to return to it.
+
+Returning to a saved layout moves cards, not settings. Every card keeps the
+configuration it has now. A card you removed after saving comes back as it
+was, and a card you added after saving is hidden rather than deleted.
+
+Saved layouts belong to the printer, and **Backup and sync** on Settings
+carries them along with the rest of its dashboard.
+
 ## More than one of the same card
 
 **Macros** and **Camera** can each appear more than once. Each copy is its

@@ -17,6 +17,7 @@ import {
   renameStoredInstanceId,
   renameStoredModuleId,
   visibleIndexOf,
+  type DashboardArrangement,
   type DashboardColumnWidth,
   type DashboardColumnWidths,
   type DashboardColumnWidthsByViewport,
@@ -27,6 +28,7 @@ import {
   type DashboardPlacements,
   type DashboardProfile,
   type DashboardViewport,
+  type SavedDashboardLayout,
 } from '@/dashboard/layout'
 import {
   dashboardProfileForPreset,
@@ -179,9 +181,7 @@ function normalizeColumnWidths(value: unknown, viewport: DashboardViewport): Das
   return defaultColumnWidths(viewport)
 }
 
-export function normalizeDashboardProfile(value: unknown): DashboardProfile {
-  if (!isRecord(value)) return defaultDashboardProfile()
-
+function normalizeArrangement(value: Record<string, unknown>): DashboardArrangement {
   const instances = normalizeInstances(value.instances)
   const storedPlacements = isRecord(value.placements) ? value.placements : {}
   const placements = Object.fromEntries(
@@ -200,6 +200,62 @@ export function normalizeDashboardProfile(value: unknown): DashboardProfile {
   ) as DashboardColumnWidthsByViewport
 
   return { instances, placements, columnWidths }
+}
+
+function normalizeSavedLayouts(value: unknown): SavedDashboardLayout[] {
+  const candidates = Array.isArray(value) ? value : []
+  const layouts: SavedDashboardLayout[] = []
+  const taken = new Set<string>()
+
+  for (const candidate of candidates) {
+    if (!isRecord(candidate)) continue
+    const id = typeof candidate.id === 'string' ? candidate.id.trim() : ''
+    const name = typeof candidate.name === 'string' ? candidate.name.trim() : ''
+    if (id === '' || name === '' || taken.has(id)) continue
+    taken.add(id)
+    layouts.push({
+      id,
+      name,
+      savedAt: typeof candidate.savedAt === 'string' ? candidate.savedAt : '',
+      ...normalizeArrangement(candidate),
+    })
+  }
+
+  return layouts
+}
+
+export function normalizeDashboardProfile(value: unknown): DashboardProfile {
+  if (!isRecord(value)) return defaultDashboardProfile()
+  return { ...normalizeArrangement(value), savedLayouts: normalizeSavedLayouts(value.savedLayouts) }
+}
+
+export type SavedLayoutNameIssue = 'empty' | 'taken'
+
+/**
+ * Names are compared without case, because two layouts called "Printing" and
+ * "printing" are one name to anybody choosing between them in a list.
+ */
+export function savedLayoutNameIssue(
+  name: string,
+  layouts: readonly SavedDashboardLayout[],
+): SavedLayoutNameIssue | undefined {
+  const trimmed = name.trim()
+  if (trimmed === '') return 'empty'
+  const folded = trimmed.toLocaleLowerCase()
+  if (layouts.some((layout) => layout.name.toLocaleLowerCase() === folded)) return 'taken'
+  return undefined
+}
+
+/**
+ * Timestamp plus random rather than `crypto.randomUUID`, which is missing
+ * outside a secure context — and a printer's own web server is plain HTTP.
+ */
+function copyInstance(instance: DashboardModuleInstance): DashboardModuleInstance {
+  return JSON.parse(JSON.stringify(instance)) as DashboardModuleInstance
+}
+
+function nextSavedLayoutId(): string {
+  return `layout-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
 }
 
 /**
@@ -248,7 +304,7 @@ export function migrateLegacyProfile(value: unknown): DashboardProfile | null {
     dashboardViewports.map((viewport) => [viewport, defaultColumnWidths(viewport)]),
   ) as DashboardColumnWidthsByViewport
 
-  return { instances, placements, columnWidths }
+  return { instances, placements, columnWidths, savedLayouts: [] }
 }
 
 function readLegacyFlatStorage(): Record<string, DashboardProfile> {
@@ -622,6 +678,7 @@ export const useDashboardLayoutStore = defineStore('dashboardLayout', () => {
       instances: [...profile.value.instances, duplicate],
       placements,
       columnWidths: profile.value.columnWidths,
+      savedLayouts: profile.value.savedLayouts,
     }
     persist()
     return duplicateId
@@ -644,6 +701,7 @@ export const useDashboardLayoutStore = defineStore('dashboardLayout', () => {
       instances: profile.value.instances.filter((candidate) => candidate.instanceId !== instanceId),
       placements,
       columnWidths: profile.value.columnWidths,
+      savedLayouts: profile.value.savedLayouts,
     }
     persist()
   }
@@ -662,6 +720,91 @@ export const useDashboardLayoutStore = defineStore('dashboardLayout', () => {
       ),
       placements: presetProfile.placements,
       columnWidths: profile.value.columnWidths,
+      savedLayouts: profile.value.savedLayouts,
+    }
+    persist()
+  }
+
+  /**
+   * Snapshots every viewport at once, not only the one being edited: a layout
+   * someone names is how their dashboard looks, and restoring it on a phone
+   * should not bring back the desktop arrangement alone.
+   */
+  function saveLayout(name: string): string | null {
+    const trimmed = name.trim()
+    if (savedLayoutNameIssue(trimmed, profile.value.savedLayouts)) return null
+
+    // A deep copy, so a later edit to the live profile cannot reach into it.
+    const snapshot = JSON.parse(
+      JSON.stringify({
+        instances: profile.value.instances,
+        placements: profile.value.placements,
+        columnWidths: profile.value.columnWidths,
+      }),
+    ) as DashboardArrangement
+    const saved: SavedDashboardLayout = {
+      id: nextSavedLayoutId(),
+      name: trimmed,
+      savedAt: new Date().toISOString(),
+      ...snapshot,
+    }
+    profile.value = { ...profile.value, savedLayouts: [...profile.value.savedLayouts, saved] }
+    persist()
+    return saved.id
+  }
+
+  /**
+   * Restores the arrangement, not the configuration, for the reason
+   * `applyPreset` gives: a card that still exists keeps what it is set up to
+   * do now. A card the layout had that has since been removed comes back with
+   * the configuration it was saved with, since there is nothing newer.
+   *
+   * A card added after the layout was saved is kept and hidden rather than
+   * dropped. Restoring an arrangement should not delete anybody's work, and a
+   * hidden card is one click away in the module tray.
+   */
+  function applySavedLayout(id: string): void {
+    const saved = profile.value.savedLayouts.find((layout) => layout.id === id)
+    if (!saved) return
+
+    const savedIds = new Set(saved.instances.map((instance) => instance.instanceId))
+    const restored = saved.instances.map(
+      (instance) => instancesById.value.get(instance.instanceId) ?? copyInstance(instance),
+    )
+    const added = profile.value.instances.filter((instance) => !savedIds.has(instance.instanceId))
+
+    const placements = Object.fromEntries(
+      dashboardViewports.map((viewport) => {
+        const current = saved.placements[viewport].map((placement) => ({ ...placement }))
+        for (const instance of added) {
+          current.push({
+            instanceId: instance.instanceId,
+            column: defaultColumnForIndex(current.length, viewport),
+            visible: false,
+            collapsed: false,
+          })
+        }
+        return [viewport, current]
+      }),
+    ) as DashboardPlacements
+
+    const columnWidths = Object.fromEntries(
+      dashboardViewports.map((viewport) => [viewport, [...saved.columnWidths[viewport]]]),
+    ) as DashboardColumnWidthsByViewport
+
+    profile.value = {
+      instances: [...restored, ...added],
+      placements,
+      columnWidths,
+      savedLayouts: profile.value.savedLayouts,
+    }
+    persist()
+  }
+
+  function deleteSavedLayout(id: string): void {
+    profile.value = {
+      ...profile.value,
+      savedLayouts: profile.value.savedLayouts.filter((layout) => layout.id !== id),
     }
     persist()
   }
@@ -721,6 +864,9 @@ export const useDashboardLayoutStore = defineStore('dashboardLayout', () => {
     duplicateInstance,
     removeInstance,
     applyPreset,
+    saveLayout,
+    applySavedLayout,
+    deleteSavedLayout,
     replaceProfile,
     reset,
   }

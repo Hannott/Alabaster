@@ -5,12 +5,15 @@ import { useI18n } from 'vue-i18n'
 import AppButton from '@/components/AppButton.vue'
 import AppIcon from '@/components/AppIcon.vue'
 import AvailabilityRegion from '@/components/AvailabilityRegion.vue'
+import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import DashboardModuleCard from '@/components/dashboard/DashboardModuleCard.vue'
 import DashboardModuleHost from '@/components/dashboard/DashboardModuleHost.vue'
 import DashboardModulePlaceholder from '@/components/dashboard/DashboardModulePlaceholder.vue'
 import SettingsSurface from '@/components/dashboard/SettingsSurface.vue'
 import PageHeading from '@/components/PageHeading.vue'
 import type { PageHeadingAction } from '@/components/PageHeading.vue'
+import PromptDialog from '@/components/PromptDialog.vue'
+import { useActionGuard } from '@/composables/useActionGuard'
 import { useDashboardCardDrag } from '@/composables/useDashboardCardDrag'
 import { useDashboardViewport } from '@/composables/useDashboardViewport'
 import {
@@ -29,7 +32,11 @@ import { moveCard } from '@/dashboard/cardMove'
 import { moduleHasQuickSettings } from '@/dashboard/quickSettings'
 import { dashboardModulesById, type DashboardModuleDefinition } from '@/dashboard/registry'
 import { findDashboardCardElement } from '@/dashboard/reveal'
-import { useDashboardLayoutStore, type RenderedDashboardInstance } from '@/stores/dashboardLayout'
+import {
+  savedLayoutNameIssue,
+  useDashboardLayoutStore,
+  type RenderedDashboardInstance,
+} from '@/stores/dashboardLayout'
 import { usePrintersStore } from '@/stores/printers'
 import { useServerCapabilitiesStore } from '@/stores/serverCapabilities'
 
@@ -561,6 +568,49 @@ function applyPreset(event: Event): void {
   target.value = ''
 }
 
+const saveLayoutGuard = useActionGuard({ tier: 'reversible', prompt: true })
+const deleteSavedLayoutGuard = useActionGuard({
+  tier: 'terminal',
+  emphasis: 'quiet',
+  key: 'deleteSavedLayout',
+})
+const savingLayout = ref(false)
+const deletingSavedLayoutId = ref<string | null>(null)
+const deletingSavedLayoutName = computed(
+  () =>
+    layout.profile.savedLayouts.find((saved) => saved.id === deletingSavedLayoutId.value)?.name ??
+    '',
+)
+
+function validateSavedLayoutName(value: string): string | undefined {
+  switch (savedLayoutNameIssue(value, layout.profile.savedLayouts)) {
+    case 'empty':
+      return t('dashboard.layout.savedNameEmpty')
+    case 'taken':
+      return t('dashboard.layout.savedNameTaken')
+    default:
+      return undefined
+  }
+}
+
+function confirmSaveLayout(name: string): void {
+  savingLayout.value = false
+  layout.saveLayout(name)
+}
+
+function requestDeleteSavedLayout(id: string): void {
+  deleteSavedLayoutGuard.request(
+    () => layout.deleteSavedLayout(id),
+    () => (deletingSavedLayoutId.value = id),
+  )
+}
+
+function confirmDeleteSavedLayout(): void {
+  const id = deletingSavedLayoutId.value
+  deletingSavedLayoutId.value = null
+  if (id) layout.deleteSavedLayout(id)
+}
+
 function setColumnWidth(width: DashboardColumnWidth): void {
   layout.setColumnWidth(selectedViewport.value, selectedColumn.value, width)
 }
@@ -705,6 +755,48 @@ function setColumnWidth(width: DashboardColumnWidth): void {
           <span v-if="hiddenModules.length === 0" class="text-xs text-muted">
             {{ t('dashboard.layout.noneHidden') }}
           </span>
+        </div>
+      </div>
+
+      <div v-if="editing" class="dashboard-module-tray">
+        <div>
+          <p class="text-card-title">{{ t('dashboard.layout.savedLayouts') }}</p>
+          <p class="mt-0.5 text-xs text-muted">
+            {{ t('dashboard.layout.savedLayoutsDescription') }}
+          </p>
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+          <span
+            v-for="saved in layout.profile.savedLayouts"
+            :key="saved.id"
+            class="inline-flex items-center gap-1"
+          >
+            <AppButton
+              size="sm"
+              on-soft
+              :label="saved.name"
+              :aria-label="t('dashboard.layout.applySaved', { name: saved.name })"
+              @click="layout.applySavedLayout(saved.id)"
+            />
+            <AppButton
+              size="sm"
+              on-soft
+              icon-only
+              icon="trash"
+              :guard="deleteSavedLayoutGuard"
+              :aria-label="t('dashboard.layout.deleteSaved', { name: saved.name })"
+              :title="t('dashboard.layout.deleteSaved', { name: saved.name })"
+              @click="requestDeleteSavedLayout(saved.id)"
+            />
+          </span>
+          <AppButton
+            size="sm"
+            on-soft
+            icon="save"
+            :guard="saveLayoutGuard"
+            :label="t('dashboard.layout.saveCurrent')"
+            @click="savingLayout = true"
+          />
         </div>
       </div>
 
@@ -887,6 +979,25 @@ function setColumnWidth(width: DashboardColumnWidth): void {
       :stacked="surfaceStacked"
       @close="closeSurface"
       @switch-surface="switchSurface"
+    />
+    <PromptDialog
+      :open="savingLayout"
+      :title="t('dashboard.layout.saveTitle')"
+      :description="t('dashboard.layout.saveDescription')"
+      :label="t('dashboard.layout.saveLabel')"
+      :confirm-label="t('dashboard.layout.save')"
+      :validate="validateSavedLayoutName"
+      @confirm="confirmSaveLayout"
+      @cancel="savingLayout = false"
+    />
+    <ConfirmDialog
+      :open="deletingSavedLayoutId !== null"
+      :title="t('dashboard.layout.deleteSavedTitle')"
+      :description="t('dashboard.layout.deleteSavedConfirm', { name: deletingSavedLayoutName })"
+      :confirm-label="t('dashboard.layout.delete')"
+      tone="danger"
+      @confirm="confirmDeleteSavedLayout"
+      @cancel="deletingSavedLayoutId = null"
     />
   </div>
 </template>

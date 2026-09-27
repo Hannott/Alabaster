@@ -508,6 +508,7 @@ const confirmationGroups: readonly ConfirmationGroup[] = [
     keys: ['farmCancelPrint', 'farmPowerOff', 'farmStartPrint'],
   },
   { titleKey: 'confirmations.groups.bedMesh', keys: ['deleteMeshProfile'] },
+  { titleKey: 'confirmations.groups.dashboard', keys: ['deleteSavedLayout'] },
   // One group for both console surfaces: the card's header action and the page's
   // toolbar clear the same transcript and write the same cutoff, so they share
   // the setting rather than each carrying one.
