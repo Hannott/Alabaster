@@ -6291,6 +6291,10 @@ input.z-axis__slider {
   margin-block-start: 0.1rem;
 }
 
+.update-release-notes {
+  margin-block-start: 0.85rem;
+}
+
 .update-recovery-section-note {
   margin-block-start: 0.85rem;
   color: var(--text-muted);

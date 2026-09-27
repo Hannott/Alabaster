@@ -98,6 +98,20 @@ export function updateAvailability(update: MoonrakerUpdateEntry): MachineUpdateA
 }
 
 /**
+ * The GitHub release page an archive source's pending version was published
+ * on, or null where there is no single release to point at. Moonraker fetches
+ * `web` and `zip` sources from GitHub's releases API and nowhere else, so the
+ * owner and repository it reports always name a GitHub repository.
+ */
+export function releaseNotesUrl(update: MoonrakerUpdateEntry | null | undefined): string | null {
+  if (!update) return null
+  if (update.configured_type !== 'web' && update.configured_type !== 'zip') return null
+  const { owner, repo_name: repo, remote_version: tag } = update
+  if (!owner || !repo || !tag || tag === update.version) return null
+  return `https://github.com/${[owner, repo].map(encodeURIComponent).join('/')}/releases/tag/${encodeURIComponent(tag)}`
+}
+
+/**
  * `machine.update.upgrade` supersedes the per-item methods, but a Pi that has not
  * updated Moonraker itself answers only the older ones — and that is exactly the
  * machine most likely to have an update waiting.

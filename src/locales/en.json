@@ -2274,6 +2274,7 @@
       "updateOneConfirmDescription": "Moonraker installs the available version and restarts the affected service.",
       "changelogCommits": "{count} commits will be applied:",
       "changelogPackages": "These packages will be upgraded:",
+      "releaseNotes": "Release notes for {version}",
       "updateConfirm": "Start update",
       "updating": "Updating",
       "updateFailed": "The update could not be started. The output below shows what Moonraker reported.",

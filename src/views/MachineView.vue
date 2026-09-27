@@ -17,7 +17,7 @@ import type {
   MachineUpdateAvailability,
   MachineUpdateItem,
 } from '@/stores/machineSystem'
-import { updateAvailability, useMachineSystemStore } from '@/stores/machineSystem'
+import { releaseNotesUrl, updateAvailability, useMachineSystemStore } from '@/stores/machineSystem'
 import { useMoonrakerStore } from '@/stores/moonraker'
 
 const { locale, t } = useI18n({ useScope: 'global' })
@@ -359,9 +359,13 @@ const confirmDescription = computed(() =>
 
 /*
  * A single-source confirmation shows what the update actually contains.
- * `commits_behind` is the changelog for a git/web source; a `system` source
- * has no commits at all, so its own package list stands in instead — never
- * both, since a source is only ever one of the two shapes.
+ * `commits_behind` is the changelog for a `git_repo` source; a `system`
+ * source has no commits at all, so its own package list stands in instead —
+ * never both, since a source is only ever one of the two shapes.
+ *
+ * A `web` or `zip` source is a downloaded release archive, and Moonraker sends
+ * no changelog for it at all. Its notes live on the GitHub release it names, so
+ * the confirmation links there instead.
  */
 const pendingUpdateCommits = computed(() => pendingUpdate.value?.commits_behind ?? [])
 const pendingUpdatePackages = computed(() =>
@@ -370,6 +374,7 @@ const pendingUpdatePackages = computed(() =>
 const hasChangelogDetails = computed(
   () => pendingUpdateCommits.value.length > 0 || pendingUpdatePackages.value.length > 0,
 )
+const pendingReleaseUrl = computed(() => releaseNotesUrl(pendingUpdate.value))
 
 const updatesDisabled = computed(() => !moonraker.isConnected || machine.isUpdateManagerBusy)
 
@@ -1099,6 +1104,17 @@ onBeforeUnmount(() => {
         <ul class="update-recovery-messages selectable">
           <li v-for="name in pendingUpdatePackages" :key="name">{{ name }}</li>
         </ul>
+      </template>
+      <template v-else-if="pendingReleaseUrl" #details>
+        <a
+          class="button button--quiet button--sm update-release-notes"
+          :href="pendingReleaseUrl"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <AppIcon name="popout" class="size-4" aria-hidden="true" />
+          {{ t('machine.updates.releaseNotes', { version: pendingUpdate?.remote_version }) }}
+        </a>
       </template>
     </ConfirmDialog>
 

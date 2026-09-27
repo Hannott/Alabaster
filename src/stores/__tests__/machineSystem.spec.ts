@@ -7,6 +7,7 @@ import { useAvailabilityStore } from '@/stores/availability'
 import {
   buildMcuModules,
   machineUpdateOutputLimit,
+  releaseNotesUrl,
   updateAvailability,
   useMachineSystemStore,
 } from '@/stores/machineSystem'
@@ -1194,5 +1195,31 @@ describe('machine system store', () => {
 
     expect(await machine.stopService('crowsnest')).toBe(false)
     expect(toasts.entries.map((entry) => entry.message)).toEqual(['Error: refused'])
+  })
+})
+
+describe('releaseNotesUrl', () => {
+  const archive = {
+    configured_type: 'web' as const,
+    owner: 'Hannott',
+    repo_name: 'Alabaster',
+    version: 'v0.5.1',
+    remote_version: 'v0.6.0',
+  }
+
+  it('points an archive source at the GitHub release it would install', () => {
+    expect(releaseNotesUrl(archive)).toBe(
+      'https://github.com/Hannott/Alabaster/releases/tag/v0.6.0',
+    )
+    expect(releaseNotesUrl({ ...archive, configured_type: 'zip' })).toBe(
+      'https://github.com/Hannott/Alabaster/releases/tag/v0.6.0',
+    )
+  })
+
+  it('offers nothing where there is no single pending release', () => {
+    expect(releaseNotesUrl(null)).toBeNull()
+    expect(releaseNotesUrl({ ...archive, configured_type: 'git_repo' })).toBeNull()
+    expect(releaseNotesUrl({ ...archive, remote_version: 'v0.5.1' })).toBeNull()
+    expect(releaseNotesUrl({ ...archive, repo_name: undefined })).toBeNull()
   })
 })

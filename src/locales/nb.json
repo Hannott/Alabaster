@@ -2274,6 +2274,7 @@
       "updateOneConfirmDescription": "Moonraker installerer tilgjengelig versjon og starter den berørte tjenesten på nytt.",
       "changelogCommits": "{count} commits vil bli lagt til:",
       "changelogPackages": "Disse pakkene vil bli oppgradert:",
+      "releaseNotes": "Utgivelsesnotater for {version}",
       "updateConfirm": "Start oppdatering",
       "updating": "Oppdaterer",
       "updateFailed": "Oppdateringen kunne ikke startes. Utdataene nedenfor viser hva Moonraker rapporterte.",

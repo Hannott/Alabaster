@@ -78,7 +78,8 @@ printer must not be printing.
 
 **What you are about to install is shown before you install it.** A git
 source lists the commits you are behind by. A system-package source lists the
-packages that will change.
+packages that will change. A downloaded release, such as Alabaster itself,
+links to the release notes of the version it is about to install.
 
 ### Watching an update run
 

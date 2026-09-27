@@ -436,6 +436,12 @@ export interface MoonrakerUpdateEntry {
   name?: string
   version?: string
   remote_version?: string
+  /**
+   * The GitHub account and repository a `web` or `zip` source downloads its
+   * releases from — the `repo:` option split at its slash.
+   */
+  owner?: string
+  repo_name?: string
   package_count?: number
   /** The upgradeable package names for a `system` source — `apt`'s own changelog. */
   package_list?: string[]
