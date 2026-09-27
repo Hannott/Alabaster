@@ -26,10 +26,11 @@ const props = defineProps<{
   /** Whether a move may be commanded at all — the card's shared precondition. */
   canMove: boolean
   /**
-   * Some printers move the bed rather than the gantry, so their Z 0 sits at
-   * the top of the travel instead of the bottom. This flips which end of the
-   * track reads as the maximum without changing a single Z value sent to the
-   * printer — it is a drawing choice, not a coordinate one.
+   * The thumb is drawn as the part that moves, so its top is wherever that
+   * part is highest — Z max on most machines, Z 0 where Z+ moves the moving
+   * part down (`stores/zMotion.ts`). This flips which end of the track reads
+   * as the maximum without changing a single Z value sent to the printer — it
+   * is a drawing choice, not a coordinate one.
    */
   swapDirection: boolean
   /**

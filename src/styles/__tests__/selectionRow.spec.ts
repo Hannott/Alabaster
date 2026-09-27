@@ -198,8 +198,9 @@ describe('selected row contract', () => {
       }
 
       // The state is never the color alone: whatever row carries it, the file
-      // also exposes the selection to assistive technology.
-      if (!source.includes(':aria-current=')) {
+      // also exposes the selection to assistive technology — `aria-current`, or
+      // a checked native radio inside the row, which already says it.
+      if (!source.includes(':aria-current=') && !source.includes('type="radio"')) {
         offenders.push(`${relative(projectRoot, path)}: no aria-current beside the selection`)
       }
     }

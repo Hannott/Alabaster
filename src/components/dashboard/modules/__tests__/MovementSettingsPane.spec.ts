@@ -189,23 +189,17 @@ describe('MovementSettingsPane', () => {
   })
 
   /**
-   * A bed-slinger's Z 0 sits at the top of its travel rather than the bottom,
-   * so the slider's own direction is a printer property, not a look — off by
-   * default, since the more common gantry-moves machine is what the unswapped
-   * drawing already matches.
+   * Which way Z moves is a printer property rather than a card's, so the pane
+   * no longer holds it — only a way to where it lives.
    */
-  it('offers to swap the Z slider direction, off by default', async () => {
-    const { wrapper, config } = mountPane()
+  it('points to the printer-wide Z direction rather than offering its own', async () => {
+    const { wrapper } = mountPane()
     await flushPromises()
 
-    const row = wrapper
-      .findAll('.check-row')
-      .find((entry) => entry.text().includes('Swap Z direction'))
-    const checkbox = row?.get('input[type="checkbox"]')
-    expect((checkbox?.element as HTMLInputElement).checked).toBe(false)
-
-    await checkbox?.setValue(true)
-    expect(config.value.swapZDirection).toBe(true)
+    expect(wrapper.text()).not.toContain('Swap Z direction')
+    expect(wrapper.findAll('button.text-action').map((button) => button.text())).toContain(
+      'Z direction',
+    )
   })
 
   /**

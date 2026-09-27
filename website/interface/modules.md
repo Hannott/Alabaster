@@ -220,6 +220,12 @@ toolhead.
 - **Live speed**: Shows the toolhead's live speed, so a slow move and a
   refused move look different.
 
+Every Z control is laid out the way the moving part travels: down on the
+left and at the bottom of the slider, up on the right and at the top. On a
+printer where the bed moves, the Z buttons read **raise bed** and **lower
+bed**. Set which part moves, and which way Z+ moves it, under
+[Z motion](/interface/settings#z-motion) in Settings.
+
 Jogging keeps working while a print is **paused**, since reaching the nozzle
 is often the reason for pausing. Homing, motors off, and bed levelling do
 not: each of these ends a paused print instead of interrupting it.
@@ -250,13 +256,11 @@ the corner reading, without moving anything.
 ### Z offset
 
 The controls read in **micrometres or millimetres**, and the legend states
-which direction moves the nozzle closer to the bed. Getting this wrong risks
-the nozzle.
+whether each step raises or lowers the nozzle, or the bed on a printer where
+the bed moves. Getting this wrong risks the nozzle.
 
 - **Steps**: Set in your chosen unit; the printer always receives
   millimetres.
-- **Swap Z direction**: For printers whose bed moves rather than the
-  gantry, so Z zero is at the top of the slider.
 - **Save offset**: Folds the current adjustment into whatever sets Z zero on
   the machine: the probe's own Z offset if there is a probe, or the Z
   endstop position if there is not. A printer with neither has no place to

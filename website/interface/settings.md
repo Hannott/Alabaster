@@ -36,6 +36,20 @@ configuration: add the printer back and its dashboard returns.
 See [Several printers](/guide/printers) for more information, including why
 settings follow a printer's identity rather than its address.
 
+### Z motion
+
+Sets which part moves when Z changes, the nozzle or the bed, and which way
+Z+ moves it. Klipper cannot report either, and the Movement card uses both
+to lay out its Z buttons, Z slider, and Z offset steps.
+
+Most printers put Z 0 where the nozzle meets the bed, so choosing the part
+also picks the usual direction. Change **Z+ direction** for a printer that
+homes Z to the far end of its travel, such as a bed that Z+ raises toward
+the nozzle.
+
+The choice is saved per printer and included in backup and sync. It does
+not appear for a delta printer, where only the nozzle moves.
+
 ## Cameras
 
 This card lists every camera the printer knows about. Cameras live in

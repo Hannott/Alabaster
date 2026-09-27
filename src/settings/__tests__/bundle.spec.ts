@@ -5,6 +5,7 @@ import { useFont } from '@/composables/useFont'
 import { useWakeLock } from '@/composables/useWakeLock'
 import { useConfirmationsStore } from '@/stores/confirmations'
 import { useDashboardLayoutStore } from '@/stores/dashboardLayout'
+import { useZMotionStore } from '@/stores/zMotion'
 
 /*
  * `@/settings/bundle` pulls in `useTheme`, which reads `window.matchMedia`
@@ -60,6 +61,20 @@ describe('settings bundle', () => {
 
     expect(theme.mode.value).toBe('light')
     expect(confirmations.skipByKey.removePrinter).toBe(false)
+  })
+
+  it("carries the active printer's Z motion, and repairs a malformed one to the default", async () => {
+    const zMotion = useZMotionStore()
+    zMotion.setMovingPart('bed')
+    zMotion.setZPlus('up')
+    const bundle = collectSettingsBundle()
+    expect(bundle.zMotion).toEqual({ movingPart: 'bed', zPlus: 'up' })
+
+    await applySettingsBundle({ zMotion: { movingPart: 'gantry', zPlus: 'up' } })
+    expect(zMotion.motion).toEqual({ movingPart: 'nozzle', zPlus: 'up' })
+
+    await applySettingsBundle(bundle)
+    expect(zMotion.motion).toEqual({ movingPart: 'bed', zPlus: 'up' })
   })
 
   it('leaves every field untouched when given something that is not a record', async () => {

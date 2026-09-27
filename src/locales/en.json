@@ -1022,12 +1022,13 @@
       "axisY": "Y axis",
       "axisZ": "Z axis",
       "jog": "{axis} {distance}",
+      "jogZ": "Z {distance} — {direction}",
       "axisTargetLabel": "Target position for {axis}",
       "notHomed": "Not homed",
       "showZOffset": "Show Z offset controls",
       "showSpeedFactor": "Show speed factor",
+      "zMotionLink": "Z direction",
       "speedFactor": "Speed factor",
-      "swapZDirection": "Swap Z direction",
       "zOffsetStep": "Z offset step",
       "homeAll": "Home all axes",
       "machineActions": "Machine actions",
@@ -1049,10 +1050,16 @@
       "stepRemoveLabel": "Remove {group} value {index}",
       "stepAdd": "Add value",
       "zOffsetAdjust": "Adjust Z offset by {amount} {unit} — {direction}",
-      "zOffsetCloser": "nozzle closer to bed",
-      "zOffsetFarther": "nozzle away from bed",
-      "zOffsetLegendCloser": "closer to bed",
-      "zOffsetLegendFarther": "away from bed",
+      "zDirection": {
+        "raise": {
+          "nozzle": "raise nozzle",
+          "bed": "raise bed"
+        },
+        "lower": {
+          "nozzle": "lower nozzle",
+          "bed": "lower bed"
+        }
+      },
       "zOffsetReset": "Reset Z offset",
       "zOffsetTitle": {
         "micrometre": "Z offset · µm",
@@ -2416,6 +2423,41 @@
     "copyTitle": "Dashboard",
     "copyBlank": "Start with a blank dashboard",
     "copyFrom": "Copy the dashboard from"
+  },
+  "zMotion": {
+    "eyebrow": "Printer",
+    "title": "Z motion",
+    "description": "Which part moves when Z changes, and which way Z+ moves it.",
+    "movingPartLabel": "Moving part",
+    "movingPart": {
+      "nozzle": "Nozzle",
+      "bed": "Bed"
+    },
+    "movingPartDetail": {
+      "nozzle": "The toolhead or gantry moves up and down",
+      "bed": "The bed moves up and down"
+    },
+    "zPlusLabel": "Z+ direction",
+    "zPlus": {
+      "nozzle": {
+        "up": "Z+ moves the nozzle up",
+        "down": "Z+ moves the nozzle down"
+      },
+      "bed": {
+        "up": "Z+ moves the bed up",
+        "down": "Z+ moves the bed down"
+      }
+    },
+    "zeroAt": {
+      "nozzle": {
+        "up": "Z 0 is the nozzle down at the bed.",
+        "down": "Z 0 is the nozzle at the top of its travel."
+      },
+      "bed": {
+        "up": "Z 0 is the bed at the bottom of its travel.",
+        "down": "Z 0 is the bed up at the nozzle."
+      }
+    }
   },
   "cameras": {
     "eyebrow": "Cameras",

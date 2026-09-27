@@ -325,6 +325,16 @@ export const usePrinterConfigStore = defineStore('printerConfig', () => {
   })
 
   /**
+   * Whether Z is only ever the effector moving, with no bed or gantry to
+   * choose between: the towers of a delta carry the nozzle and nothing else.
+   * The Z motion setting (`stores/zMotion.ts`) has no question to ask here.
+   */
+  const isDelta = computed(() => {
+    const kinematics = section('printer')?.kinematics
+    return kinematics === 'delta' || kinematics === 'rotary_delta'
+  })
+
+  /**
    * The screws `BED_SCREWS_ADJUST` will visit, in the order it visits them.
    *
    * Klipper's `bed_screws` object reports which screw it is standing at as a
@@ -509,6 +519,7 @@ export const usePrinterConfigStore = defineStore('printerConfig', () => {
     hasProbe,
     hasZEndstopOffset,
     bedShape,
+    isDelta,
     bedScrews,
     historyFields,
     levelingMethods,

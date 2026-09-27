@@ -1,12 +1,14 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, inject } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { routerKey } from 'vue-router'
 
 import QuickSettingToggle from '@/components/dashboard/QuickSettingToggle.vue'
 import { readMovementCardSetting } from '@/components/dashboard/modules/movementCardSettings'
 import { useDashboardModule } from '@/dashboard/context'
 import { movementDefaultQuickKeys } from '@/dashboard/quickSettingDefaults'
 import { useQuickSettings } from '@/dashboard/quickSettings'
+import { useSettingsCategory } from '@/composables/useSettingsCategory'
 
 /**
  * Which blocks the Movement card draws at all, rendered once and shared
@@ -50,7 +52,16 @@ const showCalibrateNozzleZShortcut = computed(() =>
 )
 const showZOffset = computed(() => readMovementCardSetting(config.value, 'showZOffset'))
 const showSpeedFactor = computed(() => readMovementCardSetting(config.value, 'showSpeedFactor'))
-const swapZDirection = computed(() => readMovementCardSetting(config.value, 'swapZDirection'))
+
+const { setActiveCategory } = useSettingsCategory()
+// Injected with a default rather than `useRouter()`, so a pane mounted outside
+// the app — every settings-pane spec — renders without a router to warn about.
+const router = inject(routerKey, null)
+
+function openZMotionSettings(): void {
+  setActiveCategory('printers')
+  void router?.push({ name: 'settings' })
+}
 </script>
 
 <template>
@@ -196,22 +207,15 @@ const swapZDirection = computed(() => readMovementCardSetting(config.value, 'swa
     />
   </div>
 
-  <div v-if="quick.visible('swapZDirection')">
-    <div class="settings-row">
-      <label class="check-row">
-        <input
-          type="checkbox"
-          :checked="swapZDirection"
-          @change="updateConfig({ swapZDirection: !swapZDirection })"
-        />
-        <span>{{ t('dashboard.movement.swapZDirection') }}</span>
-      </label>
-      <QuickSettingToggle
-        v-if="mode === 'pane'"
-        :label="t('dashboard.movement.swapZDirection')"
-        :shown="quick.isQuick('swapZDirection')"
-        @toggle="quick.setQuick('swapZDirection', $event)"
-      />
-    </div>
+  <!--
+    Which way Z moves is a fact about the printer rather than about this card,
+    so it lives on Settings (`stores/zMotion.ts`) and every Movement card reads
+    the same answer. The pane still says where, since this is where the
+    question gets asked.
+  -->
+  <div v-if="mode === 'pane'" class="settings-row">
+    <button type="button" class="text-action" @click="openZMotionSettings">
+      {{ t('dashboard.movement.zMotionLink') }}
+    </button>
   </div>
 </template>

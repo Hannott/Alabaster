@@ -1022,12 +1022,13 @@
       "axisY": "Y-akse",
       "axisZ": "Z-akse",
       "jog": "{axis} {distance}",
+      "jogZ": "Z {distance} — {direction}",
       "axisTargetLabel": "Målposisjon for {axis}",
       "notHomed": "Uten nullpunkt",
       "showZOffset": "Vis Z-offset-kontroller",
       "showSpeedFactor": "Vis hastighetsfaktor",
+      "zMotionLink": "Z-retning",
       "speedFactor": "Hastighetsfaktor",
-      "swapZDirection": "Bytt Z-retning",
       "zOffsetStep": "Z-offset-steg",
       "homeAll": "Kjør alle akser til nullpunkt",
       "machineActions": "Maskinhandlinger",
@@ -1049,10 +1050,16 @@
       "stepRemoveLabel": "Fjern verdi {index} fra {group}",
       "stepAdd": "Legg til verdi",
       "zOffsetAdjust": "Juster Z-offset med {amount} {unit} — {direction}",
-      "zOffsetCloser": "dysen nærmere bedet",
-      "zOffsetFarther": "dysen bort fra bedet",
-      "zOffsetLegendCloser": "nærmere bedet",
-      "zOffsetLegendFarther": "bort fra bedet",
+      "zDirection": {
+        "raise": {
+          "nozzle": "hev dysen",
+          "bed": "hev bedet"
+        },
+        "lower": {
+          "nozzle": "senk dysen",
+          "bed": "senk bedet"
+        }
+      },
       "zOffsetReset": "Nullstill Z-offset",
       "zOffsetTitle": {
         "micrometre": "Z-offset · µm",
@@ -2416,6 +2423,41 @@
     "copyTitle": "Kontrollpanel",
     "copyBlank": "Start med et tomt kontrollpanel",
     "copyFrom": "Kopier kontrollpanelet fra"
+  },
+  "zMotion": {
+    "eyebrow": "Skriver",
+    "title": "Z-bevegelse",
+    "description": "Hvilken del som beveger seg når Z endres, og hvilken vei Z+ flytter den.",
+    "movingPartLabel": "Del som beveger seg",
+    "movingPart": {
+      "nozzle": "Dyse",
+      "bed": "Bed"
+    },
+    "movingPartDetail": {
+      "nozzle": "Verktøyhodet eller gantryen beveger seg opp og ned",
+      "bed": "Bedet beveger seg opp og ned"
+    },
+    "zPlusLabel": "Z+-retning",
+    "zPlus": {
+      "nozzle": {
+        "up": "Z+ flytter dysen opp",
+        "down": "Z+ flytter dysen ned"
+      },
+      "bed": {
+        "up": "Z+ flytter bedet opp",
+        "down": "Z+ flytter bedet ned"
+      }
+    },
+    "zeroAt": {
+      "nozzle": {
+        "up": "Z 0 er dysen nede ved bedet.",
+        "down": "Z 0 er dysen øverst i vandringen."
+      },
+      "bed": {
+        "up": "Z 0 er bedet nederst i vandringen.",
+        "down": "Z 0 er bedet oppe ved dysen."
+      }
+    }
   },
   "cameras": {
     "eyebrow": "Kameraer",

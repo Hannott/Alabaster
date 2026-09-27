@@ -35,6 +35,7 @@ import {
 import { normalizeDashboardProfile, useDashboardLayoutStore } from '@/stores/dashboardLayout'
 import type { QuickConfigPin } from '@/features/config/quickConfigFields'
 import { useQuickConfigStore } from '@/stores/quickConfig'
+import { useZMotionStore, type ZMotion } from '@/stores/zMotion'
 import { defaultThemePackId, isThemePackId, type ThemePackId } from '@/themes/registry'
 import { isRecord } from '@/utils/records'
 
@@ -90,6 +91,11 @@ export interface SettingsBundle {
    * other sections keeps choosing defaults from that printer's own config.
    */
   quickConfigPins: QuickConfigPin[] | null
+  /**
+   * The active printer's Z motion — which part moves and which way Z+ takes
+   * it. Null while the printer has no stored answer.
+   */
+  zMotion: ZMotion | null
 }
 
 function isGcodeColorMode(value: unknown): value is GcodeColorMode {
@@ -112,6 +118,7 @@ export function collectSettingsBundle(): SettingsBundle {
   const layout = useDashboardLayoutStore()
   const gcodeViewer = useGcodeViewerSettings()
   const quickConfig = useQuickConfigStore()
+  const zMotion = useZMotionStore()
 
   return {
     version: 1,
@@ -143,6 +150,7 @@ export function collectSettingsBundle(): SettingsBundle {
       followByDefault: gcodeViewer.followByDefault.value,
     },
     quickConfigPins: quickConfig.storedPins,
+    zMotion: zMotion.stored,
   }
 }
 
@@ -171,6 +179,7 @@ export async function applySettingsBundle(input: unknown): Promise<void> {
   const layout = useDashboardLayoutStore()
   const gcodeViewer = useGcodeViewerSettings()
   const quickConfig = useQuickConfigStore()
+  const zMotion = useZMotionStore()
 
   if (isRecord(input.theme)) {
     if (typeof input.theme.mode === 'string' && isThemeMode(input.theme.mode)) {
@@ -215,6 +224,7 @@ export async function applySettingsBundle(input: unknown): Promise<void> {
   if (input.confirmations !== undefined) confirmations.replaceAll(input.confirmations)
   if (input.dashboardProfile !== undefined) layout.replaceProfile(input.dashboardProfile)
   if (input.quickConfigPins !== undefined) quickConfig.replacePins(input.quickConfigPins)
+  if (input.zMotion !== undefined) zMotion.replace(input.zMotion)
   if (isRecord(input.gcodeViewer)) {
     const viewer = input.gcodeViewer
     if (isGcodeColorMode(viewer.colorMode)) gcodeViewer.setColorMode(viewer.colorMode)
@@ -258,5 +268,6 @@ export function defaultSettingsBundle(): SettingsBundle {
       followByDefault: true,
     },
     quickConfigPins: null,
+    zMotion: null,
   }
 }

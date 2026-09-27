@@ -1369,6 +1369,45 @@ input[type='number']::-webkit-inner-spin-button {
 }
 
 /*
+ * Settings' Z motion choice (`ZMotionCard.vue`): two option cards per question,
+ * side by side. A radio on its own could not carry the one-line description
+ * that says what each answer means, nor the schematic that shows it, and the
+ * difference between "the nozzle moves" and "the bed moves" is easier to judge
+ * from a picture than from the words alone. `check-row--block` because the
+ * border shows where the control ends; `selection-row` for the checked one,
+ * over a subtle border at rest, as `.calibration-profile` does.
+ */
+/* Side by side while both fit at a readable width, stacked below that — sized
+   by the card, not the window, since a supporting card is narrow either way. */
+.z-motion-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+  gap: 0.5rem;
+}
+
+.z-motion-option {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.75rem;
+  border-color: var(--border-subtle);
+  border-radius: 0.25rem;
+  padding: 0.65rem 0.8rem;
+}
+
+.z-motion-option__name {
+  display: block;
+  font-weight: 800;
+}
+
+.z-motion-option__detail {
+  display: block;
+  color: var(--text-muted);
+  font-size: var(--text-hint-size);
+  line-height: 1.4;
+}
+
+/*
  * A setting that only matters while a sibling checkbox above it is on —
  * Movement's "Show during printing" beneath "Show the bed plan" is the first
  * instance. It takes the same indent a hint takes under a check row, `1.7rem`

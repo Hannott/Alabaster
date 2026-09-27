@@ -20,12 +20,6 @@ export const movementCardDefaults = {
    */
   showSpeedFactor: true,
   /**
-   * Some printers move the bed rather than the gantry, so their Z 0 sits at
-   * the top of the travel instead of the bottom — a drawing choice for the
-   * slider, never a change to the Z values `moveTo` sends.
-   */
-  swapZDirection: false,
-  /**
    * The jog matrix and every leveling button hide unconditionally while
    * printing — a manual move or a bed probe over a running job is not a
    * choice to expose. The bed plan is different: it is also a live position

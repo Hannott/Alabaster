@@ -32,6 +32,7 @@ import { useManualProbeStore } from '@/stores/manualProbe'
 import { parseScrewsTiltResults, usePrinterStore } from '@/stores/printer'
 import { usePrintersStore } from '@/stores/printers'
 import { usePrinterConfigStore, type LevelingMethod } from '@/stores/printerConfig'
+import { useZMotionStore } from '@/stores/zMotion'
 
 type Axis = 'X' | 'Y' | 'Z'
 
@@ -60,6 +61,7 @@ const gcodeConsole = useConsoleStore()
 const printerConfig = usePrinterConfigStore()
 const printers = usePrintersStore()
 const macros = useMacrosStore()
+const zMotion = useZMotionStore()
 const manualProbe = useManualProbeStore()
 // The card reads its configuration; writing it belongs to the quick settings
 // and the settings pane, which are the two places that present it.
@@ -155,8 +157,8 @@ const offsetUnit = computed<ZOffsetUnit>(() => scaleFor('zOffsetUnit', 'micromet
 const offsetStepMinimum = computed(() => (offsetUnit.value === 'micrometre' ? '1.9rem' : '3.1rem'))
 
 /**
- * Every step says which way the gap moves, not just by how much. The visible
- * label is a signed number and the legend under the row states the two
+ * Every step says which way the moving part goes, not just by how much. The
+ * visible label is a signed number and the legend under the row states the two
  * directions, but a control read one at a time — by a screen reader, or by a
  * pointer resting on it — has to carry the direction itself, because a
  * babystep in the wrong direction is a nozzle in the bed.
@@ -165,9 +167,7 @@ function offsetStepLabel(step: number): string {
   return t('dashboard.movement.zOffsetAdjust', {
     amount: signedOffsetStep(step, offsetUnit.value),
     unit: t(`dashboard.movement.zOffsetUnit.${offsetUnit.value}`),
-    direction: t(
-      step < 0 ? 'dashboard.movement.zOffsetCloser' : 'dashboard.movement.zOffsetFarther',
-    ),
+    direction: zDirection(step),
   })
 }
 
@@ -247,9 +247,34 @@ const skipLevelingWarning = computed(() =>
 const skipCalibrateNozzleZWarning = computed(() =>
   configBoolean(config.value, 'skipCalibrateNozzleZWarning', false),
 )
-// A drawing choice for the slider, never a change to the Z values `moveTo`
-// sends — see `movementCardSettings.ts`.
-const swapZDirection = computed(() => readMovementCardSetting(config.value, 'swapZDirection'))
+/**
+ * Every Z control is laid out as the part that moves — down on the left, up on
+ * the right — so the sign of the step on the left follows `stores/zMotion.ts`.
+ * On most machines Z+ moves that part up and the row reads −…+ as the X and Y
+ * rows do; where Z+ moves it down, the row mirrors. The step a button sends
+ * never changes with its position.
+ */
+const zDownSign = computed(() => (zMotion.zPlusIsUp ? -1 : 1))
+
+function lowSign(axis: Axis): number {
+  return axis === 'Z' ? zDownSign.value : -1
+}
+
+/**
+ * The way a Z step of this sign moves the moving part, in words — the sign
+ * alone cannot say it, because which part moves and which way Z+ takes it are
+ * both per-machine.
+ */
+function zDirection(delta: number): string {
+  const raises = delta > 0 === zMotion.zPlusIsUp
+  return t(`dashboard.movement.zDirection.${raises ? 'raise' : 'lower'}.${zMotion.movingPart}`)
+}
+
+function jogLabel(axis: Axis, delta: number): string {
+  const distance = signedStep(delta)
+  if (axis !== 'Z') return t('dashboard.movement.jog', { axis, distance })
+  return t('dashboard.movement.jogZ', { distance, direction: zDirection(delta) })
+}
 
 const homedAxes = computed(() => printer.motion.homedAxes.toUpperCase())
 const isFullyHomed = computed(() => axes.every((axis) => homedAxes.value.includes(axis)))
@@ -898,7 +923,7 @@ function screwInstruction(screw: (typeof screwResults.value)[number]): string {
           />
           <MovementZAxis
             :can-move="canMoveToTarget"
-            :swap-direction="swapZDirection"
+            :swap-direction="!zMotion.zPlusIsUp"
             :is-moving="isMoving"
             @move="printer.moveTo({ z: $event })"
             @hover="hoverZ = $event"
@@ -932,14 +957,14 @@ function screwInstruction(screw: (typeof screwResults.value)[number]): string {
               <div class="jog-steps">
                 <AppButton
                   v-for="step in descending(stepsFor(axis))"
-                  :key="`${axis}-minus-${step}`"
+                  :key="`${axis}-low-${step}`"
                   size="xs"
                   mono
-                  :label="signedStep(-step)"
+                  :label="signedStep(lowSign(axis) * step)"
                   class="jog-button"
                   :disabled="printer.pendingCommands.move || homing || !isHomed(axis)"
-                  :aria-label="t('dashboard.movement.jog', { axis, distance: signedStep(-step) })"
-                  @click="printer.moveAxis(axis, -step)"
+                  :aria-label="jogLabel(axis, lowSign(axis) * step)"
+                  @click="printer.moveAxis(axis, lowSign(axis) * step)"
                 />
               </div>
 
@@ -960,17 +985,33 @@ function screwInstruction(screw: (typeof screwResults.value)[number]): string {
               <div class="jog-steps">
                 <AppButton
                   v-for="step in stepsFor(axis)"
-                  :key="`${axis}-plus-${step}`"
+                  :key="`${axis}-high-${step}`"
                   size="xs"
                   mono
-                  :label="signedStep(step)"
+                  :label="signedStep(-lowSign(axis) * step)"
                   class="jog-button"
                   :disabled="printer.pendingCommands.move || homing || !isHomed(axis)"
-                  :aria-label="t('dashboard.movement.jog', { axis, distance: signedStep(step) })"
-                  @click="printer.moveAxis(axis, step)"
+                  :aria-label="jogLabel(axis, -lowSign(axis) * step)"
+                  @click="printer.moveAxis(axis, -lowSign(axis) * step)"
                 />
               </div>
             </div>
+
+            <!--
+            The Z row alone carries its direction in words: which part it moves,
+            and which way Z+ takes it, are both per machine, where X and Y read
+            the same on every printer. The same legend the Z offset trim uses.
+          -->
+            <p class="trim__legend">
+              <span>
+                <AppIcon name="down" class="size-3" aria-hidden="true" />
+                {{ zDirection(zDownSign) }}
+              </span>
+              <span>
+                {{ zDirection(-zDownSign) }}
+                <AppIcon name="up" class="size-3" aria-hidden="true" />
+              </span>
+            </p>
 
             <!--
             A fourth row of the same table, so both controls stand in a column
@@ -1244,43 +1285,44 @@ function screwInstruction(screw: (typeof screwResults.value)[number]): string {
         <div class="trim__steps" :style="{ '--offset-step-min': offsetStepMinimum }">
           <AppButton
             v-for="step in descending(offsetSteps)"
-            :key="`offset-minus-${step}`"
+            :key="`offset-low-${step}`"
             size="xs"
             mono
-            :label="signedOffsetStep(-step, offsetUnit)"
+            :label="signedOffsetStep(zDownSign * step, offsetUnit)"
             :disabled="!canAdjustOffset"
-            :aria-label="offsetStepLabel(-step)"
-            :title="offsetStepLabel(-step)"
-            @click="printer.adjustZOffset(-step)"
+            :aria-label="offsetStepLabel(zDownSign * step)"
+            :title="offsetStepLabel(zDownSign * step)"
+            @click="printer.adjustZOffset(zDownSign * step)"
           />
           <AppButton
             v-for="step in offsetSteps"
-            :key="`offset-plus-${step}`"
+            :key="`offset-high-${step}`"
             size="xs"
             mono
-            :label="signedOffsetStep(step, offsetUnit)"
+            :label="signedOffsetStep(-zDownSign * step, offsetUnit)"
             :disabled="!canAdjustOffset"
-            :aria-label="offsetStepLabel(step)"
-            :title="offsetStepLabel(step)"
-            @click="printer.adjustZOffset(step)"
+            :aria-label="offsetStepLabel(-zDownSign * step)"
+            :title="offsetStepLabel(-zDownSign * step)"
+            @click="printer.adjustZOffset(-zDownSign * step)"
           />
         </div>
 
         <!--
-        Which way the gap goes, under the group each half describes. The sign
-        alone does not say it: `SET_GCODE_OFFSET Z_ADJUST` moves the toolhead by
-        the delta, so negative closes the gap — while the probe's own
+        Which way the moving part goes, under the group each half describes.
+        The sign alone does not say it: `SET_GCODE_OFFSET Z_ADJUST` moves by the
+        delta exactly as a Z jog of that sign would — while the probe's own
         `z_offset`, which this very value is folded into by
-        `Z_OFFSET_APPLY_PROBE`, runs the other way. Z zero is the nozzle on the
-        bed, so a negative babystep is the one that presses into it.
+        `Z_OFFSET_APPLY_PROBE`, runs the other way — and which part that moves,
+        and which way, is per machine. So the row is mirrored with the jog row
+        above, and this legend names the part.
       -->
         <p class="trim__legend">
           <span>
             <AppIcon name="down" class="size-3" aria-hidden="true" />
-            {{ t('dashboard.movement.zOffsetLegendCloser') }}
+            {{ zDirection(zDownSign) }}
           </span>
           <span>
-            {{ t('dashboard.movement.zOffsetLegendFarther') }}
+            {{ zDirection(-zDownSign) }}
             <AppIcon name="up" class="size-3" aria-hidden="true" />
           </span>
         </p>

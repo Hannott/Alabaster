@@ -9,6 +9,7 @@ import DisclosureReveal from '@/components/DisclosureReveal.vue'
 import PageHeading from '@/components/PageHeading.vue'
 import PromptDialog from '@/components/PromptDialog.vue'
 import CamerasCard from '@/components/settings/CamerasCard.vue'
+import ZMotionCard from '@/components/settings/ZMotionCard.vue'
 import { useConsoleFont, type ConsoleFontChoice } from '@/composables/useConsoleFont'
 import { useConsoleWeight, type ConsoleWeightMode } from '@/composables/useConsoleWeight'
 import { useEditorIndent } from '@/composables/useEditorIndent'
@@ -59,6 +60,7 @@ import {
   usePrintersStore,
   type PrinterEntry,
 } from '@/stores/printers'
+import { usePrinterConfigStore } from '@/stores/printerConfig'
 import { useServerCapabilitiesStore } from '@/stores/serverCapabilities'
 import { useSettingsSyncStore } from '@/stores/settingsSync'
 import { useToastsStore } from '@/stores/toasts'
@@ -94,6 +96,7 @@ const layout = useDashboardLayoutStore()
 const confirmations = useConfirmationsStore()
 const auth = useAuthStore()
 const serverCapabilities = useServerCapabilitiesStore()
+const printerConfig = usePrinterConfigStore()
 const settingsSync = useSettingsSyncStore()
 const toasts = useToastsStore()
 const endpointInput = ref(moonraker.endpoint)
@@ -1013,6 +1016,11 @@ const lastSyncedDisplay = computed(() => {
               />
             </form>
           </section>
+
+          <ZMotionCard
+            v-if="showCategory('printers') && !printerConfig.isDelta"
+            class="settings-aside"
+          />
 
           <CamerasCard v-if="showCategory('cameras')" />
 

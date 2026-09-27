@@ -13,6 +13,7 @@ import { useMacrosStore } from '@/stores/macros'
 import { useManualProbeStore } from '@/stores/manualProbe'
 import { usePrinterStore } from '@/stores/printer'
 import { usePrinterConfigStore, type LevelingMethod } from '@/stores/printerConfig'
+import { useZMotionStore } from '@/stores/zMotion'
 
 beforeAll(() => {
   // jsdom ships <dialog> without its modal methods, so the shared dialog's
@@ -1192,17 +1193,50 @@ describe('MovementModule', () => {
 
     // The legend is terse because it has one row's width to live in; the full
     // phrasing is on each step, where a screen reader meets it.
-    const legend = wrapper.get('.trim__legend').text()
-    expect(legend).toContain('closer to bed')
-    expect(legend).toContain('away from bed')
+    const legend = wrapper.get('.trim .trim__legend').text()
+    expect(legend).toContain('lower nozzle')
+    expect(legend).toContain('raise nozzle')
 
     const steps = wrapper.findAll('.trim__steps button')
-    expect(steps.at(0)?.attributes('aria-label')).toBe(
-      'Adjust Z offset by −50 µm — nozzle closer to bed',
-    )
-    expect(steps.at(7)?.attributes('aria-label')).toBe(
-      'Adjust Z offset by +50 µm — nozzle away from bed',
-    )
+    expect(steps.at(0)?.attributes('aria-label')).toBe('Adjust Z offset by −50 µm — lower nozzle')
+    expect(steps.at(7)?.attributes('aria-label')).toBe('Adjust Z offset by +50 µm — raise nozzle')
+  })
+
+  /**
+   * Every Z control is laid out as the part that moves, down on the left. Where
+   * Z+ moves the bed down — most bed-Z machines — the Z jog and offset rows
+   * mirror and name the bed; where Z+ moves it up, as on a stock Guider 2s,
+   * they read −…+ again but still name the bed. The step sent never changes
+   * with its position.
+   */
+  it.each([
+    { zPlus: 'down' as const, jog: ['+10', '+1', '+0.1', 'Z', '−0.1', '−1', '−10'], low: 10 },
+    { zPlus: 'up' as const, jog: ['−10', '−1', '−0.1', 'Z', '+0.1', '+1', '+10'], low: -10 },
+  ])('lays Z out as the bed moves when Z+ moves the bed $zPlus', async ({ zPlus, jog, low }) => {
+    const { printer, wrapper, pinia } = mountModule()
+    const zMotion = useZMotionStore(pinia)
+    zMotion.setMovingPart('bed')
+    zMotion.setZPlus(zPlus)
+    const moveAxis = vi.spyOn(printer, 'moveAxis').mockResolvedValue(true)
+    const adjust = vi.spyOn(printer, 'adjustZOffset').mockResolvedValue(true)
+    readyToMove(printer)
+    await flushPromises()
+
+    const zRow = wrapper.findAll('.jog-matrix:not(.jog-matrix--machine)')[2]
+    expect(zRow?.findAll('button').map((button) => button.text())).toEqual(jog)
+    expect(zRow?.findAll('button').at(0)?.attributes('aria-label')).toContain('lower bed')
+    await zRow?.findAll('button').at(0)?.trigger('click')
+    expect(moveAxis).toHaveBeenLastCalledWith('Z', low)
+
+    for (const legend of wrapper.findAll('.trim__legend')) {
+      expect(legend.text()).toContain('lower bed')
+      expect(legend.text()).toContain('raise bed')
+    }
+
+    const offsetSteps = wrapper.findAll('.trim__steps button')
+    expect(offsetSteps.at(0)?.attributes('aria-label')).toContain('lower bed')
+    await offsetSteps.at(0)?.trigger('click')
+    expect(Math.sign(adjust.mock.calls.at(-1)?.[0] ?? 0)).toBe(Math.sign(low))
   })
 
   /**

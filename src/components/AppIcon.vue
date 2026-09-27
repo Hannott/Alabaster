@@ -122,6 +122,8 @@ export type AppIconName =
   | 'warning'
   | 'warningDiamond'
   | 'workUpdate'
+  | 'zMovesBed'
+  | 'zMovesNozzle'
   | 'zoomIn'
   | 'zoomOut'
   | 'skipForward'
@@ -1486,6 +1488,26 @@ defineProps<{ name: AppIconName }>()
       <path
         d="M512 64C264.6 64 64 264.6 64 512s200.6 448 448 448s448-200.6 448-448S759.4 64 512 64m0 820c-205.4 0-372-166.6-372-372s166.6-372 372-372s372 166.6 372 372s-166.6 372-372 372"
       />
+    </g>
+    <!--
+      Side-on schematics for Settings' Z motion choice: a nozzle over a bed,
+      with the double arrow beside whichever of the two travels in Z. Drawn
+      for this file's grid rather than sourced, since no catalogue has the
+      pair.
+    -->
+    <g v-else-if="name === 'zMovesNozzle'">
+      <path d="M5 3h8v5l-4 4-4-4z" />
+      <path d="M3 20h14" />
+      <path d="M20 4v10" />
+      <path d="m17.5 6.5 2.5-2.5 2.5 2.5" />
+      <path d="m17.5 11.5 2.5 2.5 2.5-2.5" />
+    </g>
+    <g v-else-if="name === 'zMovesBed'">
+      <path d="M5 3h8v5l-4 4-4-4z" />
+      <path d="M3 16h14" />
+      <path d="M20 10v10" />
+      <path d="m17.5 12.5 2.5-2.5 2.5 2.5" />
+      <path d="m17.5 17.5 2.5 2.5 2.5-2.5" />
     </g>
     <g v-else>
       <rect x="3" y="3" width="18" height="18" rx="3" />
