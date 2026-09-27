@@ -252,12 +252,18 @@ function toggleEditing(): void {
   }
 }
 
-const customizeAction = computed<PageHeadingAction>(() => ({
-  label: editing.value ? t('dashboard.layout.done') : t('dashboard.layout.customize'),
-  icon: 'customize',
-  onClick: toggleEditing,
-  pressed: editing.value,
-}))
+// Done lives in the edit banner beside Reset while editing (see
+// interface-standards.md's page heading contract), so the heading carries
+// no action at all once editing starts.
+const customizeAction = computed<PageHeadingAction | undefined>(() =>
+  editing.value
+    ? undefined
+    : {
+        label: t('dashboard.layout.customize'),
+        icon: 'customize',
+        onClick: toggleEditing,
+      },
+)
 
 /** The ghost's own content, resolved once here rather than in the template. */
 const draggedGhost = computed(() => {
@@ -678,6 +684,7 @@ function setColumnWidth(width: DashboardColumnWidth): void {
           :label="t('dashboard.layout.reset')"
           @click="layout.reset(selectedViewport)"
         />
+        <AppButton on-soft :label="t('dashboard.layout.done')" @click="toggleEditing" />
       </div>
 
       <div v-if="editing" class="dashboard-module-tray">

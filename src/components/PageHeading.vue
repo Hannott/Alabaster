@@ -22,7 +22,7 @@ export interface PageHeadingAction {
 
 defineProps<{
   title: string
-  action?: PageHeadingAction
+  action?: PageHeadingAction | undefined
 }>()
 
 const { mode: pageHeaderVisibility } = usePageHeaders()
