@@ -1746,7 +1746,6 @@
       "default": "Standard, ikke i filen",
       "openLocation": "Åpne {path} på linje {line}",
       "openLocationAutosave": "Åpne {path} på linje {line}, i SAVE_CONFIG-blokken",
-      "unpin": "Løsne {option}",
       "lockPending": "Klipper har ulagrede kalibreringsresultater",
       "lockMultiline": "Går over flere linjer",
       "lockUnknown": "Klipper leser ikke denne opsjonen",

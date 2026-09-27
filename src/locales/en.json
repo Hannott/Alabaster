@@ -1746,7 +1746,6 @@
       "default": "Default, not in file",
       "openLocation": "Open {path} at line {line}",
       "openLocationAutosave": "Open {path} at line {line}, in the SAVE_CONFIG block",
-      "unpin": "Unpin {option}",
       "lockPending": "Klipper holds unsaved calibration results",
       "lockMultiline": "Spans several lines",
       "lockUnknown": "Klipper does not read this option",

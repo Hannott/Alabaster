@@ -412,15 +412,6 @@ ${change.option}`"
                   :title="locationLabel(field)"
                   @click="openLocation(field)"
                 />
-                <AppButton
-                  variant="quiet"
-                  size="xs"
-                  icon-only
-                  icon="close"
-                  :aria-label="t('configuration.quickConfig.unpin', { option: field.option })"
-                  :title="t('configuration.quickConfig.unpin', { option: field.option })"
-                  @click="quickConfig.unpin(field)"
-                />
               </div>
 
               <!--

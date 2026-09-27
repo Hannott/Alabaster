@@ -359,11 +359,6 @@ export const useQuickConfigStore = defineStore('quickConfig', () => {
     ])
   }
 
-  function unpin(pin: QuickConfigPin): void {
-    const key = fieldKey(pin)
-    setStoredPins(pins.value.filter((candidate) => fieldKey(candidate) !== key))
-  }
-
   function unpinSection(section: string): void {
     const key = section.toLowerCase()
     setStoredPins(pins.value.filter((candidate) => candidate.section !== key))
@@ -439,7 +434,6 @@ export const useQuickConfigStore = defineStore('quickConfig', () => {
     savedValue,
     persistOption,
     setSectionPins,
-    unpin,
     unpinSection,
     replacePins,
     load,

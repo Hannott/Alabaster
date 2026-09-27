@@ -191,12 +191,12 @@ describe('quick config store', () => {
       'shaper_freq_x',
     ])
 
-    quickConfig.unpin({ section: 'printer', option: 'max_velocity' })
+    quickConfig.setSectionPins('printer', ['max_accel', 'square_corner_velocity'])
 
     expect(quickConfig.storedPins?.map((pin) => pin.option)).toEqual([
+      'shaper_freq_x',
       'max_accel',
       'square_corner_velocity',
-      'shaper_freq_x',
     ])
     expect(window.localStorage.getItem('alabaster.quickConfig.pins')).toContain('max_accel')
   })
