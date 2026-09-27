@@ -322,6 +322,63 @@ describe('control contrast contract', () => {
     expect(failures, `${id} outline visibility failures:\n${failures.join('\n')}`).toEqual([])
   })
 
+  /*
+   * A selected row composites `--selection-row-wash` over whatever sits behind
+   * it — the panel, or the row's own hover fill — and carries both label roles
+   * on top: the name in `--text-primary`, dates and sizes in `--text-muted`. Its
+   * `--action-primary` border is a non-text boundary, measured against both
+   * sides it separates. The wash is read from components.css rather than
+   * restated here, so retuning it cannot slip past this.
+   */
+  it.each(canonicalPacks)('$id keeps a selected row readable and its border visible', ({ id }) => {
+    const components = readFileSync(join(process.cwd(), 'src', 'styles', 'components.css'), 'utf8')
+    const wash = parseDeclarations(ruleBodies(components, /^\s*\.selection-row\s*$/).join(';')).get(
+      '--selection-row-wash',
+    )
+    expect(wash, '.selection-row must declare --selection-row-wash').toBeDefined()
+
+    const failures: string[] = []
+
+    for (const mode of ['light', 'dark'] as const) {
+      const variables = packVariables(id, mode)
+      const resolve = (expression: string): Rgba => resolveColor(expression, variables)
+      const border = resolve('var(--action-primary)')
+      const tint = resolve(wash!)
+
+      for (const panelToken of ['--surface-raised', '--surface-soft', '--surface-canvas']) {
+        const panel = resolve(`var(${panelToken})`)
+
+        for (const [state, base] of [
+          ['at rest', panel],
+          ['on hover', composite(resolve('var(--surface-raised)'), panel)],
+        ] as const) {
+          const background = composite(tint, base)
+
+          for (const label of ['--text-primary', '--text-muted'] as const) {
+            const ratio = contrastRatio(composite(resolve(`var(${label})`), background), background)
+            if (ratio < MINIMUM_CONTRAST) {
+              failures.push(`${mode} ${label} ${state} on ${panelToken}: ${ratio.toFixed(2)}:1`)
+            }
+          }
+
+          for (const [side, behind] of [
+            ['outside', panel],
+            ['inside', background],
+          ] as const) {
+            const ratio = contrastRatio(composite(border, behind), behind)
+            if (ratio < 3) {
+              failures.push(
+                `${mode} border ${state} ${side} on ${panelToken}: ${ratio.toFixed(2)}:1`,
+              )
+            }
+          }
+        }
+      }
+    }
+
+    expect(failures, `${id} selected row failures:\n${failures.join('\n')}`).toEqual([])
+  })
+
   it.each(canonicalPacks)('$id keeps the focus ring visible on every surface', ({ id }) => {
     // WCAG 1.4.11: the focus indicator is a non-text boundary and needs 3:1.
     // The danger and caution outlines carry their own budget, asserted above.

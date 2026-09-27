@@ -403,7 +403,7 @@ const {
             <li v-if="gcodeFiles.parentPath !== null">
               <button
                 type="button"
-                class="file-select print-files-row"
+                class="file-select selection-row print-files-row"
                 @click="gcodeFiles.navigateUp()"
               >
                 <AppIcon name="folderUp" class="size-4 shrink-0 text-muted" aria-hidden="true" />
@@ -413,7 +413,7 @@ const {
             <li v-for="folder in gcodeFiles.sortedFolders" :key="folder.path">
               <button
                 type="button"
-                class="file-select print-files-row"
+                class="file-select selection-row print-files-row"
                 @click="gcodeFiles.navigateTo(folder.path)"
               >
                 <AppIcon name="folder" class="size-4 shrink-0 text-accent" aria-hidden="true" />
@@ -425,8 +425,8 @@ const {
             <li v-for="file in gcodeFiles.sortedFiles" :key="file.path">
               <button
                 type="button"
-                class="file-select print-files-row"
-                :class="{ 'print-files-row--selected': file.path === gcodeFiles.selectedPath }"
+                class="file-select selection-row print-files-row"
+                :class="{ 'selection-row--selected': file.path === gcodeFiles.selectedPath }"
                 :aria-current="file.path === gcodeFiles.selectedPath ? 'true' : undefined"
                 @click="gcodeFiles.select(file.path)"
               >

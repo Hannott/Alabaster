@@ -50,8 +50,8 @@ const when = computed(() => {
 <template>
   <button
     type="button"
-    class="file-select history-job"
-    :class="{ 'history-job--selected': selected }"
+    class="file-select selection-row history-job"
+    :class="{ 'selection-row--selected': selected }"
     :aria-current="selected ? 'true' : undefined"
     @click="$emit('select')"
   >

@@ -52,7 +52,7 @@ describe('HistoryJobRow', () => {
     })
 
     expect(wrapper.get('button').attributes('aria-current')).toBe('true')
-    expect(wrapper.get('button').classes()).toContain('history-job--selected')
+    expect(wrapper.get('button').classes()).toContain('selection-row--selected')
   })
 
   it('reports a job with no usable timestamp rather than rendering an epoch date', () => {

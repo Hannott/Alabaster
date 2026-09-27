@@ -125,7 +125,7 @@ describe('Print files view', () => {
     await view.findAll('.print-files-row')[1]!.trigger('click')
     await flushPromises()
 
-    const selected = view.findAll('.print-files-row--selected')
+    const selected = view.findAll('.selection-row--selected')
     expect(selected).toHaveLength(1)
     expect(selected[0]!.text()).toContain('cube.gcode')
     expect(selected[0]!.attributes('aria-current')).toBe('true')

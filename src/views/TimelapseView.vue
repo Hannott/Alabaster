@@ -129,7 +129,12 @@ function requestDelete(video: TimelapseVideo): void {
           </p>
 
           <ul v-if="timelapse.hasVideos" class="timelapse-list">
-            <li v-for="video in timelapse.videos" :key="video.path" class="timelapse-item">
+            <li
+              v-for="video in timelapse.videos"
+              :key="video.path"
+              class="selection-row timelapse-item"
+              :class="{ 'selection-row--selected': video.path === timelapse.selectedPath }"
+            >
               <button
                 type="button"
                 class="file-select timelapse-item__open"

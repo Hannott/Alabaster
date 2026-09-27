@@ -307,10 +307,10 @@ function displayName(result: ShakeTuneResult): string {
             <li v-for="result in shakeTune.resultsByCategory[category]" :key="result.path">
               <button
                 type="button"
-                class="file-select calibration-tuning-result"
+                class="file-select selection-row calibration-tuning-result"
                 :class="{
-                  'calibration-tuning-result--selected': result.path === primary?.path,
-                  'calibration-tuning-result--compared': result.path === comparison?.path,
+                  'selection-row--selected': result.path === primary?.path,
+                  'selection-row--compared': result.path === comparison?.path,
                 }"
                 :aria-current="result.path === primary?.path ? 'true' : undefined"
                 :title="result.name"

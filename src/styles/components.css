@@ -1070,8 +1070,8 @@ input[type='radio']:focus-visible,
  * of files. They keep only what every control owes the user: a pointer cursor,
  * a visible focus ring, a hover response, and a disabled state.
  *
- * Selection is shown by weight and by a leading accent bar on the row, never by
- * the button system's inset ring.
+ * A row that holds a persistent selection composes `selection-row` below for
+ * it; this rule only brightens the current row's label.
  */
 .file-select {
   display: flex;
@@ -1098,6 +1098,47 @@ input[type='radio']:focus-visible,
 
 .file-select:disabled {
   opacity: 0.5;
+}
+
+/*
+ * The one selected-row treatment: an accent wash and a 1px accent border, on
+ * every list row that holds a persistent selection — the open file, the chosen
+ * job, the loaded mesh profile, the graph being read. It replaced a leading
+ * `inset 0.22rem 0` bar, which a rounded row bent around its corners into a
+ * curved bracket; see "Selected rows" in button-system.md.
+ *
+ * The border is reserved, transparent at rest, so selecting a row never moves
+ * its text or changes its height. A family that already draws a border (a
+ * bordered card row, the file explorer's divider) keeps its own color at rest
+ * and only gives it up to the accent here. A family with padding subtracts
+ * `--selection-row-border` from it, so the content sits where it did before the
+ * border existed.
+ *
+ * The wash is a background image rather than a background color, so it layers
+ * over whatever fill the row already has — a family's hover, the explorer's
+ * parent-folder tint — instead of fighting each family's hover rule on
+ * specificity and vanishing the moment the pointer arrives.
+ */
+.selection-row {
+  --selection-row-border: 1px;
+  --selection-row-wash: color-mix(in srgb, var(--action-primary) 12%, transparent);
+  border: var(--selection-row-border) solid transparent;
+}
+
+/*
+ * `--compared` is the second selection Calibration's Shake&Tune panel can hold:
+ * the same border without the wash, and the word "Compared" in the row's own
+ * meta line, which is what carries the difference rather than the missing fill
+ * alone.
+ */
+.selection-row.selection-row--selected,
+.selection-row.selection-row--compared {
+  border-color: var(--action-primary);
+  color: var(--text-primary);
+}
+
+.selection-row.selection-row--selected {
+  background-image: linear-gradient(var(--selection-row-wash), var(--selection-row-wash));
 }
 
 /*
@@ -11121,7 +11162,7 @@ body.machine-editor-fullscreen-open {
 }
 
 .machine-pinned-row .machine-file-row {
-  border-block-end: 0;
+  border-block-end-color: transparent;
 }
 
 .machine-pinned-row__unpin {
@@ -11157,8 +11198,8 @@ body.machine-editor-fullscreen-open {
  * Closes the pinned group with an accent rule rather than the same neutral
  * hairline every row already carries — that hairline reads as "next row," not
  * "different group," which is indistinguishable from an ordinary file
- * boundary. Reuses `--action-primary`, the accent the active-file bar and the
- * drop-target ring already use, rather than adding a second accent hue for
+ * boundary. Reuses `--action-primary`, the accent the open file's border and
+ * the drop-target ring already use, rather than adding a second accent hue for
  * the same "this matters" meaning.
  */
 .machine-pinned-divider {
@@ -11180,8 +11221,8 @@ body.machine-editor-fullscreen-open {
   height: 3rem;
   min-height: 3rem;
   max-height: 3rem;
-  padding: 0.4rem 0.75rem;
-  border-block-end: 1px solid var(--border-subtle);
+  padding: calc(0.4rem - var(--selection-row-border)) calc(0.75rem - var(--selection-row-border));
+  border-block-end-color: var(--border-subtle);
   text-align: start;
   transition: none;
 }
@@ -11190,7 +11231,7 @@ body.machine-editor-fullscreen-open {
   height: 3rem;
   min-height: 3rem;
   max-height: 3rem;
-  padding-inline: 0.75rem;
+  padding-inline: calc(0.75rem - var(--selection-row-border));
 }
 
 .machine-workspace--maximized .machine-file-name {
@@ -11203,17 +11244,6 @@ body.machine-editor-fullscreen-open {
 
 .machine-file-row:hover:not(:disabled) {
   background-color: var(--surface-raised);
-  color: var(--text-primary);
-}
-
-/*
- * The open file. A leading bar is the file-list idiom and, unlike the button
- * system's inset ring, it does not outline the whole row as though it were a
- * pressed control.
- */
-.machine-file-row--active {
-  background-color: var(--surface-raised);
-  box-shadow: inset 0.22rem 0 var(--action-primary);
   color: var(--text-primary);
 }
 
@@ -12389,7 +12419,7 @@ body.machine-editor-fullscreen-open {
   align-items: center;
   gap: 0.65rem;
   min-height: 2.75rem;
-  padding: 0.4rem 0.65rem;
+  padding: calc(0.4rem - var(--selection-row-border)) calc(0.65rem - var(--selection-row-border));
   /*
    * "Load more" has no ceiling, so this list is the one place in the product
    * whose element count is set by how long the user keeps pressing a button.
@@ -12401,8 +12431,9 @@ body.machine-editor-fullscreen-open {
    * moves the scrollbar as rows come into view: the name never wraps
    * (`.history-job__name` is `nowrap`), so every row is exactly `min-height`
    * tall, and `contain-intrinsic-block-size` measures the content box — hence
-   * `min-height` minus this rule's own block padding, written as the
-   * subtraction so that changing either number keeps them in step. Getting
+   * `min-height` minus this rule's own block padding and `selection-row`'s
+   * border, which together are 0.4rem a side, written as the subtraction so
+   * that changing either number keeps them in step. Getting
    * that wrong is not subtle but it is silent: assuming the border-box height
    * here added the padding twice and stretched a thousand rows by 13 px each.
    * `auto` then lets the browser keep each row's real measured size once it
@@ -12414,13 +12445,6 @@ body.machine-editor-fullscreen-open {
 
 .history-job:hover:not(:disabled) {
   background-color: var(--surface-raised);
-  color: var(--text-primary);
-}
-
-/* The chosen job, marked the same way `print-files-row--selected` marks a file. */
-.history-job--selected {
-  background-color: var(--surface-raised);
-  box-shadow: inset 0.22rem 0 var(--action-primary);
   color: var(--text-primary);
 }
 
@@ -13258,10 +13282,6 @@ body.machine-editor-fullscreen-open {
   padding: 0.5rem 0.65rem;
 }
 
-.calibration-profile--active {
-  box-shadow: inset 0.22rem 0 var(--action-primary);
-}
-
 .calibration-profile__identity {
   display: inline-flex;
   min-width: 0;
@@ -13438,27 +13458,11 @@ body.machine-editor-fullscreen-open {
   inline-size: 100%;
   gap: 0.1rem;
   min-height: 2.75rem;
-  padding: 0.4rem 0.65rem;
+  padding: calc(0.4rem - var(--selection-row-border)) calc(0.65rem - var(--selection-row-border));
 }
 
 .calibration-tuning-result:hover:not(:disabled) {
   background-color: var(--surface-raised);
-}
-
-.calibration-tuning-result--selected {
-  background-color: var(--surface-raised);
-  box-shadow: inset 0.22rem 0 var(--action-primary);
-  color: var(--text-primary);
-}
-
-/*
- * The comparison is the same bar in the muted role, plus the word "Compared"
- * in the row's own meta line — the word is what carries the difference, so it
- * never rests on the two colors alone.
- */
-.calibration-tuning-result--compared {
-  box-shadow: inset 0.22rem 0 var(--text-muted);
-  color: var(--text-primary);
 }
 
 .calibration-tuning-result__name {
@@ -13616,22 +13620,11 @@ body.machine-editor-fullscreen-open {
   align-items: center;
   gap: 0.5rem;
   min-height: 2.5rem;
-  padding-inline: 0.5rem;
+  padding-inline: calc(0.5rem - var(--selection-row-border));
 }
 
 .print-files-row:hover:not(:disabled) {
   background-color: var(--surface-raised);
-  color: var(--text-primary);
-}
-
-/*
- * The chosen file, marked with a leading bar rather than the button system's
- * inset ring: a ring outlines the whole row as though it had been pressed, and
- * this row is a selection, not an action.
- */
-.print-files-row--selected {
-  background-color: var(--surface-raised);
-  box-shadow: inset 0.22rem 0 var(--action-primary);
   color: var(--text-primary);
 }
 

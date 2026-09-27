@@ -109,8 +109,8 @@ function validateMeshName(value: string, except?: string): string | undefined {
       <li
         v-for="profile in bedMesh.profileSummaries"
         :key="profile.name"
-        class="calibration-profile"
-        :class="{ 'calibration-profile--active': profile.isActive }"
+        class="selection-row calibration-profile"
+        :class="{ 'selection-row--selected': profile.isActive }"
         :aria-current="profile.isActive ? 'true' : undefined"
       >
         <span class="calibration-profile__identity">

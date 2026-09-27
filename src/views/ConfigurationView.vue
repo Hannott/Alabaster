@@ -684,6 +684,11 @@ function entryPathOf(entry: MachineFileEntry): string {
   return machineFiles.currentPath ? machineFiles.currentPath + '/' + entry.name : entry.name
 }
 
+/** Whether this entry is the file open in the editor. */
+function isOpenFile(entry: MachineFileEntry): boolean {
+  return entry.kind === 'file' && machineFiles.currentFile?.path === entryPathOf(entry)
+}
+
 /** Whether this entry itself may be moved, renamed or deleted. */
 function isWritable(entry: MachineFileEntry): boolean {
   return canMutate.value && entry.permissions.includes('w')
@@ -2160,10 +2165,11 @@ onBeforeUnmount(() => {
             >
               <button
                 type="button"
-                class="file-select machine-file-row"
+                class="file-select selection-row machine-file-row"
                 :class="{
-                  'machine-file-row--active': machineFiles.currentFile?.path === entry.path,
+                  'selection-row--selected': machineFiles.currentFile?.path === entry.path,
                 }"
+                :aria-current="machineFiles.currentFile?.path === entry.path ? 'true' : undefined"
                 :disabled="!moonrakerAvailability.isAvailable"
                 :title="entry.path"
                 @click="openPinnedFile(entry)"
@@ -2234,7 +2240,7 @@ onBeforeUnmount(() => {
             <li v-if="machineFiles.currentPath && !search.trim()" class="machine-parent-entry">
               <button
                 type="button"
-                class="file-select machine-file-row machine-file-row--parent"
+                class="file-select selection-row machine-file-row machine-file-row--parent"
                 :disabled="!moonrakerAvailability.isAvailable"
                 :aria-label="t('configuration.files.parent')"
                 :title="
@@ -2279,17 +2285,9 @@ onBeforeUnmount(() => {
             <li v-for="(entry, index) in filteredEntries" :key="index">
               <button
                 type="button"
-                class="file-select machine-file-row"
-                :class="{
-                  'machine-file-row--active':
-                    entry.kind === 'file' &&
-                    machineFiles.currentFile?.path ===
-                      ('path' in entry
-                        ? entry.path
-                        : machineFiles.currentPath
-                          ? `${machineFiles.currentPath}/${entry.name}`
-                          : entry.name),
-                }"
+                class="file-select selection-row machine-file-row"
+                :class="{ 'selection-row--selected': isOpenFile(entry) }"
+                :aria-current="isOpenFile(entry) ? 'true' : undefined"
                 :disabled="!moonrakerAvailability.isAvailable"
                 :draggable="isWritable(entry) && entry.kind === 'file'"
                 :data-dragging="
