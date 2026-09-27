@@ -17,7 +17,7 @@
   justify-content: center;
   padding-inline: 0.65rem;
   border: 1px solid var(--border-subtle);
-  border-radius: 0.4rem;
+  border-radius: 0.2rem;
   color: var(--text-muted);
   font-size: var(--text-badge-size);
   font-weight: var(--font-weight-increased);
@@ -29,13 +29,13 @@
 .status-field--sm {
   min-height: 2rem;
   padding-inline: 0.5rem;
-  border-radius: 0.3rem;
+  border-radius: 0.15rem;
 }
 
 .status-field--xs {
   min-height: 1.75rem;
   padding-inline: 0.3rem;
-  border-radius: 0.25rem;
+  border-radius: 0.125rem;
 }
 
 /*

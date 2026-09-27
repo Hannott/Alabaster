@@ -243,11 +243,11 @@ pack overrides only the ones it wants to change:
 
 | Token                             | Default      | Consumed by                                                                                        |
 | --------------------------------- | ------------ | -------------------------------------------------------------------------------------------------- |
-| `--control-radius-md`             | `0.4rem`     | `.button`, `.field`/`.app-field__box` at their default size                                        |
-| `--control-radius-sm`             | `0.3rem`     | the `--sm` tier of the same three                                                                  |
-| `--control-radius-xs`             | `0.25rem`    | the `--xs` tier, plus `.app-field__reset` and `.app-slider__entry`                                 |
-| `--control-radius-compact`        | `0.2rem`     | `.app-slider__reset`, `.app-slider__stepper`                                                       |
-| `--control-radius-inset`          | `0.1rem`     | every reset/stepper icon's own focus ring                                                          |
+| `--control-radius-md`             | `0.2rem`     | `.button`, `.field`/`.app-field__box` at their default size                                        |
+| `--control-radius-sm`             | `0.15rem`    | the `--sm` tier of the same three                                                                  |
+| `--control-radius-xs`             | `0.125rem`   | the `--xs` tier, plus `.app-field__reset` and `.app-slider__entry`                                 |
+| `--control-radius-compact`        | `0.1rem`     | `.app-slider__reset`, `.app-slider__stepper`                                                       |
+| `--control-radius-inset`          | `0.05rem`    | every reset/stepper icon's own focus ring                                                          |
 | `--control-label-transform`       | `capitalize` | `.app-field__label`, `.app-slider__label` — the Title Case rule stays the canonical pack's default |
 | `--control-label-letter-spacing`  | `normal`     | the same two labels                                                                                |
 | `--control-button-transform`      | `none`       | `.button`                                                                                          |

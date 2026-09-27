@@ -14,11 +14,11 @@
    * label's casing has a perfectly good fallback, so these are declared once
    * here and a pack only overrides the ones it wants to change. See ADR 0009.
    */
-  --control-radius-md: 0.4rem;
-  --control-radius-sm: 0.3rem;
-  --control-radius-xs: 0.25rem;
-  --control-radius-compact: 0.2rem;
-  --control-radius-inset: 0.1rem;
+  --control-radius-md: 0.2rem;
+  --control-radius-sm: 0.15rem;
+  --control-radius-xs: 0.125rem;
+  --control-radius-compact: 0.1rem;
+  --control-radius-inset: 0.05rem;
   --control-label-transform: capitalize;
   --control-label-letter-spacing: normal;
   --control-button-transform: none;
@@ -201,12 +201,11 @@ textarea::selection,
  * button system's primary pair, `--action-on-primary` on `--action-primary`,
  * whose contrast is already measured in button-system.md.
  *
- * **The corner is derived, not chosen.** At `1.1rem` the box is smaller than
- * the smallest control tier, so the radius scale has no entry for it and
- * `0.55rem` would round it into a pill. `xs` sets its radius at `0.275` of its
- * own height, and the same proportion of `1.1rem` is `0.3rem` — which is what
- * makes the corner read as the same corner as the field beside it rather than
- * as a different shape at a smaller size.
+ * **The corner is `xs`'s, not a proportion of it.** At `1.1rem` the box is
+ * smaller than the smallest control tier, so the radius scale has no entry for
+ * it, and scaling `xs`'s corner down with the height would leave about a pixel
+ * — too little to read as the same corner as the field beside it. The box
+ * takes `xs`'s `0.125rem` as is.
  *
  * The mark is CSS geometry, not an icon: `AppIcon` is for interface icons in
  * the content flow, and a checkbox's tick is part of the control's own drawing,
@@ -222,7 +221,7 @@ input[type='radio'] {
   place-content: center;
   margin: 0;
   border: 1px solid var(--border-subtle);
-  border-radius: 0.3rem;
+  border-radius: 0.125rem;
   background-color: var(--surface-raised);
   background-image: none;
   transition-duration: var(--motion-duration-fast);
@@ -991,7 +990,7 @@ input[type='radio']:focus-visible,
   gap: 0.2rem;
   padding: 0.2rem;
   border: 1px solid var(--border-subtle);
-  border-radius: 0.5rem;
+  border-radius: 0.35rem;
   background: var(--surface-soft);
 }
 
@@ -1079,7 +1078,7 @@ input[type='radio']:focus-visible,
   align-items: center;
   gap: 0.5rem;
   border: 0;
-  border-radius: 0.5rem;
+  border-radius: 0.2rem;
   background: none;
   padding: 0;
   color: var(--text-muted);
@@ -1819,7 +1818,7 @@ input[type='number']::-webkit-inner-spin-button {
 .sidebar-nav-link {
   gap: 1rem;
   padding-inline: 0.8125rem;
-  border-radius: 1rem;
+  border-radius: 0.4rem;
   font-size: var(--nav-text-md-size);
   font-weight: var(--font-weight);
   transition-property: gap, padding-inline, background-color, background-image, color;
@@ -1870,7 +1869,7 @@ input[type='number']::-webkit-inner-spin-button {
 .mobile-nav-link {
   min-height: 3rem;
   padding-inline: 0.25rem;
-  border-radius: 1rem;
+  border-radius: 0.4rem;
 }
 
 .sidebar-nav-link > svg {
@@ -2085,7 +2084,7 @@ input[type='number']::-webkit-inner-spin-button {
 .header-icon {
   inline-size: 2.75rem;
   min-height: 2.75rem;
-  border-radius: 0.5rem;
+  border-radius: 0.2rem;
 }
 
 /*
@@ -2128,7 +2127,7 @@ input[type='number']::-webkit-inner-spin-button {
   min-inline-size: 14rem;
   max-inline-size: 20rem;
   border: 1px solid var(--border-subtle);
-  border-radius: 0.75rem;
+  border-radius: 0.3rem;
   background: var(--surface-raised);
   padding: 0.4rem;
   box-shadow: 0 0.75rem 2rem color-mix(in srgb, var(--ito-black) 16%, transparent);
@@ -2218,7 +2217,7 @@ input[type='number']::-webkit-inner-spin-button {
   list-style: none;
   overflow-y: auto;
   border: 1px solid var(--border-subtle);
-  border-radius: 0.3rem;
+  border-radius: 0.15rem;
   background: var(--surface-raised);
   box-shadow: 0 0.75rem 2rem color-mix(in srgb, var(--ito-black) 16%, transparent);
 }
@@ -2254,7 +2253,7 @@ input[type='number']::-webkit-inner-spin-button {
 
 .app-select__option {
   padding: 0.45rem 0.6rem;
-  border-radius: 0.45rem;
+  border-radius: 0.2rem;
   font-size: var(--text-row-name-size);
   font-weight: var(--font-weight);
   color: var(--text-primary);
@@ -2276,7 +2275,7 @@ input[type='number']::-webkit-inner-spin-button {
  */
 .header-menu__toggle {
   padding-inline: 0.5rem;
-  border-radius: 0.3rem;
+  border-radius: 0.15rem;
   color: var(--text-muted);
   font-size: var(--control-text-sm-size);
   font-weight: var(--font-weight);
@@ -2340,7 +2339,7 @@ input[type='number']::-webkit-inner-spin-button {
   margin-block-end: 0.75rem;
   margin-inline: clamp(1rem, 2vw, 2rem);
   border: 1px solid var(--status-danger-text);
-  border-radius: 1rem;
+  border-radius: 0.4rem;
   background: var(--status-danger-soft);
   color: var(--status-danger-text);
 }
@@ -2421,7 +2420,7 @@ input[type='number']::-webkit-inner-spin-button {
 .page-placeholder__bar--title {
   width: min(14rem, 45%);
   height: 1.4rem;
-  border-radius: 0.45rem;
+  border-radius: 0.2rem;
 }
 
 .page-placeholder__panel,
@@ -2436,7 +2435,7 @@ input[type='number']::-webkit-inner-spin-button {
   min-height: 0;
   height: 100%;
   border: 1px solid var(--border-subtle);
-  border-radius: 1.35rem;
+  border-radius: 0.5rem;
   background: var(--surface-raised);
 }
 
@@ -2505,7 +2504,7 @@ input[type='number']::-webkit-inner-spin-button {
 .dashboard-module-tray,
 .dashboard-empty-layout {
   border: 1px solid var(--border-subtle);
-  border-radius: 1.25rem;
+  border-radius: 0.5rem;
   background: var(--surface-raised);
 }
 
@@ -2652,7 +2651,7 @@ input[type='number']::-webkit-inner-spin-button {
  */
 .dashboard-columns[data-dragging] .dashboard-column {
   min-height: 4rem;
-  border-radius: 1.35rem;
+  border-radius: 0.5rem;
   outline: 2px dashed color-mix(in srgb, var(--accent-primary) 55%, transparent);
   outline-offset: 0.35rem;
   background-color: color-mix(in srgb, var(--accent-primary) 4%, transparent);
@@ -2694,7 +2693,7 @@ input[type='number']::-webkit-inner-spin-button {
   min-height: 2.85rem;
   padding: 0.5rem 0.8rem;
   border: 1px dashed var(--accent-primary);
-  border-radius: 1.35rem;
+  border-radius: 0.5rem;
   background: var(--surface-raised);
   box-shadow: 0 1rem 2.5rem color-mix(in srgb, var(--ito-black) 22%, transparent);
   font-size: var(--text-card-title-size);
@@ -2764,7 +2763,7 @@ input[type='number']::-webkit-inner-spin-button {
   min-width: 0;
   overflow: hidden;
   border: 1px solid var(--border-subtle);
-  border-radius: 1.35rem;
+  border-radius: 0.5rem;
   background: var(--surface-raised);
   box-shadow: 0 0.8rem 2rem color-mix(in srgb, var(--ito-black) 6%, transparent);
 }
@@ -3132,7 +3131,7 @@ input[type='number']::-webkit-inner-spin-button {
  */
 .temperature-reading-at--active {
   padding: 0.1rem 0.35rem;
-  border-radius: 0.4rem;
+  border-radius: 0.2rem;
   background: var(--surface-raised);
 }
 
@@ -3441,7 +3440,7 @@ input[type='number']::-webkit-inner-spin-button {
   justify-content: center;
   padding: 0;
   border: 1px solid var(--border-subtle);
-  border-radius: 0.3rem;
+  border-radius: 0.15rem;
   background: var(--swatch);
   color: var(--ito-black);
 }
@@ -3466,7 +3465,7 @@ input[type='number']::-webkit-inner-spin-button {
   gap: 0.5rem;
   padding: 0.4rem 0.6rem;
   border: 1px solid var(--border-subtle);
-  border-radius: 0.7rem;
+  border-radius: 0.3rem;
   background: var(--surface-raised);
   font-size: var(--control-text-md-size);
   font-weight: var(--font-weight);
@@ -3708,7 +3707,7 @@ input[type='number']::-webkit-inner-spin-button {
   inline-size: 100%;
   block-size: 100%;
   border: 1px solid var(--border-subtle);
-  border-radius: 0.6rem;
+  border-radius: 0.25rem;
   background: var(--surface-soft);
   overflow: hidden;
 }
@@ -4580,7 +4579,7 @@ input.z-axis__slider {
   width: min(34rem, 100%);
   padding: 1rem;
   border: 1px solid var(--border-subtle);
-  border-radius: 1.35rem;
+  border-radius: 0.5rem;
   background: var(--surface-raised);
   color: var(--text-primary);
 }
@@ -4781,7 +4780,7 @@ input.z-axis__slider {
  */
 .module-placeholder {
   border: 1px solid var(--border-subtle);
-  border-radius: 1.35rem;
+  border-radius: 0.5rem;
   background: var(--surface-raised);
   box-shadow: 0 0.8rem 2rem color-mix(in srgb, var(--ito-black) 6%, transparent);
 }
@@ -4796,7 +4795,7 @@ input.z-axis__slider {
   margin-block-end: 1rem;
   padding: 0.85rem;
   border: 1px solid var(--border-subtle);
-  border-radius: 1rem;
+  border-radius: 0.4rem;
   background: var(--surface-soft);
 }
 
@@ -5115,7 +5114,7 @@ input.z-axis__slider {
   padding: 0;
   margin: 0;
   border: 0;
-  border-radius: 0.7rem;
+  border-radius: 0.3rem;
   background: none;
   cursor: pointer;
   transition: width var(--motion-duration-fast) var(--motion-ease-standard);
@@ -5152,7 +5151,7 @@ input.z-axis__slider {
   height: auto;
   aspect-ratio: 1 / 1;
   border: 1px solid var(--border-subtle);
-  border-radius: 0.7rem;
+  border-radius: 0.3rem;
   background: var(--surface-soft);
   object-fit: contain;
 }
@@ -5198,7 +5197,7 @@ input.z-axis__slider {
   padding: 0;
   overflow: hidden;
   border: 1px solid var(--border-subtle);
-  border-radius: 0.7rem;
+  border-radius: 0.3rem;
   background: var(--surface-soft);
   cursor: pointer;
 }
@@ -5298,7 +5297,7 @@ input.z-axis__slider {
 .exclude-object-row {
   padding: 0.35rem 0.6rem;
   border: 1px solid var(--border-subtle);
-  border-radius: 0.7rem;
+  border-radius: 0.3rem;
   background: var(--surface-soft);
 }
 
@@ -5307,7 +5306,7 @@ input.z-axis__slider {
   width: 1.5rem;
   height: 1.5rem;
   place-items: center;
-  border-radius: 0.45rem;
+  border-radius: 0.2rem;
   background: var(--surface-raised);
 }
 
@@ -5330,7 +5329,7 @@ input.z-axis__slider {
   position: relative;
   aspect-ratio: 3 / 2;
   border: 1px solid var(--border-subtle);
-  border-radius: 0.8rem;
+  border-radius: 0.3rem;
   background: var(--surface-soft);
   overflow: hidden;
 }
@@ -5462,7 +5461,7 @@ input.z-axis__slider {
   min-width: 0;
   height: 0.45rem;
   border: 1px solid var(--border-subtle);
-  border-radius: 0.35rem;
+  border-radius: 0.15rem;
   /* The `background` shorthand resets repeat to its initial `repeat`. Left at
    * that, a fractional flex-item width (near-guaranteed by `flex: 1`) tiles a
    * sliver of a second copy of the gradient at each edge — which paints one
@@ -5491,7 +5490,7 @@ input.z-axis__slider {
   margin: auto;
   padding: 1.5rem;
   border: 1px solid var(--border-subtle);
-  border-radius: 1.35rem;
+  border-radius: 0.5rem;
   background: var(--surface-raised);
   color: var(--text-primary);
 }
@@ -5601,7 +5600,7 @@ input.z-axis__slider {
   margin-block-start: 0.85rem;
   padding: 0.65rem 0.75rem;
   border: 1px solid var(--border-subtle);
-  border-radius: 0.8rem;
+  border-radius: 0.3rem;
   background: var(--surface-soft);
   overflow-y: auto;
   overscroll-behavior-y: contain;
@@ -5661,7 +5660,7 @@ input.z-axis__slider {
   height: 9rem;
   margin-block-start: 1rem;
   border: 1px solid var(--border-subtle);
-  border-radius: 0.6rem;
+  border-radius: 0.25rem;
   background:
     linear-gradient(to top, var(--ito-black), transparent),
     linear-gradient(to right, white, var(--picker-hue));
@@ -5733,7 +5732,7 @@ input.z-axis__slider {
   width: 2.25rem;
   height: 2.25rem;
   border: 1px solid var(--border-subtle);
-  border-radius: 0.4rem;
+  border-radius: 0.2rem;
   background: var(--picker-color);
 }
 
@@ -5821,7 +5820,7 @@ input.z-axis__slider {
   gap: 0.15rem 0.75rem;
   padding: 0.45rem 0.6rem;
   border: 1px solid var(--border-subtle);
-  border-radius: 0.6rem;
+  border-radius: 0.25rem;
   background-color: var(--surface-soft);
 }
 
@@ -6052,7 +6051,7 @@ input.z-axis__slider {
   margin-block-start: 0.85rem;
   padding: 0.75rem;
   border: 1px solid var(--border-subtle);
-  border-radius: 0.9rem;
+  border-radius: 0.35rem;
   background: var(--surface-soft);
   grid-template-columns: 1fr auto 1fr;
 }
@@ -6205,7 +6204,7 @@ input.z-axis__slider {
   margin-block-start: 0.85rem;
   padding: 0.75rem;
   border: 1px solid var(--border-subtle);
-  border-radius: 0.9rem;
+  border-radius: 0.35rem;
   background: var(--surface-soft);
   grid-template-columns: 1fr auto 1fr;
 }
@@ -6271,7 +6270,7 @@ input.z-axis__slider {
   overflow-y: auto;
   overscroll-behavior-y: contain;
   border: 1px solid var(--border-subtle);
-  border-radius: 0.8rem;
+  border-radius: 0.3rem;
   background: var(--surface-soft);
   scrollbar-width: thin;
 }
@@ -6309,7 +6308,7 @@ input.z-axis__slider {
   overflow-y: auto;
   overscroll-behavior-y: contain;
   border: 1px solid var(--border-subtle);
-  border-radius: 0.8rem;
+  border-radius: 0.3rem;
   background: var(--surface-soft);
   scrollbar-width: thin;
 }
@@ -6323,7 +6322,7 @@ input.z-axis__slider {
  */
 .pending-section {
   min-width: 0;
-  border-radius: 0.45rem;
+  border-radius: 0.2rem;
   border: 1px solid var(--border-subtle);
   background: var(--surface-raised);
 }
@@ -6741,7 +6740,7 @@ input.z-axis__slider {
 .macro-manager {
   padding: 0.85rem;
   border: 1px solid var(--border-subtle);
-  border-radius: 1rem;
+  border-radius: 0.4rem;
   background: var(--surface-soft);
 }
 
@@ -6756,7 +6755,7 @@ input.z-axis__slider {
   gap: 0.35rem;
   padding: 0.25rem 0.5rem;
   border: 1px solid var(--border-subtle);
-  border-radius: 0.7rem;
+  border-radius: 0.3rem;
   background: var(--surface-raised);
 }
 
@@ -6915,7 +6914,7 @@ input.z-axis__slider {
   justify-content: center;
   padding: 0;
   border: 1px solid var(--border-subtle);
-  border-radius: 0.3rem;
+  border-radius: 0.15rem;
   background: var(--swatch, var(--surface-soft));
 }
 
@@ -6948,7 +6947,7 @@ input.z-axis__slider {
   padding: 0.7rem;
   overflow-y: auto;
   border: 1px solid var(--border-subtle);
-  border-radius: 0.8rem;
+  border-radius: 0.3rem;
   background: var(--surface-soft);
   color: var(--text-primary);
   font-family: var(--font-mono);
@@ -7360,7 +7359,7 @@ input.z-axis__slider {
   flex-direction: column;
   overflow: hidden;
   border: 1px solid var(--border-subtle);
-  border-radius: 1rem;
+  border-radius: 0.4rem;
   background: var(--surface-raised);
 }
 
@@ -7427,7 +7426,7 @@ input.z-axis__slider {
   flex-direction: column;
   overflow: hidden;
   border: 1px solid var(--border-subtle);
-  border-radius: 1rem;
+  border-radius: 0.4rem;
   background: var(--surface-raised);
 }
 
@@ -7798,7 +7797,7 @@ input.z-axis__slider {
   height: 2rem;
   flex: 0 0 auto;
   place-items: center;
-  border-radius: 0.65rem;
+  border-radius: 0.25rem;
   background: var(--surface-soft);
   color: var(--action-primary);
 }
@@ -7819,7 +7818,7 @@ input.z-axis__slider {
   align-items: flex-start;
   gap: 0.5rem;
   padding: 0.4rem 0.5rem;
-  border-radius: 0.65rem;
+  border-radius: 0.25rem;
 }
 
 /* A tint plus the row's own warning icon carry this state — never the tint alone. */
@@ -7862,7 +7861,7 @@ input.z-axis__slider {
   align-items: center;
   gap: 0.4rem;
   padding: 0.35rem 0.55rem;
-  border-radius: 0.55rem;
+  border-radius: 0.25rem;
   background: color-mix(in srgb, var(--ito-black) 76%, transparent);
   color: var(--neutral-white);
   font-size: var(--text-overlay-label-size);
@@ -7969,7 +7968,7 @@ input.z-axis__slider {
   inset-inline-end: 0;
   inset-block-end: 0;
   padding: 0.25rem 0.55rem;
-  border-start-start-radius: 0.55rem;
+  border-start-start-radius: 0.25rem;
   background: color-mix(in srgb, var(--ito-black) 76%, transparent);
   color: var(--neutral-white);
   font-family: var(--font-mono);
@@ -8124,7 +8123,7 @@ input.z-axis__slider {
   gap: 0.35rem;
   padding: 0.25rem 0.5rem;
   border: 1px solid var(--border-subtle);
-  border-radius: 0.7rem;
+  border-radius: 0.3rem;
   background: var(--surface-raised);
 }
 
@@ -8275,7 +8274,7 @@ input.z-axis__slider {
   margin-block-end: 1rem;
   padding: 0.6rem 0.75rem;
   border: 1px solid var(--border-subtle);
-  border-radius: 0.7rem;
+  border-radius: 0.3rem;
   color: var(--text-muted);
   font-size: var(--text-hint-size);
 }
@@ -8336,7 +8335,7 @@ input.z-axis__slider {
   min-height: 0;
   overflow: hidden;
   border: 1px solid var(--border-subtle);
-  border-radius: 1.35rem;
+  border-radius: 0.5rem;
   background: var(--surface-raised);
   box-shadow: 0 1.25rem 2.5rem color-mix(in srgb, var(--ito-black) 12%, transparent);
 }
@@ -8605,7 +8604,7 @@ input.z-axis__slider {
   margin: auto;
   padding: 1.5rem;
   border: 1px solid var(--border-subtle);
-  border-radius: 1.35rem;
+  border-radius: 0.5rem;
   background: var(--surface-raised);
   color: var(--text-primary);
 }
@@ -8678,7 +8677,7 @@ input.z-axis__slider {
   margin: auto;
   padding: 1.5rem;
   border: 1px solid var(--border-subtle);
-  border-radius: 1.35rem;
+  border-radius: 0.5rem;
   background: var(--surface-raised);
   color: var(--text-primary);
 }
@@ -8718,7 +8717,7 @@ input.z-axis__slider {
   position: relative;
   margin-block-start: 1rem;
   border: 1px solid var(--border-subtle);
-  border-radius: 0.9rem;
+  border-radius: 0.35rem;
   background: var(--surface-soft);
   overflow: hidden;
 }
@@ -8825,7 +8824,7 @@ input.z-axis__slider {
   transform: translateY(50%);
   padding: 0.15rem 0.45rem;
   border: 1px solid var(--surface-on-strong-soft);
-  border-radius: 0.4rem;
+  border-radius: 0.2rem;
   background: color-mix(in srgb, var(--surface-strong) 78%, transparent);
   color: var(--text-on-strong);
   font-size: var(--text-overlay-label-size);
@@ -8916,7 +8915,7 @@ input.z-axis__slider {
   gap: 0.15rem;
   padding: 0.4rem 0.55rem;
   border: 1px solid var(--surface-on-strong-soft);
-  border-radius: 0.6rem;
+  border-radius: 0.25rem;
   background: color-mix(in srgb, var(--surface-strong) 78%, transparent);
   color: var(--text-on-strong-muted);
   font-size: var(--text-overlay-label-size);
@@ -8949,7 +8948,7 @@ input.z-axis__slider {
   gap: 0.4rem;
   padding: 0.35rem 0.5rem;
   border: 1px solid var(--surface-on-strong-soft);
-  border-radius: 0.7rem;
+  border-radius: 0.3rem;
   background: color-mix(in srgb, var(--surface-strong) 78%, transparent);
   backdrop-filter: blur(0.55rem);
 }
@@ -9439,7 +9438,7 @@ select {
 }
 
 .page-card {
-  border-radius: 1.35rem;
+  border-radius: 0.5rem;
   padding: clamp(1.25rem, 2.5vw, 2rem);
   box-shadow: 0 0.75rem 2rem color-mix(in srgb, var(--ito-black) 8%, transparent);
 }
@@ -9695,7 +9694,7 @@ select {
   gap: 1rem;
   padding: 1.25rem;
   border: 1px solid var(--border-subtle);
-  border-radius: 1.35rem;
+  border-radius: 0.5rem;
   background: var(--surface-raised);
 }
 
@@ -10020,7 +10019,7 @@ select {
   container-name: machine-status-panel;
   overflow: hidden;
   border: 1px solid var(--border-subtle);
-  border-radius: 1.35rem;
+  border-radius: 0.5rem;
   background: var(--surface-raised);
 }
 
@@ -10080,7 +10079,7 @@ select {
 .machine-meter {
   min-width: 0;
   border: 1px solid var(--border-subtle);
-  border-radius: 0.9rem;
+  border-radius: 0.35rem;
   padding: 0.65rem 0.7rem 0.75rem;
   background: var(--surface-soft);
 }
@@ -10398,7 +10397,7 @@ select {
   margin: auto;
   padding: 0;
   border: 1px solid var(--border-subtle);
-  border-radius: 1.35rem;
+  border-radius: 0.5rem;
   background: var(--surface-raised);
   overflow: hidden;
 }
@@ -10484,7 +10483,7 @@ select {
   margin: auto;
   padding: 0;
   border: 1px solid var(--border-subtle);
-  border-radius: 1.35rem;
+  border-radius: 0.5rem;
   background: var(--surface-raised);
   overflow: hidden;
 }
@@ -10549,7 +10548,7 @@ select {
 .editor-shortcuts__keys {
   display: inline-block;
   border: 1px solid var(--border-subtle);
-  border-radius: 0.45rem;
+  border-radius: 0.2rem;
   background: var(--surface-soft);
   padding: 0.15rem 0.45rem;
   color: var(--text-primary);
@@ -10585,7 +10584,7 @@ select {
 .machine-system-error {
   margin-bottom: 1rem;
   border: 1px solid var(--status-danger);
-  border-radius: 1rem;
+  border-radius: 0.4rem;
   background: var(--status-danger-soft);
   color: var(--status-danger);
   font-weight: var(--font-weight);
@@ -10608,7 +10607,7 @@ select {
   block-size: 100%;
   min-height: 0;
   gap: 1rem;
-  --machine-card-radius: 0.6rem;
+  --machine-card-radius: 0.25rem;
 }
 
 body.machine-editor-fullscreen-open {
@@ -10908,7 +10907,7 @@ body.machine-editor-fullscreen-open {
   max-inline-size: 85%;
   padding: 1.25rem 1.75rem;
   border: 2px dashed var(--accent-primary);
-  border-radius: 1.35rem;
+  border-radius: 0.5rem;
   background: var(--surface-raised);
   color: var(--accent-primary);
   font-weight: var(--font-weight-increased);
@@ -11464,7 +11463,7 @@ body.machine-editor-fullscreen-open {
   margin: auto;
   padding: 0;
   border: 1px solid var(--border-subtle);
-  border-radius: 1.35rem;
+  border-radius: 0.5rem;
   background: var(--surface-raised);
   overflow: hidden;
 }
@@ -11775,7 +11774,7 @@ body.machine-editor-fullscreen-open {
   height: 4.5rem;
   place-items: center;
   border: 1px solid var(--border-subtle);
-  border-radius: 1.5rem;
+  border-radius: 0.6rem;
   background: var(--surface-soft);
   color: var(--action-primary);
 }
@@ -11900,7 +11899,7 @@ body.machine-editor-fullscreen-open {
       0.3rem + var(--document-tab-control) * 2 + var(--document-tab-controls-gap) +
         var(--document-tab-controls-inset) - var(--selection-row-border)
     );
-  border-radius: 0.2rem;
+  border-radius: 0.1rem;
   font-size: var(--text-meta-size);
   white-space: nowrap;
 }
@@ -11982,7 +11981,7 @@ body.machine-editor-fullscreen-open {
   min-inline-size: 0;
   block-size: var(--document-tab-control);
   min-height: 0;
-  border-radius: 0.2rem;
+  border-radius: 0.1rem;
   opacity: 0;
   transition: opacity var(--motion-duration-fast) var(--motion-ease-standard);
 }
@@ -12255,7 +12254,7 @@ body.machine-editor-fullscreen-open {
 .timelapse-player__video {
   inline-size: 100%;
   max-block-size: 60vh;
-  border-radius: 0.75rem;
+  border-radius: 0.3rem;
   background: var(--surface-strong);
 }
 
@@ -12271,7 +12270,7 @@ body.machine-editor-fullscreen-open {
   justify-content: space-between;
   gap: 0.5rem;
   border: 1px solid var(--border-subtle);
-  border-radius: 0.6rem;
+  border-radius: 0.25rem;
   padding: 0.5rem 0.65rem;
 }
 
@@ -12318,7 +12317,7 @@ body.machine-editor-fullscreen-open {
   display: grid;
   gap: 0.15rem;
   border: 1px solid var(--border-subtle);
-  border-radius: 0.6rem;
+  border-radius: 0.25rem;
   padding: 0.5rem 0.65rem;
 }
 
@@ -12505,7 +12504,7 @@ body.machine-editor-fullscreen-open {
   max-block-size: calc(100dvh - var(--app-header-block-size, 0rem) - 2rem);
   overflow-y: auto;
   border: 1px solid var(--border-subtle);
-  border-radius: 0.75rem;
+  border-radius: 0.3rem;
   padding: 0.85rem 1rem 1rem;
 }
 
@@ -12695,7 +12694,7 @@ body.machine-editor-fullscreen-open {
   width: max-content;
   max-width: 14rem;
   border: 1px solid var(--border-subtle);
-  border-radius: 0.5rem;
+  border-radius: 0.2rem;
   background: var(--surface-raised);
   padding: 0.4rem 0.55rem;
   font-size: var(--text-meta-size);
@@ -12714,7 +12713,7 @@ body.machine-editor-fullscreen-open {
   display: inline-block;
   width: 0.55rem;
   height: 0.55rem;
-  border-radius: 0.15rem;
+  border-radius: 0.1rem;
 }
 
 .history-trend__tooltip-swatch--completed {
@@ -12801,7 +12800,7 @@ body.machine-editor-fullscreen-open {
   align-items: center;
   gap: 0.5rem;
   border: 1px solid var(--border-subtle);
-  border-radius: 0.6rem;
+  border-radius: 0.25rem;
   padding: 0.5rem 0.65rem;
 }
 
@@ -12991,6 +12990,7 @@ body.machine-editor-fullscreen-open {
     grid-area: live;
   }
 }
+
 @container calibration-canvas (min-width: 84rem) {
   .calibration-bench__columns {
     grid-template-areas: 'list work live';
@@ -13079,7 +13079,6 @@ body.machine-editor-fullscreen-open {
   display: none;
 }
 
-
 /*
  * A `file-select` composing `selection-row`: picking which procedure the
  * workspace shows is choosing content out of a list, like every other list.
@@ -13145,6 +13144,7 @@ body.machine-editor-fullscreen-open {
     display: block;
   }
 }
+
 /* The workspace. */
 .calibration-workspace {
   display: grid;
@@ -13444,7 +13444,6 @@ body.machine-editor-fullscreen-open {
   font-size: var(--text-meta-size);
 }
 
-
 /*
  * The `<select>` swap, not a wrapping strip: the selected underline sits over
  * the band's bottom border, so on a strip wrapped to two lines every first-line
@@ -13535,7 +13534,7 @@ body.machine-editor-fullscreen-open {
   display: flex;
   align-items: flex-start;
   gap: 0.4rem;
-  border-radius: 0.6rem;
+  border-radius: 0.25rem;
   background: var(--surface-soft);
   padding: 0.5rem 0.65rem;
   font-size: var(--text-hint-size);
@@ -13554,7 +13553,7 @@ body.machine-editor-fullscreen-open {
   justify-content: space-between;
   gap: 0.5rem;
   border: 1px solid var(--border-subtle);
-  border-radius: 0.6rem;
+  border-radius: 0.25rem;
   padding: 0.45rem 0.65rem;
 }
 
@@ -13631,7 +13630,7 @@ body.machine-editor-fullscreen-open {
   justify-content: space-between;
   gap: 0.5rem;
   border: 1px solid var(--border-subtle);
-  border-radius: 0.6rem;
+  border-radius: 0.25rem;
   padding: 0.45rem 0.65rem;
 }
 
@@ -13696,7 +13695,7 @@ body.machine-editor-fullscreen-open {
   align-items: center;
   gap: 0.75rem;
   border: 1px solid var(--border-subtle);
-  border-radius: 0.6rem;
+  border-radius: 0.25rem;
   padding: 0.5rem 0.65rem;
 }
 
@@ -13836,7 +13835,7 @@ body.machine-editor-fullscreen-open {
   max-inline-size: 100%;
   max-block-size: min(70vh, 52rem);
   border: 1px solid var(--border-subtle);
-  border-radius: 0.6rem;
+  border-radius: 0.25rem;
 }
 
 .calibration-tuning__caption {
@@ -13972,7 +13971,7 @@ body.machine-editor-fullscreen-open {
   min-height: 0;
   overflow: hidden;
   border: 1px solid var(--border-subtle);
-  border-radius: 1.5rem;
+  border-radius: 0.6rem;
   background: var(--surface-raised);
 }
 
@@ -14134,7 +14133,7 @@ body.machine-editor-fullscreen-open {
   inline-size: 100%;
   max-width: 100%;
   border: 1px solid var(--border-subtle);
-  border-radius: 0.75rem;
+  border-radius: 0.3rem;
   background: var(--surface-strong);
 }
 
@@ -14303,7 +14302,7 @@ body.machine-editor-fullscreen-open {
   width: 100%;
   padding: 0.75rem 0.5rem 0.75rem 1rem;
   overflow: hidden;
-  border-radius: 0.75rem;
+  border-radius: 0.3rem;
   border: 1px solid var(--color-danger);
   background: var(--color-danger-soft);
   box-shadow: 0 0.5rem 1.5rem color-mix(in srgb, var(--ito-black) 25%, transparent);
@@ -14458,7 +14457,7 @@ body.machine-editor-fullscreen-open {
   flex-direction: column;
   min-width: 0;
   border: 1px solid var(--border-subtle);
-  border-radius: 1.35rem;
+  border-radius: 0.5rem;
   background-color: var(--surface-raised);
   overflow: hidden;
 }
@@ -14535,7 +14534,7 @@ body.machine-editor-fullscreen-open {
   justify-content: center;
   inline-size: 1.5rem;
   block-size: 1.5rem;
-  border-radius: 0.4rem;
+  border-radius: 0.2rem;
   color: var(--status-danger-text);
   transition-duration: var(--motion-duration-fast);
   transition-property: background-color;

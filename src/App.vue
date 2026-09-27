@@ -559,7 +559,7 @@ async function discardPendingConfig(): Promise<void> {
 <template>
   <a
     href="#main-content"
-    class="fixed start-4 top-4 z-50 -translate-y-24 rounded-full bg-cta px-4 py-3 font-semibold text-on-action shadow-lg transition-transform focus:translate-y-0"
+    class="fixed start-4 top-4 z-50 -translate-y-24 rounded-md bg-cta px-4 py-3 font-semibold text-on-action shadow-lg transition-transform focus:translate-y-0"
   >
     {{ t('app.skipToContent') }}
   </a>
@@ -1184,7 +1184,7 @@ async function discardPendingConfig(): Promise<void> {
       </main>
 
       <nav
-        class="mobile-navigation fixed inset-x-3 bottom-3 z-40 rounded-3xl border border-subtle bg-canvas-glass p-2 shadow-xl backdrop-blur-xl"
+        class="mobile-navigation fixed inset-x-3 bottom-3 z-40 rounded-xl border border-subtle bg-canvas-glass p-2 shadow-xl backdrop-blur-xl"
         :aria-label="t('navigation.label')"
       >
         <!--

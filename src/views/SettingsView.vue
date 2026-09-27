@@ -819,7 +819,7 @@ const lastSyncedDisplay = computed(() => {
                 <p
                   v-if="connectionErrorKey"
                   id="connection-error"
-                  class="mt-3 rounded-2xl border border-danger bg-danger-soft px-4 py-3 text-sm font-weight-base text-danger-text"
+                  class="mt-3 rounded-md border border-danger bg-danger-soft px-4 py-3 text-sm font-weight-base text-danger-text"
                   role="alert"
                 >
                   {{ t(connectionErrorKey) }}
@@ -965,7 +965,7 @@ const lastSyncedDisplay = computed(() => {
                 <p
                   v-if="addError"
                   id="add-printer-error"
-                  class="mt-3 rounded-2xl border border-danger bg-danger-soft px-4 py-3 text-sm font-weight-base text-danger-text"
+                  class="mt-3 rounded-md border border-danger bg-danger-soft px-4 py-3 text-sm font-weight-base text-danger-text"
                   role="alert"
                 >
                   {{ t('connection.errors.invalidEndpoint') }}
@@ -1138,7 +1138,7 @@ const lastSyncedDisplay = computed(() => {
 
               <p
                 v-if="auth.lastCommandError === 'login'"
-                class="mt-3 rounded-2xl border border-danger bg-danger-soft px-4 py-3 text-sm font-weight-base text-danger-text"
+                class="mt-3 rounded-md border border-danger bg-danger-soft px-4 py-3 text-sm font-weight-base text-danger-text"
                 role="alert"
               >
                 {{ auth.lastCommandErrorMessage || t('users.login.failed') }}
@@ -1184,7 +1184,7 @@ const lastSyncedDisplay = computed(() => {
 
               <p
                 v-if="auth.lastCommandError === 'changePassword'"
-                class="mt-3 rounded-2xl border border-danger bg-danger-soft px-4 py-3 text-sm font-weight-base text-danger-text"
+                class="mt-3 rounded-md border border-danger bg-danger-soft px-4 py-3 text-sm font-weight-base text-danger-text"
                 role="alert"
               >
                 {{ auth.lastCommandErrorMessage || t('users.changePassword.failed') }}
@@ -1256,7 +1256,7 @@ const lastSyncedDisplay = computed(() => {
 
                 <p
                   v-if="auth.lastCommandError === 'createUser'"
-                  class="mt-3 rounded-2xl border border-danger bg-danger-soft px-4 py-3 text-sm font-weight-base text-danger-text"
+                  class="mt-3 rounded-md border border-danger bg-danger-soft px-4 py-3 text-sm font-weight-base text-danger-text"
                   role="alert"
                 >
                   {{ auth.lastCommandErrorMessage || t('users.add.failed') }}
@@ -1766,7 +1766,7 @@ const lastSyncedDisplay = computed(() => {
             <Transition name="status-change">
               <p
                 v-if="importParseError"
-                class="mt-3 rounded-2xl border border-danger bg-danger-soft px-4 py-3 text-sm font-weight-base text-danger-text"
+                class="mt-3 rounded-md border border-danger bg-danger-soft px-4 py-3 text-sm font-weight-base text-danger-text"
                 role="alert"
               >
                 {{ t('backup.importError') }}

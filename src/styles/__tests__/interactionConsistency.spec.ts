@@ -196,7 +196,7 @@ describe('interaction and iconography contract', () => {
       styles.match(/input\[type='checkbox'\],\s*input\[type='radio'\]\s*\{[^}]*\}/) ?? []
     expect(box).toContain('appearance: none')
     expect(box).toContain('border: 1px solid var(--border-subtle)')
-    expect(box).toMatch(/border-radius:\s*0\.3rem/)
+    expect(box).toMatch(/border-radius:\s*0\.125rem/)
     expect(styles).toMatch(
       /input\[type='checkbox'\]:checked,\s*input\[type='radio'\]:checked\s*\{[^}]*background-color:\s*var\(--action-primary\)/,
     )
@@ -415,9 +415,9 @@ describe('interaction and iconography contract', () => {
     expect(styles).toMatch(/\.button--sm\s*\{[^}]*border-radius:\s*var\(--control-radius-sm\)/)
     expect(styles).toMatch(/\.button--xs\s*\{[^}]*border-radius:\s*var\(--control-radius-xs\)/)
     expect(styles).not.toMatch(/\.button--[a-z-]*\s*\{[^}]*border-radius:\s*999px/)
-    expect(styles).toMatch(/--control-radius-md:\s*0\.4rem/)
-    expect(styles).toMatch(/--control-radius-sm:\s*0\.3rem/)
-    expect(styles).toMatch(/--control-radius-xs:\s*0\.25rem/)
+    expect(styles).toMatch(/--control-radius-md:\s*0\.2rem/)
+    expect(styles).toMatch(/--control-radius-sm:\s*0\.15rem/)
+    expect(styles).toMatch(/--control-radius-xs:\s*0\.125rem/)
 
     expect(styles).toMatch(/\.button\s*\{[^}]*min-height:\s*2\.25rem/)
     expect(styles).toMatch(/\.button--sm\s*\{[^}]*min-height:\s*2rem/)
