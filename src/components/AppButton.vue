@@ -439,12 +439,10 @@ defineExpose({
       The label renders before the slot so a caller may pass both: the string is
       the control's name, and the slot is whatever hangs off it.
 
-      A bare `<span>`, and it must stay an element rather than a text node: two
-      rules already reach for it. `.machine-editor-action span` is how Save,
-      Save and restart, and Discard changes drop their labels together below a
-      55rem editor pane, and `.machine-structure .button > span:first-child`
-      truncates a section name to the outline's width. Both predate this
-      component and both match the markup it now generates.
+      A bare `<span>`, and it must stay an element rather than a text node: a
+      rule already reaches for it. `.machine-structure .button > span:first-child`
+      truncates a section name to the outline's width; it predates this
+      component and matches the markup it now generates.
     -->
     <span v-if="displayLabel !== undefined">{{ displayLabel }}</span>
     <!--

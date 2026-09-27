@@ -11,6 +11,7 @@ import PageHeading from '@/components/PageHeading.vue'
 import PromptDialog from '@/components/PromptDialog.vue'
 import HeaderMenu from '@/components/HeaderMenu.vue'
 import EditorShortcutsDialog from '@/components/machine/EditorShortcutsDialog.vue'
+import ConfigurationTabWell from '@/components/machine/ConfigurationTabWell.vue'
 import FileContextMenu from '@/components/machine/FileContextMenu.vue'
 import HtmlFileViewer from '@/components/machine/HtmlFileViewer.vue'
 import QuickConfigView from '@/components/machine/QuickConfigView.vue'
@@ -25,6 +26,11 @@ import {
   EDITOR_DEFERRED_MOUNT_BYTES,
   lineNumberAt,
 } from '@/features/machine/codeWindow'
+import {
+  explorerTreeKeyAction,
+  flattenExplorerTree,
+  type ExplorerTreeRow,
+} from '@/features/machine/explorerTree'
 import { classifyFileKind, isLargeFile } from '@/features/machine/fileKind'
 import { continuationIndent, softTabInsertion } from '@/features/machine/indent'
 import {
@@ -75,7 +81,6 @@ interface PendingFileOpen {
 }
 
 type EditorDisplayMode = 'maximized' | 'fullscreen'
-type FileSortKey = 'name' | 'size' | 'modified'
 
 interface PendingMove {
   entry: MachineFileEntry
@@ -84,12 +89,20 @@ interface PendingMove {
 }
 
 const editorDisplayModeStorageKey = 'alabaster.machine.editorDisplayMode'
+const explorerHiddenStorageKey = 'alabaster.machine.explorerHidden'
 
 function initialEditorDisplayMode(): EditorDisplayMode {
   return localStorage.getItem(editorDisplayModeStorageKey) === 'fullscreen'
     ? 'fullscreen'
     : 'maximized'
 }
+
+/*
+ * Below this width the workspace shows one card at a time — see the
+ * `max-width: 54.999rem` block in components.css — so the explorer toggle
+ * swaps cards there instead of hiding a column.
+ */
+const SINGLE_PANE_QUERY = '(max-width: 54.999rem)'
 
 const { locale, t } = useI18n({ useScope: 'global' })
 const machineFiles = useMachineFilesStore()
@@ -104,19 +117,20 @@ const {
   showReadOnlyFiles,
   searchInFileContents,
   compactRows,
+  sortKey,
   setShowHiddenFiles,
   setShowBackupFiles,
   setShowReadOnlyFiles,
   setSearchInFileContents,
   setCompactRows,
+  setSortKey,
 } = useMachineFilesSettings()
+const sortKeys = ['name', 'size', 'modified'] as const
 const { indentWidth } = useEditorIndent()
 const { fileHistory, fileHistoryIndex, pushFileHistory, setFileHistoryIndex } =
   useConfigFileHistory()
 const { pinnedFiles, isPinned, pinFile, unpinFile, repointPinned } = useMachineFilePins()
 const search = ref('')
-const sortKey = ref<FileSortKey>('name')
-const sortDirection = ref<'ascending' | 'descending'>('ascending')
 const uploadInput = ref<HTMLInputElement | null>(null)
 const editor = ref<HTMLTextAreaElement | null>(null)
 const lineNumbersContent = ref<HTMLElement | null>(null)
@@ -156,7 +170,19 @@ const pendingRestartWithUnsaved = ref(false)
 const pendingDiscard = ref(false)
 const pendingSaveAll = ref(false)
 const pendingDiscardAll = ref(false)
-const explorerResizing = ref(false)
+/** Whether the explorer column is hidden beside an open file, on a wide screen. */
+const explorerHidden = ref(localStorage.getItem(explorerHiddenStorageKey) === 'true')
+/** Whether the one-card layout is showing the explorer instead of the open file. */
+const mobileExplorerOpen = ref(false)
+/** The tree row the keyboard is on, and the one whose details the footer shows. */
+const treeFocusPath = ref<string | null>(null)
+const explorerList = ref<HTMLElement | null>(null)
+interface TabMenuState {
+  path: string
+  x: number
+  y: number
+}
+const tabMenu = ref<TabMenuState | null>(null)
 interface ContextMenuState {
   entry: MachineFileEntry
   x: number
@@ -182,7 +208,6 @@ const pendingMove = ref<PendingMove | null>(null)
 // the browser fires both on every descendant the pointer crosses. Only 0 means
 // a file dragged in from the desktop is no longer over the list at all.
 const externalDragDepth = ref(0)
-let explorerResizeTimer: ReturnType<typeof setTimeout> | null = null
 let contentSearchTimer: ReturnType<typeof setTimeout> | null = null
 /*
  * Passed to setDragImage in onDragStart to suppress the browser's own drag
@@ -244,72 +269,127 @@ function isEntryVisible(entry: MachineFileEntry): boolean {
   return true
 }
 
-const filteredEntries = computed(() => {
+function compareEntries(left: MachineFileEntry, right: MachineFileEntry): number {
+  const byName = left.name.localeCompare(right.name, locale.value, {
+    numeric: true,
+    sensitivity: 'base',
+  })
+  if (sortKey.value === 'size' && left.size !== right.size) return right.size - left.size
+  if (sortKey.value === 'modified' && left.modified !== right.modified) {
+    return right.modified - left.modified
+  }
+  return byName
+}
+
+const isSearching = computed(() => search.value.trim().length > 0)
+
+/*
+ * A search covers the whole root, so its matches are listed flat, each with the
+ * folder it lives in, rather than threaded into a tree that would have to open
+ * every folder holding one.
+ */
+const searchRows = computed<ExplorerTreeRow[]>(() => {
   const rawQuery = search.value.trim()
+  if (!rawQuery) return []
   const query = rawQuery.toLocaleLowerCase(locale.value)
   // Only trusted once it actually answers the query on screen — otherwise a
   // still-running or setting-disabled search would keep contributing matches
   // left over from whatever was typed before.
   const contentMatchesReady =
     searchInFileContents.value && machineFiles.contentSearchQuery === rawQuery
-  const source = query
-    ? machineFiles.searchFiles.filter(
-        (entry) =>
-          entry.path.toLocaleLowerCase(locale.value).includes(query) ||
-          (contentMatchesReady && machineFiles.contentSearchMatches.has(entry.path)),
-      )
-    : machineFiles.entries
-  return [...source.filter(isEntryVisible)].sort((left, right) => {
-    if (left.kind !== right.kind) return left.kind === 'directory' ? -1 : 1
-    const comparison =
-      sortKey.value === 'name'
-        ? left.name.localeCompare(right.name, locale.value, { numeric: true, sensitivity: 'base' })
-        : sortKey.value === 'size'
-          ? left.size - right.size
-          : left.modified - right.modified
-    if (comparison !== 0) return sortDirection.value === 'ascending' ? comparison : -comparison
-    return left.name.localeCompare(right.name, locale.value, { numeric: true, sensitivity: 'base' })
-  })
+  return machineFiles.searchFiles
+    .filter(
+      (entry) =>
+        entry.path.toLocaleLowerCase(locale.value).includes(query) ||
+        (contentMatchesReady && machineFiles.contentSearchMatches.has(entry.path)),
+    )
+    .filter(isEntryVisible)
+    .sort(compareEntries)
+    .map((entry) => ({
+      entry,
+      level: 1,
+      parentPath: entry.path.includes('/') ? entry.path.slice(0, entry.path.lastIndexOf('/')) : '',
+      expanded: false,
+    }))
 })
-/*
- * Pinned files sit above every folder-navigation row precisely because they
- * don't belong to the folder on screen — that's the point of pinning one.
- * Suppressed during a search: a query already surfaces matches from the whole
- * root through `filteredEntries`, so keeping this band up too would offer the
- * same file twice for no reason.
- */
-const pinnedEntries = computed(() =>
-  search.value.trim()
-    ? []
-    : pinnedFiles.value.filter((entry) => entry.root === machineFiles.currentRoot),
+
+const treeRows = computed(() =>
+  flattenExplorerTree(machineFiles.directoryListings, machineFiles.expandedDirectories, {
+    isVisible: isEntryVisible,
+    compare: compareEntries,
+  }),
 )
-const pathSegments = computed(() => {
-  const segments = machineFiles.currentPath ? machineFiles.currentPath.split('/') : []
-  return [
-    // The root actually being browsed. Hard-coding `config` here made the trail
-    // claim the config root while the listing came from another one.
-    { name: machineFiles.currentRoot, path: '' },
-    ...segments.map((name, index) => ({ name, path: segments.slice(0, index + 1).join('/') })),
-  ]
+
+/*
+ * The root stands at the top of the tree as a row of its own, the way an IDE
+ * shows the project above its files: it is where a file dragged out of a
+ * folder lands, and selecting it makes the root the folder new files go into.
+ */
+const rootRow = computed<ExplorerTreeRow>(() => ({
+  entry: {
+    kind: 'directory',
+    name: machineFiles.currentRoot,
+    path: '',
+    size: 0,
+    modified: 0,
+    permissions: machineFiles.rootPermissions,
+  },
+  level: 0,
+  parentPath: '',
+  expanded: true,
+}))
+
+const explorerRows = computed(() =>
+  isSearching.value ? searchRows.value : [rootRow.value, ...treeRows.value],
+)
+
+/** The row the keyboard lands on when Tab enters the tree. */
+const treeTabStop = computed(() => {
+  const rows = explorerRows.value
+  const focused = rows.find((row) => row.entry.path === treeFocusPath.value)
+  if (focused) return focused.entry.path
+  const open = rows.find((row) => row.entry.path === machineFiles.currentFile?.path)
+  return (open ?? rows[0])?.entry.path ?? null
 })
-const parentPath = computed(() => {
-  const segments = machineFiles.currentPath ? machineFiles.currentPath.split('/') : []
-  return segments.slice(0, -1).join('/')
+
+/*
+ * What the footer describes: the row last focused or clicked, else the file on
+ * screen, else the folder new files would land in. Never empty, so the band's
+ * text changes in place rather than appearing and disappearing.
+ */
+const footerEntry = computed<MachineFileEntry | null>(() => {
+  const focused = explorerRows.value.find((row) => row.entry.path === treeFocusPath.value)
+  return focused?.entry ?? machineFiles.currentFile
 })
-// The most recently modified file, unless it's already open, in which case the
-// next most recent one is the more useful shortcut to offer.
-const lastEditedFile = computed<OpenMachineFile | null>(() => {
-  const [first, second] = machineFiles.recentFiles
-  if (!first) return null
-  return first.path === machineFiles.currentFile?.path ? (second ?? null) : first
-})
+
+/*
+ * Pinned files have a row of their own in the tab well, in every folder and
+ * whatever is open, which is the point of pinning one: the file does not live
+ * wherever the explorer is standing. Filtered to the root being browsed, since
+ * a pin names a path and a path means a different file in each root.
+ */
+const pinnedTabFiles = computed<OpenMachineFile[]>(() =>
+  pinnedFiles.value
+    .filter((entry) => entry.root === machineFiles.currentRoot)
+    .map((entry) => ({
+      kind: 'file',
+      name: entry.name,
+      path: entry.path,
+      size: entry.size,
+      modified: entry.modified,
+      permissions: entry.permissions,
+    })),
+)
+const unpinnedTabs = computed(() =>
+  machineFiles.openTabs.filter((tab) => !isPinned(machineFiles.currentRoot, tab.file.path)),
+)
+const hasTabs = computed(() => pinnedTabFiles.value.length > 0 || unpinnedTabs.value.length > 0)
 const currentFileReadOnly = computed(
   () => machineFiles.currentFile !== null && !machineFiles.currentFile.permissions.includes('w'),
 )
 const isEditorFullscreen = computed(
   () => machineFiles.currentFile !== null && editorDisplayMode.value === 'fullscreen',
 )
-const isExplorerCompact = computed(() => machineFiles.currentFile !== null)
 const canMutate = computed(
   () =>
     moonrakerAvailability.value.isAvailable &&
@@ -621,18 +701,49 @@ function formatModified(timestamp: number): string {
   return dateFormatter.value.format(new Date(timestamp * 1000))
 }
 
-function setSort(key: FileSortKey): void {
-  if (sortKey.value === key) {
-    sortDirection.value = sortDirection.value === 'ascending' ? 'descending' : 'ascending'
-  } else {
-    sortKey.value = key
-    sortDirection.value = 'ascending'
-  }
-}
-
 function setEditorDisplayMode(mode: EditorDisplayMode): void {
   editorDisplayMode.value = mode
   localStorage.setItem(editorDisplayModeStorageKey, mode)
+}
+
+function toggleFullscreen(): void {
+  setEditorDisplayMode(editorDisplayMode.value === 'fullscreen' ? 'maximized' : 'fullscreen')
+}
+
+const singlePaneQuery =
+  typeof window.matchMedia === 'function' ? window.matchMedia(SINGLE_PANE_QUERY) : null
+const singlePane = ref(singlePaneQuery?.matches ?? false)
+
+function onSinglePaneChange(event: MediaQueryListEvent): void {
+  singlePane.value = event.matches
+}
+
+function isSinglePane(): boolean {
+  return singlePaneQuery?.matches ?? false
+}
+
+/** Whether the explorer is on screen next to — or, on a narrow screen, instead of — the viewer. */
+const isExplorerShown = computed(() =>
+  machineFiles.currentFile === null ? true : !explorerHidden.value,
+)
+
+function toggleExplorer(): void {
+  if (isSinglePane()) {
+    mobileExplorerOpen.value = !mobileExplorerOpen.value
+    return
+  }
+  explorerHidden.value = !explorerHidden.value
+  localStorage.setItem(explorerHiddenStorageKey, String(explorerHidden.value))
+}
+
+/** Whether the explorer toggle would bring the explorer into view rather than put it away. */
+const explorerToggleShows = computed(() =>
+  singlePane.value ? !mobileExplorerOpen.value : !isExplorerShown.value,
+)
+
+function showExplorer(): void {
+  if (isSinglePane()) mobileExplorerOpen.value = true
+  else if (explorerHidden.value) toggleExplorer()
 }
 
 /**
@@ -677,13 +788,19 @@ function cancelPendingFileOpen(): void {
 
 /** Stable identity for a row, used for drop-target and context-menu state. */
 function entryKey(entry: MachineFileEntry): string {
-  return entry.kind + ':' + entry.name
+  return entry.kind + ':' + entryPathOf(entry)
 }
 
-/** Path of an entry in the directory currently shown, relative to the config root. */
+/** Path of an entry within the root: its own, or the browsed folder's joined with its name. */
 function entryPathOf(entry: MachineFileEntry): string {
-  if (entry.kind === 'file' && 'path' in entry && entry.path) return entry.path as string
+  if (entry.path !== undefined) return entry.path
   return machineFiles.currentPath ? machineFiles.currentPath + '/' + entry.name : entry.name
+}
+
+/** The folder an entry sits in, '' for the root. */
+function entryDirectoryOf(entry: MachineFileEntry): string {
+  const path = entryPathOf(entry)
+  return path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : ''
 }
 
 /** Whether this entry is the file open in the editor. */
@@ -744,7 +861,7 @@ function togglePinEntry(entry: MachineFileEntry): void {
   if (entry.kind !== 'file') return
   const path = entryPathOf(entry)
   if (isPinned(machineFiles.currentRoot, path)) {
-    unpinFile(machineFiles.currentRoot, path)
+    unpinTab(path)
     return
   }
   pinFile({
@@ -785,6 +902,12 @@ function closeContextMenu(): void {
   contextMenu.value = null
 }
 
+// The root row stands for the whole root, which can be neither renamed nor deleted.
+function openRowContextMenu(event: MouseEvent, row: ExplorerTreeRow): void {
+  if (row.level === 0 && !isSearching.value) return
+  void openContextMenu(event, row.entry)
+}
+
 function renameEntry(entry: MachineFileEntry): void {
   closeContextMenu()
   pendingRename.value = entry
@@ -796,7 +919,8 @@ async function confirmRename(name: string): Promise<void> {
   if (!entry) return
   const previousPath = entryPathOf(entry)
   const filename = name.trim()
-  const nextPath = machineFiles.currentPath ? `${machineFiles.currentPath}/${filename}` : filename
+  const directory = entryDirectoryOf(entry)
+  const nextPath = directory ? `${directory}/${filename}` : filename
   if (await machineFiles.renameEntry(entry, name)) {
     repointPinned(machineFiles.currentRoot, previousPath, nextPath)
   }
@@ -860,9 +984,8 @@ function isExternalFileDrag(event: DragEvent): boolean {
 }
 
 /** Whether files dragged in from outside the browser may land on this row. */
-function canDropExternalOn(target: MachineFileEntry | 'parent'): boolean {
+function canDropExternalOn(target: MachineFileEntry): boolean {
   if (!moonrakerAvailability.value.isAvailable || machineFiles.isMutating) return false
-  if (target === 'parent') return machineFiles.currentPath !== ''
   return target.kind === 'directory' && target.permissions.includes('w')
 }
 
@@ -931,10 +1054,9 @@ function trackDragGhost(event: DragEvent): void {
 }
 
 /** Whether the dragged file can land on this row. */
-function canDropOn(entry: MachineFileEntry | 'parent'): boolean {
+function canDropOn(entry: MachineFileEntry): boolean {
   const dragged = draggingEntry.value
   if (!dragged || !isWritable(dragged)) return false
-  if (entry === 'parent') return machineFiles.currentPath !== ''
   // A read-only folder cannot receive the file either.
   return entry.kind === 'directory' && entry.permissions.includes('w')
 }
@@ -958,9 +1080,9 @@ function cancelPendingDropTargetClear(): void {
   dropTargetClearFrame = null
 }
 
-function activateDropTarget(entry: MachineFileEntry | 'parent'): void {
+function activateDropTarget(entry: MachineFileEntry): void {
   cancelPendingDropTargetClear()
-  dropTargetKey.value = entry === 'parent' ? 'parent' : entryKey(entry)
+  dropTargetKey.value = entryKey(entry)
 }
 
 /**
@@ -973,7 +1095,7 @@ function activateDropTarget(entry: MachineFileEntry | 'parent'): void {
  * function's own dropTargetKey without necessarily recovering the browser's
  * cursor, which is what was still flashing denied at that same boundary.
  */
-function onDragOver(event: DragEvent, entry: MachineFileEntry | 'parent'): void {
+function onDragOver(event: DragEvent, entry: MachineFileEntry): void {
   if (isExternalFileDrag(event)) {
     if (!canDropExternalOn(entry)) return
     event.preventDefault()
@@ -988,8 +1110,8 @@ function onDragOver(event: DragEvent, entry: MachineFileEntry | 'parent'): void 
   activateDropTarget(entry)
 }
 
-function onDragLeave(event: DragEvent, entry: MachineFileEntry | 'parent'): void {
-  const key = entry === 'parent' ? 'parent' : entryKey(entry)
+function onDragLeave(event: DragEvent, entry: MachineFileEntry): void {
+  const key = entryKey(entry)
   if (dropTargetKey.value !== key) return
   // relatedTarget names the element the pointer is entering. When it is
   // still inside this row — its filename, its icon — nothing has actually
@@ -1008,7 +1130,7 @@ function onDragLeave(event: DragEvent, entry: MachineFileEntry | 'parent'): void
   })
 }
 
-async function onDrop(event: DragEvent, target: MachineFileEntry | 'parent'): Promise<void> {
+async function onDrop(event: DragEvent, target: MachineFileEntry): Promise<void> {
   event.preventDefault()
 
   if (isExternalFileDrag(event)) {
@@ -1020,7 +1142,7 @@ async function onDrop(event: DragEvent, target: MachineFileEntry | 'parent'): Pr
     cancelPendingDropTargetClear()
     dropTargetKey.value = null
     if (!allowed || files.length === 0) return
-    const directory = target === 'parent' ? parentPath.value : entryPathOf(target)
+    const directory = entryPathOf(target)
     await machineFiles.uploadFiles(files, directory)
     return
   }
@@ -1030,12 +1152,7 @@ async function onDrop(event: DragEvent, target: MachineFileEntry | 'parent'): Pr
   onDragEnd()
   if (!dragged || !allowed) return
 
-  const destination =
-    target === 'parent'
-      ? parentPath.value
-      : machineFiles.currentPath
-        ? machineFiles.currentPath + '/' + target.name
-        : target.name
+  const destination = entryPathOf(target)
 
   // Moving an open file repoints the editor without replacing its content, so
   // unsaved edits remain open and do not need a discard decision.
@@ -1081,61 +1198,167 @@ function cancelPendingMove(event?: Event): void {
   if (moveDialog.value?.open) moveDialog.value.close()
 }
 
-async function chooseEntry(entry: MachineFileEntry): Promise<void> {
-  const entryPath =
-    entry.kind === 'file' && 'path' in entry && entry.path
-      ? (entry.path as string)
-      : machineFiles.currentPath
-        ? `${machineFiles.currentPath}/${entry.name}`
-        : entry.name
-  if (entry.kind === 'file' && machineFiles.currentFile?.path === entryPath) {
-    machineFiles.closeFile()
+/*
+ * A single click opens a file in the preview tab, so browsing the tree replaces
+ * one tab instead of leaving one behind per file; a double click, or an edit,
+ * keeps it. A folder opens or closes in place, and becomes the folder new
+ * files and uploads land in.
+ */
+async function chooseRow(row: ExplorerTreeRow): Promise<void> {
+  const entry = row.entry
+  treeFocusPath.value = entry.path
+  if (entry.path === '') {
+    await machineFiles.selectDirectory('')
     return
   }
   if (entry.kind === 'directory') {
-    search.value = ''
-    await machineFiles.enterDirectory(entry.name)
+    if (row.expanded) machineFiles.collapseDirectory(entry.path)
+    else void machineFiles.expandDirectory(entry.path)
+    await machineFiles.selectDirectory(entry.path)
     return
   }
+  void machineFiles.selectDirectory(row.parentPath)
+  mobileExplorerOpen.value = false
+  if (machineFiles.currentFile?.path === entry.path) return
   await openWithWarningGate(entry.name, entry.size, async () => {
-    if ('path' in entry && entry.path) {
-      await machineFiles.openRecentFile({ ...entry, kind: 'file', path: entry.path as string })
-    } else {
-      await machineFiles.openFile(entry)
-    }
+    await machineFiles.openFile(entry, { preview: true })
   })
 }
 
-async function openRecentFile(file: OpenMachineFile): Promise<void> {
-  if (machineFiles.currentFile?.path === file.path) {
-    machineFiles.closeFile()
+function keepRow(row: ExplorerTreeRow): void {
+  if (row.entry.kind === 'file') machineFiles.keepTab(row.entry.path)
+}
+
+function focusTreeRow(path: string): void {
+  const list = explorerList.value
+  if (!list) return
+  const row = [...list.querySelectorAll<HTMLElement>('[data-tree-path]')].find(
+    (element) => element.dataset.treePath === path,
+  )
+  row?.focus()
+  row?.scrollIntoView?.({ block: 'nearest' })
+}
+
+async function onTreeKeydown(event: KeyboardEvent, index: number): Promise<void> {
+  const action = explorerTreeKeyAction(explorerRows.value, index, event.key)
+  if (!action) return
+  event.preventDefault()
+  if (action.kind === 'expand') {
+    await machineFiles.expandDirectory(action.path)
     return
   }
-  await openWithWarningGate(file.name, file.size, async () => {
-    search.value = ''
-    await machineFiles.openRecentFile(file)
+  if (action.kind === 'collapse') {
+    // The root row stands for the whole tree and never closes.
+    if (action.path !== '') machineFiles.collapseDirectory(action.path)
+    return
+  }
+  const target = explorerRows.value[action.index]
+  if (!target) return
+  treeFocusPath.value = target.entry.path
+  await nextTick()
+  focusTreeRow(target.entry.path)
+}
+
+/**
+ * Brings `path` into view in the tree: clears a search that would hide it,
+ * opens every folder above it, and shows the explorer if it was hidden.
+ */
+async function revealInExplorer(path: string, { focus = true } = {}): Promise<void> {
+  search.value = ''
+  showExplorer()
+  await machineFiles.revealPath(path)
+  treeFocusPath.value = path
+  await nextTick()
+  if (focus) focusTreeRow(path)
+}
+
+/*
+ * A pinned file that has not been opened this session has no tab yet, so it
+ * is opened through the same warning gate as a click in the tree; any other
+ * tab already passed that gate when it was opened.
+ */
+async function activateTab(path: string): Promise<void> {
+  mobileExplorerOpen.value = false
+  if (machineFiles.openTabs.some((tab) => tab.file.path === path)) {
+    await machineFiles.activateTab(path)
+    return
+  }
+  const pinned = pinnedTabFiles.value.find((file) => file.path === path)
+  if (!pinned) return
+  await openWithWarningGate(pinned.name, pinned.size, async () => {
+    await machineFiles.openFileByPath(pinned)
   })
 }
 
 /*
- * Unlike `openRecentFile`, this never navigates: a pin exists precisely so a
- * file outside the folder currently open stays reachable, and following it
- * into the editor should not also drag the explorer along to wherever it
- * lives.
+ * Closing a pinned tab unpins it too: the pinned row shows every pin, so a
+ * close that left the pin in place would leave the tab exactly where it was.
  */
-async function openPinnedFile(file: OpenMachineFile): Promise<void> {
-  if (machineFiles.currentFile?.path === file.path) {
-    machineFiles.closeFile()
-    return
-  }
-  await openWithWarningGate(file.name, file.size, async () => {
-    await machineFiles.openPinnedFile(file)
-  })
+function closeTab(path: string): void {
+  if (isPinned(machineFiles.currentRoot, path)) unpinFile(machineFiles.currentRoot, path)
+  void machineFiles.closeTab(path)
 }
 
-async function navigateTo(path: string): Promise<void> {
-  search.value = ''
-  await machineFiles.navigate(path)
+function pinTab(path: string): void {
+  const file = tabFile(path)
+  if (file) pinFile({ ...file, root: machineFiles.currentRoot })
+}
+
+/** Unpinning drops the file to the first of the other tabs, open or not. */
+function unpinTab(path: string): void {
+  const file = tabFile(path)
+  unpinFile(machineFiles.currentRoot, path)
+  if (file) machineFiles.placeTabFirst(file)
+}
+
+function tabFile(path: string): OpenMachineFile | null {
+  return (
+    machineFiles.openTabs.find((tab) => tab.file.path === path)?.file ??
+    pinnedTabFiles.value.find((file) => file.path === path) ??
+    null
+  )
+}
+
+function openTabMenu(event: MouseEvent, path: string): void {
+  tabMenu.value = { path, x: event.clientX, y: event.clientY }
+}
+
+function closeTabMenu(): void {
+  tabMenu.value = null
+}
+
+function tabMenuIsPinned(path: string): boolean {
+  return isPinned(machineFiles.currentRoot, path)
+}
+
+function tabMenuClose(path: string): void {
+  closeTabMenu()
+  closeTab(path)
+}
+
+function tabMenuCloseOthers(path: string): void {
+  closeTabMenu()
+  void machineFiles.closeTabs(
+    unpinnedTabs.value.map((tab) => tab.file.path).filter((candidate) => candidate !== path),
+  )
+}
+
+function tabMenuCloseAll(): void {
+  closeTabMenu()
+  void machineFiles.closeTabs(unpinnedTabs.value.map((tab) => tab.file.path))
+}
+
+function tabMenuTogglePin(path: string): void {
+  closeTabMenu()
+  const file = tabFile(path)
+  if (!file) return
+  if (isPinned(machineFiles.currentRoot, path)) unpinTab(path)
+  else pinFile({ ...file, root: machineFiles.currentRoot })
+}
+
+function tabMenuReveal(path: string): void {
+  closeTabMenu()
+  void revealInExplorer(path)
 }
 
 function createFile(): void {
@@ -1166,10 +1389,6 @@ async function uploadSelected(event: Event): Promise<void> {
   const files = [...(input.files ?? [])]
   input.value = ''
   await machineFiles.uploadFiles(files)
-}
-
-async function closeEditor(): Promise<void> {
-  machineFiles.closeFile()
 }
 
 async function save(restart: boolean): Promise<void> {
@@ -1432,7 +1651,7 @@ function handleWindowKeydown(event: KeyboardEvent): void {
   }
   if (event.key !== 'Escape' || !isEditorFullscreen.value) return
   event.preventDefault()
-  void closeEditor()
+  setEditorDisplayMode('maximized')
 }
 
 /*
@@ -1591,14 +1810,14 @@ function handleEditorMouseLeave(): void {
 }
 
 /**
- * Opens a file by path — for a hotlink target or a history step, neither of
- * which is a click on a row already showing what's open, so neither wants
- * openRecentFile's "click it again to close it" toggle. Prefers the search
- * index's metadata (for the large-file/read-only gates), but still attempts
- * the open without it — the store's own fetch is the authority on whether
- * the file actually exists.
+ * Opens a file by path — for a hotlink target, a history step, or Quick
+ * config's link. Prefers the search index's metadata (for the large-file and
+ * read-only gates), but still attempts the open without it — the store's own
+ * fetch is the authority on whether the file actually exists. Following an
+ * include or stepping through history opens a preview, the way glancing at a
+ * file in the tree does; a link the reader followed to edit keeps its tab.
  */
-async function openFileAtPath(path: string): Promise<void> {
+async function openFileAtPath(path: string, { preview = false } = {}): Promise<void> {
   await machineFiles.ensureSearchFiles()
   const indexed = machineFiles.searchFiles.find((file) => file.path === path)
   const name = path.slice(path.lastIndexOf('/') + 1)
@@ -1612,7 +1831,8 @@ async function openFileAtPath(path: string): Promise<void> {
   }
   await openWithWarningGate(file.name, file.size, async () => {
     search.value = ''
-    await machineFiles.openRecentFile(file)
+    mobileExplorerOpen.value = false
+    await machineFiles.openFileByPath(file, { preview })
   })
 }
 
@@ -1633,7 +1853,7 @@ async function handleEditorClick(event: MouseEvent): Promise<void> {
     else await createIncludeTarget(pending)
     return
   }
-  await openFileAtPath(link.targetPath)
+  await openFileAtPath(link.targetPath, { preview: true })
 }
 
 async function createIncludeTarget(pending: PendingIncludeCreate): Promise<void> {
@@ -1694,15 +1914,7 @@ async function navigateFileHistory(direction: -1 | 1): Promise<void> {
   if (!entry) return
   setFileHistoryIndex(nextIndex)
   suppressedHistoryPath = entry.path
-  await openFileAtPath(entry.path)
-}
-
-function navigateFileHistoryBack(): void {
-  void navigateFileHistory(-1)
-}
-
-function navigateFileHistoryForward(): void {
-  void navigateFileHistory(1)
+  await openFileAtPath(entry.path, { preview: true })
 }
 
 watch(
@@ -1744,14 +1956,19 @@ watch(
   { immediate: true },
 )
 
-watch(isExplorerCompact, () => {
-  explorerResizing.value = true
-  if (explorerResizeTimer) clearTimeout(explorerResizeTimer)
-  explorerResizeTimer = setTimeout(() => {
-    explorerResizing.value = false
-    explorerResizeTimer = null
-  }, 180)
-})
+/*
+ * The tree follows the file on screen, opening the folders above it, so the
+ * explorer always shows where the open file lives — whichever way it was
+ * opened. Focus stays where it was: only a deliberate reveal moves it.
+ */
+watch(
+  () => machineFiles.currentFile?.path,
+  (path) => {
+    if (!path || isSearching.value) return
+    void machineFiles.revealPath(path)
+    treeFocusPath.value = null
+  },
+)
 
 function handleBeforeUnload(event: BeforeUnloadEvent): void {
   if (!machineFiles.hasUnsavedFiles) return
@@ -1781,6 +1998,7 @@ onMounted(() => {
   // cursor stuck on until the next unrelated keypress.
   window.addEventListener('blur', clearLinkModifierState)
   window.addEventListener('dragover', trackDragGhost)
+  singlePaneQuery?.addEventListener('change', onSinglePaneChange)
 })
 
 /*
@@ -1814,9 +2032,9 @@ onBeforeUnmount(() => {
   window.removeEventListener('keyup', updateLinkModifierState)
   window.removeEventListener('blur', clearLinkModifierState)
   window.removeEventListener('dragover', trackDragGhost)
+  singlePaneQuery?.removeEventListener('change', onSinglePaneChange)
   cancelPendingDropTargetClear()
   document.body.classList.remove('machine-editor-fullscreen-open')
-  if (explorerResizeTimer) clearTimeout(explorerResizeTimer)
   if (contentSearchTimer) clearTimeout(contentSearchTimer)
   cancelEditorBodyMount()
 })
@@ -1860,700 +2078,148 @@ onBeforeUnmount(() => {
         class="machine-workspace"
         :class="{
           'machine-workspace--editor-open': machineFiles.currentFile,
-          'machine-workspace--maximized': isExplorerCompact,
           'machine-workspace--fullscreen': isEditorFullscreen,
-          'machine-workspace--resizing': explorerResizing,
+          'machine-workspace--explorer-hidden': !isExplorerShown,
+          'machine-workspace--mobile-explorer': mobileExplorerOpen,
         }"
         :data-pending="
           machineFiles.isDirectoryLoading || machineFiles.isEditorLoading || machineFiles.isMutating
         "
       >
-        <aside class="machine-explorer" :aria-label="t('configuration.files.title')">
-          <header class="machine-pane-header">
-            <!--
-              Fades out when the editor compacts the explorer, but keeps its
-              space: the four header controls are what has to stay put, and
-              collapsing this box instead would slide them across the pane.
-            -->
-            <div class="machine-pane-header__identity">
-              <p class="machine-pane-storage">
-                {{ t('units.storageFree', { value: formatSize(machineFiles.diskUsage.free) }) }}
-              </p>
-            </div>
-            <div class="machine-pane-header-actions">
-              <AppButton
-                size="xs"
-                icon-only
-                :disabled="!moonrakerAvailability.isAvailable"
-                :aria-label="t('configuration.actions.refresh')"
-                :title="t('configuration.actions.refresh')"
-                @click="machineFiles.refreshDirectory"
-              >
-                <!--
-                  Not gated on isDirectoryLoading: that flips true→false on every
-                  navigation too, not just a manual refresh, which disabled the
-                  button (and dropped its hover highlight, since disabled opts
-                  out of :hover) for a blink each time. The store's generation
-                  counters already make an overlapping click harmless.
-                -->
-                <AppIcon name="refresh" class="size-4" aria-hidden="true" />
-              </AppButton>
-              <AppButton
-                size="xs"
-                icon="save"
-                :disabled="!canSaveAll"
-                :pending="machineFiles.isMutating && machineFiles.hasUnsavedFiles"
-                :aria-label="t('configuration.actions.saveAll')"
-                :title="t('configuration.actions.saveAll')"
-                @click="requestSaveAll"
-              />
-              <AppButton
-                variant="danger-quiet"
-                size="xs"
-                icon-only
-                icon="undo"
-                :disabled="!machineFiles.hasUnsavedFiles"
-                :aria-label="t('configuration.actions.discardAll')"
-                :title="t('configuration.actions.discardAll')"
-                @click="requestDiscardAll"
-              />
-              <HeaderMenu :label="t('configuration.settings.open')" align="end">
-                <template #trigger>
-                  <AppIcon name="settings" class="size-4" aria-hidden="true" />
-                </template>
-                <template #default>
-                  <p class="header-menu__section-title">
-                    {{ t('configuration.settings.visibility') }}
-                  </p>
-                  <label class="check-row check-row--block header-menu__toggle">
-                    <input
-                      type="checkbox"
-                      :checked="showHiddenFiles"
-                      @change="setShowHiddenFiles(($event.target as HTMLInputElement).checked)"
-                    />
-                    <span>{{ t('configuration.settings.showHiddenFiles.label') }}</span>
-                  </label>
-                  <label
-                    class="check-row check-row--block header-menu__toggle"
-                    :title="t('configuration.settings.showBackupFiles.hint')"
-                  >
-                    <input
-                      type="checkbox"
-                      :checked="showBackupFiles"
-                      @change="setShowBackupFiles(($event.target as HTMLInputElement).checked)"
-                    />
-                    <span>{{ t('configuration.settings.showBackupFiles.label') }}</span>
-                  </label>
-                  <label class="check-row check-row--block header-menu__toggle">
-                    <input
-                      type="checkbox"
-                      :checked="showReadOnlyFiles"
-                      @change="setShowReadOnlyFiles(($event.target as HTMLInputElement).checked)"
-                    />
-                    <span>{{ t('configuration.settings.showReadOnlyFiles.label') }}</span>
-                  </label>
-                  <p class="header-menu__section-title">
-                    {{ t('configuration.settings.search') }}
-                  </p>
-                  <label
-                    class="check-row check-row--block header-menu__toggle"
-                    :title="t('configuration.settings.searchInFileContents.hint')"
-                  >
-                    <input
-                      type="checkbox"
-                      :checked="searchInFileContents"
-                      @change="setSearchInFileContents(($event.target as HTMLInputElement).checked)"
-                    />
-                    <span>{{ t('configuration.settings.searchInFileContents.label') }}</span>
-                  </label>
-                  <p class="header-menu__section-title">
-                    {{ t('configuration.settings.density') }}
-                  </p>
-                  <label
-                    class="check-row check-row--block header-menu__toggle"
-                    :title="t('configuration.settings.compactRows.hint')"
-                  >
-                    <input
-                      type="checkbox"
-                      :checked="compactRows"
-                      @change="setCompactRows(($event.target as HTMLInputElement).checked)"
-                    />
-                    <span>{{ t('configuration.settings.compactRows.label') }}</span>
-                  </label>
-                </template>
-              </HeaderMenu>
-            </div>
-          </header>
-
-          <div class="machine-root-tabs" role="group" :aria-label="t('configuration.roots.label')">
-            <button
-              v-for="root in fileRoots"
-              :key="root"
-              type="button"
-              class="tab-select"
-              :aria-pressed="machineFiles.currentRoot === root"
-              :disabled="!moonrakerAvailability.isAvailable"
-              @click="machineFiles.setRoot(root)"
-            >
-              {{ t(`configuration.roots.${root}`) }}
-            </button>
-          </div>
-
-          <nav class="machine-breadcrumbs" :aria-label="t('configuration.files.path')">
-            <span class="machine-breadcrumbs__label" aria-hidden="true">{{
-              t('configuration.files.pathLabel')
-            }}</span>
-            <template v-for="(segment, index) in pathSegments" :key="segment.path">
-              <span v-if="index > 0" aria-hidden="true">/</span>
-              <button
-                type="button"
-                class="text-action machine-breadcrumbs__segment"
-                :disabled="!moonrakerAvailability.isAvailable"
-                :aria-current="index === pathSegments.length - 1 ? 'page' : undefined"
-                @click="navigateTo(segment.path)"
-              >
-                {{ segment.name }}
-              </button>
-            </template>
-          </nav>
-
-          <!--
-            Always present, never `v-if`'d away. This band is a fixed row in the
-            pane's stack, so removing it when there is nothing to show moves every
-            row below it — which is what switching roots did, since a root change
-            drops the recents that belonged to the root being left.
-          -->
-          <section class="machine-recent-files" :aria-label="t('configuration.files.recentFiles')">
-            <span class="machine-recent-files__label" aria-hidden="true">{{
-              t('configuration.files.recentFileLabel')
-            }}</span>
-            <button
-              v-if="lastEditedFile"
-              type="button"
-              class="machine-recent-files__file"
-              :title="`/${machineFiles.currentRoot}/${lastEditedFile.path}`"
-              @click="openRecentFile(lastEditedFile)"
-            >
-              <AppIcon
-                :name="fileIcon(lastEditedFile.name)"
-                class="size-4 shrink-0"
-                aria-hidden="true"
-              />
-              <span class="machine-recent-files__name">{{ lastEditedFile.name }}</span>
-            </button>
-            <!--
-              Only once the listing has actually arrived. Recents are derived from
-              it, and a root switch clears them before the new listing lands — so
-              saying "nothing opened yet" in that gap blinks a false answer for a
-              frame or two. The band holds its height regardless.
-            -->
-            <span
-              v-else-if="!machineFiles.isDirectoryLoading"
-              class="machine-recent-files__empty"
-              >{{ t('configuration.files.recentFileNone') }}</span
-            >
-          </section>
-
-          <div class="machine-file-controls">
-            <label class="field field--sm field--on-soft machine-search">
-              <AppIcon name="fileSearch" class="size-4" aria-hidden="true" />
-              <span class="sr-only">{{ t('configuration.files.search') }}</span>
-              <input
-                v-model="search"
-                type="search"
-                :placeholder="t('configuration.files.search')"
-                autocomplete="off"
-                data-1p-ignore
-                data-lpignore="true"
-                data-bwignore
-              />
-            </label>
-
-            <div class="machine-toolbar">
-              <AppButton
-                size="sm"
-                icon-only
-                on-soft
-                icon="filePlus"
-                :disabled="!canMutate"
-                :aria-label="t('configuration.actions.newFile')"
-                :title="t('configuration.actions.newFile')"
-                @click="createFile"
-              />
-              <AppButton
-                size="sm"
-                icon-only
-                on-soft
-                icon="folderPlus"
-                :disabled="!canMutate"
-                :aria-label="t('configuration.actions.newFolder')"
-                :title="t('configuration.actions.newFolder')"
-                @click="createDirectory"
-              />
-              <AppButton
-                size="sm"
-                icon-only
-                on-soft
-                icon="fileUpload"
-                :disabled="!canMutate"
-                :aria-label="t('configuration.actions.upload')"
-                :title="t('configuration.actions.upload')"
-                @click="selectUpload"
-              />
-              <input
-                ref="uploadInput"
-                class="sr-only"
-                type="file"
-                multiple
-                tabindex="-1"
-                aria-hidden="true"
-                @change="uploadSelected"
-              />
-            </div>
-          </div>
-
-          <p v-if="machineFiles.isSearchingFileContents" class="hint machine-search-hint">
-            {{ t('configuration.files.searchingContents') }}
-          </p>
-
-          <div
-            class="machine-file-columns"
-            :class="{ 'machine-file-columns--compact': compactRows }"
+        <section class="machine-editor-pane" :aria-label="t('configuration.editor.title')">
+          <ConfigurationTabWell
+            v-if="hasTabs"
+            :pinned="pinnedTabFiles"
+            :tabs="unpinnedTabs"
+            :active-path="machineFiles.currentFile?.path ?? null"
+            :dirty-paths="machineFiles.unsavedFilePaths"
+            :root="machineFiles.currentRoot"
+            @activate="activateTab"
+            @keep="machineFiles.keepTab"
+            @close="closeTab"
+            @pin="pinTab"
+            @unpin="unpinTab"
+            @menu="openTabMenu"
           >
-            <button
-              type="button"
-              class="text-action machine-sort-header"
-              :aria-label="t('configuration.files.name')"
-              @click="setSort('name')"
-            >
-              <span>{{ t('configuration.files.name') }}</span>
-              <AppIcon
-                v-if="sortKey === 'name'"
-                :name="sortDirection === 'ascending' ? 'up' : 'down'"
-                class="machine-sort-indicator"
-                aria-hidden="true"
-              />
-            </button>
-            <button
-              type="button"
-              class="text-action machine-sort-header"
-              :aria-label="t('configuration.files.size')"
-              @click="setSort('size')"
-            >
-              <span>{{ t('configuration.files.size') }}</span>
-              <AppIcon
-                v-if="sortKey === 'size'"
-                :name="sortDirection === 'ascending' ? 'up' : 'down'"
-                class="machine-sort-indicator"
-                aria-hidden="true"
-              />
-            </button>
-            <button
-              type="button"
-              class="text-action machine-sort-header"
-              :aria-label="t('configuration.files.modified')"
-              @click="setSort('modified')"
-            >
-              <span>{{ t('configuration.files.modified') }}</span>
-              <AppIcon
-                v-if="sortKey === 'modified'"
-                :name="sortDirection === 'ascending' ? 'up' : 'down'"
-                class="machine-sort-indicator"
-                aria-hidden="true"
-              />
-            </button>
-          </div>
-
-          <ul
-            class="machine-file-list"
-            :class="{
-              'machine-file-list--drop-active': isExternalDropZoneActive,
-              'machine-file-list--compact': compactRows,
-            }"
-            :aria-label="t('configuration.files.contents')"
-            :aria-busy="machineFiles.isDirectoryLoading || undefined"
-            @dragenter="onExternalDragEnter"
-            @dragover="onExternalDragOver"
-            @dragleave="onExternalDragLeave"
-            @drop="onExternalDrop"
-          >
-            <li v-if="pinnedEntries.length > 0" class="machine-pinned-label" aria-hidden="true">
-              {{ t('configuration.files.pinnedFiles') }}
-            </li>
-            <li
-              v-for="entry in pinnedEntries"
-              :key="`pin:${entry.root}:${entry.path}`"
-              class="machine-pinned-row"
-            >
-              <button
-                type="button"
-                class="file-select selection-row machine-file-row"
-                :class="{
-                  'selection-row--selected': machineFiles.currentFile?.path === entry.path,
-                }"
-                :aria-current="machineFiles.currentFile?.path === entry.path ? 'true' : undefined"
-                :disabled="!moonrakerAvailability.isAvailable"
-                :title="entry.path"
-                @click="openPinnedFile(entry)"
+            <template #tools>
+              <!--
+                The open file's actions live beside its tab rather than on a
+                toolbar row of their own: the tab names the file, back and
+                forward are the mouse's buttons and Alt+arrow, and a row that
+                repeated the path cost the editor its height. The well is part
+                of the viewer, so fullscreen keeps every one of them.
+              -->
+              <div
+                v-if="machineFiles.currentFile"
+                class="machine-editor-actions"
+                role="group"
+                :aria-label="t('configuration.editor.actions')"
               >
-                <span class="machine-file-name">
-                  <span
-                    class="machine-file-icon-hover"
-                    :title="
-                      isEntryIncluded(entry)
-                        ? t('configuration.files.includedInPrimaryConfig')
-                        : undefined
+                <span v-if="currentFileReadOnly" class="machine-readonly-mark">{{
+                  t('configuration.editor.readOnly')
+                }}</span>
+                <template v-if="!isCurrentFilePreview">
+                  <AppButton
+                    variant="primary"
+                    size="xs"
+                    icon-only
+                    icon="save"
+                    :disabled="!canSave || !machineFiles.isDirty"
+                    :aria-label="t('configuration.editor.save')"
+                    :title="t('configuration.editor.save')"
+                    @click="save(false)"
+                  />
+                  <AppButton
+                    size="xs"
+                    icon-only
+                    icon="refresh"
+                    :disabled="
+                      !canSave || !machineFiles.isDirty || !klipperAvailability.isAvailable
                     "
-                  >
-                    <AppIcon
-                      :name="fileIcon(entry.name)"
-                      :class="[
-                        'size-5 shrink-0',
-                        {
-                          'machine-file-icon--included': isEntryIncluded(entry),
-                          'machine-file-icon--dirty': isEntryDirty(entry),
-                        },
-                      ]"
-                      aria-hidden="true"
-                    />
-                  </span>
-                  <span class="machine-file-name__details">
-                    <span
-                      class="machine-file-name__label"
-                      :class="{ 'machine-file-name__label--dirty': isEntryDirty(entry) }"
-                      >{{ entry.name }}</span
-                    >
-                    <span v-if="isEntryDirty(entry)" class="machine-dirty-mark">{{
-                      t('configuration.editor.unsaved')
-                    }}</span>
-                    <span
-                      v-if="machineFiles.isRootEditable && !entry.permissions.includes('w')"
-                      class="machine-readonly-mark"
-                    >
-                      {{ t('configuration.files.readOnlyShort') }}
-                    </span>
-                  </span>
-                </span>
-                <span class="machine-file-meta font-mono text-xs tabular-nums text-muted">
-                  {{ formatSize(entry.size) }}
-                </span>
-                <span
-                  class="machine-file-meta text-xs text-muted"
-                  :title="formatModified(entry.modified)"
-                  >{{ formatModified(entry.modified) }}</span
-                >
-              </button>
+                    :aria-label="t('configuration.editor.saveRestart')"
+                    :title="t('configuration.editor.saveRestart')"
+                    @click="save(true)"
+                  />
+                  <AppButton
+                    variant="danger-quiet"
+                    size="xs"
+                    icon-only
+                    icon="undo"
+                    :disabled="!machineFiles.isDirty"
+                    :aria-label="t('configuration.editor.discard')"
+                    :title="t('configuration.editor.discard')"
+                    @click="requestDiscardChanges"
+                  />
+                  <span class="document-tabs__separator" aria-hidden="true"></span>
+                  <AppButton
+                    variant="quiet"
+                    size="xs"
+                    icon-only
+                    icon="help"
+                    aria-haspopup="dialog"
+                    :aria-label="t('configuration.shortcuts.open')"
+                    :title="t('configuration.shortcuts.open')"
+                    @click="shortcutsOpen = true"
+                  />
+                </template>
+                <AppButton
+                  variant="quiet"
+                  size="xs"
+                  icon-only
+                  icon="fullscreen"
+                  :aria-pressed="isEditorFullscreen"
+                  :aria-label="t('configuration.editor.fullscreen')"
+                  :title="t('configuration.editor.fullscreen')"
+                  @click="toggleFullscreen"
+                />
+              </div>
               <AppButton
                 variant="quiet"
                 size="xs"
                 icon-only
-                icon="filePinSlash"
-                class="machine-pinned-row__unpin"
-                :aria-label="t('configuration.files.unpin', { name: entry.name })"
-                :title="t('configuration.files.unpin', { name: entry.name })"
-                @click="unpinFile(entry.root, entry.path)"
-              />
-            </li>
-            <li
-              v-if="pinnedEntries.length > 0"
-              class="machine-pinned-divider"
-              aria-hidden="true"
-            ></li>
-            <li v-if="machineFiles.currentPath && !search.trim()" class="machine-parent-entry">
-              <button
-                type="button"
-                class="file-select selection-row machine-file-row machine-file-row--parent"
-                :disabled="!moonrakerAvailability.isAvailable"
-                :aria-label="t('configuration.files.parent')"
+                :icon="explorerToggleShows ? 'sidebarExpand' : 'sidebarCollapse'"
+                class="machine-explorer-toggle"
+                :aria-label="
+                  t(
+                    explorerToggleShows
+                      ? 'configuration.explorer.show'
+                      : 'configuration.explorer.hide',
+                  )
+                "
                 :title="
-                  draggingEntry
-                    ? t('configuration.move.dropHint', { name: '..' })
-                    : t('configuration.files.parent')
+                  t(
+                    explorerToggleShows
+                      ? 'configuration.explorer.show'
+                      : 'configuration.explorer.hide',
+                  )
                 "
-                :data-drop-target="dropTargetKey === 'parent' ? 'true' : undefined"
-                @click="navigateTo(parentPath)"
-                @dragenter="onDragOver($event, 'parent')"
-                @dragover="onDragOver($event, 'parent')"
-                @dragleave="onDragLeave($event, 'parent')"
-                @drop="onDrop($event, 'parent')"
-              >
-                <span class="machine-file-name">
-                  <AppIcon
-                    name="folderUp"
-                    class="machine-file-icon--folder size-5 shrink-0"
-                    aria-hidden="true"
-                  />
-                  <span class="machine-file-name__details">
-                    <span class="machine-file-name__label">..</span>
-                  </span>
-                </span>
-                <span class="machine-file-meta text-field-label text-muted">{{
-                  t('configuration.files.folder')
-                }}</span>
-                <span class="machine-file-meta" aria-hidden="true"></span>
-              </button>
-            </li>
-            <!--
-              Keyed by position, not by path: a folder switch replaces the
-              whole list's content, and keying by path would make Vue tear
-              down the row under the pointer and mount a new one in its place.
-              The pointer doesn't move, so the browser drops :hover on the
-              node that vanishes and only re-applies it on the next real mouse
-              event — a visible blink. Reusing the row at each position lets
-              the browser patch its content in place instead, so hover (and
-              focus) stay exactly where the pointer already is straight
-              through the navigation.
-            -->
-            <li v-for="(entry, index) in filteredEntries" :key="index">
-              <button
-                type="button"
-                class="file-select selection-row machine-file-row"
-                :class="{ 'selection-row--selected': isOpenFile(entry) }"
-                :aria-current="isOpenFile(entry) ? 'true' : undefined"
-                :disabled="!moonrakerAvailability.isAvailable"
-                :draggable="isWritable(entry) && entry.kind === 'file'"
-                :data-dragging="
-                  draggingEntry && entryKey(draggingEntry) === entryKey(entry) ? 'true' : undefined
-                "
-                :data-drop-target="dropTargetKey === entryKey(entry) ? 'true' : undefined"
-                :data-context-open="
-                  contextMenu && entryKey(contextMenu.entry) === entryKey(entry)
-                    ? 'true'
-                    : undefined
-                "
-                @click="chooseEntry(entry)"
-                @contextmenu.prevent="openContextMenu($event, entry)"
-                @dragstart="onDragStart($event, entry)"
-                @dragend="onDragEnd"
-                @dragenter="onDragOver($event, entry)"
-                @dragover="onDragOver($event, entry)"
-                @dragleave="onDragLeave($event, entry)"
-                @drop="onDrop($event, entry)"
-              >
-                <span class="machine-file-name">
-                  <!--
-                    The tooltip lives on this wrapper, not the AppIcon svg: an
-                    unfilled stroke icon only paints a thin outline, and SVG
-                    shapes hit-test against painted pixels by default, so
-                    hovering the icon's own empty middle would never trigger it.
-                  -->
-                  <span
-                    class="machine-file-icon-hover"
-                    :title="
-                      isEntryIncluded(entry)
-                        ? t('configuration.files.includedInPrimaryConfig')
-                        : undefined
-                    "
-                  >
-                    <AppIcon
-                      :name="entry.kind === 'directory' ? 'folder' : fileIcon(entry.name)"
-                      :class="[
-                        'size-5 shrink-0',
-                        {
-                          'machine-file-icon--folder': entry.kind === 'directory',
-                          'machine-file-icon--included': isEntryIncluded(entry),
-                          'machine-file-icon--dirty': isEntryDirty(entry),
-                        },
-                      ]"
-                      aria-hidden="true"
-                    />
-                  </span>
-                  <span class="machine-file-name__details">
-                    <span
-                      class="machine-file-name__label"
-                      :class="{ 'machine-file-name__label--dirty': isEntryDirty(entry) }"
-                      :title="entry.name"
-                      >{{ entry.name }}</span
-                    >
-                    <span v-if="isEntryDirty(entry)" class="machine-dirty-mark">{{
-                      t('configuration.editor.unsaved')
-                    }}</span>
-                    <!--
-                      Marked per row only where read-only is the exception. In a
-                      wholly read-only root every row would carry the same mark,
-                      which states one fact as many times as there are files —
-                      the selected tab already says it once.
-                    -->
-                    <span
-                      v-if="machineFiles.isRootEditable && !entry.permissions.includes('w')"
-                      class="machine-readonly-mark"
-                    >
-                      {{ t('configuration.files.readOnlyShort') }}
-                    </span>
-                  </span>
-                </span>
-                <span class="machine-file-meta font-mono text-xs tabular-nums text-muted">
-                  {{
-                    entry.kind === 'directory'
-                      ? t('configuration.files.folder')
-                      : formatSize(entry.size)
-                  }}
-                </span>
-                <span
-                  class="machine-file-meta text-xs text-muted"
-                  :title="formatModified(entry.modified)"
-                  >{{ formatModified(entry.modified) }}</span
-                >
-              </button>
-            </li>
+                @click="toggleExplorer"
+              />
+            </template>
+          </ConfigurationTabWell>
 
-            <li
-              v-if="!machineFiles.isDirectoryLoading && filteredEntries.length === 0"
-              class="machine-empty-state"
-            >
-              <AppIcon name="fileSearch" class="size-6" aria-hidden="true" />
-              <p class="font-bold">
-                {{ t(search ? 'configuration.files.noResults' : 'configuration.files.empty') }}
-              </p>
-            </li>
-          </ul>
-        </aside>
+          <div
+            v-if="machineFiles.lastError || machineFiles.notice"
+            class="machine-feedback selectable"
+            role="status"
+            :data-error="Boolean(machineFiles.lastError)"
+          >
+            {{
+              t(
+                machineFiles.lastError
+                  ? `configuration.errors.${machineFiles.lastError}`
+                  : `configuration.notices.${machineFiles.notice}`,
+              )
+            }}
+          </div>
 
-        <section class="machine-editor-pane" :aria-label="t('configuration.editor.title')">
           <template v-if="machineFiles.currentFile">
-            <header class="machine-editor-header">
-              <div class="machine-editor-identity min-w-0 flex-1">
-                <div class="flex min-w-0 items-center gap-2">
-                  <div
-                    class="machine-editor-history"
-                    role="group"
-                    :aria-label="t('configuration.editor.history')"
-                  >
-                    <AppButton
-                      icon-only
-                      size="xs"
-                      icon="back"
-                      :disabled="!canNavigateFileHistoryBack"
-                      :aria-label="t('configuration.editor.historyBack')"
-                      :title="t('configuration.editor.historyBack')"
-                      @click="navigateFileHistoryBack"
-                    />
-                    <AppButton
-                      icon-only
-                      size="xs"
-                      icon="forward"
-                      :disabled="!canNavigateFileHistoryForward"
-                      :aria-label="t('configuration.editor.historyForward')"
-                      :title="t('configuration.editor.historyForward')"
-                      @click="navigateFileHistoryForward"
-                    />
-                  </div>
-                  <AppIcon
-                    :name="fileIcon(machineFiles.currentFile.name)"
-                    class="size-5 shrink-0 text-action"
-                    aria-hidden="true"
-                  />
-                  <h2 class="truncate text-dialog-title">
-                    {{ machineFiles.currentFile.name }}
-                  </h2>
-                  <span v-if="machineFiles.isDirty" class="machine-dirty-mark">{{
-                    t('configuration.editor.unsaved')
-                  }}</span>
-                  <span v-if="currentFileReadOnly" class="machine-readonly-mark">{{
-                    t('configuration.editor.readOnly')
-                  }}</span>
-                </div>
-                <p class="mt-1 truncate font-mono text-xs text-muted">
-                  /config/{{ machineFiles.currentFile.path }}
-                </p>
-              </div>
-
-              <div class="machine-editor-actions">
-                <div
-                  class="segmented machine-editor-mode"
-                  role="group"
-                  :aria-label="t('configuration.editor.displayMode')"
-                >
-                  <AppButton
-                    size="sm"
-                    :aria-pressed="editorDisplayMode === 'maximized'"
-                    :aria-label="t('configuration.editor.maximized')"
-                    :title="t('configuration.editor.maximized')"
-                    @click="setEditorDisplayMode('maximized')"
-                  >
-                    <AppIcon name="expand" class="size-4" aria-hidden="true" />
-                    <span>{{ t('configuration.editor.maximized') }}</span>
-                  </AppButton>
-                  <AppButton
-                    size="sm"
-                    :aria-pressed="editorDisplayMode === 'fullscreen'"
-                    :aria-label="t('configuration.editor.fullscreen')"
-                    :title="t('configuration.editor.fullscreen')"
-                    @click="setEditorDisplayMode('fullscreen')"
-                  >
-                    <AppIcon name="fullscreen" class="size-4" aria-hidden="true" />
-                    <span>{{ t('configuration.editor.fullscreen') }}</span>
-                  </AppButton>
-                </div>
-                <AppButton
-                  v-if="!isCurrentFilePreview"
-                  variant="primary"
-                  class="machine-editor-action"
-                  :disabled="!canSave || !machineFiles.isDirty"
-                  :aria-label="t('configuration.editor.save')"
-                  :title="t('configuration.editor.save')"
-                  @click="save(false)"
-                >
-                  <AppIcon name="save" class="size-5" aria-hidden="true" />
-                  <span>{{ t('configuration.editor.save') }}</span>
-                </AppButton>
-                <AppButton
-                  v-if="!isCurrentFilePreview"
-                  class="machine-editor-action"
-                  :disabled="!canSave || !machineFiles.isDirty || !klipperAvailability.isAvailable"
-                  :aria-label="t('configuration.editor.saveRestart')"
-                  :title="t('configuration.editor.saveRestart')"
-                  @click="save(true)"
-                >
-                  <AppIcon name="refresh" class="size-5" aria-hidden="true" />
-                  <span>{{ t('configuration.editor.saveRestart') }}</span>
-                </AppButton>
-                <AppButton
-                  v-if="!isCurrentFilePreview"
-                  variant="danger-quiet"
-                  class="machine-editor-action"
-                  :disabled="!machineFiles.isDirty"
-                  :aria-label="t('configuration.editor.discard')"
-                  :title="t('configuration.editor.discard')"
-                  @click="requestDiscardChanges"
-                >
-                  <AppIcon name="undo" class="size-5" aria-hidden="true" />
-                  <span>{{ t('configuration.editor.discard') }}</span>
-                </AppButton>
-                <AppButton
-                  v-if="!isCurrentFilePreview"
-                  icon-only
-                  icon="help"
-                  aria-haspopup="dialog"
-                  :aria-label="t('configuration.shortcuts.open')"
-                  :title="t('configuration.shortcuts.open')"
-                  @click="shortcutsOpen = true"
-                />
-                <AppButton
-                  icon-only
-                  icon="close"
-                  :aria-label="t('configuration.editor.close')"
-                  :title="t('configuration.editor.close')"
-                  @click="closeEditor"
-                />
-              </div>
-            </header>
-
-            <div
-              v-if="machineFiles.lastError || machineFiles.notice"
-              class="machine-feedback selectable"
-              role="status"
-              :data-error="Boolean(machineFiles.lastError)"
-            >
-              {{
-                t(
-                  machineFiles.lastError
-                    ? `configuration.errors.${machineFiles.lastError}`
-                    : `configuration.notices.${machineFiles.notice}`,
-                )
-              }}
-            </div>
-
+            <!--
+              The tab above already names the file, so the viewer needs no
+              visible title; this keeps the region's heading for assistive
+              technology.
+            -->
+            <h2 class="sr-only">{{ machineFiles.currentFile.name }}</h2>
             <div class="machine-editor-grid">
               <ImageViewer
                 v-if="isCurrentFileImage && machineFiles.currentImageUrl"
@@ -2739,34 +2405,399 @@ onBeforeUnmount(() => {
             <h2 class="mt-5 text-section-title">
               {{ t('configuration.editor.emptyTitle') }}
             </h2>
-            <div
-              class="segmented machine-editor-mode machine-editor-mode--empty"
-              role="group"
-              :aria-label="t('configuration.editor.displayMode')"
-            >
-              <AppButton
-                size="sm"
-                :aria-pressed="editorDisplayMode === 'maximized'"
-                :aria-label="t('configuration.editor.maximized')"
-                :title="t('configuration.editor.maximized')"
-                @click="setEditorDisplayMode('maximized')"
-              >
-                <AppIcon name="expand" class="size-4" aria-hidden="true" />
-                <span>{{ t('configuration.editor.maximized') }}</span>
-              </AppButton>
-              <AppButton
-                size="sm"
-                :aria-pressed="editorDisplayMode === 'fullscreen'"
-                :aria-label="t('configuration.editor.fullscreen')"
-                :title="t('configuration.editor.fullscreen')"
-                @click="setEditorDisplayMode('fullscreen')"
-              >
-                <AppIcon name="fullscreen" class="size-4" aria-hidden="true" />
-                <span>{{ t('configuration.editor.fullscreen') }}</span>
-              </AppButton>
-            </div>
           </div>
         </section>
+
+        <aside class="machine-explorer" :aria-label="t('configuration.files.title')">
+          <header class="machine-pane-header">
+            <div class="machine-pane-header__identity">
+              <p class="machine-pane-storage">
+                {{ t('units.storageFree', { value: formatSize(machineFiles.diskUsage.free) }) }}
+              </p>
+            </div>
+            <div class="machine-pane-header-actions">
+              <AppButton
+                size="xs"
+                icon-only
+                :disabled="!moonrakerAvailability.isAvailable"
+                :aria-label="t('configuration.actions.refresh')"
+                :title="t('configuration.actions.refresh')"
+                @click="machineFiles.refreshDirectory"
+              >
+                <!--
+                  Not gated on isDirectoryLoading: that flips true→false on every
+                  navigation too, not just a manual refresh, which disabled the
+                  button (and dropped its hover highlight, since disabled opts
+                  out of :hover) for a blink each time. The store's generation
+                  counters already make an overlapping click harmless.
+                -->
+                <AppIcon name="refresh" class="size-4" aria-hidden="true" />
+              </AppButton>
+              <AppButton
+                size="xs"
+                icon="save"
+                :disabled="!canSaveAll"
+                :pending="machineFiles.isMutating && machineFiles.hasUnsavedFiles"
+                :aria-label="t('configuration.actions.saveAll')"
+                :title="t('configuration.actions.saveAll')"
+                @click="requestSaveAll"
+              />
+              <AppButton
+                variant="danger-quiet"
+                size="xs"
+                icon-only
+                icon="undo"
+                :disabled="!machineFiles.hasUnsavedFiles"
+                :aria-label="t('configuration.actions.discardAll')"
+                :title="t('configuration.actions.discardAll')"
+                @click="requestDiscardAll"
+              />
+              <AppButton
+                size="xs"
+                icon-only
+                icon="collapse"
+                :disabled="machineFiles.expandedDirectories.size === 0"
+                :aria-label="t('configuration.actions.collapseAll')"
+                :title="t('configuration.actions.collapseAll')"
+                @click="machineFiles.collapseAllDirectories"
+              />
+              <HeaderMenu :label="t('configuration.settings.open')" align="end">
+                <template #trigger>
+                  <AppIcon name="settings" class="size-4" aria-hidden="true" />
+                </template>
+                <template #default>
+                  <p class="header-menu__section-title">
+                    {{ t('configuration.settings.visibility') }}
+                  </p>
+                  <label class="check-row check-row--block header-menu__toggle">
+                    <input
+                      type="checkbox"
+                      :checked="showHiddenFiles"
+                      @change="setShowHiddenFiles(($event.target as HTMLInputElement).checked)"
+                    />
+                    <span>{{ t('configuration.settings.showHiddenFiles.label') }}</span>
+                  </label>
+                  <label
+                    class="check-row check-row--block header-menu__toggle"
+                    :title="t('configuration.settings.showBackupFiles.hint')"
+                  >
+                    <input
+                      type="checkbox"
+                      :checked="showBackupFiles"
+                      @change="setShowBackupFiles(($event.target as HTMLInputElement).checked)"
+                    />
+                    <span>{{ t('configuration.settings.showBackupFiles.label') }}</span>
+                  </label>
+                  <label class="check-row check-row--block header-menu__toggle">
+                    <input
+                      type="checkbox"
+                      :checked="showReadOnlyFiles"
+                      @change="setShowReadOnlyFiles(($event.target as HTMLInputElement).checked)"
+                    />
+                    <span>{{ t('configuration.settings.showReadOnlyFiles.label') }}</span>
+                  </label>
+                  <p class="header-menu__section-title">
+                    {{ t('configuration.settings.search') }}
+                  </p>
+                  <label
+                    class="check-row check-row--block header-menu__toggle"
+                    :title="t('configuration.settings.searchInFileContents.hint')"
+                  >
+                    <input
+                      type="checkbox"
+                      :checked="searchInFileContents"
+                      @change="setSearchInFileContents(($event.target as HTMLInputElement).checked)"
+                    />
+                    <span>{{ t('configuration.settings.searchInFileContents.label') }}</span>
+                  </label>
+                  <p class="header-menu__section-title">
+                    {{ t('configuration.settings.density') }}
+                  </p>
+                  <label
+                    class="check-row check-row--block header-menu__toggle"
+                    :title="t('configuration.settings.compactRows.hint')"
+                  >
+                    <input
+                      type="checkbox"
+                      :checked="compactRows"
+                      @change="setCompactRows(($event.target as HTMLInputElement).checked)"
+                    />
+                    <span>{{ t('configuration.settings.compactRows.label') }}</span>
+                  </label>
+                  <p class="header-menu__section-title">
+                    {{ t('configuration.settings.sort') }}
+                  </p>
+                  <label
+                    v-for="key in sortKeys"
+                    :key="key"
+                    class="check-row check-row--block header-menu__toggle"
+                  >
+                    <input
+                      type="radio"
+                      name="machine-file-sort"
+                      :checked="sortKey === key"
+                      @change="setSortKey(key)"
+                    />
+                    <span>{{ t(`configuration.settings.sortBy.${key}`) }}</span>
+                  </label>
+                </template>
+              </HeaderMenu>
+            </div>
+          </header>
+
+          <div class="machine-root-tabs" role="group" :aria-label="t('configuration.roots.label')">
+            <button
+              v-for="root in fileRoots"
+              :key="root"
+              type="button"
+              class="tab-select"
+              :aria-pressed="machineFiles.currentRoot === root"
+              :disabled="!moonrakerAvailability.isAvailable"
+              @click="machineFiles.setRoot(root)"
+            >
+              {{ t(`configuration.roots.${root}`) }}
+            </button>
+          </div>
+
+          <div class="machine-file-controls">
+            <label class="field field--sm field--on-soft machine-search">
+              <AppIcon name="fileSearch" class="size-4" aria-hidden="true" />
+              <span class="sr-only">{{ t('configuration.files.search') }}</span>
+              <input
+                v-model="search"
+                type="search"
+                :placeholder="t('configuration.files.search')"
+                autocomplete="off"
+                data-1p-ignore
+                data-lpignore="true"
+                data-bwignore
+              />
+            </label>
+
+            <div class="machine-toolbar">
+              <AppButton
+                size="sm"
+                icon-only
+                on-soft
+                icon="filePlus"
+                :disabled="!canMutate"
+                :aria-label="t('configuration.actions.newFile')"
+                :title="t('configuration.actions.newFile')"
+                @click="createFile"
+              />
+              <AppButton
+                size="sm"
+                icon-only
+                on-soft
+                icon="folderPlus"
+                :disabled="!canMutate"
+                :aria-label="t('configuration.actions.newFolder')"
+                :title="t('configuration.actions.newFolder')"
+                @click="createDirectory"
+              />
+              <AppButton
+                size="sm"
+                icon-only
+                on-soft
+                icon="fileUpload"
+                :disabled="!canMutate"
+                :aria-label="t('configuration.actions.upload')"
+                :title="t('configuration.actions.upload')"
+                @click="selectUpload"
+              />
+              <input
+                ref="uploadInput"
+                class="sr-only"
+                type="file"
+                multiple
+                tabindex="-1"
+                aria-hidden="true"
+                @change="uploadSelected"
+              />
+            </div>
+          </div>
+
+          <p v-if="machineFiles.isSearchingFileContents" class="hint machine-search-hint">
+            {{ t('configuration.files.searchingContents') }}
+          </p>
+
+          <ul
+            ref="explorerList"
+            class="machine-file-list machine-file-tree"
+            :class="{
+              'machine-file-list--drop-active': isExternalDropZoneActive,
+              'machine-file-list--compact': compactRows,
+            }"
+            role="tree"
+            :aria-label="t('configuration.files.contents')"
+            :aria-busy="machineFiles.isDirectoryLoading || undefined"
+            @dragenter="onExternalDragEnter"
+            @dragover="onExternalDragOver"
+            @dragleave="onExternalDragLeave"
+            @drop="onExternalDrop"
+          >
+            <li v-for="(row, index) in explorerRows" :key="row.entry.path" role="none">
+              <button
+                type="button"
+                role="treeitem"
+                class="file-select selection-row machine-file-row machine-tree-row"
+                :class="{
+                  'selection-row--selected': isOpenFile(row.entry),
+                  'machine-tree-row--root': row.level === 0 && !isSearching,
+                }"
+                :style="{ '--tree-level': row.level }"
+                :aria-level="row.level + 1"
+                :aria-expanded="
+                  row.entry.kind === 'directory' && !isSearching ? row.expanded : undefined
+                "
+                :aria-selected="isOpenFile(row.entry)"
+                :aria-current="isOpenFile(row.entry) ? 'true' : undefined"
+                :tabindex="treeTabStop === row.entry.path ? 0 : -1"
+                :data-tree-path="row.entry.path"
+                :disabled="!moonrakerAvailability.isAvailable"
+                :draggable="isWritable(row.entry) && row.entry.kind === 'file'"
+                :data-dragging="
+                  draggingEntry && entryKey(draggingEntry) === entryKey(row.entry)
+                    ? 'true'
+                    : undefined
+                "
+                :data-drop-target="dropTargetKey === entryKey(row.entry) ? 'true' : undefined"
+                :data-context-open="
+                  contextMenu && entryKey(contextMenu.entry) === entryKey(row.entry)
+                    ? 'true'
+                    : undefined
+                "
+                @click="chooseRow(row)"
+                @dblclick="keepRow(row)"
+                @keydown="onTreeKeydown($event, index)"
+                @focus="treeFocusPath = row.entry.path"
+                @contextmenu.prevent="openRowContextMenu($event, row)"
+                @dragstart="onDragStart($event, row.entry)"
+                @dragend="onDragEnd"
+                @dragenter="onDragOver($event, row.entry)"
+                @dragover="onDragOver($event, row.entry)"
+                @dragleave="onDragLeave($event, row.entry)"
+                @drop="onDrop($event, row.entry)"
+              >
+                <span class="machine-file-name">
+                  <AppIcon
+                    v-if="row.entry.kind === 'directory' && row.level > 0 && !isSearching"
+                    :name="row.expanded ? 'down' : 'right'"
+                    class="machine-tree-chevron"
+                    aria-hidden="true"
+                  />
+                  <span v-else class="machine-tree-chevron" aria-hidden="true"></span>
+                  <!--
+                    The tooltip lives on this wrapper, not the AppIcon svg: an
+                    unfilled stroke icon only paints a thin outline, and SVG
+                    shapes hit-test against painted pixels by default, so
+                    hovering the icon's own empty middle would never trigger it.
+                  -->
+                  <span
+                    class="machine-file-icon-hover"
+                    :title="
+                      isEntryIncluded(row.entry)
+                        ? t('configuration.files.includedInPrimaryConfig')
+                        : undefined
+                    "
+                  >
+                    <AppIcon
+                      :name="
+                        row.level === 0 && !isSearching
+                          ? 'folderCode'
+                          : row.entry.kind === 'directory'
+                            ? 'folder'
+                            : fileIcon(row.entry.name)
+                      "
+                      :class="[
+                        'size-5 shrink-0',
+                        {
+                          'machine-file-icon--folder': row.entry.kind === 'directory',
+                          'machine-file-icon--included': isEntryIncluded(row.entry),
+                          'machine-file-icon--dirty': isEntryDirty(row.entry),
+                        },
+                      ]"
+                      aria-hidden="true"
+                    />
+                  </span>
+                  <span class="machine-file-name__details">
+                    <span
+                      class="machine-file-name__label"
+                      :class="{ 'machine-file-name__label--dirty': isEntryDirty(row.entry) }"
+                      :title="row.entry.name"
+                      >{{ row.entry.name }}</span
+                    >
+                    <span v-if="isSearching && row.parentPath" class="machine-file-name__folder">{{
+                      row.parentPath
+                    }}</span>
+                    <span v-if="isEntryDirty(row.entry)" class="machine-dirty-mark">{{
+                      t('configuration.editor.unsaved')
+                    }}</span>
+                    <!--
+                      Marked per row only where read-only is the exception. In a
+                      wholly read-only root every row would carry the same mark,
+                      which states one fact as many times as there are files —
+                      the selected tab already says it once.
+                    -->
+                    <span
+                      v-if="
+                        machineFiles.isRootEditable &&
+                        row.level > 0 &&
+                        !row.entry.permissions.includes('w')
+                      "
+                      class="machine-readonly-mark"
+                    >
+                      {{ t('configuration.files.readOnlyShort') }}
+                    </span>
+                    <span
+                      v-if="row.entry.kind === 'file' && isEntryPinned(row.entry)"
+                      class="machine-tree-pin"
+                      :title="t('configuration.files.pinned')"
+                    >
+                      <AppIcon name="filePin" class="size-4" aria-hidden="true" />
+                      <span class="sr-only">{{ t('configuration.files.pinned') }}</span>
+                    </span>
+                  </span>
+                </span>
+              </button>
+            </li>
+
+            <li
+              v-if="
+                !machineFiles.isDirectoryLoading && explorerRows.length <= (isSearching ? 0 : 1)
+              "
+              class="machine-empty-state"
+              role="none"
+            >
+              <AppIcon name="fileSearch" class="size-6" aria-hidden="true" />
+              <p class="font-bold">
+                {{ t(search ? 'configuration.files.noResults' : 'configuration.files.empty') }}
+              </p>
+            </li>
+          </ul>
+
+          <!--
+            A band of its own that always holds its height: it describes the
+            row last focused or clicked, else the open file, else the folder
+            new files land in, so its text changes in place.
+          -->
+          <footer class="machine-explorer-footer">
+            <template v-if="footerEntry">
+              <span class="machine-explorer-footer__name">{{ footerEntry.name }}</span>
+              <span class="machine-explorer-footer__meta">{{
+                footerEntry.kind === 'directory'
+                  ? t('configuration.files.folder')
+                  : formatSize(footerEntry.size)
+              }}</span>
+              <span v-if="footerEntry.modified > 0" class="machine-explorer-footer__meta">{{
+                formatModified(footerEntry.modified)
+              }}</span>
+            </template>
+            <span v-else class="machine-explorer-footer__name"
+              >/{{ machineFiles.currentRoot }}/{{ machineFiles.currentPath }}</span
+            >
+          </footer>
+        </aside>
       </div>
     </AvailabilityRegion>
 
@@ -2915,6 +2946,67 @@ onBeforeUnmount(() => {
         :label="t('configuration.contextMenu.delete')"
         :disabled="!isWritable(contextMenu.entry)"
         @click="requestDeleteEntry(contextMenu.entry)"
+      />
+    </FileContextMenu>
+
+    <FileContextMenu
+      v-if="tabMenu"
+      :x="tabMenu.x"
+      :y="tabMenu.y"
+      :label="t('configuration.tabs.menuLabel', { name: tabFile(tabMenu.path)?.name ?? '' })"
+      @close="closeTabMenu"
+    >
+      <AppButton
+        variant="quiet"
+        size="sm"
+        start
+        block
+        icon="close"
+        :label="t('configuration.tabs.closeTab')"
+        @click="tabMenuClose(tabMenu.path)"
+      />
+      <AppButton
+        variant="quiet"
+        size="sm"
+        start
+        block
+        :label="t('configuration.tabs.closeOthers')"
+        :disabled="unpinnedTabs.filter((tab) => tab.file.path !== tabMenu?.path).length === 0"
+        @click="tabMenuCloseOthers(tabMenu.path)"
+      />
+      <AppButton
+        variant="quiet"
+        size="sm"
+        start
+        block
+        :label="t('configuration.tabs.closeAll')"
+        :disabled="unpinnedTabs.length === 0"
+        @click="tabMenuCloseAll"
+      />
+      <p class="header-menu__divider" role="separator"></p>
+      <AppButton
+        variant="quiet"
+        size="sm"
+        start
+        block
+        :icon="tabMenuIsPinned(tabMenu.path) ? 'filePinSlash' : 'filePin'"
+        :label="
+          t(
+            tabMenuIsPinned(tabMenu.path)
+              ? 'configuration.contextMenu.unpin'
+              : 'configuration.contextMenu.pin',
+          )
+        "
+        @click="tabMenuTogglePin(tabMenu.path)"
+      />
+      <AppButton
+        variant="quiet"
+        size="sm"
+        start
+        block
+        icon="folder"
+        :label="t('configuration.tabs.reveal')"
+        @click="tabMenuReveal(tabMenu.path)"
       />
     </FileContextMenu>
 

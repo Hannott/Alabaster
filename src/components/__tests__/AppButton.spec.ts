@@ -302,11 +302,9 @@ describe('AppButton', () => {
     expect(wrapper.classes()).toContain('button--sm')
   })
 
-  it('renders the label in an element, because two rules already reach for one', () => {
-    // `.machine-editor-action span` collapses the editor toolbar's labels
-    // together below a 55rem pane, and `.machine-structure .button >
-    // span:first-child` truncates a section name. A bare text node has nothing
-    // for either to select.
+  it('renders the label in an element, because a rule already reaches for one', () => {
+    // `.machine-structure .button > span:first-child` truncates a section
+    // name. A bare text node has nothing for it to select.
     const wrapper = mount(AppButton, { props: { label: 'Save' } })
     expect(wrapper.find('span').exists()).toBe(true)
     expect(wrapper.find('span').text()).toBe('Save')

@@ -460,14 +460,10 @@ describe('interaction and iconography contract', () => {
 
     // Filled boxes with no border of their own move the ring inside instead
     // of floating it outside, so it still reads as that box's own edge. Each
-    // of these three also shares its `:focus-visible` with a color-only
-    // `:hover` rule, so the match picks the block that actually declares the
-    // ring rather than the first (hover-shared) occurrence of the selector.
-    for (const selector of [
-      '.gcode-console',
-      '.gcode-viewer-stage',
-      '.machine-recent-files__file',
-    ]) {
+    // of these also shares its `:focus-visible` with a color-only `:hover`
+    // rule, so the match picks the block that actually declares the ring
+    // rather than the first (hover-shared) occurrence of the selector.
+    for (const selector of ['.gcode-console', '.gcode-viewer-stage']) {
       const escaped = selector.replace(/[.[\]]/g, '\\$&')
       const body = [
         ...styles.matchAll(new RegExp(`${escaped}:focus-visible\\s*\\{([^}]*)\\}`, 'g')),

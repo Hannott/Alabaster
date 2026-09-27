@@ -5,6 +5,18 @@ const showBackupFilesStorageKey = 'alabaster.machine.showBackupFiles'
 const showReadOnlyFilesStorageKey = 'alabaster.machine.showReadOnlyFiles'
 const searchInFileContentsStorageKey = 'alabaster.machine.searchInFileContents'
 const compactRowsStorageKey = 'alabaster.machine.compactRows'
+const sortKeyStorageKey = 'alabaster.machine.sortKey'
+
+/**
+ * What the explorer orders each folder by. Folders always come first; within
+ * each kind, names read A to Z while sizes and dates read largest and newest
+ * first, the direction each is looked at for.
+ */
+export type MachineFileSortKey = 'name' | 'size' | 'modified'
+
+function isSortKey(value: unknown): value is MachineFileSortKey {
+  return value === 'name' || value === 'size' || value === 'modified'
+}
 
 const showHiddenFiles = ref(localStorage.getItem(showHiddenFilesStorageKey) === 'true')
 const showBackupFiles = ref(localStorage.getItem(showBackupFilesStorageKey) === 'true')
@@ -15,6 +27,8 @@ const searchInFileContents = ref(localStorage.getItem(searchInFileContentsStorag
 // On by default: a dense, desktop-file-manager row is the shape most of this
 // explorer's users expect, so the taller row is the opt-out rather than the opt-in.
 const compactRows = ref(localStorage.getItem(compactRowsStorageKey) !== 'false')
+const storedSortKey = localStorage.getItem(sortKeyStorageKey)
+const sortKey = ref<MachineFileSortKey>(isSortKey(storedSortKey) ? storedSortKey : 'name')
 
 function setShowHiddenFiles(enabled: boolean): void {
   showHiddenFiles.value = enabled
@@ -41,6 +55,11 @@ function setCompactRows(enabled: boolean): void {
   localStorage.setItem(compactRowsStorageKey, String(enabled))
 }
 
+function setSortKey(key: MachineFileSortKey): void {
+  sortKey.value = key
+  localStorage.setItem(sortKeyStorageKey, key)
+}
+
 export function useMachineFilesSettings() {
   return {
     showHiddenFiles: readonly(showHiddenFiles),
@@ -48,10 +67,12 @@ export function useMachineFilesSettings() {
     showReadOnlyFiles: readonly(showReadOnlyFiles),
     searchInFileContents: readonly(searchInFileContents),
     compactRows: readonly(compactRows),
+    sortKey: readonly(sortKey),
     setShowHiddenFiles,
     setShowBackupFiles,
     setShowReadOnlyFiles,
     setSearchInFileContents,
     setCompactRows,
+    setSortKey,
   }
 }

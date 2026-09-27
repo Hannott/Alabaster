@@ -233,22 +233,24 @@ describe('page layout contract', () => {
   it('never gates folder or file navigation behind an unsaved-editor dialog', () => {
     const explorer = source('views/ConfigurationView.vue')
     const standard = designDoc('interface-standards.md')
-    const navigateTo = explorer.slice(
-      explorer.indexOf('async function navigateTo'),
-      explorer.indexOf('async function createFile'),
+    const chooseRow = explorer.slice(
+      explorer.indexOf('async function chooseRow'),
+      explorer.indexOf('function keepRow'),
     )
 
     // The dirty-gate dialog this once guarded (requestEditorAction) is gone
     // entirely: every buffered file's edits survive navigation on their own,
-    // so there is nothing left to gate.
+    // so there is nothing left to gate. A folder opens in place and a file goes
+    // straight to the open-file warning gate, which is about the file's type
+    // and size, never about another file's unsaved edits.
     expect(explorer).not.toContain('requestEditorAction')
-    expect(navigateTo).toContain('await machineFiles.navigate(path)')
-    expect(explorer).toMatch(
-      /if \(entry\.kind === 'directory'\) \{\s*search\.value = ''\s*await machineFiles\.enterDirectory\(entry\.name\)\s*return\s*\}\s*await openWithWarningGate/s,
+    expect(chooseRow).toContain('machineFiles.expandDirectory(entry.path)')
+    expect(chooseRow).toMatch(
+      /await openWithWarningGate\(entry\.name, entry\.size, async \(\) => \{\s*await machineFiles\.openFile\(entry, \{ preview: true \}\)/s,
     )
     if (standard) {
       expect(standard).toContain(
-        'Switching files, changing folders, closing the editor, or leaving the\n  route never discards an edit and never prompts.',
+        'Switching files, changing folders, closing a tab, or leaving the\n  route never discards an edit and never prompts.',
       )
     }
   })
@@ -328,10 +330,11 @@ describe('page layout contract', () => {
    */
   /*
    * Every band in a file workspace's stack holds its height whether or not it has
-   * anything to say. Two ways that was broken: the recent-files band was removed
-   * entirely when there was nothing to offer — so switching roots, which drops the
-   * recents belonging to the root being left, moved every row below it — and the
-   * Print files trail had no height at all, so it resized as the path got longer.
+   * anything to say. Two ways that was broken: Configuration's old recent-files
+   * band was removed entirely when there was nothing to offer — so switching
+   * roots moved every row below it — and the Print files trail had no height at
+   * all, so it resized as the path got longer. The explorer's footer is the band
+   * that replaced the recent files, and it renders unconditionally.
    *
    * `overflow-x: auto` is the second half of the trail bug: it makes a box
    * scrollable on both axes, so a trail one pixel taller than its content box grew
@@ -339,8 +342,8 @@ describe('page layout contract', () => {
    */
   it('reserves the height of every band in a file workspace stack', () => {
     for (const band of [
-      '.machine-breadcrumbs',
-      '.machine-recent-files',
+      '.machine-root-tabs',
+      '.machine-file-controls',
       '.print-files-breadcrumbs',
     ]) {
       const rule = styles.slice(styles.indexOf(`${band} {`))
@@ -348,27 +351,22 @@ describe('page layout contract', () => {
       expect(body, `${band} must reserve its height`).toMatch(/min-height:\s*[\d.]+rem/)
       expect(body, `${band} must not flex-shrink`).toMatch(/flex:\s*0 0 [\d.]+rem/)
     }
+    const footer = styles.slice(styles.indexOf('.machine-explorer-footer {'))
+    const footerBody = footer.slice(0, footer.indexOf('}'))
+    expect(footerBody).toMatch(/block-size:\s*[\d.]+rem/)
+    expect(footerBody).toMatch(/flex:\s*0 0 [\d.]+rem/)
 
-    for (const trail of ['.machine-breadcrumbs', '.print-files-breadcrumbs']) {
-      const rule = styles.slice(styles.indexOf(`${trail} {`))
-      const body = rule.slice(0, rule.indexOf('}'))
-      expect(body, `${trail} must not scroll vertically`).toContain('overflow-y: hidden')
-    }
+    const trail = styles.slice(styles.indexOf('.print-files-breadcrumbs {'))
+    expect(trail.slice(0, trail.indexOf('}'))).toContain('overflow-y: hidden')
 
-    // The band renders unconditionally; only its contents switch.
     const view = source('views/ConfigurationView.vue')
-    const band = view.slice(view.indexOf('class="machine-recent-files"') - 200)
-    expect(band.slice(0, 200)).not.toContain('v-if="lastEditedFile"')
-    expect(view).toContain('class="machine-recent-files__empty"')
-    // Shown only once the listing has arrived: recents derive from it, so a root
-    // switch clears them first and the empty state would blink a false answer.
-    expect(view).toContain('v-else-if="!machineFiles.isDirectoryLoading"')
+    expect(view).toContain('<footer class="machine-explorer-footer">')
   })
 
   it('gives the root switcher its own band rather than a row inside the header', () => {
     const view = source('views/ConfigurationView.vue')
 
-    // The band sits between the header and the breadcrumbs, and closes with a
+    // The band sits between the header and the search band, and closes with a
     // border like every other band in this stack.
     expect(view).toMatch(/<\/header>\s*<div class="machine-root-tabs"/s)
     expect(styles).toMatch(/\.machine-root-tabs\s*\{[^}]*border-block-end:\s*1px solid/s)

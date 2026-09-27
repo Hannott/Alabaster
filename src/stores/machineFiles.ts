@@ -40,11 +40,33 @@ export interface MachineFileEntry {
   modified: number
   size: number
   permissions: string
+  /**
+   * The entry's path within the root, for an entry listed somewhere other than
+   * the folder currently browsed — a tree row in another folder, a search
+   * result. Without it, a path is the browsed folder joined with `name`, which
+   * would rename, move, or delete a same-named file in the wrong folder.
+   */
+  path?: string
 }
 
 export interface OpenMachineFile extends MachineFileEntry {
   kind: 'file'
   path: string
+}
+
+/**
+ * A file with a tab in the viewer. A preview tab is the one a single click in
+ * the explorer reuses, so browsing does not leave a tab behind for every file
+ * glanced at; editing it, or opening it deliberately, keeps it.
+ */
+export interface MachineFileTab {
+  file: OpenMachineFile
+  preview: boolean
+}
+
+export interface OpenFileOptions {
+  /** Open in the preview tab rather than a kept one. Defaults to a kept tab. */
+  preview?: boolean
 }
 
 export type MachineFileError =
@@ -182,8 +204,25 @@ export const useMachineFilesStore = defineStore('machineFiles', () => {
   let stopFileNotifications: (() => void) | null = null
   let stopPrinterChangeReset: (() => void) | null = null
   const permissionsByPath = new Map<string, string>()
-  const recentFilesByPath = new Map<string, OpenMachineFile>()
-  const recentFiles = ref<OpenMachineFile[]>([])
+  /*
+   * Every folder listing the explorer tree holds, keyed by path within the
+   * root ('' is the root itself). The browsed folder's listing is also
+   * `entries`; the rest belong to folders expanded in the tree, and each one is
+   * refreshed with the browsed folder so an expanded folder never goes stale
+   * behind a notification that only said "something changed".
+   */
+  const directoryListings = ref(new Map<string, MachineFileEntry[]>())
+  const expandedDirectories = ref(new Set<string>())
+  /*
+   * Tabs of the root currently browsed, in the order they were opened. The
+   * other root's tabs wait in `tabsByRoot` until it is browsed again, since a
+   * tab names a path and a path means a different file in each root.
+   */
+  const openTabs = ref<MachineFileTab[]>([])
+  const tabsByRoot = new Map<
+    MachineFileRoot,
+    { tabs: MachineFileTab[]; activePath: string | null; expanded: Set<string> }
+  >()
   const includedConfigPaths = ref<Set<string>>(new Set())
   const includedConfigPathsReady = ref(false)
   let includedPathsGeneration = 0
@@ -300,25 +339,16 @@ export const useMachineFilesStore = defineStore('machineFiles', () => {
     notice.value = null
   }
 
-  function refreshRecentFiles(): void {
-    recentFiles.value = [...recentFilesByPath.values()]
-      .sort((left, right) => right.modified - left.modified)
-      .slice(0, 3)
-  }
-
-  function rememberFiles(files: readonly OpenMachineFile[]): void {
-    for (const file of files) recentFilesByPath.set(file.path, file)
-    refreshRecentFiles()
-  }
-
-  function rememberDirectoryFiles(path: string, files: readonly OpenMachineFile[]): void {
-    const currentPaths = new Set(files.map((file) => file.path))
-    for (const key of recentFilesByPath.keys()) {
-      const separator = key.lastIndexOf('/')
-      const directory = separator < 0 ? '' : key.slice(0, separator)
-      if (directory === path && !currentPaths.has(key)) recentFilesByPath.delete(key)
+  /** Records a listing for the tree, and the permissions of the folders it names. */
+  function storeListing(path: string, result: MoonrakerDirectoryResult): MachineFileEntry[] {
+    const listing = directoryEntries(result)
+    directoryListings.value.set(path, listing)
+    rootPermissions.value = result.root_info?.permissions ?? rootPermissions.value
+    permissionsByPath.set('', rootPermissions.value)
+    for (const directory of result.dirs) {
+      permissionsByPath.set(joinPath(path, directory.dirname), directory.permissions)
     }
-    rememberFiles(files)
+    return listing
   }
 
   /*
@@ -329,22 +359,38 @@ export const useMachineFilesStore = defineStore('machineFiles', () => {
    * runs, so the old folder never mixes with the new one across a frame.
    */
   function applyDirectoryResult(path: string, result: MoonrakerDirectoryResult): void {
-    entries.value = directoryEntries(result)
-    rememberDirectoryFiles(
-      path,
-      entries.value.flatMap((entry) =>
-        entry.kind === 'file'
-          ? [{ ...entry, kind: 'file' as const, path: joinPath(path, entry.name) }]
-          : [],
-      ),
-    )
+    entries.value = storeListing(path, result)
     diskUsage.value = result.disk_usage
-    rootPermissions.value = result.root_info?.permissions ?? rootPermissions.value
-    permissionsByPath.set('', rootPermissions.value)
-    for (const directory of result.dirs) {
-      permissionsByPath.set(joinPath(path, directory.dirname), directory.permissions)
-    }
     currentDirectoryPermissions.value = permissionsByPath.get(path) ?? rootPermissions.value
+  }
+
+  /*
+   * Every listing the tree shows besides the browsed folder's: the root, and
+   * each expanded folder. A folder that no longer answers has been removed or
+   * renamed under us, so it stops being expanded rather than being retried on
+   * every refresh.
+   */
+  async function refreshTreeListings(): Promise<void> {
+    if (!availability.isMoonrakerConnected) return
+    const root = currentRoot.value
+    const paths = new Set(['', ...expandedDirectories.value])
+    paths.delete(currentPath.value)
+    await Promise.all(
+      [...paths].map(async (path) => {
+        try {
+          const result = await moonraker.rpcCall('server.files.get_directory', {
+            path: joinPath(root, path),
+          })
+          if (root !== currentRoot.value) return
+          storeListing(path, result)
+          if (path === '') diskUsage.value = result.disk_usage
+        } catch {
+          if (root !== currentRoot.value || path === '') return
+          expandedDirectories.value.delete(path)
+          directoryListings.value.delete(path)
+        }
+      }),
+    )
   }
 
   async function refreshDirectory(): Promise<boolean> {
@@ -352,6 +398,7 @@ export const useMachineFilesStore = defineStore('machineFiles', () => {
     const generation = ++directoryGeneration
     isDirectoryLoading.value = true
     lastError.value = null
+    void refreshTreeListings()
     try {
       const result = await moonraker.rpcCall('server.files.get_directory', {
         path: directoryRpcPath.value,
@@ -366,6 +413,61 @@ export const useMachineFilesStore = defineStore('machineFiles', () => {
     } finally {
       if (generation === directoryGeneration) isDirectoryLoading.value = false
     }
+  }
+
+  /**
+   * Opens a folder in the tree. A listing already held is shown at once and
+   * refreshed behind it, so expanding a folder again never blanks it first.
+   */
+  async function expandDirectory(path: string): Promise<boolean> {
+    const normalized = normalizeMoonrakerRelativePath(path)
+    if (normalized === '') return true
+    const root = currentRoot.value
+    expandedDirectories.value.add(normalized)
+    if (!availability.isMoonrakerConnected) return directoryListings.value.has(normalized)
+    try {
+      const result = await moonraker.rpcCall('server.files.get_directory', {
+        path: joinPath(root, normalized),
+      })
+      if (root !== currentRoot.value) return false
+      storeListing(normalized, result)
+      return true
+    } catch {
+      if (root === currentRoot.value) expandedDirectories.value.delete(normalized)
+      return false
+    }
+  }
+
+  function collapseDirectory(path: string): void {
+    expandedDirectories.value.delete(normalizeMoonrakerRelativePath(path))
+  }
+
+  /** Expands every folder above `path`, so the file or folder it names is on screen. */
+  async function revealPath(path: string): Promise<void> {
+    const segments = normalizeMoonrakerRelativePath(path).split('/').slice(0, -1)
+    await Promise.all(
+      segments.map((_, index) => expandDirectory(segments.slice(0, index + 1).join('/'))),
+    )
+  }
+
+  function collapseAllDirectories(): void {
+    expandedDirectories.value.clear()
+  }
+
+  /*
+   * Makes `path` the folder new files, folders, and uploads land in, without
+   * a round trip when the tree already holds its listing.
+   */
+  async function selectDirectory(path: string): Promise<boolean> {
+    const normalized = normalizeMoonrakerRelativePath(path)
+    const listing = directoryListings.value.get(normalized)
+    if (!listing) return navigate(normalized)
+    directoryGeneration += 1
+    isDirectoryLoading.value = false
+    currentPath.value = normalized
+    entries.value = listing
+    currentDirectoryPermissions.value = permissionsByPath.get(normalized) ?? rootPermissions.value
+    return true
   }
 
   function refreshSearchFiles(force = false): Promise<void> {
@@ -405,22 +507,34 @@ export const useMachineFilesStore = defineStore('machineFiles', () => {
    */
   async function setRoot(root: MachineFileRoot): Promise<boolean> {
     if (root === currentRoot.value) return true
+    tabsByRoot.set(currentRoot.value, {
+      tabs: openTabs.value,
+      activePath: currentFile.value?.path ?? null,
+      expanded: new Set(expandedDirectories.value),
+    })
     currentRoot.value = root
     closeFile()
     viewerContent.value = ''
     htmlContent.value = ''
     currentPath.value = ''
     entries.value = []
-    // The search index and the per-path permissions both describe the root that
-    // was being browsed, so carrying either across would answer questions about
-    // one root with facts about the other.
+    // The search index, the per-path permissions, and the tree's listings all
+    // describe the root that was being browsed, so carrying any of them across
+    // would answer questions about one root with facts about the other.
     searchFiles.value = []
     searchFilesLoaded.value = false
     clearContentSearch()
     permissionsByPath.clear()
-    recentFilesByPath.clear()
-    recentFiles.value = []
-    return refreshDirectory()
+    directoryListings.value = new Map()
+    const restored = tabsByRoot.get(root)
+    expandedDirectories.value = new Set(restored?.expanded)
+    openTabs.value = restored?.tabs ?? []
+    const listed = await refreshDirectory()
+    if (restored?.activePath && currentRoot.value === root) {
+      const tab = openTabs.value.find((candidate) => candidate.file.path === restored.activePath)
+      if (tab) await openFileByPath(tab.file, { preview: tab.preview })
+    }
+    return listed
   }
 
   function ensureSearchFiles(): Promise<void> {
@@ -519,15 +633,45 @@ export const useMachineFilesStore = defineStore('machineFiles', () => {
   }
 
   /*
-   * Shared by `openFile` (path derived from the folder currently browsed) and
-   * `openPinnedFile` (path already absolute, from the pin itself) — the two
-   * differ only in where `path` comes from, never in what opening it does.
+   * Gives the file just shown a tab, or refreshes the one it already has. A
+   * preview open reuses the preview tab in place, so browsing replaces one tab
+   * rather than piling them up; a kept open promotes a preview tab, never the
+   * other way round. A file with unsaved edits is never a preview, since
+   * replacing its tab would hide the only sign on the tab row that it has any.
    */
-  async function openFileAtPath(path: string, entry: MachineFileEntry): Promise<boolean> {
+  function registerTab(file: OpenMachineFile, preview: boolean): void {
+    const index = openTabs.value.findIndex((tab) => tab.file.path === file.path)
+    if (index >= 0) {
+      const existing = openTabs.value[index]!
+      openTabs.value.splice(index, 1, { file, preview: existing.preview && preview })
+      return
+    }
+    const asPreview = preview && !isPathDirty(file.path)
+    const previewIndex = asPreview ? openTabs.value.findIndex((tab) => tab.preview) : -1
+    if (previewIndex >= 0) openTabs.value.splice(previewIndex, 1, { file, preview: true })
+    else openTabs.value.push({ file, preview: asPreview })
+  }
+
+  function showFile(file: OpenMachineFile, preview: boolean): void {
+    currentFile.value = file
+    registerTab(file, preview)
+  }
+
+  /*
+   * The one way a file is opened, whether its path came from the browsed
+   * folder, a tree row, a tab, a pin, or an include — so there is never a
+   * second, divergent way to load a file.
+   */
+  async function openFileAtPath(
+    path: string,
+    entry: MachineFileEntry,
+    { preview = false }: OpenFileOptions = {},
+  ): Promise<boolean> {
     const generation = ++fileGeneration
+    const file: OpenMachineFile = { ...entry, kind: 'file', path }
     const kind = classifyFileKind(entry.name)
     if (kind === 'image') {
-      currentFile.value = { ...entry, kind: 'file', path }
+      showFile(file, preview)
       imageCacheBust.value += 1
       lastError.value = null
       isEditorLoading.value = false
@@ -535,14 +679,34 @@ export const useMachineFilesStore = defineStore('machineFiles', () => {
     }
 
     // A dirty buffer already holds the edit that matters; reopening it must
-    // never refetch over it. A clean buffer is just a cache of what disk held
-    // last time, so it still refreshes below in case something else changed
-    // the file while it was closed. A read-only root has no buffers to consult.
+    // never refetch over it. A read-only root has no buffers to consult.
     const existing = isRootEditable.value ? fileBuffers.value.get(path) : undefined
     if (existing && existing.content !== existing.saved) {
-      currentFile.value = { ...entry, kind: 'file', path }
+      showFile(file, preview)
       lastError.value = null
       isEditorLoading.value = false
+      return true
+    }
+    /*
+     * A clean buffer is a cache of what disk held last time. It is shown at
+     * once — switching tabs must not dim the editor for a fetch every time —
+     * and refreshed behind it in case something else changed the file while it
+     * was not shown. The refresh only lands while the buffer is still clean, so
+     * an edit typed during the fetch is never overwritten.
+     */
+    if (existing && kind === 'text') {
+      showFile(file, preview)
+      lastError.value = null
+      isEditorLoading.value = false
+      const root = currentRoot.value
+      void fetchMoonrakerTextFile(root, path, moonraker.endpoint).then(
+        (content) => {
+          const buffer = fileBuffers.value.get(path)
+          if (root !== currentRoot.value || !buffer || buffer.content !== buffer.saved) return
+          if (buffer.saved !== content) fileBuffers.value.set(path, { content, saved: content })
+        },
+        () => undefined,
+      )
       return true
     }
 
@@ -551,10 +715,10 @@ export const useMachineFilesStore = defineStore('machineFiles', () => {
     try {
       const content = await fetchMoonrakerTextFile(currentRoot.value, path, moonraker.endpoint)
       if (generation !== fileGeneration) return false
-      currentFile.value = { ...entry, kind: 'file', path }
       if (kind === 'html') htmlContent.value = content
       else if (isRootEditable.value) fileBuffers.value.set(path, { content, saved: content })
       else viewerContent.value = content
+      showFile(file, preview)
       return true
     } catch {
       if (generation === fileGeneration) lastError.value = 'file'
@@ -564,36 +728,99 @@ export const useMachineFilesStore = defineStore('machineFiles', () => {
     }
   }
 
-  async function openFile(entry: MachineFileEntry): Promise<boolean> {
+  async function openFile(entry: MachineFileEntry, options?: OpenFileOptions): Promise<boolean> {
     if (entry.kind !== 'file' || !validMoonrakerFilename(entry.name)) return false
-    return openFileAtPath(joinPath(currentPath.value, entry.name), entry)
-  }
-
-  async function openRecentFile(file: OpenMachineFile): Promise<boolean> {
-    const segments = file.path.split('/')
-    const filename = segments.pop()
-    if (!filename || !validMoonrakerFilename(filename)) return false
-    const directory = segments.join('/')
-    if (directory !== currentPath.value) await navigate(directory)
-    return openFile({ ...file, kind: 'file', name: filename })
+    return openFileAtPath(entry.path ?? joinPath(currentPath.value, entry.name), entry, options)
   }
 
   /*
-   * Opens a pinned file at its own absolute path without navigating there —
-   * the point of a pin is that it isn't wherever the explorer happens to be
-   * standing, and following it into the editor should not also drag the
-   * folder listing along behind it the way `openRecentFile` deliberately does.
+   * Opens a file at its own path without moving the explorer: a tab, a pin, or
+   * an include names a file wherever it lives, and following it into the
+   * viewer should not also drag the browsed folder along behind it.
    */
-  async function openPinnedFile(file: OpenMachineFile): Promise<boolean> {
+  async function openFileByPath(
+    file: OpenMachineFile,
+    options?: OpenFileOptions,
+  ): Promise<boolean> {
     if (!validMoonrakerFilename(file.name)) return false
-    return openFileAtPath(file.path, file)
+    return openFileAtPath(file.path, file, options)
   }
 
+  /** Stops showing a file without closing its tab. */
   function closeFile(): void {
     fileGeneration += 1
     currentFile.value = null
     isEditorLoading.value = false
     clearFeedback()
+  }
+
+  /** Turns the preview tab for `path` into a kept one. */
+  function keepTab(path: string): void {
+    const index = openTabs.value.findIndex((tab) => tab.file.path === path)
+    const tab = openTabs.value[index]
+    if (!tab?.preview) return
+    openTabs.value.splice(index, 1, { ...tab, preview: false })
+  }
+
+  /*
+   * Puts a kept tab for `file` first among the tabs, opening nothing: an
+   * unpinned file drops from the pinned row to the start of the rest, whether
+   * or not it had been opened this session.
+   */
+  function placeTabFirst(file: OpenMachineFile): void {
+    const existing = openTabs.value.find((tab) => tab.file.path === file.path)
+    openTabs.value = [
+      { file: existing?.file ?? file, preview: false },
+      ...openTabs.value.filter((tab) => tab.file.path !== file.path),
+    ]
+  }
+
+  async function activateTab(path: string): Promise<boolean> {
+    const tab = openTabs.value.find((candidate) => candidate.file.path === path)
+    if (!tab) return false
+    if (currentFile.value?.path === path) return true
+    return openFileByPath(tab.file, { preview: tab.preview })
+  }
+
+  /*
+   * Closing a tab never touches its buffer: an unsaved edit outlives the tab
+   * exactly as it outlives switching files, and the explorer keeps marking it.
+   * When the tab being closed is the one shown, its right-hand neighbour takes
+   * over, or its left-hand one at the end of the row — the neighbour the
+   * reader's eye is already on.
+   */
+  async function closeTabs(paths: readonly string[]): Promise<void> {
+    const closing = new Set(paths)
+    const activePath = currentFile.value?.path ?? null
+    const activeIndex = openTabs.value.findIndex((tab) => tab.file.path === activePath)
+    openTabs.value = openTabs.value.filter((tab) => !closing.has(tab.file.path))
+    if (activePath === null || !closing.has(activePath)) return
+    const next = openTabs.value[Math.min(activeIndex, openTabs.value.length - 1)]
+    if (next) await openFileByPath(next.file, { preview: next.preview })
+    else closeFile()
+  }
+
+  function closeTab(path: string): Promise<void> {
+    return closeTabs([path])
+  }
+
+  /** Moves (or, with `nextPath` null, closes) every tab at or under `previousPath`. */
+  function repointTabs(previousPath: string, nextPath: string | null): void {
+    const tabs: MachineFileTab[] = []
+    for (const tab of openTabs.value) {
+      const path = tab.file.path
+      if (path !== previousPath && !path.startsWith(previousPath + '/')) {
+        tabs.push(tab)
+        continue
+      }
+      if (nextPath === null) continue
+      const moved = nextPath + path.slice(previousPath.length)
+      tabs.push({
+        ...tab,
+        file: { ...tab.file, path: moved, name: moved.slice(moved.lastIndexOf('/') + 1) },
+      })
+    }
+    openTabs.value = tabs
   }
 
   /** Drops the in-memory edit at `path`, restoring it to its last-saved content. */
@@ -672,7 +899,6 @@ export const useMachineFilesStore = defineStore('machineFiles', () => {
       await uploadFileContent(file.path, content)
       fileBuffers.value.set(file.path, { content, saved: content })
       currentFile.value = { ...file, modified: Date.now() / 1000, size: new Blob([content]).size }
-      rememberFiles([currentFile.value])
       if (file.path === PRIMARY_CONFIG) applyIncludedConfigPaths(content)
       hasUnappliedConfigChanges.value = true
       notice.value = restartFirmware ? 'savedRestarting' : 'saved'
@@ -974,9 +1200,32 @@ export const useMachineFilesStore = defineStore('machineFiles', () => {
     }
   }
 
-  /** Absolute path of an entry within the browsed root, from the shown directory. */
+  /** Path of an entry within the browsed root: its own, or the browsed folder's joined with its name. */
   function entryPath(entry: MachineFileEntry): string {
-    return joinPath(currentPath.value, entry.name)
+    return entry.path ?? joinPath(currentPath.value, entry.name)
+  }
+
+  /*
+   * A renamed, moved, or deleted folder takes its expanded state and cached
+   * listings with it, and the browsed folder follows it rather than pointing
+   * at a path that is gone.
+   */
+  function repointDirectoryState(previousPath: string, nextPath: string | null): void {
+    const under = (path: string) => path === previousPath || path.startsWith(previousPath + '/')
+    const moved = (path: string) =>
+      nextPath === null ? null : nextPath + path.slice(previousPath.length)
+    const expanded = new Set<string>()
+    for (const path of expandedDirectories.value) {
+      if (!under(path)) expanded.add(path)
+      else if (moved(path) !== null) expanded.add(moved(path)!)
+    }
+    expandedDirectories.value = expanded
+    for (const path of [...directoryListings.value.keys()]) {
+      if (under(path)) directoryListings.value.delete(path)
+    }
+    if (under(currentPath.value) && currentPath.value !== '') {
+      currentPath.value = moved(currentPath.value) ?? previousPath.split('/').slice(0, -1).join('/')
+    }
   }
 
   function downloadUrlFor(entry: MachineFileEntry): string | null {
@@ -985,22 +1234,21 @@ export const useMachineFilesStore = defineStore('machineFiles', () => {
   }
 
   /*
-   * Keeps the open editor consistent with a path that just changed underneath
-   * it. Renaming or moving the file being edited must not leave the editor
-   * pointed at a path the printer no longer has.
+   * Keeps the viewer consistent with a path that just changed underneath it:
+   * the file itself, or a folder it lives in. Renaming or moving the file being
+   * edited must not leave the viewer, or any tab, pointed at a path the printer
+   * no longer has.
    */
-  function repointOpenFile(previousPath: string, next: OpenMachineFile | null): void {
-    recentFilesByPath.delete(previousPath)
-    if (currentFile.value?.path !== previousPath) {
-      refreshRecentFiles()
-      return
-    }
-    if (next === null) {
+  function repointOpenFile(previousPath: string, nextPath: string | null): void {
+    repointTabs(previousPath, nextPath)
+    const file = currentFile.value
+    if (!file || (file.path !== previousPath && !file.path.startsWith(previousPath + '/'))) return
+    if (nextPath === null) {
       closeFile()
       return
     }
-    currentFile.value = next
-    rememberFiles([next])
+    const path = nextPath + file.path.slice(previousPath.length)
+    currentFile.value = { ...file, path, name: path.slice(path.lastIndexOf('/') + 1) }
   }
 
   async function renameEntry(entry: MachineFileEntry, name: string): Promise<boolean> {
@@ -1016,7 +1264,8 @@ export const useMachineFilesStore = defineStore('machineFiles', () => {
       return false
     }
     const previousPath = entryPath(entry)
-    const nextPath = joinPath(currentPath.value, filename)
+    // Renamed where it lives, which is not always the folder being browsed.
+    const nextPath = joinPath(previousPath.split('/').slice(0, -1).join('/'), filename)
     isMutating.value = true
     clearFeedback()
     try {
@@ -1025,10 +1274,8 @@ export const useMachineFilesStore = defineStore('machineFiles', () => {
         dest: joinPath(currentRoot.value, nextPath),
       })
       repointBuffers(previousPath, nextPath)
-      repointOpenFile(
-        previousPath,
-        entry.kind === 'file' ? { ...entry, kind: 'file', name: filename, path: nextPath } : null,
-      )
+      repointOpenFile(previousPath, nextPath)
+      repointDirectoryState(previousPath, nextPath)
       notice.value = 'renamed'
       await refreshDirectory()
       return true
@@ -1063,6 +1310,7 @@ export const useMachineFilesStore = defineStore('machineFiles', () => {
       }
       repointBuffers(path, null)
       repointOpenFile(path, null)
+      repointDirectoryState(path, null)
       notice.value = 'deleted'
       await refreshDirectory()
       return true
@@ -1101,10 +1349,8 @@ export const useMachineFilesStore = defineStore('machineFiles', () => {
         dest: joinPath(currentRoot.value, nextPath),
       })
       repointBuffers(previousPath, nextPath)
-      repointOpenFile(
-        previousPath,
-        entry.kind === 'file' ? { ...entry, kind: 'file', path: nextPath } : null,
-      )
+      repointOpenFile(previousPath, nextPath)
+      repointDirectoryState(previousPath, nextPath)
       notice.value = 'moved'
       await refreshDirectory()
       return { previousPath, nextPath }
@@ -1344,6 +1590,10 @@ export const useMachineFilesStore = defineStore('machineFiles', () => {
     includedPathsGeneration += 1
     closeFile()
     fileBuffers.value = new Map()
+    openTabs.value = []
+    tabsByRoot.clear()
+    directoryListings.value = new Map()
+    expandedDirectories.value = new Set()
     currentRoot.value = 'config'
     viewerContent.value = ''
     currentPath.value = ''
@@ -1351,8 +1601,6 @@ export const useMachineFilesStore = defineStore('machineFiles', () => {
     searchFiles.value = []
     searchFilesLoaded.value = false
     permissionsByPath.clear()
-    recentFilesByPath.clear()
-    recentFiles.value = []
     diskUsage.value = { total: 0, used: 0, free: 0 }
     rootPermissions.value = 'r'
     currentDirectoryPermissions.value = 'r'
@@ -1387,6 +1635,21 @@ export const useMachineFilesStore = defineStore('machineFiles', () => {
     { flush: 'sync' },
   )
 
+  // An edit keeps a preview tab, whichever view made it: Quick config writes
+  // these same buffers, and its edit must not vanish with the next click.
+  watch(unsavedFilePaths, (paths) => {
+    for (const path of paths) keepTab(path)
+  })
+
+  // A save refreshes the shown file's size and modified time; its tab carries
+  // the same record, so it is refreshed with it.
+  watch(currentFile, (file) => {
+    if (!file) return
+    const index = openTabs.value.findIndex((tab) => tab.file.path === file.path)
+    const tab = openTabs.value[index]
+    if (tab && tab.file !== file) openTabs.value.splice(index, 1, { ...tab, file })
+  })
+
   function start(): void {
     if (started) return
     started = true
@@ -1397,7 +1660,7 @@ export const useMachineFilesStore = defineStore('machineFiles', () => {
         if (connected) {
           void refreshDirectory()
           void refreshIncludedConfigPaths()
-          if (currentFile.value && !isDirty.value) void openFile(currentFile.value)
+          if (currentFile.value && !isDirty.value) void openFileByPath(currentFile.value)
         } else {
           directoryGeneration += 1
           fileGeneration += 1
@@ -1463,7 +1726,9 @@ export const useMachineFilesStore = defineStore('machineFiles', () => {
     isMutating,
     lastError,
     notice,
-    recentFiles,
+    openTabs,
+    directoryListings,
+    expandedDirectories,
     currentFileKind,
     currentImageUrl,
     currentHtmlDocument,
@@ -1473,9 +1738,18 @@ export const useMachineFilesStore = defineStore('machineFiles', () => {
     navigate,
     enterDirectory,
     openFile,
-    openRecentFile,
-    openPinnedFile,
+    openFileByPath,
     closeFile,
+    activateTab,
+    keepTab,
+    placeTabFirst,
+    closeTab,
+    closeTabs,
+    expandDirectory,
+    collapseDirectory,
+    collapseAllDirectories,
+    revealPath,
+    selectDirectory,
     saveFile,
     saveAllFiles,
     discardCurrentFileChanges,

@@ -1,7 +1,7 @@
 # Configuration
 
-Configuration is an editor for `printer.cfg` and everything it includes. It
-shows a split view with the file tree beside the file you are editing.
+Configuration is an editor for `printer.cfg` and everything it includes. Open
+files sit in tabs on the left, and the file tree sits on the right.
 
 Requires `config_path` to be set in `moonraker.conf`. Without it, the page
 does not appear.
@@ -59,19 +59,47 @@ input shaper, pressure advance, and retraction options, limited to the ones
 your configuration has. A pinned section that is later removed from the
 configuration stays as a card until you unpin it.
 
+## Working with several files
+
+Every file you open gets a tab, so `printer.cfg` and the files it includes can
+be open side by side in one row. Switching tabs shows the file straight away.
+
+A single click in the tree opens the file in a **preview tab**, drawn with a
+dashed outline. The next single click replaces it, so browsing leaves one tab
+behind instead of one per file. Double-click the file or the tab, or edit it,
+to keep it. Following an `[include]` and stepping through file history also
+open a preview.
+
+Tabs that do not fit wrap onto more rows. Scroll down over the tabs to show
+every row, and scroll up to fold them back to one, with a count of the tabs
+that are folded away. The arrow button beside the tabs does the same, and the
+menu next to it lists every open file. The file you are looking at is never
+folded away.
+
+Each tab has a pin and a close button that show on hover. A middle click
+closes a tab, and so does Delete on a focused tab. Right-click a tab to close
+the others, close every unpinned tab, or reveal the file in the tree.
+
+The tree follows the file you have open and opens the folders above it. Hide
+the tree with the button at the end of the tab row when you want the width
+for the file.
+
+Config and Logs each keep their own tabs, and switching back brings them
+back.
+
 ## Unsaved changes
 
 Each file you edit gets its own buffer, keyed by its path. The buffer stays
-open for as long as the tab stays open. Open another file, switch folders,
-close the editor, or leave for the dashboard: the edit is still there when
-you come back. Alabaster does not ask whether to keep it.
+open for as long as the browser tab stays open. Open another file, switch
+folders, close the file's tab, or leave for the dashboard: the edit is still
+there when you come back. Alabaster does not ask whether to keep it.
 
 Saving the file, or clicking **Discard changes**, is the only way to clear a
 buffer.
 
-Alabaster marks an unsaved edit on the file's row, on every folder above it
-at any depth, and on the Configuration entry in the desktop sidebar and the
-mobile bar, from whatever page you are on. The marker is a badge dot, so it
+Alabaster marks an unsaved edit on the file's tab and row, on every folder
+above it at any depth, and on the Configuration entry in the desktop sidebar
+and the mobile bar, from whatever page you are on. The marker is a badge dot, so it
 does not depend on color alone.
 
 **Save all** and **Discard all** act on every unsaved file at once. Both list
@@ -82,20 +110,14 @@ the files they will touch before doing it.
 `[include]` targets are links. Hovering underlines the path. Ctrl+click opens
 it.
 
-![Hovering an include target shows a "Ctrl+click to open" tooltip and underlines the path](/images/configuration/include-link-hover.png)
-
 A target that does not exist yet gets a wavy underline and an offer to create
 it, along with its folder if that is missing too. This lets you build a
 configuration downward from its include list. Alabaster leaves globs alone,
 along with any path that would climb out of the configuration root.
 
-![A missing include target is underlined with a wavy line](/images/configuration/include-missing-underline.png)
-
-![A dialog offers to create the missing file so it can be edited](/images/configuration/create-missing-file-dialog.png)
-
 **File structure** lists every `[section]` in the open file with its line
-number. **File history** steps back and forward through the last ten files
-you opened. The explorer names the last file you edited.
+number. Your mouse's back and forward buttons, or Alt+Left and Alt+Right, step
+through the last ten files you opened.
 
 ## Moving included files
 
@@ -105,12 +127,8 @@ offers to rewrite the line: move and update, just move, or don't move. It
 never edits your configuration without asking. Alabaster leaves a glob
 include alone, since it may still cover the file.
 
-![A dialog asks whether to update the include line to the file's new path, just move it, or not move it](/images/configuration/move-and-update-dialog.png)
-
 The row menu can also add or remove an include. The list marks files that
 `printer.cfg` already includes.
-
-![A file's row menu with Rename, Download, Remove from printer.cfg, and Delete](/images/configuration/row-context-menu.png)
 
 ## Syntax highlighting
 
@@ -128,7 +146,8 @@ files, where highlighting is most expensive.
 Images open in their own viewer with zoom: `png`, `jpg`, `gif`, `webp`,
 `bmp`, `svg`, `ico`, `avif`.
 
-**Maximize** the editor over the explorer, or take it **fullscreen**.
+Take the editor **fullscreen** with the button beside the tabs. Esc leaves
+fullscreen.
 
 ::: tip No file-type gate
 Alabaster still opens a file it cannot place as text or image, a text file
@@ -151,8 +170,9 @@ Each one assumes something about Klipper's format: `#` as the comment
 marker, and its continuation-line indentation. A plain-text file was never
 written to that format.
 
-The full reference of every editor shortcut opens from the header's help
-button, or with Ctrl/Cmd+?.
+The full reference of every editor shortcut opens from the help button
+beside the tabs, or with Ctrl/Cmd+?. Save, Save and restart, and Discard
+changes sit next to it.
 
 **Save and restart** saves the current file and restarts Klipper. If it is
 the only file with unsaved edits, this happens immediately. If other files
@@ -180,39 +200,40 @@ Three switches under **Explorer settings** decide what the list shows:
 | Show backup files    | Off     | `.bak`, `.bkp`, a trailing `~`, and any name containing "backup", including Klipper's `SAVE_CONFIG` output |
 | Show read-only files | **On**  | Nothing by default                                                                                         |
 
-Folders and files sort independently of each other. Folders always come
-first.
+Folders and files sort independently of each other, and folders always come
+first. **Sort by** under Explorer settings orders them by name, by size with
+the largest first, or by date with the newest first.
+
+The bar under the tree shows the size and modified date of the file or folder
+you last selected.
 
 Turn on **Compact rows**, also under Explorer settings and on by default, for
 shorter rows and smaller icons — closer to a desktop file manager's list view,
 so more of a large folder fits on screen at once.
 
+Folders open in place in the tree. The arrow keys move through it: Right opens
+a folder, Left closes it or steps out to the folder above. **Collapse all**
+closes every folder at once.
+
 ## Pinning files
 
-Pin a file from its row menu to keep it at the top of the list, in every
-folder, until you unpin it — a shortcut for the handful of files you return
-to constantly, wherever they live in the tree.
+Pin a file from its tab or its row menu to keep its tab in a row of its own,
+above the other tabs, until you unpin it. Pinned tabs come back the next time
+you open Configuration, which makes them a shortcut for the handful of files
+you return to constantly, wherever they live in the tree.
 
-Clicking a pinned file opens it without leaving the folder you're browsing —
-unlike opening the last file you edited, pinning a file is for reaching it
-from wherever you already are.
+Closing a pinned tab unpins it. Renaming, moving, or deleting the file, or a
+folder it lives in, carries the pin along or drops it, so a pin never points
+at a path that no longer exists.
 
-A pinned row shows the same size, modified date, and unsaved or read-only
-marks as any other row, with an unpin button that appears on hover so it
-never shifts the columns beside it. Renaming, moving, or deleting the file —
-or a folder it lives in — carries the pin along or drops it, so a pin never
-points at a path that no longer exists.
-
-Pins stay in this browser rather than syncing to the printer, and drop out of
-the list while you are searching: a search already looks across the whole
-root, so a pinned match would otherwise show twice.
+Pins stay in this browser rather than syncing to the printer.
 
 ## Automatic list updates
 
 Moonraker sends a notification whenever a file under a watched root is
 created, deleted, moved, or modified, whether from another tab, a macro, or
-Klipper's own `SAVE_CONFIG`. The folder list updates on its own, without
-polling.
+Klipper's own `SAVE_CONFIG`. The tree updates on its own, every open folder
+included, without polling.
 
 This depends on Moonraker's own file-system watcher, which a `moonraker.conf`
 setting can turn off. Use **Refresh** in the toolbar if the watcher is not
@@ -220,9 +241,10 @@ running.
 
 ## Drag and drop
 
-Dragging works in both directions. A row dragged onto a folder or onto `..`
-moves there. Files dragged in from your desktop upload into the folder row
-you drop them on, not into whichever folder happens to be open.
+Dragging works in both directions. A row dragged onto a folder moves there,
+and onto the root at the top of the tree moves it out of its folder. Files
+dragged in from your desktop upload into the folder row you drop them on.
+Dropped anywhere else in the tree, they go into the folder you last selected.
 
 Alabaster decides whether a drag is allowed per entry, not per folder. A
 read-only file cannot be dragged, and Alabaster disables its Rename and

@@ -1514,7 +1514,8 @@
       "discardAll": "Discard all changes",
       "newFilePrompt": "Name the new configuration file",
       "newFileDefault": "new-config.cfg",
-      "newFolderPrompt": "Name the new folder"
+      "newFolderPrompt": "Name the new folder",
+      "collapseAll": "Collapse all folders"
     },
     "contextMenu": {
       "label": "Actions for {name}",
@@ -1544,10 +1545,6 @@
     },
     "editor": {
       "title": "Configuration editor",
-      "back": "Back to configuration files",
-      "close": "Close editor",
-      "displayMode": "Editor display mode",
-      "maximized": "Maximized",
       "fullscreen": "Fullscreen",
       "save": "Save",
       "saveRestart": "Save and restart",
@@ -1560,9 +1557,6 @@
       "saveAllRestartDescription": "Other files have unsaved changes. These are saved before the firmware restarts:",
       "unsaved": "Unsaved",
       "readOnly": "Read only",
-      "history": "File history",
-      "historyBack": "Previous file",
-      "historyForward": "Next file",
       "contentLabel": "Contents of {name}",
       "opening": "Opening {name}…",
       "openInclude": "Ctrl+click to open {path}",
@@ -1579,7 +1573,27 @@
       "largeFileTitle": "Large file",
       "largeFileDescription": "{name} is {size}. Opening it may be slow. Open it anyway?",
       "imageAlt": "Preview of {name}",
-      "htmlTitle": "Preview of {name}"
+      "htmlTitle": "Preview of {name}",
+      "actions": "File actions"
+    },
+    "tabs": {
+      "label": "Open files",
+      "preview": "Preview",
+      "close": "Close {name}",
+      "pin": "Pin {name}",
+      "closeTab": "Close",
+      "closeOthers": "Close others",
+      "closeAll": "Close all unpinned",
+      "reveal": "Reveal in explorer",
+      "list": "All open files",
+      "showAllRows": "Show all tab rows",
+      "showOneRow": "Show one tab row",
+      "folded": "+{count}",
+      "menuLabel": "Actions for {name}"
+    },
+    "explorer": {
+      "show": "Show explorer",
+      "hide": "Hide explorer"
     },
     "errors": {
       "directory": "The folder could not be refreshed. Existing files remain visible.",
@@ -1591,25 +1605,16 @@
     },
     "files": {
       "title": "Configuration explorer",
-      "path": "Current configuration path",
-      "pathLabel": "Path:",
-      "pinnedFiles": "Pinned files",
       "unpin": "Unpin {name}",
-      "recentFiles": "Last edited files",
-      "recentFileLabel": "Last edited:",
-      "recentFileNone": "Nothing opened yet",
       "search": "Search all files",
       "contents": "Folder contents",
-      "name": "Name",
-      "size": "Size",
-      "modified": "Modified",
       "folder": "-",
-      "parent": "Parent folder",
       "readOnlyShort": "Read only",
       "includedInPrimaryConfig": "Included in printer.cfg",
       "empty": "This folder is empty",
       "noResults": "No files match this filter",
-      "searchingContents": "Searching file contents…"
+      "searchingContents": "Searching file contents…",
+      "pinned": "Pinned"
     },
     "move": {
       "dropHint": "Move into {name}",
@@ -1675,6 +1680,12 @@
       "compactRows": {
         "label": "Compact rows",
         "hint": "Shows shorter rows with smaller icons, closer to a desktop file manager."
+      },
+      "sort": "Sort by",
+      "sortBy": {
+        "name": "Name",
+        "size": "Size, largest first",
+        "modified": "Modified, newest first"
       }
     },
     "shortcuts": {

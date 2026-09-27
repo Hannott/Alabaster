@@ -247,82 +247,7 @@ describe('machine files store', () => {
     expect(machineFiles.lastError).toBe('directory')
   })
 
-  it('keeps the three newest edited files across visited folders', async () => {
-    const availability = useAvailabilityStore()
-    availability.moonrakerConnected({ klippy_connected: true, klippy_state: 'ready' })
-    const moonraker = useMoonrakerStore()
-    vi.spyOn(moonraker, 'rpcCall')
-      .mockResolvedValueOnce({
-        dirs: [{ dirname: 'hardware', modified: 1, size: 0, permissions: 'rw' }],
-        files: [
-          { filename: 'older.cfg', modified: 10, size: 10, permissions: 'rw' },
-          { filename: 'moonraker.conf', modified: 20, size: 20, permissions: 'rw' },
-          { filename: 'macros.cfg', modified: 30, size: 30, permissions: 'rw' },
-          { filename: 'printer.cfg', modified: 40, size: 40, permissions: 'rw' },
-        ],
-        disk_usage: { total: 1000, used: 400, free: 600 },
-        root_info: { name: 'config', permissions: 'rw' },
-      } as never)
-      .mockResolvedValueOnce({
-        dirs: [],
-        files: [{ filename: 'bed.cfg', modified: 50, size: 50, permissions: 'rw' }],
-        disk_usage: { total: 1000, used: 400, free: 600 },
-        root_info: { name: 'hardware', permissions: 'rw' },
-      } as never)
-    const machineFiles = useMachineFilesStore()
-
-    await machineFiles.refreshDirectory()
-    expect(machineFiles.recentFiles.map((file) => file.path)).toEqual([
-      'printer.cfg',
-      'macros.cfg',
-      'moonraker.conf',
-    ])
-
-    await machineFiles.navigate('hardware')
-    expect(machineFiles.recentFiles.map((file) => file.path)).toEqual([
-      'hardware/bed.cfg',
-      'printer.cfg',
-      'macros.cfg',
-    ])
-  })
-
-  it('navigates to and opens a recent file from another folder', async () => {
-    const availability = useAvailabilityStore()
-    availability.moonrakerConnected({ klippy_connected: true, klippy_state: 'ready' })
-    const moonraker = useMoonrakerStore()
-    vi.spyOn(moonraker, 'rpcCall').mockResolvedValueOnce({
-      dirs: [],
-      files: [{ filename: 'bed.cfg', modified: 50, size: 50, permissions: 'rw' }],
-      disk_usage: { total: 1000, used: 400, free: 600 },
-      root_info: { name: 'hardware', permissions: 'rw' },
-    } as never)
-    vi.stubGlobal(
-      'fetch',
-      vi.fn<typeof fetch>().mockResolvedValue(
-        new Response('[bed_mesh]\n', {
-          status: 200,
-          headers: { 'content-type': 'text/plain' },
-        }),
-      ),
-    )
-    const machineFiles = useMachineFilesStore()
-
-    await expect(
-      machineFiles.openRecentFile({
-        kind: 'file',
-        name: 'bed.cfg',
-        path: 'hardware/bed.cfg',
-        modified: 50,
-        size: 50,
-        permissions: 'rw',
-      }),
-    ).resolves.toBe(true)
-    expect(machineFiles.currentPath).toBe('hardware')
-    expect(machineFiles.currentFile?.path).toBe('hardware/bed.cfg')
-    expect(machineFiles.editorContent).toBe('[bed_mesh]\n')
-  })
-
-  it('opens a pinned file at its own path without navigating there', async () => {
+  it('opens a file at its own path without navigating there', async () => {
     const availability = useAvailabilityStore()
     availability.moonrakerConnected({ klippy_connected: true, klippy_state: 'ready' })
     const moonraker = useMoonrakerStore()
@@ -340,7 +265,7 @@ describe('machine files store', () => {
     machineFiles.currentPath = 'sub'
 
     await expect(
-      machineFiles.openPinnedFile({
+      machineFiles.openFileByPath({
         kind: 'file',
         name: 'bed.cfg',
         path: 'hardware/bed.cfg',

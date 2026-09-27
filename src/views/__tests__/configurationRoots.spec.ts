@@ -96,12 +96,12 @@ describe('Configuration roots', () => {
   })
 
   /**
-   * Recents are derived from the directory listing, and a root switch clears them
-   * before the new listing lands. Saying "nothing opened yet" in that gap blinks a
-   * false answer for a frame or two, which is what was reported. The band keeps its
-   * height throughout either way.
+   * An empty state is an answer, so it waits for one. Rendering "this folder is
+   * empty" while the listing is still on its way blinks a false answer for a
+   * frame or two — the recent-files band shipped exactly that before the tree
+   * replaced it.
    */
-  it('waits for the listing before saying nothing has been opened', async () => {
+  it('waits for the listing before calling the root empty', async () => {
     const moonraker = useMoonrakerStore(pinia)
     // Only the directory read is held open; anything else the view asks for
     // resolves, so what is under test is the listing's own pending state.
@@ -114,25 +114,22 @@ describe('Configuration roots', () => {
     const view = mount(ConfigurationView, { global: { plugins: [i18n, pinia] } })
     await flushPromises()
 
-    const band = view.find('.machine-recent-files')
-    expect(band.exists()).toBe(true)
-    expect(band.find('.machine-recent-files__empty').exists()).toBe(false)
+    expect(view.find('.machine-empty-state').exists()).toBe(false)
+    expect(view.find('.machine-explorer-footer').exists()).toBe(true)
 
-    // An empty folder is the case that legitimately has nothing to offer, so this
-    // is where the empty state belongs — after the answer, not before it.
     settle?.({ ...(logsListing as object), files: [] })
     await flushPromises()
 
-    expect(view.find('.machine-recent-files__empty').exists()).toBe(true)
-    expect(view.find('.machine-recent-files').exists()).toBe(true)
+    expect(view.find('.machine-empty-state').exists()).toBe(true)
   })
 
-  it('names the root being browsed in the path trail', async () => {
+  it('names the root being browsed at the top of the tree', async () => {
     const view = await mountAtLogs()
 
-    const trail = view.find('.machine-breadcrumbs')
-    expect(trail.text()).toContain('logs')
-    expect(trail.text()).not.toContain('config')
+    const root = view.find('.machine-tree-row--root')
+    expect(root.text()).toContain('logs')
+    expect(root.text()).not.toContain('config')
+    expect(root.attributes('aria-expanded')).toBe('true')
   })
 
   /**

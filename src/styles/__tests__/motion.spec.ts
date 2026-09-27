@@ -87,33 +87,40 @@ describe('motion system', () => {
     expect(styles).toMatch(/\.gcode-console--edge-released\s*\{[^}]*overscroll-behavior:\s*auto;/s)
   })
 
-  it('resizes the machine explorer without fading file navigation', () => {
-    expect(styles).toContain(
-      'flex-basis var(--motion-duration-standard) var(--motion-ease-emphasized)',
-    )
+  /*
+   * The explorer used to narrow the moment a file opened, which reflowed the
+   * listing on every open and close and needed a fade to hide its columns
+   * mid-resize. It is its own card at one width now, so there is no resize to
+   * animate and nothing to fade.
+   */
+  it('holds the machine explorer at one width, with nothing to animate', () => {
+    const explorer = styles.match(/\.machine-explorer\s*\{([^}]*)\}/)?.[1] ?? ''
+    expect(explorer).toContain('inline-size: var(--machine-explorer-width)')
+    expect(explorer).not.toContain('transition')
+    expect(styles).not.toContain('machine-workspace--maximized')
+    expect(styles).not.toContain('machine-workspace--resizing')
     expect(styles).not.toContain(".machine-workspace[data-pending='true']")
     expect(styles).not.toContain(".machine-code-editor[data-pending='true']")
-  })
-
-  it('keeps the compact machine explorer geometry stable while it resizes', () => {
     expect(styles).toMatch(
       /\.machine-file-row\s*{[^}]*height:\s*3rem;[^}]*min-height:\s*3rem;[^}]*max-height:\s*3rem;/s,
     )
-    expect(styles).toMatch(
-      /\.machine-workspace--maximized \.machine-file-row\s*{[^}]*height:\s*3rem;[^}]*min-height:\s*3rem;[^}]*max-height:\s*3rem;/s,
-    )
     expect(styles).toContain('overflow-anchor: none')
     expect(styles).toContain('scrollbar-gutter: stable')
-    for (const selector of [
-      '.machine-workspace--maximized .machine-toolbar',
-      '.machine-workspace--maximized .machine-search',
-      '.machine-workspace--maximized .machine-file-columns',
-    ]) {
-      const declarations = styles.match(
-        new RegExp(`${selector.replaceAll('.', '\\.')}\\s*\\{([^}]*)\\}`),
-      )?.[1]
-      expect(declarations ?? '').not.toMatch(/display:\s*none/)
-    }
+  })
+
+  /*
+   * The tab well's extra rows are the well's own height changing, which is the
+   * one height ADR 0004 lets animate — and only through DisclosureReveal, so it
+   * opens at the same speed as every other disclosure.
+   */
+  it('folds the tab well through DisclosureReveal', () => {
+    const well = readFileSync(
+      join(sourceRoot, 'components', 'machine', 'ConfigurationTabWell.vue'),
+      'utf8',
+    )
+    expect(well).toMatch(/<DisclosureReveal :open="!isFolded && laterRows\.length > 0">/)
+    const tabRow = styles.match(/\.document-tabs__row\s*\{([^}]*)\}/)?.[1] ?? ''
+    expect(tabRow).not.toContain('transition')
   })
 
   it('turns a settings cog off the state the DOM already holds', () => {

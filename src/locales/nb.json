@@ -1514,7 +1514,8 @@
       "discardAll": "Forkast alle endringer",
       "newFilePrompt": "Gi den nye konfigurasjonsfilen et navn",
       "newFileDefault": "ny-konfigurasjon.cfg",
-      "newFolderPrompt": "Gi den nye mappen et navn"
+      "newFolderPrompt": "Gi den nye mappen et navn",
+      "collapseAll": "Fold sammen alle mapper"
     },
     "contextMenu": {
       "label": "Handlinger for {name}",
@@ -1544,10 +1545,6 @@
     },
     "editor": {
       "title": "Konfigurasjonsredigering",
-      "back": "Tilbake til konfigurasjonsfilene",
-      "close": "Lukk redigering",
-      "displayMode": "Visningsmodus for redigering",
-      "maximized": "Maksimert",
       "fullscreen": "Fullskjerm",
       "save": "Lagre",
       "saveRestart": "Lagre og start på nytt",
@@ -1560,9 +1557,6 @@
       "saveAllRestartDescription": "Andre filer har ulagrede endringer. Disse lagres før fastvaren starter på nytt:",
       "unsaved": "Ikke lagret",
       "readOnly": "Skrivebeskyttet",
-      "history": "Filhistorikk",
-      "historyBack": "Forrige fil",
-      "historyForward": "Neste fil",
       "contentLabel": "Innholdet i {name}",
       "opening": "Åpner {name} …",
       "openInclude": "Ctrl-klikk for å åpne {path}",
@@ -1579,7 +1573,27 @@
       "largeFileTitle": "Stor fil",
       "largeFileDescription": "{name} er {size}. Åpning kan gå tregt. Åpne den likevel?",
       "imageAlt": "Forhåndsvisning av {name}",
-      "htmlTitle": "Forhåndsvisning av {name}"
+      "htmlTitle": "Forhåndsvisning av {name}",
+      "actions": "Filhandlinger"
+    },
+    "tabs": {
+      "label": "Åpne filer",
+      "preview": "Forhåndsvisning",
+      "close": "Lukk {name}",
+      "pin": "Fest {name}",
+      "closeTab": "Lukk",
+      "closeOthers": "Lukk andre",
+      "closeAll": "Lukk alle som ikke er festet",
+      "reveal": "Vis i utforskeren",
+      "list": "Alle åpne filer",
+      "showAllRows": "Vis alle faneradene",
+      "showOneRow": "Vis én fanerad",
+      "folded": "+{count}",
+      "menuLabel": "Handlinger for {name}"
+    },
+    "explorer": {
+      "show": "Vis utforskeren",
+      "hide": "Skjul utforskeren"
     },
     "errors": {
       "directory": "Mappen kunne ikke oppdateres. Eksisterende filer forblir synlige.",
@@ -1591,25 +1605,16 @@
     },
     "files": {
       "title": "Konfigurasjonsutforsker",
-      "path": "Gjeldende konfigurasjonssti",
-      "pathLabel": "Sti:",
-      "pinnedFiles": "Festede filer",
       "unpin": "Løsne {name}",
-      "recentFiles": "Sist redigerte filer",
-      "recentFileLabel": "Sist redigert:",
-      "recentFileNone": "Ingenting åpnet ennå",
       "search": "Søk i alle filer",
       "contents": "Mappeinnhold",
-      "name": "Navn",
-      "size": "Størrelse",
-      "modified": "Endret",
       "folder": "-",
-      "parent": "Overordnet mappe",
       "readOnlyShort": "Skrivebeskyttet",
       "includedInPrimaryConfig": "Inkludert i printer.cfg",
       "empty": "Denne mappen er tom",
       "noResults": "Ingen filer samsvarer med filteret",
-      "searchingContents": "Søker i filinnhold…"
+      "searchingContents": "Søker i filinnhold…",
+      "pinned": "Festet"
     },
     "move": {
       "dropHint": "Flytt til {name}",
@@ -1675,6 +1680,12 @@
       "compactRows": {
         "label": "Kompakte rader",
         "hint": "Viser lavere rader med mindre ikoner, likere en vanlig filutforsker."
+      },
+      "sort": "Sorter etter",
+      "sortBy": {
+        "name": "Navn",
+        "size": "Størrelse, største først",
+        "modified": "Endret, nyeste først"
       }
     },
     "shortcuts": {

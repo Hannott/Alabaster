@@ -1630,21 +1630,6 @@ input[type='number']::-webkit-inner-spin-button {
 }
 
 /*
- * The trailing breadcrumb is where the user already is, so it reads as present
- * rather than actionable.
- */
-.machine-breadcrumbs__segment {
-  flex: 0 0 auto;
-  font-size: var(--text-field-label-size);
-  font-weight: var(--font-weight);
-}
-
-.machine-breadcrumbs__segment[aria-current='page'] {
-  color: var(--text-primary);
-  font-weight: var(--font-weight);
-}
-
-/*
  * An unread marker on a control that opens something. It is a position-only
  * affordance: the dot never replaces the localized label that names what is
  * waiting, so it is not carrying meaning by color alone.
@@ -10606,14 +10591,24 @@ select {
   font-weight: var(--font-weight);
 }
 
+/*
+ * Two cards side by side rather than two panes sharing one: the viewer takes
+ * the width, and the explorer holds its own width on the right whatever is
+ * open. The explorer used to narrow the moment a file opened, which reflowed
+ * the listing on every open and close and needed a fade to hide its columns
+ * mid-resize; a fixed column has nothing to hide.
+ */
+/*
+ * Tighter than a dashboard card's radius: these are working surfaces edge to
+ * edge with a code editor and a dense tree, closer to an IDE's panels than to
+ * cards on a board.
+ */
 .machine-workspace {
   display: flex;
   block-size: 100%;
   min-height: 0;
-  overflow: hidden;
-  border: 1px solid var(--border-subtle);
-  border-radius: 1.5rem;
-  background: var(--surface-raised);
+  gap: 1rem;
+  --machine-card-radius: 0.6rem;
 }
 
 body.machine-editor-fullscreen-open {
@@ -10628,24 +10623,23 @@ body.machine-editor-fullscreen-open {
 
 .machine-explorer {
   display: flex;
-  inline-size: clamp(30rem, 34vw, 36rem);
-  flex: 0 0 clamp(30rem, 34vw, 36rem);
+  inline-size: var(--machine-explorer-width);
+  flex: 0 0 var(--machine-explorer-width);
   flex-direction: column;
-  border-inline-end: 1px solid var(--border-subtle);
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--machine-card-radius);
   background: var(--surface-soft);
-  transition:
-    inline-size var(--motion-duration-standard) var(--motion-ease-emphasized),
-    flex-basis var(--motion-duration-standard) var(--motion-ease-emphasized);
-}
-
-.machine-workspace--maximized .machine-explorer {
-  inline-size: 20rem;
-  flex-basis: 20rem;
   contain: inline-size;
+  --machine-explorer-width: 22rem;
 }
 
-.machine-pane-header,
-.machine-editor-header {
+/* Hidden only beside an open file: with nothing open it is the whole page. */
+.machine-workspace--editor-open.machine-workspace--explorer-hidden .machine-explorer {
+  display: none;
+}
+
+.machine-pane-header {
   display: flex;
   align-items: center;
   gap: 1rem;
@@ -10667,23 +10661,6 @@ body.machine-editor-fullscreen-open {
   min-width: 0;
 }
 
-/*
- * The free-space line fades out once the editor compacts the explorer, where
- * the four header controls need the width more than the copy does. Opacity
- * only, and the box keeps its space: collapsing it would drag the controls
- * across the pane mid-transition, which ADR 0004 forbids.
- */
-.machine-pane-header__identity {
-  opacity: 1;
-  transition: opacity var(--motion-duration-fast) var(--motion-ease-standard) 40ms;
-}
-
-.machine-workspace--maximized .machine-pane-header__identity,
-.machine-workspace--resizing .machine-pane-header__identity {
-  opacity: 0;
-  transition-delay: 0ms;
-}
-
 .machine-pane-header-actions {
   display: flex;
   align-items: center;
@@ -10695,11 +10672,6 @@ body.machine-editor-fullscreen-open {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.machine-editor-header {
-  min-height: 4.25rem;
-  padding: 0.65rem 0.8rem;
 }
 
 /*
@@ -10744,106 +10716,6 @@ body.machine-editor-fullscreen-open {
   white-space: nowrap;
 }
 
-.machine-breadcrumbs {
-  display: flex;
-  height: 2.9rem;
-  min-height: 2.9rem;
-  align-items: center;
-  flex: 0 0 2.9rem;
-  gap: 0.35rem;
-  overflow-x: auto;
-  overflow-y: hidden;
-  flex-wrap: nowrap;
-  padding: 0.6rem 1rem;
-  border-block-end: 1px solid var(--border-subtle);
-  color: var(--text-muted);
-  scrollbar-width: thin;
-}
-
-.machine-breadcrumbs__label {
-  flex: 0 0 auto;
-  font-size: var(--text-field-label-size);
-  font-weight: var(--font-weight);
-}
-
-.machine-recent-files {
-  display: flex;
-  min-width: 0;
-  height: 2.9rem;
-  min-height: 2.9rem;
-  align-items: center;
-  flex: 0 0 2.9rem;
-  gap: 0.5rem;
-  padding: 0.4rem 1rem;
-  border-block-end: 1px solid var(--border-subtle);
-}
-
-/* Holds the band's height when there is nothing to offer yet. */
-.machine-recent-files__empty {
-  font-size: var(--text-hint-size);
-  color: var(--text-muted);
-}
-
-.machine-recent-files__label {
-  flex: 0 0 auto;
-  color: var(--text-muted);
-  font-size: var(--text-field-label-size);
-  font-weight: var(--font-weight);
-}
-
-/*
- * A single, more prominent shortcut than a file-explorer row, so it gets its
- * own filled hover/focus treatment rather than the row list's quiet
- * text-color-only response — that reads as inert on a lone, larger target.
- */
-.machine-recent-files__file {
-  display: flex;
-  min-width: 0;
-  flex: 1;
-  align-items: center;
-  gap: 0.4rem;
-  border: 0;
-  border-radius: 0.5rem;
-  margin-inline-start: -0.4rem;
-  background: none;
-  padding: 0.3rem 0.4rem;
-  color: var(--text-muted);
-  font-size: var(--control-text-md-size);
-  font-weight: var(--font-weight);
-  text-align: start;
-  transition-duration: var(--motion-duration-fast);
-  transition-property: background-color, color;
-  transition-timing-function: var(--motion-ease-standard);
-}
-
-.machine-recent-files__file:hover,
-.machine-recent-files__file:focus-visible {
-  background-color: var(--surface-soft);
-  color: var(--text-primary);
-}
-
-/* Border: 0 at rest, so focus gets the fill it shares with hover above and
-   an inset ring rather than a border it does not have. */
-.machine-recent-files__file:focus-visible {
-  outline: none;
-  box-shadow: inset 0 0 0 2px var(--focus-ring);
-}
-
-.machine-recent-files__name {
-  overflow: hidden;
-  font-size: var(--control-text-sm-size);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.machine-workspace--maximized .machine-breadcrumbs {
-  padding-inline: 1rem;
-}
-
-.machine-workspace--maximized .machine-recent-files {
-  padding-inline: 1rem;
-}
-
 .machine-file-controls {
   display: flex;
   height: 3.25rem;
@@ -10867,34 +10739,9 @@ body.machine-editor-fullscreen-open {
   gap: 0.35rem;
 }
 
-.machine-workspace--maximized .machine-toolbar {
-  gap: 0.35rem;
-}
-
-.machine-workspace--maximized .machine-toolbar .button {
+.machine-toolbar .button {
   width: 2.35rem;
   flex-basis: 2.35rem;
-}
-
-.machine-file-meta {
-  min-width: 0;
-  overflow: hidden;
-  opacity: 1;
-  transition: opacity var(--motion-duration-fast) var(--motion-ease-standard) 40ms;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
-.machine-workspace--maximized .machine-file-meta,
-.machine-workspace--resizing .machine-file-meta {
-  opacity: 0;
-  transition-delay: 0ms;
-  visibility: hidden;
-}
-
-.machine-workspace--maximized .machine-file-meta,
-.machine-workspace--resizing .machine-file-meta {
-  display: none;
 }
 
 /*
@@ -10924,78 +10771,10 @@ body.machine-editor-fullscreen-open {
   font-size: var(--control-field-md-size);
 }
 
-.machine-file-columns,
 .machine-file-row {
   display: grid;
   align-items: center;
-  gap: 0.75rem;
-  grid-template-columns: minmax(0, 1fr) 4.4rem 10rem;
-}
-
-.machine-file-columns {
-  height: 2rem;
-  min-height: 2rem;
-  flex: 0 0 2rem;
-  padding-inline: 1rem;
-  color: var(--text-muted);
-  font-size: var(--text-label-caps-size);
-  font-weight: var(--font-weight);
-  letter-spacing: var(--text-label-caps-tracking);
-  text-transform: uppercase;
-}
-
-.machine-sort-header {
-  display: inline-flex;
-  min-width: 0;
-  align-items: center;
-  gap: 0.25rem;
-  overflow: hidden;
-  color: inherit;
-  text-align: start;
-}
-
-/*
- * The name column stays put and stays visible while the explorer resizes -
- * only the size/modified columns need to react, since they are the ones
- * appearing and disappearing. Pinning this to its own content width (rather
- * than stretching to fill the grid track) keeps it from jumping when the
- * track goes from sharing space with two fixed columns to spanning the row.
- */
-.machine-file-columns > .machine-sort-header:first-child {
-  justify-self: start;
-}
-
-.machine-sort-indicator {
-  width: 0.8rem;
-  height: 0.8rem;
-  min-width: 0.65rem;
-  color: var(--action-primary);
-}
-
-.machine-workspace--maximized .machine-file-columns,
-.machine-workspace--maximized .machine-file-row,
-.machine-workspace--resizing .machine-file-row {
-  gap: 0.5rem;
   grid-template-columns: minmax(0, 1fr);
-}
-
-.machine-workspace--maximized .machine-file-columns {
-  padding-inline: 1rem;
-}
-
-.machine-file-columns > :not(:first-child) {
-  transition: opacity var(--motion-duration-fast) var(--motion-ease-standard);
-  transition-delay: 40ms;
-}
-
-.machine-workspace--resizing .machine-file-columns > :not(:first-child) {
-  opacity: 0;
-  pointer-events: none;
-  transition-delay: 0ms;
-}
-
-.machine-workspace--maximized .machine-file-columns > :not(:first-child) {
-  display: none;
 }
 
 /*
@@ -11136,84 +10915,12 @@ body.machine-editor-fullscreen-open {
   text-align: center;
 }
 
-.machine-parent-entry {
-  position: sticky;
-  z-index: 2;
-  inset-block-start: 0;
-}
-
-/*
- * A pinned row can't be one button top to bottom the way an ordinary file row
- * is: the unpin control has to sit beside the row rather than inside it, since
- * a button cannot nest inside another button. It is positioned over the row
- * rather than beside it in flow, so it never claims width from the
- * name/size/modified grid the row shares with every other file row — a
- * sibling element that took its own share of the row's width shifted the size
- * and modified columns out of alignment with the header above them and with
- * every ordinary row below. Revealed only on hover or focus, since a pinned
- * row otherwise looks exactly like the row it would be if it were not pinned,
- * and unpinning is deliberate enough an action that it does not need a
- * permanently visible control. Overlapping the modified date once revealed is
- * fine: nothing here needs both at once.
- */
-.machine-pinned-row {
-  position: relative;
-  border-block-end: 1px solid var(--border-subtle);
-}
-
-.machine-pinned-row .machine-file-row {
-  border-block-end-color: transparent;
-}
-
-.machine-pinned-row__unpin {
-  position: absolute;
-  inset-inline-end: 0.5rem;
-  inset-block-start: 50%;
-  transform: translateY(-50%);
-  opacity: 0;
-  transition: opacity var(--motion-duration-fast) var(--motion-ease-standard);
-}
-
-.machine-pinned-row:hover .machine-pinned-row__unpin,
-.machine-pinned-row:focus-within .machine-pinned-row__unpin {
-  opacity: 1;
-}
-
-/*
- * States once for the whole group rather than on every row, the same reason a
- * read-only root is stated on its tab rather than on each of its files: every
- * row here is pinned, so marking that per row would repeat the one fact this
- * caption already states.
- */
-.machine-pinned-label {
-  padding: 0.35rem 1rem;
-  color: var(--text-muted);
-  font-size: var(--text-label-caps-size);
-  font-weight: var(--font-weight);
-  letter-spacing: var(--text-label-caps-tracking);
-  text-transform: uppercase;
-}
-
-/*
- * Closes the pinned group with an accent rule rather than the same neutral
- * hairline every row already carries — that hairline reads as "next row," not
- * "different group," which is indistinguishable from an ordinary file
- * boundary. Reuses `--action-primary`, the accent the open file's border and
- * the drop-target ring already use, rather than adding a second accent hue for
- * the same "this matters" meaning.
- */
-.machine-pinned-divider {
-  height: 0.125rem;
-  background-color: var(--action-primary);
-}
-
 /*
  * Unlike other file selects, these rows switch their hover color instantly
- * instead of fading it. Navigating a folder patches the row under the pointer
- * in place (see the list comment in FileExplorerView), so when a ".." row
- * shifts the list by one position the pointer momentarily lands on a different
- * entry. A fade would leave that wrong row's highlight visibly easing in and
- * back out; with no transition it is gone in the frame it appeared.
+ * instead of fading it. Opening or closing a folder moves every row below it
+ * by a whole row, so the pointer momentarily lands on a different entry; a fade
+ * would leave that wrong row's highlight visibly easing in and back out, where
+ * with no transition it is gone in the frame it appeared.
  */
 .machine-file-row {
   width: 100%;
@@ -11227,19 +10934,86 @@ body.machine-editor-fullscreen-open {
   transition: none;
 }
 
-.machine-workspace--maximized .machine-file-row {
-  height: 3rem;
-  min-height: 3rem;
-  max-height: 3rem;
-  padding-inline: calc(0.75rem - var(--selection-row-border));
+/*
+ * A tree row's indent is its depth, and the chevron keeps its column whether
+ * or not the row has one, so a file and the folder beside it start their icons
+ * at the same place.
+ */
+.machine-tree-row {
+  padding-inline-start: calc(
+    0.5rem - var(--selection-row-border) + var(--tree-level, 0) * var(--machine-tree-indent)
+  );
+  --machine-tree-indent: 1rem;
 }
 
-.machine-workspace--maximized .machine-file-name {
-  gap: 0.65rem;
+.machine-tree-chevron {
+  display: inline-block;
+  inline-size: 1rem;
+  block-size: 1rem;
+  flex: 0 0 1rem;
+  color: var(--text-muted);
 }
 
-.machine-file-row--parent {
+.machine-file-name .machine-tree-chevron + .machine-file-icon-hover {
+  margin-inline-start: -0.35rem;
+}
+
+.machine-tree-row--root {
   background-color: var(--surface-soft);
+}
+
+.machine-tree-row--root .machine-file-name__label {
+  font-weight: var(--font-weight-increased);
+}
+
+.machine-tree-pin {
+  display: inline-flex;
+  flex: 0 0 auto;
+  color: var(--text-muted);
+}
+
+/* A search result's own folder, so two files sharing a name can be told apart. */
+.machine-file-name__folder {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-meta-size);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  direction: rtl;
+}
+
+/*
+ * Holds its height whether it names a file, a folder, or the folder new files
+ * land in, like every other band in the explorer's stack.
+ */
+.machine-explorer-footer {
+  display: flex;
+  block-size: 2.25rem;
+  flex: 0 0 2.25rem;
+  align-items: center;
+  gap: 0.6rem;
+  overflow: hidden;
+  padding-inline: 1rem;
+  border-block-start: 1px solid var(--border-subtle);
+  background: var(--surface-raised);
+  color: var(--text-muted);
+  font-size: var(--text-meta-size);
+  font-weight: var(--font-weight);
+  white-space: nowrap;
+}
+
+.machine-explorer-footer__name {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-primary);
+  text-overflow: ellipsis;
+}
+
+.machine-explorer-footer__meta {
+  flex: 0 0 auto;
+  font-variant-numeric: tabular-nums;
 }
 
 .machine-file-row:hover:not(:disabled) {
@@ -11360,18 +11134,9 @@ body.machine-editor-fullscreen-open {
 
 /*
  * Compact rows (Explorer settings, on by default): a denser row closer to a
- * desktop file manager's detail view. Distinct from the `--maximized` and
- * `--resizing` rules above, which react to the *pane's width* by hiding
- * columns — this reacts to an explicit, persisted preference and shrinks
- * every row's *height* instead, independently of pane width, so the two
- * combine rather than compete.
+ * desktop file manager's detail view — an explicit, persisted preference that
+ * shrinks every row's height and icon.
  */
-.machine-file-columns--compact {
-  height: 1.85rem;
-  min-height: 1.85rem;
-  flex-basis: 1.85rem;
-}
-
 .machine-file-list--compact .machine-file-row {
   height: 1.85rem;
   min-height: 1.85rem;
@@ -11404,6 +11169,9 @@ body.machine-editor-fullscreen-open {
   display: flex;
   flex: 1 1 0;
   flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--machine-card-radius);
   background: var(--surface-raised);
   container: machine-editor-pane / inline-size;
 }
@@ -11414,6 +11182,8 @@ body.machine-editor-fullscreen-open {
   inset: 0;
   width: 100vw;
   height: 100dvh;
+  border: 0;
+  border-radius: 0;
   background: var(--viewer-surface);
 }
 
@@ -11437,43 +11207,26 @@ body.machine-editor-fullscreen-open {
   filter: saturate(0.58);
 }
 
-.machine-workspace--fullscreen .machine-editor-header {
-  min-height: 3.75rem;
-  flex-wrap: nowrap;
-  gap: 0.65rem;
-  padding: 0.5rem 0.65rem;
-  background: var(--surface-raised);
-}
-
-.machine-workspace--fullscreen .machine-editor-identity > p {
-  display: none;
-}
-
-.machine-workspace--fullscreen .machine-editor-actions {
-  overflow-x: auto;
-  scrollbar-width: thin;
-}
-
-.machine-editor-header {
-  flex-wrap: wrap;
-}
-
+/*
+ * The open file's actions, in the tab well's tool column. Icon-only at every
+ * width: they used to carry labels on a toolbar row of their own, which cost
+ * the editor a row to say what the tab already said.
+ */
 .machine-editor-actions {
   display: flex;
-  min-width: 0;
-  align-items: center;
-  gap: 0.45rem;
-}
-
-.machine-editor-history {
-  display: flex;
-  flex-shrink: 0;
   align-items: center;
   gap: 0.15rem;
 }
 
-.machine-editor-mode--empty {
-  margin-block-start: 1.25rem;
+.machine-editor-actions .machine-readonly-mark {
+  margin-inline-end: 0.3rem;
+}
+
+.document-tabs__separator {
+  inline-size: 1px;
+  block-size: 1rem;
+  margin-inline: 0.3rem;
+  background: var(--border-subtle);
 }
 
 .machine-feedback {
@@ -12032,6 +11785,230 @@ body.machine-editor-fullscreen-open {
   border-color: var(--action-primary);
 }
 
+/*
+ * The viewer's tab well (ConfigurationTabWell.vue). Pinned files wrap on a row
+ * of their own; every other tab is packed into rows by measured width, so the
+ * first row and the rest can be separate elements and the rest can fold away
+ * inside `DisclosureReveal`. The tools column sits beside the first row and
+ * never moves as rows come and go.
+ */
+.document-tabs {
+  position: relative;
+  display: grid;
+  flex: 0 0 auto;
+  align-items: start;
+  grid-template-columns: minmax(0, 1fr) auto;
+  padding: 0 0.4rem 0.35rem;
+  border-block-end: 1px solid var(--border-subtle);
+  background: var(--surface-soft);
+}
+
+.document-tabs__rows {
+  min-width: 0;
+}
+
+.document-tabs__row {
+  display: flex;
+  min-width: 0;
+  flex-wrap: nowrap;
+  column-gap: 0.25rem;
+  padding-block-start: 0.35rem;
+}
+
+.document-tabs__row--pinned {
+  flex-wrap: wrap;
+  row-gap: 0.25rem;
+}
+
+/* The divider exists only between two groups; alone, either needs none. */
+.document-tabs__row--divided {
+  padding-block-end: 0.35rem;
+  border-block-end: 1px solid var(--border-subtle);
+}
+
+.document-tabs__tools {
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+  padding-block-start: 0.35rem;
+  padding-inline-start: 0.35rem;
+}
+
+/*
+ * On a narrow viewer the tool column moves under the tabs rather than
+ * squeezing them to nothing.
+ */
+@container machine-editor-pane (max-width: 36rem) {
+  .document-tabs {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .document-tabs__tools {
+    justify-content: flex-end;
+    padding-inline-start: 0;
+  }
+}
+
+.document-tabs__folded {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Every tab at its natural width, for packing; never seen and never reached. */
+.document-tabs__measure {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-start: 0;
+  inline-size: max-content;
+  padding: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.document-tabs__menu {
+  min-inline-size: 14rem;
+  max-block-size: 22rem;
+  overflow-y: auto;
+}
+
+.document-tab {
+  position: relative;
+  min-width: 0;
+  max-inline-size: 14rem;
+  flex: 0 1 auto;
+}
+
+/*
+ * A `file-select` composing `selection-row`, sized as a tab rather than a list
+ * row: short, and only just rounded, the density of an IDE's document well.
+ * The end padding is the two control slots, reserved at all times so a tab
+ * never changes width when its controls appear, and so a control never sits
+ * over the name.
+ */
+.document-tab {
+  --document-tab-control: 1.25rem;
+  --document-tab-controls-inset: 0.2rem;
+  --document-tab-controls-gap: 0.1rem;
+}
+
+.document-tab__select {
+  inline-size: 100%;
+  block-size: 1.75rem;
+  gap: 0.35rem;
+  padding-block: 0;
+  padding-inline: calc(0.5rem - var(--selection-row-border))
+    calc(
+      0.3rem + var(--document-tab-control) * 2 + var(--document-tab-controls-gap) +
+        var(--document-tab-controls-inset) - var(--selection-row-border)
+    );
+  border-radius: 0.2rem;
+  font-size: var(--text-meta-size);
+  white-space: nowrap;
+}
+
+.document-tab__select:hover:not(:disabled) {
+  background-color: var(--surface-raised);
+}
+
+/*
+ * The preview tab is the one a single click in the explorer reuses. It is told
+ * apart by a dashed outline — a shape, since italics are out of bounds in this
+ * workspace and colour alone would not say it — and turns solid once kept.
+ */
+.document-tab__select--preview {
+  border-style: dashed;
+  border-color: var(--text-muted);
+}
+
+.document-tab__name {
+  display: flex;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.document-tab__head {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.document-tab__tail {
+  flex: 0 0 auto;
+}
+
+.document-tab--dirty .document-tab__select {
+  color: var(--status-caution-text);
+}
+
+/*
+ * An unsaved tab keeps a dot where its close control sits — a shape, not only
+ * the caution colour on its name — and trades it for the control on hover or
+ * focus. A saved tab shows the control while it is the one on screen.
+ */
+.document-tab__dirty-dot {
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline-end: calc(
+    var(--document-tab-controls-inset) + (var(--document-tab-control) - 0.45rem) / 2
+  );
+  inline-size: 0.45rem;
+  block-size: 0.45rem;
+  border-radius: 999px;
+  background: var(--status-caution-text);
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+/*
+ * Pin and close, in that order, in the slots the tab reserved — Visual
+ * Studio's arrangement. Both show on hover, on focus, and on the tab on
+ * screen; a pinned tab's pin shows always, since it is what says the tab is
+ * pinned. Outlier 14 in button-system.md: a tab is shorter than the size
+ * scale's smallest control, so these two are sized to the tab rather than
+ * growing it. `min-inline-size` has to be reset as well as `inline-size`, or
+ * `button--xs`'s own minimum keeps each control 1.75rem wide and the pair
+ * spills over the name.
+ */
+.document-tab__controls {
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline-end: var(--document-tab-controls-inset);
+  display: flex;
+  gap: var(--document-tab-controls-gap);
+  transform: translateY(-50%);
+}
+
+.document-tab__control.button {
+  inline-size: var(--document-tab-control);
+  min-inline-size: 0;
+  block-size: var(--document-tab-control);
+  min-height: 0;
+  border-radius: 0.2rem;
+  opacity: 0;
+  transition: opacity var(--motion-duration-fast) var(--motion-ease-standard);
+}
+
+.document-tab__control.button svg {
+  inline-size: 0.8rem;
+  block-size: 0.8rem;
+}
+
+.document-tab:hover .document-tab__control,
+.document-tab:focus-within .document-tab__control,
+.document-tab--active .document-tab__control--pin,
+.document-tab--active:not(.document-tab--dirty) .document-tab__control--close,
+.document-tab--pinned .document-tab__control--pin {
+  opacity: 1;
+}
+
+.document-tab--pinned .document-tab__control--pin {
+  color: var(--text-primary);
+}
+
+.document-tab--dirty:hover .document-tab__dirty-dot,
+.document-tab--dirty:focus-within .document-tab__dirty-dot {
+  opacity: 0;
+}
+
 @keyframes machine-pane-enter {
   from {
     opacity: 0;
@@ -12043,25 +12020,6 @@ body.machine-editor-fullscreen-open {
     opacity: 1;
     filter: saturate(1);
     transform: translateX(0);
-  }
-}
-
-/*
- * Save, Save and restart, and Discard changes are one set: they sit together in
- * the editor toolbar and always collapse to equal icon squares at the same
- * width, so they share `machine-editor-action` rather than each carrying its own
- * copy of the rule that could drift apart.
- */
-@container machine-editor-pane (max-width: 55rem) {
-  .machine-editor-mode span,
-  .machine-editor-action span {
-    display: none;
-  }
-
-  .machine-editor-mode .button,
-  .machine-editor-action {
-    inline-size: 2rem;
-    padding-inline: 0;
   }
 }
 
@@ -12171,25 +12129,6 @@ body.machine-editor-fullscreen-open {
   }
 }
 
-@media (max-width: 79.999rem) and (min-width: 55rem) {
-  .machine-editor-actions {
-    width: 100%;
-    justify-content: flex-end;
-  }
-}
-
-@media (max-width: 30rem) {
-  .machine-file-columns,
-  .machine-file-row {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .machine-file-columns > :not(:first-child),
-  .machine-file-row > :not(:first-child) {
-    display: none;
-  }
-}
-
 @media (max-width: 54.999rem) {
   /*
    * Height and the flex fill come from the wider narrow-width block above; this
@@ -12216,6 +12155,10 @@ body.machine-editor-fullscreen-open {
     align-items: start;
   }
 
+  /*
+   * One card at a time: the explorer until a file opens, then the viewer, and
+   * the explorer again whenever its toggle in the tab well asks for it.
+   */
   .machine-workspace {
     display: block;
     block-size: 100%;
@@ -12227,32 +12170,26 @@ body.machine-editor-fullscreen-open {
     height: 100%;
     min-height: 0;
     flex-basis: auto;
-    border-inline-end: 0;
   }
 
-  .machine-workspace--editor-open .machine-explorer {
+  .machine-workspace--editor-open:not(.machine-workspace--mobile-explorer) .machine-explorer {
     display: none;
+  }
+
+  .machine-workspace--editor-open.machine-workspace--explorer-hidden.machine-workspace--mobile-explorer
+    .machine-explorer {
+    display: flex;
   }
 
   .machine-editor-pane {
     display: none;
   }
 
-  .machine-workspace--editor-open .machine-editor-pane {
+  .machine-workspace--editor-open:not(.machine-workspace--mobile-explorer) .machine-editor-pane {
     display: flex;
     height: 100%;
     min-height: 0;
     animation: machine-pane-enter var(--motion-duration-standard) var(--motion-ease-emphasized);
-  }
-
-  .machine-editor-actions {
-    width: 100%;
-    overflow-x: auto;
-    padding-block-start: 0.2rem;
-  }
-
-  .machine-editor-actions .machine-editor-action {
-    flex: 1 0 auto;
   }
 }
 
