@@ -52,7 +52,7 @@ import {
   isConfigSyntaxFile,
   isEmptyPropertyLine,
   splitTokensForSearch,
-  tokenizeMachineLine,
+  tokenizeMachineRange,
   type MachineSyntaxMatchSegment,
 } from '@/features/machine/syntax'
 import {
@@ -580,10 +580,11 @@ const highlightedLines = computed(() => {
   const lines = editorLines.value
   const colored = highlightsSyntax.value
   const query = editorSearchQuery.value
+  const coloredLines = colored ? tokenizeMachineRange(lines, start, end) : null
   const rows: Array<{ line: number; tokens: MachineSyntaxMatchSegment[]; matched: boolean }> = []
   for (let index = start; index < end; index += 1) {
     const text = lines[index] ?? ''
-    const tokens = colored ? tokenizeMachineLine(text) : [{ kind: 'plain' as const, text }]
+    const tokens = coloredLines?.[index - start] ?? [{ kind: 'plain' as const, text }]
     const segments = splitTokensForSearch(tokens, query)
     rows.push({
       line: index,

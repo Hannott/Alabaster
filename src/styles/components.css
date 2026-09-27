@@ -11727,7 +11727,7 @@ body.machine-editor-fullscreen-open {
 }
 
 .machine-syntax--section,
-.machine-syntax--template {
+.machine-syntax--templateGlobal {
   color: var(--color-data-sky);
 }
 
@@ -11736,11 +11736,23 @@ body.machine-editor-fullscreen-open {
   color: color-mix(in srgb, var(--color-data-blue) 76%, var(--color-data-sky));
 }
 
-.machine-syntax--value {
+.machine-syntax--value,
+.machine-syntax--string {
   color: var(--color-data-orange);
 }
 
-.machine-syntax--boolean {
+/*
+ * Numbers sit between the value orange and the pin red rather than on yellow,
+ * the one data hue left, because yellow is the search mark's wash and
+ * underline — a number coloured with it would read as a match.
+ */
+.machine-syntax--number {
+  color: color-mix(in srgb, var(--color-data-red) 55%, var(--color-data-orange));
+}
+
+.machine-syntax--boolean,
+.machine-syntax--gcode,
+.machine-syntax--templateKeyword {
   color: var(--color-data-purple);
   font-weight: var(--font-weight);
 }
@@ -11753,6 +11765,15 @@ body.machine-editor-fullscreen-open {
 .machine-syntax--command {
   color: color-mix(in srgb, var(--color-data-sky) 74%, var(--text-primary));
   font-weight: var(--font-weight);
+}
+
+.machine-syntax--templateFilter {
+  color: color-mix(in srgb, var(--color-data-sky) 74%, var(--text-primary));
+}
+
+/* Recedes so what the statement says is read ahead of the braces around it. */
+.machine-syntax--templateDelimiter {
+  color: var(--text-muted);
 }
 
 .machine-syntax--includePath {

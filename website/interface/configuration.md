@@ -133,8 +133,13 @@ The row menu can also add or remove an include. The list marks files that
 ## Syntax highlighting
 
 A single syntax highlighter covers Klipper configuration and macros:
-sections, keys, values, booleans, pin names, Jinja templates and their
-comments, `[include]` paths, and `SAVE_CONFIG` autogen markers. It applies to
+sections, keys, values, booleans, pin names, `[include]` paths, and
+`SAVE_CONFIG` autogen markers. Inside a macro it reads G-code and Jinja as
+Klipper does: G-codes, commands, and their arguments, Jinja keywords,
+`printer` and `params`, filters, strings, and numbers, including a statement
+that wraps onto a second line and a `{value}` inside a quoted message. Only
+keys Klipper renders as templates are colored this way, so a `variable_`
+value shows as the literal it is. It applies to
 `.cfg`, `.conf`, `.cnf`, `.ini`, `.toml`, and `.bkp` files. The gutter
 highlights the active line's number.
 

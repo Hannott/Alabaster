@@ -11,6 +11,7 @@
  * See docs/design/configuration-editor.md.
  */
 
+import { COMMENT_LINE, isContinuationLine, opensValue } from '@/features/machine/configLines'
 import { indentUnit, visualColumn, type IndentWidth } from '@/features/machine/indent'
 
 export interface LineEdit {
@@ -238,17 +239,6 @@ export function moveSelectedLines(
  * side effect of typing. See docs/design/configuration-editor.md.
  */
 
-const COMMENT_LINE = /^[#;]/
-const KEY_LINE = /^[^\s#;[][^:=]*[:=]/
-/*
- * Deliberately stricter than "starts with a bracket": a continuation line may
- * begin with one — a bracketed value, a Jinja expression — and promoting that to
- * column zero would tear a line out of the macro it belongs to. A Klipper
- * section is a bracketed identifier alone on its line, optionally with a
- * trailing comment, so that is what this asks for.
- */
-const SECTION_LINE = /^\[[A-Za-z_][\w. -]*\]\s*(?:[#;].*)?$/
-
 type LineKind = 'blank' | 'top' | 'continuation'
 
 /**
@@ -273,11 +263,8 @@ function classifyLines(lines: readonly string[]): LineKind[] {
   return lines.map((line) => {
     const trimmed = line.trim()
     if (trimmed === '') return 'blank'
-    const indented = line[0] === ' ' || line[0] === '\t'
-    if (indented && insideValue && !SECTION_LINE.test(trimmed)) return 'continuation'
-    if (!COMMENT_LINE.test(trimmed)) {
-      insideValue = !SECTION_LINE.test(trimmed) && KEY_LINE.test(trimmed)
-    }
+    if (isContinuationLine(line, insideValue)) return 'continuation'
+    if (!COMMENT_LINE.test(trimmed)) insideValue = opensValue(trimmed)
     return 'top'
   })
 }
