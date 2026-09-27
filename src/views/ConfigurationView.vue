@@ -103,10 +103,12 @@ const {
   showBackupFiles,
   showReadOnlyFiles,
   searchInFileContents,
+  compactRows,
   setShowHiddenFiles,
   setShowBackupFiles,
   setShowReadOnlyFiles,
   setSearchInFileContents,
+  setCompactRows,
 } = useMachineFilesSettings()
 const { indentWidth } = useEditorIndent()
 const { fileHistory, fileHistoryIndex, pushFileHistory, setFileHistoryIndex } =
@@ -1964,6 +1966,20 @@ onBeforeUnmount(() => {
                     />
                     <span>{{ t('configuration.settings.searchInFileContents.label') }}</span>
                   </label>
+                  <p class="header-menu__section-title">
+                    {{ t('configuration.settings.density') }}
+                  </p>
+                  <label
+                    class="check-row check-row--block header-menu__toggle"
+                    :title="t('configuration.settings.compactRows.hint')"
+                  >
+                    <input
+                      type="checkbox"
+                      :checked="compactRows"
+                      @change="setCompactRows(($event.target as HTMLInputElement).checked)"
+                    />
+                    <span>{{ t('configuration.settings.compactRows.label') }}</span>
+                  </label>
                 </template>
               </HeaderMenu>
             </div>
@@ -2100,7 +2116,10 @@ onBeforeUnmount(() => {
             {{ t('configuration.files.searchingContents') }}
           </p>
 
-          <div class="machine-file-columns">
+          <div
+            class="machine-file-columns"
+            :class="{ 'machine-file-columns--compact': compactRows }"
+          >
             <button
               type="button"
               class="text-action machine-sort-header"
@@ -2147,7 +2166,10 @@ onBeforeUnmount(() => {
 
           <ul
             class="machine-file-list"
-            :class="{ 'machine-file-list--drop-active': isExternalDropZoneActive }"
+            :class="{
+              'machine-file-list--drop-active': isExternalDropZoneActive,
+              'machine-file-list--compact': compactRows,
+            }"
             :aria-label="t('configuration.files.contents')"
             :aria-busy="machineFiles.isDirectoryLoading || undefined"
             @dragenter="onExternalDragEnter"

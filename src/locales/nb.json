@@ -1659,6 +1659,11 @@
       "searchInFileContents": {
         "label": "Søk i filer",
         "hint": "Treffer også filer der innholdet inneholder søketeksten, ikke bare navnet."
+      },
+      "density": "Radtetthet",
+      "compactRows": {
+        "label": "Kompakte rader",
+        "hint": "Viser lavere rader med mindre ikoner, likere en vanlig filutforsker."
       }
     },
     "shortcuts": {

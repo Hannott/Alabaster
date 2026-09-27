@@ -1659,6 +1659,11 @@
       "searchInFileContents": {
         "label": "Search in files",
         "hint": "Also matches files whose contents contain the search text, not just their name."
+      },
+      "density": "Row density",
+      "compactRows": {
+        "label": "Compact rows",
+        "hint": "Shows shorter rows with smaller icons, closer to a desktop file manager."
       }
     },
     "shortcuts": {

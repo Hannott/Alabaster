@@ -183,6 +183,10 @@ Three switches under **Explorer settings** decide what the list shows:
 Folders and files sort independently of each other. Folders always come
 first.
 
+Turn on **Compact rows**, also under Explorer settings and on by default, for
+shorter rows and smaller icons — closer to a desktop file manager's list view,
+so more of a large folder fits on screen at once.
+
 ## Pinning files
 
 Pin a file from its row menu to keep it at the top of the list, in every

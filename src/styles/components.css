@@ -11358,6 +11358,36 @@ body.machine-editor-fullscreen-open {
   color: var(--status-caution-text);
 }
 
+/*
+ * Compact rows (Explorer settings, on by default): a denser row closer to a
+ * desktop file manager's detail view. Distinct from the `--maximized` and
+ * `--resizing` rules above, which react to the *pane's width* by hiding
+ * columns — this reacts to an explicit, persisted preference and shrinks
+ * every row's *height* instead, independently of pane width, so the two
+ * combine rather than compete.
+ */
+.machine-file-columns--compact {
+  height: 1.85rem;
+  min-height: 1.85rem;
+  flex-basis: 1.85rem;
+}
+
+.machine-file-list--compact .machine-file-row {
+  height: 1.85rem;
+  min-height: 1.85rem;
+  max-height: 1.85rem;
+  padding-block: calc(0.15rem - var(--selection-row-border));
+}
+
+.machine-file-list--compact .machine-file-name {
+  gap: 0.45rem;
+}
+
+.machine-file-list--compact .machine-file-icon-hover svg {
+  width: 1rem;
+  height: 1rem;
+}
+
 .machine-empty-state,
 .machine-editor-empty {
   display: flex;
