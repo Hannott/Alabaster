@@ -261,6 +261,10 @@ const cancelGuard = useActionGuard({
   key: 'farmCancelPrint',
 })
 const estopGuard = useActionGuard({ tier: 'terminal', key: 'emergencyStop' })
+/** Asks before it acts while gated, warns once nothing stands in front of it — see App.vue. */
+const estopIconName = computed<AppIconName>(() =>
+  estopGuard.guarded.value ? 'helpOctagon' : 'alertOctagon',
+)
 const powerGuard = useActionGuard({
   tier: () => (hasJobRunning.value ? 'terminal' : 'reversible'),
   emphasis: 'quiet',
@@ -383,7 +387,7 @@ function pending(command: string): boolean {
         v-bind="estopGuard.bind.value"
         @click="requestEmergencyStop"
       >
-        <AppIcon name="emergencyStop" class="size-4" aria-hidden="true" />
+        <AppIcon :name="estopIconName" class="size-4" aria-hidden="true" />
         <span class="sr-only">{{ t('farm.emergencyStopFor', { printer: printer.label }) }}</span>
       </button>
     </header>

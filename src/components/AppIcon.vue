@@ -3,6 +3,7 @@ export type AppIconName =
   | 'activity'
   | 'add'
   | 'adjust'
+  | 'alertOctagon'
   | 'back'
   | 'bell'
   | 'bellAlertTwotone'
@@ -31,7 +32,6 @@ export type AppIconName =
   | 'duplicate'
   | 'edit'
   | 'emergency'
-  | 'emergencyStop'
   | 'excludeObject'
   | 'expand'
   | 'fan'
@@ -57,6 +57,7 @@ export type AppIconName =
   | 'globe'
   | 'heatingSquare'
   | 'help'
+  | 'helpOctagon'
   | 'hide'
   | 'history'
   | 'home'
@@ -158,11 +159,11 @@ defineProps<{ name: AppIconName }>()
     <!--
       line-md's "bell" glyph (MIT licensed): a top hook, the body traced in
       one continuous stroke, then the clapper — drawn in once via SMIL on
-      mount, the same one-shot-singleton reasoning `emergencyStop` documents
-      above, since this is the one bell in the header and never mounts more
-      than once. `bellTwotone` and `bellAlertTwotone` below share this exact
-      path data and add only a fill and, for the alert variant, a continuous
-      loop plus the exclamation mark line-md draws to its upper right.
+      mount, which is safe because this is the one bell in the header and
+      never mounts more than once. `bellTwotone` and `bellAlertTwotone` below
+      share this exact path data and add only a fill and, for the alert
+      variant, a continuous loop plus the exclamation mark line-md draws to
+      its upper right.
     -->
     <g v-else-if="name === 'bell'">
       <path stroke-dasharray="4" d="M12 3v2">
@@ -223,9 +224,9 @@ defineProps<{ name: AppIconName }>()
       pulsing weight both loop indefinitely by design: this is the one glyph
       in the product allowed a continuous animation, because App.vue calls
       `pauseAnimations()` on it the instant reduced motion is requested (SMIL
-      sits outside the CSS blanket rule main.css otherwise applies, same as
-      `emergencyStop`), and it never appears until there is an unread
-      configuration problem for it to say something about.
+      sits outside the CSS blanket rule main.css otherwise applies), and it
+      never appears until there is an unread configuration problem for it to
+      say something about.
     -->
     <g v-else-if="name === 'bellAlertTwotone'">
       <path class="text-accent" stroke-dasharray="4" d="M12 3v2">
@@ -383,8 +384,6 @@ defineProps<{ name: AppIconName }>()
       The draw-in is dropped because ADR 0004 earns a reveal with a wait, and a
       cog arrives with its own frame — the dashboard alone mounts one per card,
       so keeping it would animate a dozen pieces of chrome on every load.
-      `emergencyStop` keeps its SMIL only because one control replays it
-      deliberately on hover, and it parks on its last frame otherwise.
 
       The rotation becomes CSS on this `<svg>` (`.cog-icon` in main.css)
       because SMIL cannot be reached from a class and sits outside the
@@ -659,33 +658,17 @@ defineProps<{ name: AppIconName }>()
       />
     </g>
     <!--
-      line-md's "brake-alert" glyph (MIT licensed). Kept as SMIL `<animate>`
-      markup rather than flattened to a static path: it draws itself in once on
-      mount and freezes there, and the header's emergency stop restarts that
-      same timeline on hover/focus rather than looping it — see `.header-estop`
-      in main.css and outlier 1 in button-system.md.
+      Boxicons' "alert-octagon" glyph (MIT licensed) — the header and farm-card
+      emergency stop wear this once its guard is off and a click acts right
+      away. Static rather than drawn in: an SMIL replay used to restart on
+      hover/focus here, but a control that acts immediately on click has
+      nothing to gain from asking the reader to watch it draw first.
     -->
-    <g v-else-if="name === 'emergencyStop'">
+    <g v-else-if="name === 'alertOctagon'" fill="currentColor" stroke="none">
+      <path d="M11 7h2v6h-2zm0 8h2v2h-2z" />
       <path
-        stroke-dasharray="54"
-        d="M12 4c4.42 0 8 3.58 8 8c0 4.42 -3.58 8 -8 8c-4.42 0 -8 -3.58 -8 -8c0 -4.42 3.58 -8 8 -8"
-      >
-        <animate fill="freeze" attributeName="stroke-dashoffset" dur="0.6s" values="54;0" />
-      </path>
-      <g stroke-dasharray="20" stroke-dashoffset="20">
-        <path d="M4.22 4.22c-4.29 4.3 -4.29 11.26 0 15.56">
-          <animate fill="freeze" attributeName="stroke-dashoffset" begin="0.7s" dur="0.3s" to="0" />
-        </path>
-        <path d="M19.78 4.22c4.29 4.3 4.29 11.26 0 15.56">
-          <animate fill="freeze" attributeName="stroke-dashoffset" begin="1s" dur="0.3s" to="0" />
-        </path>
-      </g>
-      <path stroke-dasharray="6" stroke-dashoffset="6" d="M12 8v4">
-        <animate fill="freeze" attributeName="stroke-dashoffset" begin="1.3s" dur="0.2s" to="0" />
-      </path>
-      <path stroke-dasharray="4" stroke-dashoffset="4" d="M12 16v0.01">
-        <animate fill="freeze" attributeName="stroke-dashoffset" begin="1.5s" dur="0.2s" to="0" />
-      </path>
+        d="M16.71 2.29A1 1 0 0 0 16 2H8c-.27 0-.52.11-.71.29l-5 5A1 1 0 0 0 2 8v8c0 .27.11.52.29.71l5 5c.19.19.44.29.71.29h8c.27 0 .52-.11.71-.29l5-5A1 1 0 0 0 22 16V8c0-.27-.11-.52-.29-.71zM20 15.58l-4.41 4.41H8.42l-4.41-4.41V8.41L8.42 4h7.17L20 8.41z"
+      />
     </g>
     <!--
       Basil's "expand-solid" glyph (MIT licensed) — pairs with `collapse`, and
@@ -955,6 +938,22 @@ defineProps<{ name: AppIconName }>()
       <circle cx="12" cy="12" r="9" />
       <path d="M9.1 9a3 3 0 0 1 5.82 1c0 2-3 3-3 3" />
       <path d="M12 17h.01" />
+    </g>
+    <!--
+      Boxicons' "help-octagon" glyph (MIT licensed) — the same outline as
+      `alertOctagon`, holding a question mark rather than an exclamation. The
+      header and farm-card emergency stop wear this while its guard is still
+      on, so a click opens the confirmation dialog rather than stopping the
+      printer outright: the mark asks, because the control is about to.
+    -->
+    <g v-else-if="name === 'helpOctagon'" fill="currentColor" stroke="none">
+      <path d="M11 16h2v2h-2z" />
+      <path
+        d="M16.71 2.29A1 1 0 0 0 16 2H8c-.27 0-.52.11-.71.29l-5 5A1 1 0 0 0 2 8v8c0 .27.11.52.29.71l5 5c.19.19.44.29.71.29h8c.27 0 .52-.11.71-.29l5-5A1 1 0 0 0 22 16V8c0-.27-.11-.52-.29-.71zM20 15.58l-4.41 4.41H8.42l-4.41-4.41V8.41L8.42 4h7.17L20 8.41z"
+      />
+      <path
+        d="M13.27 6.25c-2.08-.75-4.47.35-5.21 2.41l1.88.68c.18-.5.56-.9 1.07-1.13s1.08-.26 1.58-.08a2.01 2.01 0 0 1 1.32 1.86c0 1.04-1.66 1.86-2.24 2.07c-.4.14-.67.52-.67.94v1h2v-.34c1.04-.51 2.91-1.69 2.91-3.68a4.015 4.015 0 0 0-2.64-3.73"
+      />
     </g>
     <!-- CoreUI Icons' "hide" glyph (MIT licensed). -->
     <path

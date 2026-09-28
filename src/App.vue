@@ -157,31 +157,6 @@ function prefersReducedMotion(): boolean {
   return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
 }
 
-const estopIcon = ref<InstanceType<typeof AppIcon> | null>(null)
-
-function estopIconSvg(): SVGSVGElement | undefined {
-  return estopIcon.value?.$el as SVGSVGElement | undefined
-}
-
-/**
- * `emergencyStop`'s draw-in is SMIL (`<animate>`), not CSS, so it sits outside
- * main.css's blanket `prefers-reduced-motion` rule — that rule only collapses
- * `animation`/`transition` durations, a different mechanism than an SVG's own
- * SMIL timeline. Reduced motion is honored by hand instead: parked at its
- * final frame on mount rather than left to play, and never rewound on hover
- * or focus.
- */
-function replayEstopIcon(): void {
-  if (prefersReducedMotion()) return
-  estopIconSvg()?.setCurrentTime?.(0)
-}
-
-onMounted(() => {
-  // 2s safely clears the animation's last frame (its final `<animate>` ends
-  // at 1.7s), landing on the fully-drawn glyph instead of an empty one.
-  if (prefersReducedMotion()) estopIconSvg()?.setCurrentTime?.(2)
-})
-
 const hasNotice = computed(
   () =>
     !printerAvailability.value.isAvailable ||
@@ -218,12 +193,11 @@ function notificationBellIconSvg(): SVGSVGElement | undefined {
 
 /**
  * `bellAlertTwotone` is the one glyph in the product with a `repeatCount`
- * that never ends, so seeking past its draw-in with `setCurrentTime` (the
- * `emergencyStop` trick above) is not enough by itself — the loop would keep
- * advancing right past the point it was seeked to. `pauseAnimations` is the
- * SMIL call that actually freezes a timeline, SVG's equivalent of
- * `estopIconSvg`'s reduced-motion handling for a timeline that repeats
- * forever instead of playing once.
+ * that never ends, so seeking past its draw-in with `setCurrentTime` alone
+ * is not enough — the loop would keep advancing right past the point it was
+ * seeked to. `pauseAnimations` is the SMIL call that actually freezes a
+ * timeline, needed here because this one repeats forever instead of playing
+ * once.
  */
 function settleNotificationBellIcon(): void {
   if (!prefersReducedMotion()) return
@@ -479,6 +453,16 @@ const powerGuards = {
 const restartMoonrakerGuard = useActionGuard({
   tier: () => (printer.hasActivePrint ? 'disruptive' : 'reversible'),
 })
+
+/**
+ * `helpOctagon` while a click opens the confirmation dialog first, `alertOctagon`
+ * once nothing stands between the click and the stop -- the mark asks a
+ * question exactly when the control is about to, and warns exactly when it
+ * is about to act.
+ */
+const estopIconName = computed<AppIconName>(() =>
+  powerGuards.emergencyStop.guarded.value ? 'helpOctagon' : 'alertOctagon',
+)
 
 async function confirmPendingAction(): Promise<void> {
   const action = confirmingAction.value
@@ -835,7 +819,7 @@ async function discardPendingConfig(): Promise<void> {
           <!--
             Text, not a button — outlier 1 in button-system.md. The one control
             that has to be found before it is read, so shape (all caps, the
-            brake-alert glyph) and a fixed danger color carry that instead of
+            octagon glyph) and a fixed danger color carry that instead of
             button chrome. Still a real `<button>` for click, keyboard, and
             `:disabled`; named in full rather than abbreviated to "Stop" for the
             same reason as before — the row wraps now, so there is no width to
@@ -848,10 +832,8 @@ async function discardPendingConfig(): Promise<void> {
             :data-pending="printer.pendingCommands.emergencyStop ? 'true' : undefined"
             :title="t('dashboard.emergencyStop')"
             @click="requestAction('emergencyStop')"
-            @mouseenter="replayEstopIcon"
-            @focus="replayEstopIcon"
           >
-            <AppIcon ref="estopIcon" name="emergencyStop" class="size-6" aria-hidden="true" />
+            <AppIcon :name="estopIconName" class="size-6" aria-hidden="true" />
             {{ t('dashboard.emergencyStop') }}
           </button>
 
