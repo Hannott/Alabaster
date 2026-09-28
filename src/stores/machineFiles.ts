@@ -59,6 +59,16 @@ export interface OpenMachineFile extends MachineFileEntry {
  * the explorer reuses, so browsing does not leave a tab behind for every file
  * glanced at; editing it, or opening it deliberately, keeps it.
  */
+/**
+ * One text file held in memory. `saved` is what disk holds now, `origin` is
+ * what it held when the file was first read this session; see `fileBuffers`.
+ */
+export interface MachineFileBuffer {
+  content: string
+  saved: string
+  origin: string
+}
+
 export interface MachineFileTab {
   file: OpenMachineFile
   preview: boolean
@@ -172,8 +182,14 @@ export const useMachineFilesStore = defineStore('machineFiles', () => {
    * the currently open one. Switching files, folders, or pages never discards
    * an edit: only saving (which resyncs `saved` to `content`) or an explicit
    * discard clears the difference that makes a path count as dirty.
+   *
+   * `origin` is what disk held when the path was first read this session, and
+   * it is what lets the editor's gutter separate an edit still only in the
+   * browser from one already written to the printer: a save moves `saved` up to
+   * `content` and deliberately leaves `origin` behind, so the line keeps a mark
+   * saying it was touched. Only a fresh read of the file moves `origin`.
    */
-  const fileBuffers = ref(new Map<string, { content: string; saved: string }>())
+  const fileBuffers = ref(new Map<string, MachineFileBuffer>())
   /*
    * A file opened from a read-only root is shown from here and never given a
    * buffer entry. Keeping the buffer map to one root is what makes a collision
@@ -244,8 +260,12 @@ export const useMachineFilesStore = defineStore('machineFiles', () => {
     set: (content) => {
       const file = currentFile.value
       if (!file || !isRootEditable.value) return
-      const saved = fileBuffers.value.get(file.path)?.saved ?? ''
-      fileBuffers.value.set(file.path, { content, saved })
+      const buffer = fileBuffers.value.get(file.path)
+      fileBuffers.value.set(file.path, {
+        content,
+        saved: buffer?.saved ?? '',
+        origin: buffer?.origin ?? '',
+      })
     },
   })
   const savedContent = computed<string>({
@@ -258,9 +278,23 @@ export const useMachineFilesStore = defineStore('machineFiles', () => {
     set: (saved) => {
       const file = currentFile.value
       if (!file || !isRootEditable.value) return
-      const content = fileBuffers.value.get(file.path)?.content ?? ''
-      fileBuffers.value.set(file.path, { content, saved })
+      const buffer = fileBuffers.value.get(file.path)
+      fileBuffers.value.set(file.path, {
+        content: buffer?.content ?? '',
+        saved,
+        origin: buffer?.origin ?? '',
+      })
     },
+  })
+  /*
+   * What disk held for the open file when it was first read this session. Read
+   * only — nothing outside a fresh read of the file may move a baseline whose
+   * whole job is to stay put across saves.
+   */
+  const originContent = computed(() => {
+    if (!currentFile.value) return ''
+    if (!isRootEditable.value) return viewerContent.value
+    return fileBuffers.value.get(currentFile.value.path)?.origin ?? ''
   })
   const isDirty = computed(
     () => currentFile.value !== null && editorContent.value !== savedContent.value,
@@ -301,7 +335,7 @@ export const useMachineFilesStore = defineStore('machineFiles', () => {
   }
   /** Moves (or, with `nextPath` null, drops) every buffer at or under `previousPath`. */
   function repointBuffers(previousPath: string, nextPath: string | null): void {
-    const moved: Array<[string, { content: string; saved: string }]> = []
+    const moved: Array<[string, MachineFileBuffer]> = []
     for (const [path, buffer] of fileBuffers.value) {
       if (path !== previousPath && !path.startsWith(previousPath + '/')) continue
       fileBuffers.value.delete(path)
@@ -703,7 +737,8 @@ export const useMachineFilesStore = defineStore('machineFiles', () => {
         (content) => {
           const buffer = fileBuffers.value.get(path)
           if (root !== currentRoot.value || !buffer || buffer.content !== buffer.saved) return
-          if (buffer.saved !== content) fileBuffers.value.set(path, { content, saved: content })
+          if (buffer.saved !== content)
+            fileBuffers.value.set(path, { content, saved: content, origin: content })
         },
         () => undefined,
       )
@@ -716,7 +751,8 @@ export const useMachineFilesStore = defineStore('machineFiles', () => {
       const content = await fetchMoonrakerTextFile(currentRoot.value, path, moonraker.endpoint)
       if (generation !== fileGeneration) return false
       if (kind === 'html') htmlContent.value = content
-      else if (isRootEditable.value) fileBuffers.value.set(path, { content, saved: content })
+      else if (isRootEditable.value)
+        fileBuffers.value.set(path, { content, saved: content, origin: content })
       else viewerContent.value = content
       showFile(file, preview)
       return true
@@ -827,7 +863,7 @@ export const useMachineFilesStore = defineStore('machineFiles', () => {
   function discardChangesAt(path: string): void {
     const buffer = fileBuffers.value.get(path)
     if (!buffer) return
-    fileBuffers.value.set(path, { content: buffer.saved, saved: buffer.saved })
+    fileBuffers.value.set(path, { ...buffer, content: buffer.saved })
   }
 
   /** Drops the current file's in-memory edit, restoring it to its last-saved content. */
@@ -897,7 +933,11 @@ export const useMachineFilesStore = defineStore('machineFiles', () => {
     clearFeedback()
     try {
       await uploadFileContent(file.path, content)
-      fileBuffers.value.set(file.path, { content, saved: content })
+      fileBuffers.value.set(file.path, {
+        content,
+        saved: content,
+        origin: fileBuffers.value.get(file.path)?.origin ?? content,
+      })
       currentFile.value = { ...file, modified: Date.now() / 1000, size: new Blob([content]).size }
       if (file.path === PRIMARY_CONFIG) applyIncludedConfigPaths(content)
       hasUnappliedConfigChanges.value = true
@@ -935,7 +975,7 @@ export const useMachineFilesStore = defineStore('machineFiles', () => {
         if (!buffer) continue
         try {
           await uploadFileContent(path, buffer.content)
-          fileBuffers.value.set(path, { content: buffer.content, saved: buffer.content })
+          fileBuffers.value.set(path, { ...buffer, saved: buffer.content })
           if (currentFile.value?.path === path) {
             currentFile.value = {
               ...currentFile.value,
@@ -978,7 +1018,7 @@ export const useMachineFilesStore = defineStore('machineFiles', () => {
   }
 
   /** The buffer for a config file, or undefined if it has never been loaded. */
-  function configBuffer(path: string): { content: string; saved: string } | undefined {
+  function configBuffer(path: string): MachineFileBuffer | undefined {
     return fileBuffers.value.get(path)
   }
 
@@ -995,7 +1035,7 @@ export const useMachineFilesStore = defineStore('machineFiles', () => {
         try {
           const content = await fetchMoonrakerTextFile('config', path, moonraker.endpoint)
           if (isPathDirty(path)) return
-          fileBuffers.value.set(path, { content, saved: content })
+          fileBuffers.value.set(path, { content, saved: content, origin: content })
         } catch {
           allLoaded = false
         }
@@ -1007,7 +1047,7 @@ export const useMachineFilesStore = defineStore('machineFiles', () => {
   function setConfigBufferContent(path: string, content: string): void {
     const buffer = fileBuffers.value.get(path)
     if (!buffer) return
-    fileBuffers.value.set(path, { content, saved: buffer.saved })
+    fileBuffers.value.set(path, { ...buffer, content })
   }
 
   /**
@@ -1029,7 +1069,7 @@ export const useMachineFilesStore = defineStore('machineFiles', () => {
         if (!buffer || buffer.content === buffer.saved) continue
         try {
           await uploadConfigFile(path, buffer.content)
-          fileBuffers.value.set(path, { content: buffer.content, saved: buffer.content })
+          fileBuffers.value.set(path, { ...buffer, saved: buffer.content })
           if (path === PRIMARY_CONFIG) applyIncludedConfigPaths(buffer.content)
           hasUnappliedConfigChanges.value = true
         } catch {
@@ -1715,6 +1755,7 @@ export const useMachineFilesStore = defineStore('machineFiles', () => {
     currentFile,
     editorContent,
     savedContent,
+    originContent,
     isDirty,
     isPathDirty,
     unsavedFilePaths,

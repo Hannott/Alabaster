@@ -40,6 +40,11 @@ import type { EditorMenuAction } from '@/features/machine/editorMenu'
 import { classifyFileKind, isLargeFile } from '@/features/machine/fileKind'
 import { continuationIndent, softTabInsertion } from '@/features/machine/indent'
 import {
+  lineChangeMarks,
+  NO_LINE_CHANGE_MARKS,
+  type LineChangeState,
+} from '@/features/machine/lineChanges'
+import {
   duplicateSelectedLines,
   indentSelection,
   moveSelectedLines,
@@ -495,6 +500,37 @@ const SECTION_LINE = /^\s*\[([^\]]+)]/
  */
 const editorLines = computed(() => machineFiles.editorContent.split('\n'))
 const lineNumberCount = computed(() => Math.max(1, editorLines.value.length))
+/*
+ * Which lines differ from disk, and whether that difference has been written
+ * yet. Both baselines are split lazily and separately from `editorLines`, so
+ * typing re-splits only the buffer that actually changed; the string-equality
+ * gate above them means a file nobody has touched costs a pointer comparison
+ * rather than a diff.
+ */
+const savedLines = computed(() => machineFiles.savedContent.split('\n'))
+const originLines = computed(() => machineFiles.originContent.split('\n'))
+const lineChanges = computed(() => {
+  const content = machineFiles.editorContent
+  if (content === machineFiles.savedContent && content === machineFiles.originContent) {
+    return NO_LINE_CHANGE_MARKS
+  }
+  return lineChangeMarks(editorLines.value, savedLines.value, originLines.value)
+})
+function lineChangeAt(line: number): LineChangeState | null {
+  return lineChanges.value.changed.get(line) ?? null
+}
+function removedAboveLine(line: number): LineChangeState | null {
+  return lineChanges.value.removedAbove.get(line) ?? null
+}
+/*
+ * A deletion that took the end of the file has no line below it to be carried
+ * by, so the last line carries it on its lower edge instead. Without this the
+ * one edit that leaves no text behind at all would leave no mark at all.
+ */
+function removedBelowLine(line: number): LineChangeState | null {
+  if (line !== lineNumberCount.value - 1) return null
+  return lineChanges.value.removedAbove.get(lineNumberCount.value) ?? null
+}
 /*
  * Measured rather than taken from main.css's `1.5rem`, because that scales with
  * the root font size and with browser zoom, and every offset below has to agree
@@ -2547,7 +2583,40 @@ onBeforeUnmount(() => {
                     :key="row.line"
                     class="machine-line-number"
                     :class="{ 'machine-line-number--current': currentEditorLine === row.line + 1 }"
-                  >{{ row.line + 1 }}</span></pre>
+                  ><span
+                    v-if="lineChangeAt(row.line)"
+                    class="machine-line-mark machine-line-mark--change"
+                    :class="`machine-line-mark--${lineChangeAt(row.line)}`"
+                    :title="
+                      t(
+                        lineChangeAt(row.line) === 'unsaved'
+                          ? 'configuration.editor.changedUnsaved'
+                          : 'configuration.editor.changedSaved',
+                      )
+                    "
+                  ></span><span
+                    v-if="removedAboveLine(row.line)"
+                    class="machine-line-mark machine-line-mark--removed"
+                    :class="`machine-line-mark--${removedAboveLine(row.line)}`"
+                    :title="
+                      t(
+                        removedAboveLine(row.line) === 'unsaved'
+                          ? 'configuration.editor.removedUnsaved'
+                          : 'configuration.editor.removedSaved',
+                      )
+                    "
+                  ></span><span
+                    v-if="removedBelowLine(row.line)"
+                    class="machine-line-mark machine-line-mark--removed machine-line-mark--removed-below"
+                    :class="`machine-line-mark--${removedBelowLine(row.line)}`"
+                    :title="
+                      t(
+                        removedBelowLine(row.line) === 'unsaved'
+                          ? 'configuration.editor.removedUnsaved'
+                          : 'configuration.editor.removedSaved',
+                      )
+                    "
+                  ></span>{{ row.line + 1 }}</span></pre>
                 </div>
                 <div
                   v-if="editorBodyMounted"

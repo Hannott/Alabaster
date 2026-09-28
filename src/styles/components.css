@@ -11788,9 +11788,62 @@ body.machine-editor-fullscreen-open {
 }
 
 .machine-line-number {
+  position: relative;
   display: block;
   min-height: 1.5rem;
   padding-inline-end: 0.1rem;
+  /*
+   * Where a change mark sits relative to this row's own box, so it lands on the
+   * gutter's outer edge rather than inside its padding. The current row bleeds
+   * its background out to that same edge with a negative margin, so it cancels
+   * the offset rather than the mark overshooting by the padding twice.
+   */
+  --line-mark-inset: -0.75rem;
+}
+
+/*
+ * What differs from disk, in the margin the way Visual Studio and every editor
+ * since has put it. Orange is still only in the browser and closing the tab
+ * would lose it; green reached the printer this session. The distinction is the
+ * one the reader has to act on, and the editor header's own "Unsaved" label and
+ * the tab's dirty mark carry it in text as well — these are a locator for which
+ * lines, not the only statement that there are any.
+ *
+ * A deletion has no line left to mark, so it takes a short tick on the edge the
+ * removed lines used to be on instead of a full-height bar. That is a different
+ * shape and not merely a different length, because a shorter bar of the same
+ * color would read as a smaller change rather than as another kind of one.
+ */
+.machine-line-mark {
+  position: absolute;
+  inset-inline-start: var(--line-mark-inset);
+}
+
+.machine-line-mark--change {
+  inset-block: 0;
+  width: 3px;
+}
+
+.machine-line-mark--removed {
+  inset-block-start: 0;
+  width: 0.5rem;
+  height: 2px;
+  border-end-end-radius: 1px;
+}
+
+.machine-line-mark--removed-below {
+  inset-block-start: auto;
+  inset-block-end: 0;
+  border-radius: 0;
+  border-start-end-radius: 1px;
+}
+
+.machine-line-mark--unsaved {
+  background: var(--status-recovering);
+}
+
+.machine-line-mark--saved {
+  background: var(--status-available);
 }
 
 /*
@@ -11800,6 +11853,8 @@ body.machine-editor-fullscreen-open {
  * not just a echo of the faint sky tint across the line itself.
  */
 .machine-line-number--current {
+  --line-mark-inset: 0rem;
+
   margin-inline: -0.75rem;
   padding-inline: 0.75rem 0.85rem;
   background: color-mix(in srgb, var(--action-primary) 28%, transparent);

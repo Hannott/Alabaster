@@ -111,6 +111,12 @@ does not depend on color alone.
 act on every unsaved file at once, including files whose tab you have closed.
 Both list the files they will touch before doing it.
 
+The margin beside the line numbers marks which lines you changed. An orange
+bar means the line is not on the printer yet; a green bar means you saved it
+this session, so you can still see what you touched after saving. A short tick
+on a line's edge marks lines you deleted there. Hovering a mark says which it
+is. The marks reset when the file is read from the printer again.
+
 ## Include links
 
 `[include]` targets are links. Hovering underlines the path. Ctrl+click opens
