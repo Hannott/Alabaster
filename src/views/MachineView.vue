@@ -600,13 +600,23 @@ onBeforeUnmount(() => {
                     })
                   }}
                 </p>
+                <!--
+                  Each value is its own text node so the once-a-second
+                  bandwidth update only touches its own span. Compiled as one
+                  interpolated string, the whole line was a single text node
+                  Vue rewrote on every refresh, collapsing any in-progress
+                  selection -- including one confined to the address alone.
+                -->
                 <p v-if="primaryNetwork">
-                  {{ primaryNetwork.name }} · {{ primaryNetwork.address }} ·
-                  {{
+                  <span>{{ primaryNetwork.name }}</span>
+                  <span aria-hidden="true"> · </span>
+                  <span>{{ primaryNetwork.address }}</span>
+                  <span aria-hidden="true"> · </span>
+                  <span>{{
                     t('machine.system.bandwidth', {
                       value: formatBytes(primaryNetwork.stats?.bandwidth),
                     })
-                  }}
+                  }}</span>
                 </p>
                 <p v-if="freeMemory !== null">
                   {{
