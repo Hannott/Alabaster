@@ -162,8 +162,10 @@ function serviceLabel(camera: Camera): string {
       :items="pendingRemoval ? [pendingRemoval.name] : undefined"
       :confirm-label="t('cameras.removeConfirm')"
       tone="danger"
+      show-skip-option
       @confirm="confirmRemoval"
       @cancel="pendingRemoval = null"
+      @skip="confirmations.setSkip('removeCamera', true)"
     />
   </section>
 </template>

@@ -14,6 +14,7 @@ import { useAvailability } from '@/composables/useAvailability'
 import { useConsoleSettings } from '@/composables/useConsoleSettings'
 import { filterConsoleEntries } from '@/services/console/transcript'
 import { useActionGuard } from '@/composables/useActionGuard'
+import { useConfirmationsStore } from '@/stores/confirmations'
 import { useConsoleStore } from '@/stores/console'
 import { usePrinterConfigStore } from '@/stores/printerConfig'
 import { usePrinterStore } from '@/stores/printer'
@@ -63,6 +64,7 @@ const { t } = useI18n({ useScope: 'global' })
 const gcodeConsole = useConsoleStore()
 const printer = usePrinterStore()
 const printerConfig = usePrinterConfigStore()
+const confirmations = useConfirmationsStore()
 /*
  * Both clears are surface-level rather than per-instance even though a dashboard
  * card reaches the same transcript: one action with one consequence must not
@@ -282,8 +284,10 @@ function requestClearHistory(): void {
       :description="t('console.clearConfirm')"
       :confirm-label="t('console.clear')"
       tone="danger"
+      show-skip-option
       @confirm="clearConsole"
       @cancel="clearing = false"
+      @skip="confirmations.setSkip('clearConsole', true)"
     />
 
     <ConfirmDialog
@@ -292,8 +296,10 @@ function requestClearHistory(): void {
       :description="t('console.clearHistoryConfirm')"
       :confirm-label="t('console.clearHistoryAction')"
       tone="danger"
+      show-skip-option
       @confirm="clearCommandHistory"
       @cancel="clearingHistory = false"
+      @skip="confirmations.setSkip('clearCommandHistory', true)"
     />
   </div>
 </template>

@@ -451,7 +451,10 @@ function toggleSeries(objectName: string): void {
       a heater model are both "Temperatures' full configuration" — but the
       procedure itself is no longer only reachable from behind this card's gear.
     -->
-    <HeaterCalibrationPanel :skip-warning="skipCalibrationWarning" />
+    <HeaterCalibrationPanel
+      :skip-warning="skipCalibrationWarning"
+      @skip="updateConfig({ skipCalibrationWarning: true })"
+    />
   </SurfaceSection>
 
   <SurfaceSection :title="t('dashboard.temperature.confirmationsTitle')" divided>

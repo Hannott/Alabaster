@@ -133,7 +133,9 @@ describe('ConsoleModule', () => {
 
     settingsOpen.value = true
     await wrapper.vm.$nextTick()
-    const rows = wrapper.findAll('.check-row')
+    // Excludes the clear-confirmation dialog's own "don't warn again" row —
+    // dialog chrome, not a quick setting, and present in the DOM even closed.
+    const rows = wrapper.findAll('.check-row').filter((row) => !row.element.closest('dialog'))
     expect(rows.map((row) => row.text())).toEqual([
       'Hide temperature reports',
       'Show timestamps',

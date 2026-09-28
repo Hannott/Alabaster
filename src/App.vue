@@ -37,6 +37,7 @@ import { useAnnouncementsStore } from '@/stores/announcements'
 import { useAuthStore } from '@/stores/auth'
 import { useBedScrewsStore } from '@/stores/bedScrews'
 import { useActionGuard } from '@/composables/useActionGuard'
+import { useConfirmationsStore } from '@/stores/confirmations'
 import { useSettingsCategory } from '@/composables/useSettingsCategory'
 import { useDevicePowerStore } from '@/stores/devicePower'
 import { useMachineFilesStore } from '@/stores/machineFiles'
@@ -99,6 +100,7 @@ onBeforeUnmount(() => {
   if (statusFlashTimer !== null) window.clearTimeout(statusFlashTimer)
 })
 const printer = usePrinterStore()
+const confirmations = useConfirmationsStore()
 const auth = useAuthStore()
 const devicePower = useDevicePowerStore()
 const announcements = useAnnouncementsStore()
@@ -1255,8 +1257,10 @@ async function discardPendingConfig(): Promise<void> {
       :description="confirmDialogCopy.description"
       :confirm-label="confirmDialogCopy.confirmLabel"
       tone="danger"
+      show-skip-option
       @confirm="confirmPendingAction"
       @cancel="confirmingAction = null"
+      @skip="confirmingAction && confirmations.setSkip(confirmingAction, true)"
     />
 
     <SaveConfigDialog

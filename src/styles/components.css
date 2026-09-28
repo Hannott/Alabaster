@@ -5666,6 +5666,11 @@ input.z-axis__slider {
   overflow-wrap: anywhere;
 }
 
+/* Sits between the body content and the actions track, at the same distance `__actions` keeps from it. */
+.confirm-dialog__skip {
+  margin-block-start: 1.25rem;
+}
+
 /*
  * The single-value prompt's field. A visible label, not a placeholder, names
  * the field, and an invalid value states its reason under the field instead of

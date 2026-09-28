@@ -22,12 +22,27 @@ const props = defineProps<{
    * below, per the Machine update changelog.
    */
   wide?: boolean | undefined
+  /**
+   * Renders a "don't warn again" `check-row` above the actions. Every caller
+   * already has a skip setting somewhere (a `confirmationKeys` entry or a
+   * module flag) — this is a second surface for the same value, not a second
+   * value, so a caller that sets this must also handle `skip` by writing to
+   * that exact setting.
+   */
+  showSkipOption?: boolean | undefined
 }>()
 
-const emit = defineEmits<{ confirm: []; cancel: [] }>()
+const emit = defineEmits<{ confirm: []; cancel: []; skip: [] }>()
 
 const { t } = useI18n({ useScope: 'global' })
 const dialog = ref<HTMLDialogElement | null>(null)
+/**
+ * Local draft, not the setting itself. Checking the box only takes effect if
+ * `confirm` is the button pressed — see `handleConfirm` — so Cancel, Escape,
+ * and unmount all leave the underlying setting untouched no matter how this
+ * was left checked.
+ */
+const skipChecked = ref(false)
 
 /**
  * A native dialog gives modal focus trapping, Escape handling, and the top layer
@@ -36,8 +51,16 @@ const dialog = ref<HTMLDialogElement | null>(null)
 function sync(isOpen: boolean): void {
   const element = dialog.value
   if (!element) return
-  if (isOpen && !element.open) element.showModal()
+  if (isOpen && !element.open) {
+    skipChecked.value = false
+    element.showModal()
+  }
   if (!isOpen && element.open) element.close()
+}
+
+function handleConfirm(): void {
+  if (props.showSkipOption && skipChecked.value) emit('skip')
+  emit('confirm')
 }
 
 /**
@@ -76,6 +99,10 @@ onBeforeUnmount(() => {
       dialog. Unused by every other caller.
     -->
     <slot name="details" />
+    <label v-if="showSkipOption" class="check-row confirm-dialog__skip">
+      <input v-model="skipChecked" type="checkbox" />
+      <span>{{ t('confirmDialog.dontWarnAgain') }}</span>
+    </label>
     <!--
       The affirmative action leads and the dismissive one follows, both on one
       equal-width track: the two buttons then read in the order the question
@@ -87,7 +114,7 @@ onBeforeUnmount(() => {
         size="sm"
         :variant="tone === 'danger' ? 'danger' : 'primary'"
         :label="confirmLabel"
-        @click="emit('confirm')"
+        @click="handleConfirm"
       />
       <AppButton size="sm" :label="cancelLabel ?? t('dashboard.cancel')" @click="emit('cancel')" />
     </div>

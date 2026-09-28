@@ -10,6 +10,7 @@ import { useActionGuard } from '@/composables/useActionGuard'
 import { useExternalFileDrop } from '@/composables/useExternalFileDrop'
 import { useDashboardModule } from '@/dashboard/context'
 import { gcodeDisplayName } from '@/services/moonraker/files'
+import { useConfirmationsStore } from '@/stores/confirmations'
 import { useJobQueueStore } from '@/stores/jobQueue'
 import { usePrinterStore } from '@/stores/printer'
 
@@ -17,6 +18,7 @@ const { t } = useI18n({ useScope: 'global' })
 const { isSettingsOpen } = useDashboardModule('jobQueue')
 const jobQueue = useJobQueueStore()
 const printer = usePrinterStore()
+const confirmations = useConfirmationsStore()
 
 const stateLabel = computed(() => t(`dashboard.jobQueue.state.${jobQueue.queueState}`))
 
@@ -159,8 +161,10 @@ const {
       :description="t('dashboard.jobQueue.clearConfirm')"
       :confirm-label="t('dashboard.jobQueue.clear')"
       tone="danger"
+      show-skip-option
       @confirm="confirmClearQueue"
       @cancel="confirmingClear = false"
+      @skip="confirmations.setSkip('clearJobQueue', true)"
     />
   </AppDashboardModule>
 </template>

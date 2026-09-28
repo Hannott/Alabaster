@@ -42,7 +42,11 @@ const skipCalibrationWarning = computed(() =>
 </script>
 
 <template>
-  <CalibrationBench stage="heaters" :skip-confirm="skipCalibrationWarning">
+  <CalibrationBench
+    stage="heaters"
+    :skip-confirm="skipCalibrationWarning"
+    @skip="layout.updateConfig('temperatures', { skipCalibrationWarning: true })"
+  >
     <template #live>
       <HostedDashboardModule module-id="temperatures">
         <TemperaturesModule />

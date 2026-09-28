@@ -18,11 +18,13 @@ import type {
   MachineUpdateItem,
 } from '@/stores/machineSystem'
 import { releaseNotesUrl, updateAvailability, useMachineSystemStore } from '@/stores/machineSystem'
+import { useConfirmationsStore } from '@/stores/confirmations'
 import { useMoonrakerStore } from '@/stores/moonraker'
 
 const { locale, t } = useI18n({ useScope: 'global' })
 const moonraker = useMoonrakerStore()
 const machine = useMachineSystemStore()
+const confirmations = useConfirmationsStore()
 /*
  * `primary` emphasis: installing an update is a commitment rather than a
  * destruction, so it keeps the emphasis it has while the dialog is there and
@@ -1090,8 +1092,10 @@ onBeforeUnmount(() => {
       :description="confirmDescription"
       :confirm-label="t('machine.updates.updateConfirm')"
       :wide="hasChangelogDetails"
+      show-skip-option
       @confirm="confirmUpdate"
       @cancel="cancelConfirm"
+      @skip="confirmations.setSkip('installUpdate', true)"
     >
       <template v-if="pendingUpdateCommits.length" #details>
         <p class="update-recovery-section-note">
@@ -1133,8 +1137,10 @@ onBeforeUnmount(() => {
       :description="t('machine.updates.rollbackConfirmDescription')"
       :confirm-label="t('machine.updates.rollback')"
       tone="danger"
+      show-skip-option
       @confirm="confirmRollback"
       @cancel="cancelRollback"
+      @skip="confirmations.setSkip('rollbackUpdate', true)"
     />
 
     <ConfirmDialog
@@ -1145,8 +1151,10 @@ onBeforeUnmount(() => {
       "
       :confirm-label="t('machine.services.stop', { name: pendingServiceStop ?? '' })"
       tone="danger"
+      show-skip-option
       @confirm="confirmServiceStop"
       @cancel="cancelServiceStop"
+      @skip="confirmations.setSkip('stopService', true)"
     />
 
     <ConfirmDialog
@@ -1156,8 +1164,10 @@ onBeforeUnmount(() => {
         t('machine.services.restartConfirmDescription', { name: pendingServiceRestart ?? '' })
       "
       :confirm-label="t('machine.services.restart', { name: pendingServiceRestart ?? '' })"
+      show-skip-option
       @confirm="confirmServiceRestart"
       @cancel="cancelServiceRestart"
+      @skip="confirmations.setSkip('restartService', true)"
     />
 
     <MachineUpdateConsoleDialog

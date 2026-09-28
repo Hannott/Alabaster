@@ -36,6 +36,9 @@ const props = defineProps<{
   skipConfirm?: boolean | undefined
 }>()
 
+/** Persisted by whichever host passes `skipConfirm`, into that host's own setting. */
+const emit = defineEmits<{ skip: [] }>()
+
 const { t } = useI18n({ useScope: 'global' })
 const calibration = useCalibrationStore()
 const printer = usePrinterStore()
@@ -465,8 +468,10 @@ const effects = computed(() =>
       :description="t(`calibration.procedure.${procedure.id}.detail`)"
       :items="script ? [script] : []"
       :confirm-label="t('calibration.bench.run')"
+      show-skip-option
       @confirm="startRun"
       @cancel="confirmOpen = false"
+      @skip="emit('skip')"
     />
   </section>
 </template>

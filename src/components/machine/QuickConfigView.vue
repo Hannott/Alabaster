@@ -464,8 +464,10 @@ ${change.option}`"
       :items="quickConfig.unsavedPaths"
       :confirm-label="t('configuration.quickConfig.discardConfirm')"
       tone="danger"
+      show-skip-option
       @confirm="confirmDiscard"
       @cancel="pendingDiscard = false"
+      @skip="confirmations.setSkip('discardAllFiles', true)"
     />
 
     <ConfirmDialog
@@ -474,8 +476,10 @@ ${change.option}`"
       :description="t('configuration.editor.saveAllRestartDescription')"
       :items="machineFiles.unsavedFilePaths"
       :confirm-label="t('configuration.editor.saveRestartConfirm')"
+      show-skip-option
       @confirm="confirmSaveAllAndRestart"
       @cancel="pendingSaveAllAndRestart = false"
+      @skip="confirmations.setSkip('saveAllAndRestart', true)"
     />
   </div>
 </template>

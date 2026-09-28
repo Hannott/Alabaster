@@ -33,6 +33,7 @@ import { useActionGuard } from '@/composables/useActionGuard'
 import type { FarmQueue } from '@/farm/types'
 import { createDateTimeFormatter } from '@/i18n/formats'
 import type { MoonrakerFileInfo } from '@/services/moonraker'
+import { useConfirmationsStore } from '@/stores/confirmations'
 import { useFarmStore } from '@/stores/farm'
 
 const props = defineProps<{
@@ -49,6 +50,7 @@ const emit = defineEmits<{ close: [] }>()
 
 const { locale, t } = useI18n({ useScope: 'global' })
 const farm = useFarmStore()
+const confirmations = useConfirmationsStore()
 
 const dialog = ref<HTMLDialogElement | null>(null)
 const input = ref<HTMLInputElement | null>(null)
@@ -302,7 +304,9 @@ const queueHeld = computed(() => props.queue?.state === 'paused' && queueJobs.va
     :title="t('farm.files.confirmStart.title', { printer: printerLabel })"
     :description="t('farm.files.confirmStart.description', { file: startingPath ?? '' })"
     :confirm-label="t('farm.files.confirmStart.confirm')"
+    show-skip-option
     @confirm="start(startingPath ?? '')"
     @cancel="startingPath = null"
+    @skip="confirmations.setSkip('farmStartPrint', true)"
   />
 </template>

@@ -20,6 +20,7 @@ import { bedExtents, planPoint, type BedExtents } from '@/dashboard/bedPlan'
 import type { ExcludeObjectDefinition } from '@/stores/excludeObject'
 import { useExcludeObjectStore } from '@/stores/excludeObject'
 import { useActionGuard } from '@/composables/useActionGuard'
+import { useConfirmationsStore } from '@/stores/confirmations'
 import { usePrinterStore } from '@/stores/printer'
 
 const props = defineProps<{ open: boolean }>()
@@ -28,6 +29,7 @@ const emit = defineEmits<{ close: [] }>()
 const { t } = useI18n({ useScope: 'global' })
 const printer = usePrinterStore()
 const excludeObject = useExcludeObjectStore()
+const confirmations = useConfirmationsStore()
 
 const dialog = ref<HTMLDialogElement | null>(null)
 const pendingName = ref<string | null>(null)
@@ -163,7 +165,9 @@ onBeforeUnmount(() => {
     :description="t('excludeObject.confirmDescription', { name: pendingName ?? '' })"
     :confirm-label="t('excludeObject.exclude')"
     tone="danger"
+    show-skip-option
     @confirm="confirmExclude"
     @cancel="pendingName = null"
+    @skip="confirmations.setSkip('excludeObject', true)"
   />
 </template>

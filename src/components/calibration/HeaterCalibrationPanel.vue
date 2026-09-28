@@ -38,6 +38,9 @@ const props = defineProps<{
   skipWarning?: boolean
 }>()
 
+/** Persisted by whichever host renders this panel, into that host's own `skipWarning` setting. */
+const emit = defineEmits<{ skip: [] }>()
+
 /** A default calibration target for a heater that has never had one set. */
 const defaultCalibrationTarget = 200
 
@@ -246,8 +249,10 @@ async function startCalibration(): Promise<void> {
         })
       "
       :confirm-label="t('dashboard.temperature.calibrateConfirmAction')"
+      show-skip-option
       @confirm="startCalibration"
       @cancel="calibrationConfirmOpen = false"
+      @skip="emit('skip')"
     />
   </div>
 </template>

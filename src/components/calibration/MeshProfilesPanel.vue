@@ -9,11 +9,13 @@ import { useActionGuard } from '@/composables/useActionGuard'
 import { useAvailability } from '@/composables/useAvailability'
 import { profileNameIssue } from '@/features/bedMesh/profileNames'
 import { useBedMeshStore } from '@/stores/bedMesh'
+import { useConfirmationsStore } from '@/stores/confirmations'
 import { usePrinterStore } from '@/stores/printer'
 
 const { locale, t } = useI18n({ useScope: 'global' })
 const bedMesh = useBedMeshStore()
 const printer = usePrinterStore()
+const confirmations = useConfirmationsStore()
 const { availability: klipperAvailability } = useAvailability('klipper')
 
 /*
@@ -177,8 +179,10 @@ function validateMeshName(value: string, except?: string): string | undefined {
       :description="t('calibration.mesh.deleteConfirm', { name: deletingProfile ?? '' })"
       :confirm-label="t('calibration.mesh.delete')"
       tone="danger"
+      show-skip-option
       @confirm="confirmDelete"
       @cancel="deletingProfile = null"
+      @skip="confirmations.setSkip('deleteMeshProfile', true)"
     />
   </section>
 </template>

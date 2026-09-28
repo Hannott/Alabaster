@@ -1907,8 +1907,10 @@ onBeforeUnmount(() => {
         })
       "
       :confirm-label="t('gcodeViewer.confirmLoad.confirm')"
+      show-skip-option
       @confirm="confirmPendingLoad"
       @cancel="pendingLoad = null"
+      @skip="confirmations.setSkip('openLargeGcodeFile', true)"
     />
   </section>
 </template>

@@ -2680,6 +2680,9 @@
       "regenerateConfirm": "Generer på nytt"
     }
   },
+  "confirmDialog": {
+    "dontWarnAgain": "Ikke spør igjen"
+  },
   "confirmations": {
     "eyebrow": "Sikkerhet",
     "title": "Bekreftelser",

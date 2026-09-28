@@ -1399,7 +1399,9 @@ describe('MovementModule', () => {
     const { wrapper } = mountModule({ settingsOpen: true })
     await flushPromises()
 
-    const rows = wrapper.findAll('.check-row')
+    // Excludes the module's three confirmation dialogs' own "don't warn again"
+    // rows — dialog chrome, not a quick setting, and present in the DOM even closed.
+    const rows = wrapper.findAll('.check-row').filter((row) => !row.element.closest('dialog'))
     expect(rows.map((row) => row.text())).toEqual(['Show park positions', 'Show Z offset controls'])
     // The step scales are judged by looking at the jog buttons, so they moved
     // to the surface, where the card is docked beside them.

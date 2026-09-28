@@ -185,6 +185,32 @@ describe('the guard system covers every control that needs it', () => {
     ).toEqual([])
   })
 
+  /*
+   * A dialog that opens is, by the test above, already backed by a skip
+   * setting somewhere — Settings' Confirmations card or a module pane. This
+   * catches the other half: whether that setting can also be reached from
+   * the dialog itself, at the moment it matters, rather than only after
+   * hunting down which pane owns it. Scanned per `<ConfirmDialog>` tag, not
+   * per file, since a file with several sites can wire some and miss others.
+   */
+  it('gives every ConfirmDialog instance its own "warn again" checkbox', () => {
+    const missing: string[] = []
+
+    for (const path of vueFiles) {
+      const source = readFileSync(path, 'utf8')
+      const tags = source.match(/<ConfirmDialog\b[\s\S]*?(?:\/>|<\/ConfirmDialog>)/g) ?? []
+      for (const [index, tag] of tags.entries()) {
+        const wired = tag.includes('show-skip-option') && /@skip(\.\S+)?=/.test(tag)
+        if (!wired) missing.push(`${relative(sourceRoot, path)} (instance ${index + 1})`)
+      }
+    }
+
+    expect(
+      missing,
+      `These ConfirmDialog instances have no show-skip-option / @skip wiring:\n${missing.join('\n')}`,
+    ).toEqual([])
+  })
+
   it('renders a row for every confirmation key', () => {
     const settings = readFileSync(join(sourceRoot, 'views', 'SettingsView.vue'), 'utf8')
     const locale = JSON.parse(

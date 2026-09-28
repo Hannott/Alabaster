@@ -25,6 +25,7 @@ import {
 } from '@/features/history/statistics'
 import { createDateTimeFormatter } from '@/i18n/formats'
 import { useActionGuard } from '@/composables/useActionGuard'
+import { useConfirmationsStore } from '@/stores/confirmations'
 import {
   useHistoryStore,
   type HistoryAuxiliaryTotal,
@@ -39,6 +40,7 @@ const { locale, t } = useI18n({ useScope: 'global' })
 const history = useHistoryStore()
 const printer = usePrinterStore()
 const printerConfig = usePrinterConfigStore()
+const confirmations = useConfirmationsStore()
 /*
  * Reprinting commits the machine to a job; deleting a record destroys one. Same
  * tier, different emphasis, and the escalation is one step from each.
@@ -621,8 +623,10 @@ function requestReprint(job: HistoryJob): void {
       "
       :confirm-label="t('history.jobs.delete')"
       tone="danger"
+      show-skip-option
       @confirm="confirmDelete"
       @cancel="deletingJob = null"
+      @skip="confirmations.setSkip('deleteHistoryJob', true)"
     />
     <ConfirmDialog
       :open="reprintingJob !== null"
@@ -631,8 +635,10 @@ function requestReprint(job: HistoryJob): void {
         t('history.jobs.reprintConfirm', { name: shortName(reprintingJob?.filename ?? '') })
       "
       :confirm-label="t('history.jobs.reprint')"
+      show-skip-option
       @confirm="confirmReprint"
       @cancel="reprintingJob = null"
+      @skip="confirmations.setSkip('reprintJob', true)"
     />
   </section>
 </template>

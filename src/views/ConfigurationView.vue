@@ -2944,8 +2944,10 @@ onBeforeUnmount(() => {
       "
       :confirm-label="t('configuration.editor.discardConfirm')"
       tone="danger"
+      show-skip-option
       @confirm="confirmDiscardChanges"
       @cancel="pendingDiscard = false"
+      @skip="confirmations.setSkip('discardFileChanges', true)"
     />
 
     <ConfirmDialog
@@ -2954,8 +2956,10 @@ onBeforeUnmount(() => {
       :description="t('configuration.saveAll.description')"
       :items="machineFiles.unsavedFilePaths"
       :confirm-label="t('configuration.saveAll.confirm')"
+      show-skip-option
       @confirm="confirmSaveAll"
       @cancel="pendingSaveAll = false"
+      @skip="confirmations.setSkip('saveAllFiles', true)"
     />
 
     <ConfirmDialog
@@ -2965,8 +2969,10 @@ onBeforeUnmount(() => {
       :items="machineFiles.unsavedFilePaths"
       :confirm-label="t('configuration.discardAll.confirm')"
       tone="danger"
+      show-skip-option
       @confirm="confirmDiscardAll"
       @cancel="pendingDiscardAll = false"
+      @skip="confirmations.setSkip('discardAllFiles', true)"
     />
 
     <ConfirmDialog
@@ -2975,8 +2981,10 @@ onBeforeUnmount(() => {
       :description="t('configuration.editor.saveAllRestartDescription')"
       :items="machineFiles.unsavedFilePaths"
       :confirm-label="t('configuration.editor.saveRestartConfirm')"
+      show-skip-option
       @confirm="confirmSaveAllAndRestart"
       @cancel="pendingRestartWithUnsaved = false"
+      @skip="confirmations.setSkip('saveAllAndRestart', true)"
     />
 
     <!--
@@ -3152,8 +3160,10 @@ onBeforeUnmount(() => {
       "
       :confirm-label="t('configuration.deleteEntry.confirm')"
       tone="danger"
+      show-skip-option
       @cancel="pendingDelete = null"
       @confirm="confirmDeleteEntry"
+      @skip="confirmations.setSkip('deleteFileEntry', true)"
     />
 
     <dialog
@@ -3219,8 +3229,10 @@ onBeforeUnmount(() => {
           : undefined
       "
       :confirm-label="t('configuration.editor.openAnyway')"
+      show-skip-option
       @confirm="confirmPendingFileOpen"
       @cancel="cancelPendingFileOpen"
+      @skip="confirmations.setSkip('openUnsupportedFile', true)"
     />
 
     <ConfirmDialog
@@ -3243,8 +3255,10 @@ onBeforeUnmount(() => {
             : 'configuration.editor.createIncludeConfirm',
         )
       "
+      show-skip-option
       @confirm="confirmCreateIncludeTarget"
       @cancel="cancelCreateIncludeTarget"
+      @skip="confirmations.setSkip('createIncludeTarget', true)"
     />
 
     <PromptDialog

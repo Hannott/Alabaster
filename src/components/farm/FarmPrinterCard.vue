@@ -26,6 +26,7 @@ import { useActionGuard } from '@/composables/useActionGuard'
 import { useFarmCameraChoice } from '@/composables/useFarmCameraChoice'
 import { isFarmSnapshotStale, type FarmConfirmableAction } from '@/farm/types'
 import type { FarmPrinterView } from '@/stores/farm'
+import { useConfirmationsStore } from '@/stores/confirmations'
 import { useFarmStore } from '@/stores/farm'
 
 const props = defineProps<{ printer: FarmPrinterView }>()
@@ -37,6 +38,7 @@ const emit = defineEmits<{
 
 const { t } = useI18n({ useScope: 'global' })
 const farm = useFarmStore()
+const confirmations = useConfirmationsStore()
 const { chosenCamera, chooseCamera } = useFarmCameraChoice()
 
 const root = ref<HTMLElement | null>(null)
@@ -334,6 +336,13 @@ function runConfirmed(): void {
   if (action === 'cancel') void farm.cancel(props.printer.id)
   else if (action === 'emergencyStop') void farm.emergencyStop(props.printer.id)
   else if (action === 'power') void farm.togglePower(props.printer.id)
+}
+
+/** Which page-level setting this pending action's own skip checkbox writes to. */
+function skipConfirming(): void {
+  if (confirming.value === 'cancel') confirmations.setSkip('farmCancelPrint', true)
+  else if (confirming.value === 'emergencyStop') confirmations.setSkip('emergencyStop', true)
+  else if (confirming.value === 'power') confirmations.setSkip('farmPowerOff', true)
 }
 
 function pending(command: string): boolean {
@@ -757,8 +766,10 @@ function pending(command: string): boolean {
       :description="confirmCopy.description"
       :confirm-label="confirmCopy.confirmLabel"
       tone="danger"
+      show-skip-option
       @confirm="runConfirmed"
       @cancel="confirming = null"
+      @skip="skipConfirming"
     />
   </article>
 </template>

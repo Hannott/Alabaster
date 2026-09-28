@@ -2680,6 +2680,9 @@
       "regenerateConfirm": "Regenerate"
     }
   },
+  "confirmDialog": {
+    "dontWarnAgain": "Don't warn me again"
+  },
   "confirmations": {
     "eyebrow": "Safety",
     "title": "Confirmations",

@@ -58,7 +58,7 @@ const spool = useSpoolStore()
 const maintenance = useMaintenanceStore()
 const dashboardLayout = useDashboardLayoutStore()
 const { viewport } = useDashboardViewport()
-const { config, isSettingsOpen } = useDashboardModule('print')
+const { config, isSettingsOpen, updateConfig } = useDashboardModule('print')
 
 /**
  * Present only while something is overdue, and only while a Maintenance card
@@ -1262,8 +1262,10 @@ function requestPause(): void {
         })
       "
       :confirm-label="t('dashboard.print.start')"
+      show-skip-option
       @confirm="confirmStart"
       @cancel="pendingStart = null"
+      @skip="updateConfig({ skipStartWarning: true })"
     />
     <!--
     The only dialog that overrides the dismissive label, and the case
@@ -1281,8 +1283,10 @@ function requestPause(): void {
       :title="t('dashboard.print.confirmPauseTitle')"
       :description="t('dashboard.print.confirmPause')"
       :confirm-label="t('dashboard.print.pause')"
+      show-skip-option
       @confirm="confirmPause"
       @cancel="confirmingPause = false"
+      @skip="updateConfig({ skipPauseWarning: true })"
     />
     <ConfirmDialog
       :open="confirmingCancel"
@@ -1291,8 +1295,10 @@ function requestPause(): void {
       :confirm-label="t('dashboard.print.cancelPrint')"
       :cancel-label="t('dashboard.print.keepPrinting')"
       tone="danger"
+      show-skip-option
       @confirm="confirmCancel"
       @cancel="confirmingCancel = false"
+      @skip="updateConfig({ skipCancelWarning: true })"
     />
     <UploadedFileDialog
       :open="pendingUpload !== null"

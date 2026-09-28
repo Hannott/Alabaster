@@ -161,8 +161,10 @@ useDashboardModuleHeaderAction(
       :description="t('console.clearConfirm')"
       :confirm-label="t('console.clear')"
       tone="danger"
+      show-skip-option
       @confirm="clearConsole"
       @cancel="clearing = false"
+      @skip="confirmations.setSkip('clearConsole', true)"
     />
   </AppDashboardModule>
 </template>

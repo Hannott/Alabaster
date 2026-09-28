@@ -254,6 +254,7 @@ function validateName(value: string, except?: string): string | undefined {
     :items="removing ? [removing] : []"
     :confirm-label="t('dashboard.bedMesh.delete')"
     tone="danger"
+    show-skip-option
     @cancel="removing = null"
     @confirm="
       () => {
@@ -262,5 +263,6 @@ function validateName(value: string, except?: string): string | undefined {
         if (name) void printer.removeBedMeshProfile(name)
       }
     "
+    @skip="updateConfig({ skipDeleteProfileWarning: true })"
   />
 </template>

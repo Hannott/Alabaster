@@ -1042,8 +1042,10 @@ const lastSyncedDisplay = computed(() => {
             :description="t('printers.removeDescription', { name: pendingRemovalName })"
             :confirm-label="t('printers.removeConfirm')"
             tone="danger"
+            show-skip-option
             @confirm="confirmRemoval"
             @cancel="pendingRemoval = null"
+            @skip="confirmations.setSkip('removePrinter', true)"
           />
 
           <!--
@@ -1318,8 +1320,10 @@ const lastSyncedDisplay = computed(() => {
             "
             :confirm-label="t('users.list.removeConfirm')"
             tone="danger"
+            show-skip-option
             @confirm="confirmUserDeletion"
             @cancel="pendingUserDeletion = null"
+            @skip="confirmations.setSkip('deleteUser', true)"
           />
 
           <ConfirmDialog
@@ -1328,8 +1332,10 @@ const lastSyncedDisplay = computed(() => {
             :description="t('users.apiKey.regenerateDescription')"
             :confirm-label="t('users.apiKey.regenerateConfirm')"
             tone="danger"
+            show-skip-option
             @confirm="confirmApiKeyRegeneration"
             @cancel="pendingApiKeyRegeneration = false"
+            @skip="confirmations.setSkip('regenerateApiKey', true)"
           />
 
           <section v-if="showCategory('language')" class="page-card">
@@ -1833,8 +1839,10 @@ const lastSyncedDisplay = computed(() => {
             :title="t('backup.importConfirmTitle')"
             :description="t('backup.importConfirmDescription')"
             :confirm-label="t('backup.import')"
+            show-skip-option
             @confirm="confirmImport"
             @cancel="pendingImport = null"
+            @skip="confirmations.setSkip('importSettings', true)"
           />
 
           <ConfirmDialog
@@ -1843,8 +1851,10 @@ const lastSyncedDisplay = computed(() => {
             :description="t('backup.resetConfirmDescription')"
             :confirm-label="t('backup.reset')"
             tone="danger"
+            show-skip-option
             @confirm="confirmReset"
             @cancel="pendingReset = false"
+            @skip="confirmations.setSkip('resetSettings', true)"
           />
 
           <ConfirmDialog
@@ -1853,8 +1863,10 @@ const lastSyncedDisplay = computed(() => {
             :description="t('backup.sync.forgetConfirmDescription')"
             :confirm-label="t('backup.sync.forget')"
             tone="danger"
+            show-skip-option
             @confirm="confirmForget"
             @cancel="pendingForget = false"
+            @skip="confirmations.setSkip('forgetSyncedData', true)"
           />
         </div>
       </div>

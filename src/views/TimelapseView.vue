@@ -11,10 +11,12 @@ import type { PageHeadingAction } from '@/components/PageHeading.vue'
 import { useAvailability } from '@/composables/useAvailability'
 import { createDateTimeFormatter } from '@/i18n/formats'
 import { useActionGuard } from '@/composables/useActionGuard'
+import { useConfirmationsStore } from '@/stores/confirmations'
 import { useTimelapseStore, type TimelapseVideo } from '@/stores/timelapse'
 
 const { locale, t } = useI18n({ useScope: 'global' })
 const timelapse = useTimelapseStore()
+const confirmations = useConfirmationsStore()
 /* Moonraker offers no undelete, so this is terminal whatever the printer is doing. */
 const deleteVideoGuard = useActionGuard({
   tier: 'terminal',
@@ -170,8 +172,10 @@ function requestDelete(video: TimelapseVideo): void {
       :description="t('timelapse.deleteConfirm', { name: deletingVideo?.name ?? '' })"
       :confirm-label="t('timelapse.delete')"
       tone="danger"
+      show-skip-option
       @confirm="confirmDelete"
       @cancel="deletingVideo = null"
+      @skip="confirmations.setSkip('deleteTimelapseVideo', true)"
     />
   </section>
 </template>

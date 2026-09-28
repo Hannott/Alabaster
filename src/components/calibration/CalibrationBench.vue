@@ -38,6 +38,9 @@ const props = defineProps<{
 
 defineSlots<{ live(): unknown }>()
 
+/** Forwarded from `CalibrationProcedureWorkspace`, up to whichever stage passed `skipConfirm`. */
+const emit = defineEmits<{ skip: [] }>()
+
 const calibration = useCalibrationStore()
 const context = useProcedureContext()
 
@@ -81,7 +84,12 @@ const selected = computed(() => {
           One instance across procedures, not one per procedure: the values a
           reader typed are kept per procedure inside it while the page is open.
         -->
-        <CalibrationProcedureWorkspace v-else :procedure="selected" :skip-confirm="skipConfirm" />
+        <CalibrationProcedureWorkspace
+          v-else
+          :procedure="selected"
+          :skip-confirm="skipConfirm"
+          @skip="emit('skip')"
+        />
       </div>
 
       <div class="calibration-bench__column calibration-bench__column--live">

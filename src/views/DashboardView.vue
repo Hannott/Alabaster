@@ -37,6 +37,7 @@ import {
   useDashboardLayoutStore,
   type RenderedDashboardInstance,
 } from '@/stores/dashboardLayout'
+import { useConfirmationsStore } from '@/stores/confirmations'
 import { usePrintersStore } from '@/stores/printers'
 import { useServerCapabilitiesStore } from '@/stores/serverCapabilities'
 
@@ -48,6 +49,7 @@ const { t } = useI18n({ useScope: 'global' })
 const printers = usePrintersStore()
 const layout = useDashboardLayoutStore()
 const serverCapabilities = useServerCapabilitiesStore()
+const confirmations = useConfirmationsStore()
 const { viewport: activeViewport } = useDashboardViewport()
 const editing = ref(false)
 const selectedViewport = ref<DashboardViewport>(activeViewport.value)
@@ -996,8 +998,10 @@ function setColumnWidth(width: DashboardColumnWidth): void {
       :description="t('dashboard.layout.deleteSavedConfirm', { name: deletingSavedLayoutName })"
       :confirm-label="t('dashboard.layout.delete')"
       tone="danger"
+      show-skip-option
       @confirm="confirmDeleteSavedLayout"
       @cancel="deletingSavedLayoutId = null"
+      @skip="confirmations.setSkip('deleteSavedLayout', true)"
     />
   </div>
 </template>

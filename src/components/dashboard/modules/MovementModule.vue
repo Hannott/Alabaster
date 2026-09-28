@@ -65,7 +65,7 @@ const zMotion = useZMotionStore()
 const manualProbe = useManualProbeStore()
 // The card reads its configuration; writing it belongs to the quick settings
 // and the settings pane, which are the two places that present it.
-const { config, isSettingsOpen } = useDashboardModule('movement')
+const { config, isSettingsOpen, updateConfig } = useDashboardModule('movement')
 
 const confirmingMotorsOff = ref(false)
 const confirmingCalibrateNozzleZ = ref(false)
@@ -1366,8 +1366,10 @@ function screwInstruction(screw: (typeof screwResults.value)[number]): string {
     :description="t('dashboard.movement.motorsOffConfirmDescription')"
     :confirm-label="t('dashboard.movement.motorsOff')"
     tone="danger"
+    show-skip-option
     @confirm="confirmMotorsOff"
     @cancel="confirmingMotorsOff = false"
+    @skip="updateConfig({ skipMotorsOffWarning: true })"
   />
   <ConfirmDialog
     :open="pendingLeveling !== null"
@@ -1378,15 +1380,19 @@ function screwInstruction(screw: (typeof screwResults.value)[number]): string {
       })
     "
     :confirm-label="t('dashboard.movement.levelingConfirmAction')"
+    show-skip-option
     @confirm="confirmLeveling"
     @cancel="pendingLeveling = null"
+    @skip="updateConfig({ skipLevelingWarning: true })"
   />
   <ConfirmDialog
     :open="confirmingCalibrateNozzleZ"
     :title="t('dashboard.movement.calibrateNozzleZConfirmTitle')"
     :description="t('dashboard.movement.calibrateNozzleZConfirmDescription')"
     :confirm-label="t('dashboard.movement.calibrateNozzleZConfirmAction')"
+    show-skip-option
     @confirm="confirmCalibrateNozzleZ"
     @cancel="confirmingCalibrateNozzleZ = false"
+    @skip="updateConfig({ skipCalibrateNozzleZWarning: true })"
   />
 </template>

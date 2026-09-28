@@ -146,6 +146,9 @@ describe('module settings panes', () => {
       for (const row of pane.findAll('.check-row')) {
         if (!row.find('input[type="checkbox"]').exists()) continue
         if (row.element.closest('.check-set')) continue
+        // A confirm dialog's own "don't warn again" row is dialog chrome, not
+        // a setting the pane lays out — and it sits in the DOM even closed.
+        if (row.element.closest('dialog')) continue
         expect(
           row.element.closest('.settings-row'),
           `${module.id} bare checkbox row: ${row.text()}`,
