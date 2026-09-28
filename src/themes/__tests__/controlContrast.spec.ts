@@ -233,6 +233,56 @@ describe('control contrast contract', () => {
   })
 
   /*
+   * The configuration editor's syntax colors are text, and owe text's 4.5:1 on
+   * the surface they are painted on — alone, and under the current-line tint
+   * `.machine-code-line--current` lays over it. They used raw Okabe-Ito hues
+   * for as long as the editor existed, which cleared that in dark mode and
+   * nowhere near it in light: orange and sky blue measured under 2:1 once the
+   * surface turned grey, and nothing failed because nothing looked.
+   */
+  it.each(canonicalPacks)('$id keeps every syntax color readable on the code surface', ({ id }) => {
+    const failures: string[] = []
+    const syntaxTokens = [
+      '--syntax-comment',
+      '--syntax-section',
+      '--syntax-key',
+      '--syntax-value',
+      '--syntax-number',
+      '--syntax-keyword',
+      '--syntax-pin',
+      '--syntax-command',
+      '--text-muted',
+    ] as const
+
+    for (const mode of ['light', 'dark'] as const) {
+      const variables = packVariables(id, mode)
+      const resolve = (expression: string): Rgba => resolveColor(expression, variables)
+      const surface = resolve('var(--code-surface)')
+      const currentLine = composite(
+        resolve('color-mix(in srgb, var(--ito-sky-blue) 7%, transparent)'),
+        surface,
+      )
+
+      for (const token of syntaxTokens) {
+        const foreground = resolve(`var(${token})`)
+
+        for (const [where, background] of [
+          ['on the code surface', surface],
+          ['on the current line', currentLine],
+        ] as const) {
+          const ratio = contrastRatio(composite(foreground, background), background)
+
+          if (ratio < MINIMUM_CONTRAST) {
+            failures.push(`${mode} ${token} ${where}: ${ratio.toFixed(2)}:1`)
+          }
+        }
+      }
+    }
+
+    expect(failures, `${id} syntax color failures:\n${failures.join('\n')}`).toEqual([])
+  })
+
+  /*
    * A control's caution treatment composites --status-caution-veil over the
    * resting fill in place of the neutral hover veil, so every label that can
    * receive it needs the same 4.5:1 it gets at rest. `primary` is the binding

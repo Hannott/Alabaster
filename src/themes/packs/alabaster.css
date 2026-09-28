@@ -8,6 +8,35 @@
   --surface-strong: var(--ito-black);
   --surface-on-strong-soft: color-mix(in srgb, var(--neutral-white) 14%, transparent);
   --viewer-surface: color-mix(in srgb, var(--neutral-white) 96%, var(--ito-sky-blue));
+  /*
+   * Grey rather than the viewer's near-white, which in this mode is the page
+   * canvas itself: an editor or transcript painted with it had no edge, and a
+   * screen of text read as floating on the page instead of sitting in a well.
+   */
+  --code-surface: color-mix(in srgb, var(--neutral-white) 94%, var(--ito-black));
+  /*
+   * Syntax colors on the code surface, each mixed toward black until it clears
+   * 4.5:1 there and under the editor's current-line tint (tightest: number at
+   * 4.60:1). Raw Okabe-Ito hues are mid-light, so on a light surface they read
+   * as washed out: orange and sky blue measured under 2:1 on --code-surface.
+   * The shares are measured, not matched between hues: orange starts far
+   * lighter than blue, so it gives up 40% of itself where blue gives up 12%.
+   * Command is deliberately darker than section so the two sky roles stay
+   * apart once both are dark enough to read. Yellow is left out on purpose --
+   * it is the search mark's hue.
+   */
+  --syntax-comment: color-mix(in srgb, var(--ito-bluish-green) 72%, var(--ito-black));
+  --syntax-section: color-mix(in srgb, var(--ito-sky-blue) 61%, var(--ito-black));
+  --syntax-key: color-mix(in srgb, var(--ito-blue) 88%, var(--ito-black));
+  --syntax-value: color-mix(in srgb, var(--ito-orange) 60%, var(--ito-black));
+  --syntax-number: color-mix(
+    in srgb,
+    color-mix(in srgb, var(--ito-vermillion) 55%, var(--ito-orange)) 71%,
+    var(--ito-black)
+  );
+  --syntax-keyword: color-mix(in srgb, var(--ito-reddish-purple) 71%, var(--ito-black));
+  --syntax-pin: color-mix(in srgb, var(--ito-vermillion) 81%, var(--ito-black));
+  --syntax-command: color-mix(in srgb, var(--ito-sky-blue) 48%, var(--ito-black));
   --viewer-grid: color-mix(in srgb, var(--ito-black) 28%, transparent);
   --viewer-shadow: color-mix(in srgb, var(--ito-black) 18%, transparent);
   --viewer-nozzle: color-mix(in srgb, var(--ito-orange) 74%, var(--neutral-white));
@@ -120,6 +149,20 @@
   --surface-strong: var(--ito-black);
   --surface-on-strong-soft: color-mix(in srgb, var(--neutral-white) 16%, transparent);
   --viewer-surface: color-mix(in srgb, var(--ito-black) 90%, var(--ito-blue));
+  --code-surface: color-mix(in srgb, var(--ito-black) 90%, var(--ito-blue));
+  --syntax-comment: color-mix(in srgb, var(--ito-bluish-green) 72%, var(--text-muted));
+  --syntax-section: var(--ito-sky-blue);
+  /*
+   * 70% blue rather than the 76% the editor used before this was a token: 76%
+   * cleared 4.5:1 on the bare surface but fell to 4.31:1 under the current-line
+   * tint, which is where the caret usually is.
+   */
+  --syntax-key: color-mix(in srgb, var(--ito-blue) 70%, var(--ito-sky-blue));
+  --syntax-value: var(--ito-orange);
+  --syntax-number: color-mix(in srgb, var(--ito-vermillion) 55%, var(--ito-orange));
+  --syntax-keyword: var(--ito-reddish-purple);
+  --syntax-pin: var(--ito-vermillion);
+  --syntax-command: color-mix(in srgb, var(--ito-sky-blue) 74%, var(--text-primary));
   --viewer-grid: color-mix(in srgb, var(--neutral-white) 56%, transparent);
   --viewer-shadow: color-mix(in srgb, var(--ito-black) 34%, transparent);
   --viewer-nozzle: color-mix(in srgb, var(--ito-orange) 66%, var(--neutral-white));

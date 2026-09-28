@@ -7403,6 +7403,18 @@ input.z-axis__slider {
   overflow: hidden;
   border: 1px solid var(--border-subtle);
   border-radius: 0.4rem;
+  /*
+   * The code surface the configuration editor sits on, showing through the
+   * transcript between the toolbar and prompt, which carry the panel's fill.
+   * It is the panel's rather than the transcript's own because the transcript
+   * fades its far edge with `mask-image`, which would fade a background of its
+   * own along with the text.
+   */
+  background: var(--code-surface);
+}
+
+.console-toolbar,
+.console-main__prompt {
   background: var(--surface-raised);
 }
 
@@ -11253,7 +11265,7 @@ body.machine-editor-fullscreen-open {
   height: 100dvh;
   border: 0;
   border-radius: 0;
-  background: var(--viewer-surface);
+  background: var(--code-surface);
 }
 
 .availability-region--recovering
@@ -11329,11 +11341,12 @@ body.machine-editor-fullscreen-open {
 
 .machine-code-editor {
   --code-font-size: var(--console-editor-text-size);
+  --search-mark: color-mix(in srgb, var(--color-data-yellow) 50%, var(--text-primary));
   display: grid;
   min-width: 0;
   min-height: 0;
   overflow: hidden;
-  background: var(--viewer-surface);
+  background: var(--code-surface);
   grid-template-columns: 3.6rem minmax(0, 1fr);
   /*
    * One explicit row, so the standing-in bar can be placed over both columns of
@@ -11354,7 +11367,7 @@ body.machine-editor-fullscreen-open {
   display: grid;
   padding: 2rem;
   gap: 0.85rem;
-  background: var(--viewer-surface);
+  background: var(--code-surface);
   grid-area: 1 / 1 / -1 / -1;
   justify-items: center;
   place-content: center;
@@ -11418,7 +11431,7 @@ body.machine-editor-fullscreen-open {
  * and animation frames are the one thing not happening while the main thread lays
  * the file out — the leave stalled holding `-leave-from` and never finished, so
  * the bar stayed on top of the text. An animation is started by the style system
- * and needs nothing scheduled. It fades over `--viewer-surface`, which is the
+ * and needs nothing scheduled. It fades over `--code-surface`, which is the
  * same surface the bar sat on, so there is no empty frame between them.
  */
 .machine-editor-body-in {
@@ -11668,7 +11681,7 @@ body.machine-editor-fullscreen-open {
  * typing into the search box is to look at matches, so that intent wins.
  */
 .machine-code-line--search-match {
-  background: color-mix(in srgb, var(--color-data-yellow) 8%, transparent);
+  background: color-mix(in srgb, var(--search-mark) 10%, transparent);
 }
 
 /*
@@ -11684,11 +11697,18 @@ body.machine-editor-fullscreen-open {
  * A thin underline only has to contrast against the page, never against
  * whatever color the matched text already is, which is what makes it work
  * uniformly.
+ *
+ * The page is the one thing it does have to contrast against, and raw yellow
+ * cannot on a light surface: it measured 1.16:1 as the underline and 1.04:1 as
+ * the wash, so in light mode a match was marked in nothing a reader could see.
+ * `--search-mark` mixes it halfway toward `--text-primary`, which darkens it to
+ * an olive in light mode (4.35:1 on the code surface) and lightens it in dark
+ * (17:1), so one expression holds in both without a mode of its own.
  */
 .machine-syntax-match {
   border-radius: 0.1rem;
-  background: color-mix(in srgb, var(--color-data-yellow) 20%, transparent);
-  box-shadow: inset 0 -0.125rem 0 0 var(--color-data-yellow);
+  background: color-mix(in srgb, var(--search-mark) 22%, transparent);
+  box-shadow: inset 0 -0.125rem 0 0 var(--search-mark);
 }
 
 /*
@@ -11709,66 +11729,69 @@ body.machine-editor-fullscreen-open {
   border: 0;
   outline: 0;
   background: transparent;
-  caret-color: var(--action-primary);
+  /*
+   * The text's own color, not the accent. A caret is one pixel wide and no
+   * browser lets that be changed, so its color is all the weight it has: the
+   * accent blue measured 4.5:1 on the light code surface and still read as
+   * missing, where `--text-primary` is 18:1 and 17:1 in dark.
+   */
+  caret-color: var(--text-primary);
   color: transparent;
   -webkit-text-fill-color: transparent;
 }
 
-.machine-code-editor textarea::selection {
-  background: var(--surface-on-strong-soft);
-}
-
 .machine-syntax--comment {
-  color: color-mix(in srgb, var(--color-data-green) 72%, var(--text-muted));
+  color: var(--syntax-comment);
 }
 
 .machine-syntax--autogen {
   color: var(--text-muted);
 }
 
+/*
+ * Every kind takes its color from a `--syntax-*` role rather than mixing data
+ * hues here, because the right mix depends on the surface: a hue that reads on
+ * the dark code surface washes out on the light one, and each pack owes the
+ * 4.5:1 its text does (see controlContrast.spec.ts).
+ */
 .machine-syntax--section,
 .machine-syntax--templateGlobal {
-  color: var(--color-data-sky);
+  color: var(--syntax-section);
 }
 
 .machine-syntax--key,
 .machine-syntax--parameter {
-  color: color-mix(in srgb, var(--color-data-blue) 76%, var(--color-data-sky));
+  color: var(--syntax-key);
 }
 
 .machine-syntax--value,
 .machine-syntax--string {
-  color: var(--color-data-orange);
+  color: var(--syntax-value);
 }
 
-/*
- * Numbers sit between the value orange and the pin red rather than on yellow,
- * the one data hue left, because yellow is the search mark's wash and
- * underline — a number coloured with it would read as a match.
- */
 .machine-syntax--number {
-  color: color-mix(in srgb, var(--color-data-red) 55%, var(--color-data-orange));
+  color: var(--syntax-number);
 }
 
 .machine-syntax--boolean,
 .machine-syntax--gcode,
 .machine-syntax--templateKeyword {
-  color: var(--color-data-purple);
+  color: var(--syntax-keyword);
   font-weight: var(--font-weight);
 }
 
 .machine-syntax--pin {
-  color: var(--color-data-red);
+  color: var(--syntax-pin);
   font-weight: var(--font-weight);
 }
 
 .machine-syntax--command {
-  color: color-mix(in srgb, var(--color-data-sky) 74%, var(--text-primary));
+  color: var(--syntax-command);
   font-weight: var(--font-weight);
 }
 
 .machine-syntax--templateFilter {
-  color: color-mix(in srgb, var(--color-data-sky) 74%, var(--text-primary));
+  color: var(--syntax-command);
 }
 
 /* Recedes so what the statement says is read ahead of the braces around it. */
@@ -11777,7 +11800,7 @@ body.machine-editor-fullscreen-open {
 }
 
 .machine-syntax--includePath {
-  color: color-mix(in srgb, var(--color-data-sky) 74%, var(--text-primary));
+  color: var(--syntax-command);
 }
 
 /*
