@@ -238,6 +238,17 @@ the only file with unsaved edits, this happens immediately. If other files
 also have unsaved edits, Alabaster asks to save them too, and names them, so
 no edit stays only in memory when Klipper restarts.
 
+## Collapsing sections
+
+Every `[section]` and every option with lines indented under it — a macro's
+`gcode:`, a bed mesh, a `variable_` block — collapses to its first line. The
+chevron appears in the margin when you move the pointer over the editor, and
+a collapsed line keeps a label saying how many lines are hidden, so you can
+see what a fold is holding without opening it.
+
+Going to a line inside a collapsed section opens it first, whether you got
+there from Go to line, an include link, or the section outline.
+
 ## Finding a file
 
 **Search covers every file under the root**, not just the folder you are

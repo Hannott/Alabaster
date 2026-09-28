@@ -15,6 +15,9 @@ import ConfigurationTabWell from '@/components/machine/ConfigurationTabWell.vue'
 import EditorContextMenu from '@/components/machine/EditorContextMenu.vue'
 import FileContextMenu from '@/components/machine/FileContextMenu.vue'
 import HtmlFileViewer from '@/components/machine/HtmlFileViewer.vue'
+import MachineCodeEditor, {
+  type EditorContextMenuRequest,
+} from '@/components/machine/MachineCodeEditor.vue'
 import QuickConfigOptionDialog from '@/components/machine/QuickConfigOptionDialog.vue'
 import QuickConfigView from '@/components/machine/QuickConfigView.vue'
 import { useAutoHidePanel } from '@/composables/useAutoHidePanel'
@@ -24,12 +27,6 @@ import { useEditorIndent } from '@/composables/useEditorIndent'
 import { useMachineFilePins } from '@/composables/useMachineFilePins'
 import { useMachineFilesSettings } from '@/composables/useMachineFilesSettings'
 import {
-  codeWindow,
-  DEFAULT_CODE_LINE_HEIGHT,
-  EDITOR_DEFERRED_MOUNT_BYTES,
-  lineNumberAt,
-} from '@/features/machine/codeWindow'
-import {
   explorerTreeKeyAction,
   flattenExplorerTree,
   type ExplorerTreeRow,
@@ -37,35 +34,17 @@ import {
 import { loadDocsAnchors } from '@/features/machine/docsLinks'
 import { resolveEditorContext, type EditorContext } from '@/features/machine/editorContext'
 import type { EditorMenuAction } from '@/features/machine/editorMenu'
+import type { IncludeTargetInfo } from '@/features/machine/editor/includeLinks'
 import { classifyFileKind, isLargeFile } from '@/features/machine/fileKind'
-import { continuationIndent, softTabInsertion } from '@/features/machine/indent'
-import {
-  lineChangeMarks,
-  NO_LINE_CHANGE_MARKS,
-  type LineChangeState,
-} from '@/features/machine/lineChanges'
-import {
-  duplicateSelectedLines,
-  indentSelection,
-  moveSelectedLines,
-  outdentSelection,
-  reindentDocument,
-  toggleComment,
-  type LineEdit,
-} from '@/features/machine/lineEdit'
+import { lineChangeMarks, NO_LINE_CHANGE_MARKS } from '@/features/machine/lineChanges'
+import { toggleComment, type LineEdit } from '@/features/machine/lineEdit'
 import { fileIcon } from '@/features/machine/fileIcons'
 import {
   isIncludableConfigPath,
   resolvableIncludeTarget,
   type IncludeRewrite,
 } from '@/features/machine/includes'
-import {
-  isConfigSyntaxFile,
-  isEmptyPropertyLine,
-  splitTokensForSearch,
-  tokenizeMachineRange,
-  type MachineSyntaxMatchSegment,
-} from '@/features/machine/syntax'
+import { isConfigSyntaxFile } from '@/features/machine/syntax'
 import {
   isBackupEntryName,
   isHiddenEntryName,
@@ -145,23 +124,17 @@ const { fileHistory, fileHistoryIndex, pushFileHistory, setFileHistoryIndex } =
 const { pinnedFiles, isPinned, pinFile, unpinFile, repointPinned } = useMachineFilePins()
 const search = ref('')
 const uploadInput = ref<HTMLInputElement | null>(null)
-const editor = ref<HTMLTextAreaElement | null>(null)
-const lineNumbersContent = ref<HTMLElement | null>(null)
-const syntaxContent = ref<HTMLElement | null>(null)
+const codeEditor = ref<InstanceType<typeof MachineCodeEditor> | null>(null)
 const moveDialog = ref<HTMLDialogElement | null>(null)
 const currentEditorLine = ref(1)
 const structureExpanded = ref(false)
 const shortcutsOpen = ref(false)
-interface IncludeHotlink {
-  line: number
-  start: number
-  end: number
-  targetPath: string
-  /** null until the file index has loaded — neither "dead" nor "confirmed real" yet. */
-  exists: boolean | null
-  directoryExists: boolean | null
-}
-const hoveredIncludeLink = ref<IncludeHotlink | null>(null)
+/*
+ * Whether Ctrl/Cmd is down, which turns every `[include]` path into a link. It
+ * is a class on the editor host and the underline is a real `:hover` — the
+ * old pixel hit test existed only because a textarea sat on top of the coloured
+ * text and always won the pointer.
+ */
 const isLinkModifierHeld = ref(false)
 interface PendingIncludeCreate {
   targetPath: string
@@ -216,17 +189,6 @@ interface EditorMenuState {
 }
 /** The editor's own right-click menu, which replaces the browser's on a config file. */
 const editorMenu = ref<EditorMenuState | null>(null)
-/*
- * Set by the Menu key and Shift+F10 just before the browser fires the
- * `contextmenu` they cause, so the menu opens at the caret rather than at
- * whatever pointer coordinates a keyboard event carries.
- */
-let keyboardMenuRequested = false
-/*
- * A long press answers with `contextmenu` too, and not every browser says on
- * that event which pointer caused it, so the last press on the editor does.
- */
-let lastEditorPointerType = ''
 /*
  * Quick config's index reads every file the config includes, so it is started
  * by the first right-click rather than on every visit to the route, and runs
@@ -499,7 +461,6 @@ const SECTION_LINE = /^\s*\[([^\]]+)]/
  * on every keystroke.
  */
 const editorLines = computed(() => machineFiles.editorContent.split('\n'))
-const lineNumberCount = computed(() => Math.max(1, editorLines.value.length))
 /*
  * Which lines differ from disk, and whether that difference has been written
  * yet. Both baselines are split lazily and separately from `editorLines`, so
@@ -516,121 +477,6 @@ const lineChanges = computed(() => {
   }
   return lineChangeMarks(editorLines.value, savedLines.value, originLines.value)
 })
-function lineChangeAt(line: number): LineChangeState | null {
-  return lineChanges.value.changed.get(line) ?? null
-}
-function removedAboveLine(line: number): LineChangeState | null {
-  return lineChanges.value.removedAbove.get(line) ?? null
-}
-/*
- * A deletion that took the end of the file has no line below it to be carried
- * by, so the last line carries it on its lower edge instead. Without this the
- * one edit that leaves no text behind at all would leave no mark at all.
- */
-function removedBelowLine(line: number): LineChangeState | null {
-  if (line !== lineNumberCount.value - 1) return null
-  return lineChanges.value.removedAbove.get(lineNumberCount.value) ?? null
-}
-/*
- * Measured rather than taken from main.css's `1.5rem`, because that scales with
- * the root font size and with browser zoom, and every offset below has to agree
- * with where the browser actually put the rows.
- */
-const editorLineHeight = ref(DEFAULT_CODE_LINE_HEIGHT)
-const editorScrollTop = ref(0)
-const editorViewportHeight = ref(0)
-/*
- * Whether the editor body — the textarea and the two layers that follow it — is
- * mounted yet, or whether the pane is still showing the bar that stands in for
- * it. A large file's mount is a long, unbreakable piece of work (see
- * EDITOR_DEFERRED_MOUNT_BYTES), and the point of deferring it is that it must
- * not be charged to whatever event asked for it: arriving on the route, or
- * opening the file, has to complete and paint first. The pane's geometry is a
- * grid cell either way, so nothing moves when the body lands.
- */
-const editorBodyMounted = ref(true)
-/*
- * Whether the bar stood in for this file, which is what makes the body's fade-in
- * earned. A file small enough to mount inside the event that asked for it never
- * waited for anything, and fading it in would be a delay the interface invented
- * rather than one it is reporting.
- */
-const editorBodyDeferred = ref(false)
-let editorBodyTimer: ReturnType<typeof setTimeout> | null = null
-let editorBodyFallback: ReturnType<typeof setTimeout> | null = null
-let editorBodyFrame = 0
-/*
- * How long the bar may stand in before the body is mounted regardless of whether
- * a frame ever arrived. The frame is the mechanism; this is the guarantee. A
- * client that paints no frames while the page is nominally visible — throttled,
- * occluded, headless — would otherwise sit on the bar forever, and an editor that
- * never appears is a far worse outcome than a reveal that skipped its fade. It is
- * long enough that any browser actually painting wins the race: the frame it is
- * waiting for draws a route change and a bar, not the file.
- */
-const editorBodyFallbackMs = 400
-
-function cancelEditorBodyMount(): void {
-  if (editorBodyTimer) clearTimeout(editorBodyTimer)
-  editorBodyTimer = null
-  if (editorBodyFallback) clearTimeout(editorBodyFallback)
-  editorBodyFallback = null
-  if (editorBodyFrame) cancelAnimationFrame(editorBodyFrame)
-  editorBodyFrame = 0
-}
-
-function mountEditorBodySoon(): void {
-  cancelEditorBodyMount()
-  if (machineFiles.editorContent.length <= EDITOR_DEFERRED_MOUNT_BYTES) {
-    editorBodyDeferred.value = false
-    editorBodyMounted.value = true
-    return
-  }
-  editorBodyDeferred.value = true
-  editorBodyMounted.value = false
-  const mount = (): void => {
-    cancelEditorBodyMount()
-    editorBodyMounted.value = true
-  }
-  /*
-   * After the next paint, and a task boundary alone is not that. Deferring into
-   * `setTimeout` did separate the mount from the navigation, and measured no
-   * better: the browser is free to run both before it paints, so the bar never
-   * reached the screen and the navigation still stalled for the whole 240 ms.
-   * A frame callback runs immediately before a frame is painted, so a task
-   * queued from inside one runs after the bar is actually visible.
-   *
-   * Nothing here has to keep animating from the main thread once it blocks: the
-   * bar's sweep and the route crossfade are both transform and opacity, so the
-   * compositor carries them through.
-   */
-  editorBodyFallback = setTimeout(mount, editorBodyFallbackMs)
-  if (typeof requestAnimationFrame !== 'function') return
-  editorBodyFrame = requestAnimationFrame(() => {
-    editorBodyFrame = 0
-    editorBodyTimer = setTimeout(mount)
-  })
-}
-/**
- * The lines the highlight layer and the gutter render: what the viewport shows
- * plus its slack, never the whole file. See `codeWindow` for what a whole file
- * costs and why nothing is lost by not mounting it.
- */
-const renderedLineWindow = computed(() =>
-  codeWindow(
-    editorScrollTop.value,
-    editorViewportHeight.value,
-    editorLineHeight.value,
-    lineNumberCount.value,
-  ),
-)
-/** Height of the unrendered lines above the window, which hold its place. */
-const renderedWindowOffset = computed(() => renderedLineWindow.value.start * editorLineHeight.value)
-/**
- * Whether the open file is colored at all. Only the config root is, and only the
- * formats the tokenizer actually describes — see `isConfigSyntaxFile` for why
- * coloring anything else both invents structure and costs the most.
- */
 const highlightsSyntax = computed(
   () =>
     machineFiles.currentRoot === 'config' &&
@@ -643,34 +489,27 @@ const highlightsSyntax = computed(
  * holds only whitespace, highlights nothing.
  */
 const editorSearchQuery = computed(() => search.value.trim())
-/**
- * Each rendered row carries its own absolute line number: the window's array
- * index is not the line, and every consumer here — the current-line tint, the
- * gutter, the include hotlinks, the hit test against the textarea's pixel grid
- * — is talking about a line in the file. `matched` is precomputed here rather
- * than re-scanned in the template so the row tint and the per-token mark share
- * one pass over the line.
+/*
+ * Every word the editor puts on screen, passed in rather than looked up inside
+ * it: the editor's own modules are free of Vue and of vue-i18n so their rules
+ * can be tested without either.
  */
-const highlightedLines = computed(() => {
-  const { start, end } = renderedLineWindow.value
-  const lines = editorLines.value
-  const colored = highlightsSyntax.value
-  const query = editorSearchQuery.value
-  const coloredLines = colored ? tokenizeMachineRange(lines, start, end) : null
-  const rows: Array<{ line: number; tokens: MachineSyntaxMatchSegment[]; matched: boolean }> = []
-  for (let index = start; index < end; index += 1) {
-    const text = lines[index] ?? ''
-    const tokens = coloredLines?.[index - start] ?? [{ kind: 'plain' as const, text }]
-    const segments = splitTokensForSearch(tokens, query)
-    rows.push({
-      line: index,
-      tokens: segments,
-      matched: query.length > 0 && segments.some((segment) => segment.matched),
-    })
-  }
-  return rows
-})
-/** Whether any indexed file lives at or under `directory` — the config root always does. */
+const editorLabels = computed(() => ({
+  changedUnsaved: t('configuration.editor.changedUnsaved'),
+  changedSaved: t('configuration.editor.changedSaved'),
+  removedUnsaved: t('configuration.editor.removedUnsaved'),
+  removedSaved: t('configuration.editor.removedSaved'),
+  fold: t('configuration.editor.fold'),
+  unfold: t('configuration.editor.unfold'),
+  foldedLines: (count: number) => t('configuration.editor.foldedLines', { count }),
+}))
+const editorCommands = {
+  save: (restart: boolean) => void save(restart),
+  canSaveAndRestart: () => klipperAvailability.value.isAvailable,
+  openShortcuts: () => {
+    shortcutsOpen.value = true
+  },
+}
 function directoryIsKnownToExist(directory: string): boolean {
   if (directory === '') return true
   const prefix = `${directory}/`
@@ -691,54 +530,45 @@ function directoryIsKnownToExist(directory: string): boolean {
  * scrolled out of view has nothing to contribute and is not worth a pass over
  * the file to find.
  */
-const includeHotlinks = computed<IncludeHotlink[]>(() => {
+/**
+ * What one `[include]` path resolves to, asked by the editor for each path it
+ * is about to draw. The paths themselves come from the same parse the colouring
+ * uses, so the two can never disagree about what counts as one; this only
+ * answers what the application knows about the target.
+ *
+ * Neither "dead" nor "confirmed real" until the file index has loaded — an
+ * empty `searchFiles` before that point must not read as every include in the
+ * file pointing nowhere.
+ */
+function describeInclude(text: string): IncludeTargetInfo | null {
   const file = machineFiles.currentFile
-  if (!file) return []
-  // Neither "dead" nor "confirmed real" until the index has actually loaded —
-  // an empty searchFiles before that point must not read as every include
-  // pointing nowhere.
+  if (!file) return null
+  const targetPath = resolvableIncludeTarget(file.path, text)
+  if (!targetPath) return null
   const indexReady = machineFiles.searchFilesLoaded
-  const links: IncludeHotlink[] = []
-  for (const { line, tokens } of highlightedLines.value) {
-    let column = 0
-    for (const token of tokens) {
-      if (token.kind === 'includePath') {
-        const targetPath = resolvableIncludeTarget(file.path, token.text)
-        if (targetPath) {
-          const exists = indexReady
-            ? machineFiles.searchFiles.some((entry) => entry.path === targetPath)
-            : null
-          const directory = targetPath.includes('/')
-            ? targetPath.slice(0, targetPath.lastIndexOf('/'))
-            : ''
-          const directoryExists = !indexReady ? null : exists || directoryIsKnownToExist(directory)
-          links.push({
-            line,
-            start: column,
-            end: column + token.text.length,
-            targetPath,
-            exists,
-            directoryExists,
-          })
-        }
-      }
-      column += token.text.length
-    }
+  const exists = indexReady
+    ? machineFiles.searchFiles.some((entry) => entry.path === targetPath)
+    : null
+  const directory = targetPath.includes('/') ? targetPath.slice(0, targetPath.lastIndexOf('/')) : ''
+  return {
+    targetPath,
+    dead: exists === false,
+    directoryExists: !indexReady ? null : exists || directoryIsKnownToExist(directory),
+    title:
+      exists === false
+        ? t('configuration.editor.deadIncludeTooltip', { path: targetPath })
+        : t('configuration.editor.openInclude', { path: targetPath }),
   }
-  return links
-})
-/** Lines whose [include] is confirmed to point nowhere — the squiggly is persistent, not hover-only. */
-const deadIncludeLines = computed(
-  () =>
-    new Set(includeHotlinks.value.filter((link) => link.exists === false).map((link) => link.line)),
+}
+/*
+ * `describeInclude` reads the file index and the locale, neither of which is a
+ * document change, so the editor is told to ask again when either moves. The
+ * index finishing its load is what turns every include in a freshly opened file
+ * from "unknown" into real or dead.
+ */
+const includeGeneration = computed(
+  () => machineFiles.searchFiles.length + (machineFiles.searchFilesLoaded ? 1 : 0),
 )
-const hotlinkTooltip = computed(() => {
-  const link = hoveredIncludeLink.value
-  if (!link) return undefined
-  return link.exists === false
-    ? t('configuration.editor.deadIncludeTooltip', { path: link.targetPath })
-    : t('configuration.editor.openInclude', { path: link.targetPath })
-})
 /*
  * The outline is the config file's own sections, so it is built only for a file
  * whose sections mean something — the same predicate that decides coloring.
@@ -1412,7 +1242,6 @@ function pinTab(path: string): void {
   if (file) pinFile({ ...file, root: machineFiles.currentRoot })
 }
 
-/** Unpinning drops the file to the first of the other tabs, open or not. */
 function unpinTab(path: string): void {
   const file = tabFile(path)
   unpinFile(machineFiles.currentRoot, path)
@@ -1543,186 +1372,22 @@ function confirmDiscardAll(): void {
   machineFiles.discardAllChanges()
 }
 
-function insertAtCursor(textarea: HTMLTextAreaElement, text: string): void {
-  if (document.execCommand('insertText', false, text)) return
-  const { selectionStart, selectionEnd, value } = textarea
-  const cursor = selectionStart + text.length
-  textarea.value = `${value.slice(0, selectionStart)}${text}${value.slice(selectionEnd)}`
-  textarea.selectionStart = textarea.selectionEnd = cursor
-  textarea.dispatchEvent(new Event('input'))
-}
-
 /**
- * Applies one line-scoped command as a single replacement, so the browser
- * records it as one undo step. Returns false for a command that had nothing to
- * do, which is what leaves the key to whatever else wants it.
+ * One line command run from the editor menu rather than from its chord. The
+ * command itself is the same pure function the keymap calls; this only gives
+ * it the document and turns its answer into a transaction.
  */
-function applyLineEdit(textarea: HTMLTextAreaElement, edit: LineEdit | null): boolean {
-  if (!edit) return false
-  textarea.setSelectionRange(edit.from, edit.to)
-  insertAtCursor(textarea, edit.text)
-  textarea.setSelectionRange(edit.selectionStart, edit.selectionEnd)
-  updateCurrentEditorLine()
+function applyEditorLineEdit(edit: LineEdit | null): boolean {
+  const view = codeEditor.value?.view()
+  if (!view || !edit) return false
+  view.focus()
+  view.dispatch({
+    changes: { from: edit.from, to: edit.to, insert: edit.text },
+    selection: { anchor: edit.selectionStart, head: edit.selectionEnd },
+    scrollIntoView: true,
+    userEvent: 'input.machine',
+  })
   return true
-}
-
-/**
- * Tab over a selection that spans lines indents them; anywhere else it inserts
- * one soft tab, replacing the selection the way any other character key would.
- */
-function handleEditorTab(event: KeyboardEvent, textarea: HTMLTextAreaElement): void {
-  event.preventDefault()
-  const { selectionStart, selectionEnd, value } = textarea
-  if (highlightsSyntax.value && value.slice(selectionStart, selectionEnd).includes('\n')) {
-    applyLineEdit(textarea, indentSelection(value, selectionStart, selectionEnd, indentWidth.value))
-    return
-  }
-  const lineStart = value.lastIndexOf('\n', selectionStart - 1) + 1
-  insertAtCursor(
-    textarea,
-    softTabInsertion(value.slice(lineStart, selectionStart), indentWidth.value),
-  )
-}
-
-/*
- * Shift+Tab is claimed only when there is indentation to remove. Tab inside a
- * textarea already costs a keyboard-only reader their way forward out of the
- * editor, and taking the way back as well would leave no exit at all — so on a
- * line that is already flush the event is left alone and moves focus.
- */
-function handleEditorOutdent(event: KeyboardEvent, textarea: HTMLTextAreaElement): boolean {
-  if (!highlightsSyntax.value) return false
-  const { selectionStart, selectionEnd, value } = textarea
-  const edit = outdentSelection(value, selectionStart, selectionEnd, indentWidth.value)
-  if (!applyLineEdit(textarea, edit)) return false
-  event.preventDefault()
-  return true
-}
-
-/**
- * Comment toggling, moving lines, duplicating them, and reindenting the file —
- * the commands that act on whole lines rather than on the caret. Returns false
- * when the key is not one of theirs, or when the command it names has nothing to
- * do.
- *
- * All of them are gated on `highlightsSyntax`, which is the same predicate that
- * decides whether the file is colored: the config root, and only the formats
- * `syntax.ts` describes. Every one of these commands asserts something about
- * Klipper's format — `#` is its comment marker, a continuation block is its
- * indentation rule — and a `.json` or `.txt` sitting in the config root is not
- * that format, so a command that ran there would produce a file neither Klipper
- * nor the file's real reader accepts. A log is already read-only and never gets
- * this far.
- */
-function handleEditorLineCommand(event: KeyboardEvent, textarea: HTMLTextAreaElement): boolean {
-  if (!highlightsSyntax.value) return false
-  const { selectionStart: start, selectionEnd: end, value } = textarea
-  const modifier = event.ctrlKey || event.metaKey
-
-  if (modifier && !event.altKey && event.key === '/') {
-    return applyLineEdit(textarea, toggleComment(value, start, end))
-  }
-  /*
-   * Reformatting is the one command allowed to rewrite lines the reader never
-   * touched, which is exactly why it is a named chord and nothing else: never on
-   * save, and never a side effect of typing. Shift+Alt+F rather than ReSharper's
-   * Ctrl+Alt+L because some Linux desktops take that one for the lock screen.
-   */
-  if (event.altKey && event.shiftKey && !modifier && event.key.toLowerCase() === 'f') {
-    return applyLineEdit(textarea, reindentDocument(value, start, indentWidth.value))
-  }
-  if (event.altKey && !modifier && (event.key === 'ArrowUp' || event.key === 'ArrowDown')) {
-    const direction = event.key === 'ArrowUp' ? -1 : 1
-    return applyLineEdit(
-      textarea,
-      event.shiftKey
-        ? duplicateSelectedLines(value, start, end, direction)
-        : moveSelectedLines(value, start, end, direction),
-    )
-  }
-  return false
-}
-
-function handleEditorEnter(event: KeyboardEvent, textarea: HTMLTextAreaElement): boolean {
-  const { selectionStart, selectionEnd, value } = textarea
-  if (selectionStart !== selectionEnd) return false
-  const lineStart = value.lastIndexOf('\n', selectionStart - 1) + 1
-  const line = value.slice(lineStart, selectionStart)
-
-  if (/^\s*$/.test(line)) {
-    if (!line) return false
-    event.preventDefault()
-    textarea.setSelectionRange(lineStart, selectionStart)
-    insertAtCursor(textarea, '\n')
-    return true
-  }
-
-  const carried = continuationIndent(line, indentWidth.value, isEmptyPropertyLine(line))
-  if (!carried) return false
-  event.preventDefault()
-  insertAtCursor(textarea, `\n${carried}`)
-  return true
-}
-
-function handleEditorKeydown(event: KeyboardEvent): void {
-  keyboardMenuRequested = event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10')
-  /*
-   * Ahead of the read-only gate: the reference describes the editor, and a file
-   * this printer will not let us write is still one whose shortcuts for reading
-   * — Ctrl+click, Escape — apply.
-   *
-   * Matched on the character the layout produced rather than on a physical key.
-   * `?` is the shifted twin of `/` on a US layout but a different key entirely
-   * on a Norwegian one, where `/` is itself already `Shift+7` — so comparing
-   * `event.code` would claim the comment toggle's own chord on half the
-   * keyboards Alabaster runs on.
-   */
-  if ((event.ctrlKey || event.metaKey) && event.key === '?') {
-    event.preventDefault()
-    shortcutsOpen.value = true
-    return
-  }
-  if (!currentFileReadOnly.value && editor.value) {
-    if (event.key === 'Tab') {
-      if (!event.shiftKey) {
-        handleEditorTab(event, editor.value)
-        return
-      }
-      if (handleEditorOutdent(event, editor.value)) return
-    }
-    if (event.key === 'Enter' && handleEditorEnter(event, editor.value)) return
-    if (handleEditorLineCommand(event, editor.value)) {
-      event.preventDefault()
-      return
-    }
-  }
-  if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== 's') return
-  /*
-   * Save is Ctrl+S; save-and-restart adds Alt, not Shift.
-   *
-   * Ctrl+Shift+S is what this used to be, and it is unusable: screen-capture
-   * tools claim it globally on Windows, and a global hotkey is consumed before
-   * the browser ever sees the key. That is a worse failure than a shortcut the
-   * browser owns — the page cannot preventDefault what never reaches it, so it
-   * cannot even tell the reader why nothing happened. A chord commonly held by a
-   * desktop utility is therefore off limits the same way Ctrl+T and Ctrl+W are.
-   *
-   * Alt keeps the S mnemonic and, unlike a chord built on Enter, is not one slip
-   * away from a key pressed constantly in a text editor — this one restarts the
-   * firmware, so it should take a deliberate reach. `Ctrl+Alt` is also `AltGr` on
-   * a Norwegian layout, where `AltGr+S` produces no character and so is not a
-   * chord anyone presses on purpose.
-   *
-   * Shift makes it none of ours, rather than falling through to a plain save.
-   * Where a capture tool does not hold the chord, Ctrl+Shift+S would otherwise
-   * write a half-edited config to the printer because someone reached for a
-   * screenshot — and the press is left un-prevented so whatever does want it
-   * still gets it.
-   */
-  if (event.shiftKey) return
-  event.preventDefault()
-  if (event.altKey && klipperAvailability.value.isAvailable) void save(true)
-  else void save(false)
 }
 
 /*
@@ -1799,7 +1464,6 @@ function stepFileHistory(event: Event, direction: -1 | 1): boolean {
 }
 
 function handleWindowMouseDown(event: MouseEvent): void {
-  keyboardMenuRequested = false
   claimedHistoryButton = false
   if (event.button !== historyMouseButtons.back && event.button !== historyMouseButtons.forward) {
     return
@@ -1829,108 +1493,6 @@ function handleWindowAuxClick(event: MouseEvent): void {
   }
 }
 
-/*
- * The gutter and the highlight layer follow the textarea by transform rather
- * than by their own scroll offset. Only a window of lines is mounted in either,
- * so their scrollable extent is a screenful and no longer the file's — and a
- * scroll offset set past that extent is silently clamped, which would slide the
- * coloring off the text it belongs to. A transform has no extent to clamp
- * against, and is the property ADR 0004 asks movement to use.
- */
-function syncEditorScroll(): void {
-  const textarea = editor.value
-  if (!textarea) return
-  editorScrollTop.value = textarea.scrollTop
-  const vertical = `translate3d(0, ${-textarea.scrollTop}px, 0)`
-  if (lineNumbersContent.value) lineNumbersContent.value.style.transform = vertical
-  if (syntaxContent.value) {
-    syntaxContent.value.style.transform = `translate3d(${-textarea.scrollLeft}px, ${-textarea.scrollTop}px, 0)`
-  }
-}
-
-/**
- * Measures the editor's own row height and visible height, which together decide
- * which lines are mounted. Both come from the textarea because it is the element
- * the browser is actually laying the text out in: the rem in main.css scales
- * with the root font size and with browser zoom.
- */
-function measureEditorViewport(): void {
-  const textarea = editor.value
-  if (!textarea) return
-  const lineHeight = parseFloat(getComputedStyle(textarea).lineHeight)
-  if (Number.isFinite(lineHeight) && lineHeight > 0) editorLineHeight.value = lineHeight
-  editorViewportHeight.value = textarea.clientHeight
-  syncEditorScroll()
-}
-
-function updateCurrentEditorLine(): void {
-  if (!editor.value) return
-  currentEditorLine.value = lineNumberAt(editor.value.value, editor.value.selectionStart)
-}
-
-let measureContext: CanvasRenderingContext2D | null = null
-
-/**
- * Pixel width of one monospace character in the editor's own font, measured
- * rather than assumed from the rem values in main.css: those scale with the
- * root font size and any browser zoom, and the hit-test below has to agree
- * with the highlight layer pixel-for-pixel.
- */
-function editorCharWidth(textarea: HTMLTextAreaElement): number {
-  const context = measureContext ?? document.createElement('canvas').getContext('2d')
-  measureContext = context
-  if (!context) return 0
-  const style = getComputedStyle(textarea)
-  context.font = `${style.fontSize} ${style.fontFamily}`
-  return context.measureText('0').width
-}
-
-/*
- * The textarea sits on top of the highlight layer and must stay there to keep
- * native typing, selection, and caret placement — so a real DOM :hover on an
- * `includePath` span underneath is never reachable. This recovers the same
- * information from pixel coordinates instead, against the monospace grid the
- * textarea and highlight layer both render with identical font and padding.
- */
-function positionAt(clientX: number, clientY: number): { line: number; column: number } | null {
-  const textarea = editor.value
-  if (!textarea) return null
-  const charWidth = editorCharWidth(textarea)
-  if (!charWidth) return null
-  const style = getComputedStyle(textarea)
-  const rect = textarea.getBoundingClientRect()
-  const x = clientX - rect.left + textarea.scrollLeft - parseFloat(style.paddingLeft)
-  const y = clientY - rect.top + textarea.scrollTop - parseFloat(style.paddingTop)
-  if (x < 0 || y < 0) return null
-  return { line: Math.floor(y / parseFloat(style.lineHeight)), column: Math.floor(x / charWidth) }
-}
-
-/** The inverse of `positionAt`: the screen point just under a line and column. */
-function clientPointOf(line: number, column: number): { x: number; y: number } | null {
-  const textarea = editor.value
-  if (!textarea) return null
-  const style = getComputedStyle(textarea)
-  const rect = textarea.getBoundingClientRect()
-  const left = rect.left + parseFloat(style.paddingLeft) - textarea.scrollLeft
-  const top = rect.top + parseFloat(style.paddingTop) - textarea.scrollTop
-  return {
-    x: left + column * editorCharWidth(textarea),
-    y: top + (line + 1) * parseFloat(style.lineHeight),
-  }
-}
-
-function hotlinkAt(event: MouseEvent): IncludeHotlink | null {
-  if (includeHotlinks.value.length === 0) return null
-  const position = positionAt(event.clientX, event.clientY)
-  if (!position) return null
-  const { line, column } = position
-  return (
-    includeHotlinks.value.find(
-      (link) => link.line === line && column >= link.start && column < link.end,
-    ) ?? null
-  )
-}
-
 function lineStartOffset(line: number): number {
   let offset = 0
   const lines = editorLines.value
@@ -1958,65 +1520,27 @@ const editorMenuFiles = computed(() =>
  * keeps the native long-press, whose selection handles and paste bubble are
  * the editing tools on a phone.
  */
-function handleEditorContextMenu(event: MouseEvent): void {
-  const fromKeyboard = keyboardMenuRequested
-  keyboardMenuRequested = false
-  const textarea = editor.value
-  if (!textarea || !highlightsSyntax.value || !machineFiles.currentFile) return
-  if (event.shiftKey && !fromKeyboard) return
-  if (((event as PointerEvent).pointerType || lastEditorPointerType) === 'touch') return
-
-  let line: number
-  let column: number
-  if (fromKeyboard) {
-    line = lineNumberAt(textarea.value, textarea.selectionStart) - 1
-    column = textarea.selectionStart - lineStartOffset(line)
-  } else {
-    const position = positionAt(event.clientX, event.clientY)
-    if (!position) return
-    line = Math.min(position.line, editorLines.value.length - 1)
-    column = position.column
-    /*
-     * The menu acts on what was pointed at, so the caret moves there first —
-     * unless the pointer is inside the selection, which Cut and Copy then keep.
-     * `setSelectionRange` does not touch the undo stack.
-     */
-    const lineLength = (editorLines.value[line] ?? '').length
-    const offset = lineStartOffset(line) + Math.min(column, lineLength)
-    const { selectionStart, selectionEnd } = textarea
-    if (selectionStart === selectionEnd || offset < selectionStart || offset > selectionEnd) {
-      textarea.setSelectionRange(offset, offset)
-      updateCurrentEditorLine()
-    }
-  }
-  const point = fromKeyboard ? clientPointOf(line, column) : { x: event.clientX, y: event.clientY }
-  if (!point) return
-  event.preventDefault()
-  hoveredIncludeLink.value = null
+function handleEditorContextMenu(request: EditorContextMenuRequest): void {
+  if (!highlightsSyntax.value || !machineFiles.currentFile) return
+  /*
+   * Quick config's index is what the menu's "used at" and pin rows are built
+   * from, and it is started on the first right-click rather than with the route
+   * so a reader who never opens the menu never pays for it.
+   */
   if (!quickConfigStartedForMenu) {
     quickConfigStartedForMenu = true
     quickConfig.start()
   }
   editorMenu.value = {
-    x: point.x,
-    y: point.y,
-    context: resolveEditorContext(editorLines.value, line, column),
-    selection: textarea.value.slice(textarea.selectionStart, textarea.selectionEnd),
+    x: request.x,
+    y: request.y,
+    context: resolveEditorContext(editorLines.value, request.line, request.column),
+    selection: request.selection,
   }
-}
-
-function rememberEditorPointer(event: PointerEvent): void {
-  lastEditorPointerType = event.pointerType
 }
 
 function closeEditorMenu(): void {
   editorMenu.value = null
-}
-
-function focusEditor(): HTMLTextAreaElement | null {
-  const textarea = editor.value
-  textarea?.focus()
-  return textarea
 }
 
 function lineRangeOffsets(range: { from: number; to: number }): { from: number; to: number } {
@@ -2034,17 +1558,20 @@ function lineRangeOffsets(range: { from: number; to: number }): { from: number; 
  * put back afterwards.
  */
 function copyFromEditor(cut: boolean, context: EditorContext): void {
-  const textarea = focusEditor()
-  if (!textarea) return
-  const { selectionStart, selectionEnd } = textarea
-  if (selectionStart !== selectionEnd || !context.span) {
+  const view = codeEditor.value?.view()
+  if (!view) return
+  view.focus()
+  const { from, to } = view.state.selection.main
+  if (from !== to || !context.span) {
     document.execCommand(cut ? 'cut' : 'copy')
     return
   }
   const lineStart = lineStartOffset(context.line)
-  textarea.setSelectionRange(lineStart + context.span.start, lineStart + context.span.end)
+  view.dispatch({
+    selection: { anchor: lineStart + context.span.start, head: lineStart + context.span.end },
+  })
   document.execCommand('copy')
-  textarea.setSelectionRange(selectionStart, selectionEnd)
+  view.dispatch({ selection: { anchor: from, head: to } })
 }
 
 async function openLocation(path: string, line: number): Promise<void> {
@@ -2075,40 +1602,32 @@ async function runEditorMenuAction(action: EditorMenuAction): Promise<void> {
   const context = editorMenu.value?.context
   closeEditorMenu()
   if (!context) return
-  const textarea = editor.value
+  const view = codeEditor.value?.view()
   switch (action.type) {
     case 'cut':
     case 'copy':
       copyFromEditor(action.type === 'cut', context)
       return
-    case 'toggleComment':
-      if (!textarea || currentFileReadOnly.value) return
-      focusEditor()
-      applyLineEdit(
-        textarea,
-        toggleComment(textarea.value, textarea.selectionStart, textarea.selectionEnd),
-      )
+    case 'toggleComment': {
+      if (!view || currentFileReadOnly.value) return
+      const { from, to } = view.state.selection.main
+      applyEditorLineEdit(toggleComment(view.state.doc.toString(), from, to))
       return
+    }
     case 'commentLines': {
-      if (!textarea || currentFileReadOnly.value) return
-      focusEditor()
+      if (!view || currentFileReadOnly.value) return
       const { from, to } = lineRangeOffsets(action.range)
-      applyLineEdit(textarea, toggleComment(textarea.value, from, to))
+      applyEditorLineEdit(toggleComment(view.state.doc.toString(), from, to))
       return
     }
     case 'selectLines': {
-      if (!textarea) return
-      focusEditor()
       const { from, to } = lineRangeOffsets(action.range)
-      textarea.setSelectionRange(from, to)
-      updateCurrentEditorLine()
+      codeEditor.value?.selectRange(from, to)
       return
     }
     case 'selectSpan': {
-      if (!textarea) return
-      focusEditor()
       const lineStart = lineStartOffset(context.line)
-      textarea.setSelectionRange(lineStart + action.start, lineStart + action.end)
+      codeEditor.value?.selectRange(lineStart + action.start, lineStart + action.end)
       return
     }
     case 'goTo':
@@ -2164,14 +1683,6 @@ function confirmGoToLine(value: string): void {
   goToLine(Number(value.trim()))
 }
 
-function handleEditorMouseMove(event: MouseEvent): void {
-  hoveredIncludeLink.value = hotlinkAt(event)
-}
-
-function handleEditorMouseLeave(): void {
-  hoveredIncludeLink.value = null
-}
-
 /**
  * Opens a file by path — for a hotlink target, a history step, or Quick
  * config's link. Prefers the search index's metadata (for the large-file and
@@ -2199,24 +1710,22 @@ async function openFileAtPath(path: string, { preview = false } = {}): Promise<v
   })
 }
 
-async function handleEditorClick(event: MouseEvent): Promise<void> {
-  updateCurrentEditorLine()
-  const link = hoveredIncludeLink.value
-  if (!link || !(event.ctrlKey || event.metaKey)) return
-  if (link.exists === false) {
-    const directory = link.targetPath.includes('/')
-      ? link.targetPath.slice(0, link.targetPath.lastIndexOf('/'))
-      : ''
-    const pending = {
-      targetPath: link.targetPath,
-      directory,
-      directoryMissing: link.directoryExists === false,
-    }
-    if (confirmations.shouldConfirm('createIncludeTarget')) pendingIncludeCreate.value = pending
-    else await createIncludeTarget(pending)
+/** Ctrl/Cmd+click on an `[include]` path: open it, or offer to create it. */
+async function openIncludeTarget(link: IncludeTargetInfo): Promise<void> {
+  if (!link.dead) {
+    await openFileAtPath(link.targetPath, { preview: true })
     return
   }
-  await openFileAtPath(link.targetPath, { preview: true })
+  const directory = link.targetPath.includes('/')
+    ? link.targetPath.slice(0, link.targetPath.lastIndexOf('/'))
+    : ''
+  const pending = {
+    targetPath: link.targetPath,
+    directory,
+    directoryMissing: link.directoryExists === false,
+  }
+  if (confirmations.shouldConfirm('createIncludeTarget')) pendingIncludeCreate.value = pending
+  else await createIncludeTarget(pending)
 }
 
 async function createIncludeTarget(pending: PendingIncludeCreate): Promise<void> {
@@ -2249,17 +1758,7 @@ function clearLinkModifierState(): void {
 }
 
 function goToLine(line: number): void {
-  if (!editor.value) return
-  const position = editorLines.value
-    .slice(0, Math.max(0, line - 1))
-    .reduce((sum, value) => sum + value.length + 1, 0)
-  editor.value.focus()
-  editor.value.setSelectionRange(position, position)
-  currentEditorLine.value = line
-  // Two lines of lead-in above the target, so it lands inside the view rather
-  // than against its top edge.
-  editor.value.scrollTop = Math.max(0, (line - 3) * editorLineHeight.value)
-  syncEditorScroll()
+  codeEditor.value?.revealLine(line)
 }
 
 /** Quick config's file-and-line link: the way out to anything a field cannot express. */
@@ -2284,8 +1783,6 @@ watch(
   () => machineFiles.currentFile?.path,
   (path) => {
     currentEditorLine.value = 1
-    hoveredIncludeLink.value = null
-    void nextTick(syncEditorScroll)
     if (!path) return
     if (suppressedHistoryPath === path) {
       suppressedHistoryPath = null
@@ -2305,13 +1802,6 @@ watch(
   // trail that only ever recorded subsequent changes.
   { immediate: true },
 )
-
-/*
- * Immediate, because arriving on the route with a large file already open is the
- * case that made navigation feel broken: the body would otherwise be mounted as
- * part of the first render, inside the navigation.
- */
-watch(() => machineFiles.currentFile?.path, mountEditorBodySoon, { immediate: true })
 
 watch(
   isEditorFullscreen,
@@ -2369,30 +1859,10 @@ onMounted(() => {
   singlePaneQuery?.addEventListener('change', onSinglePaneChange)
 })
 
-/*
- * The editor's visible height decides how many lines are mounted, and it changes
- * without the window resizing: opening and closing a file, compacting the
- * explorer, and going fullscreen all resize the pane. Watching the textarea
- * itself is what keeps the window right in each of those cases without a rule
- * per case.
- */
-let editorResizeObserver: ResizeObserver | null = null
-
-watch(editor, (textarea) => {
-  editorResizeObserver?.disconnect()
-  editorResizeObserver = null
-  if (!textarea) return
-  measureEditorViewport()
-  if (typeof ResizeObserver === 'undefined') return
-  editorResizeObserver = new ResizeObserver(measureEditorViewport)
-  editorResizeObserver.observe(textarea)
-})
-
 onBeforeUnmount(() => {
   machineFiles.stop()
   if (quickConfigStartedForMenu) quickConfig.stop()
   documentationSite.stop()
-  editorResizeObserver?.disconnect()
   window.removeEventListener('beforeunload', handleBeforeUnload)
   window.removeEventListener('keydown', handleWindowKeydown)
   window.removeEventListener('mousedown', handleWindowMouseDown, true)
@@ -2406,7 +1876,6 @@ onBeforeUnmount(() => {
   cancelPendingDropTargetClear()
   document.body.classList.remove('machine-editor-fullscreen-open')
   if (contentSearchTimer) clearTimeout(contentSearchTimer)
-  cancelEditorBodyMount()
 })
 </script>
 
@@ -2539,147 +2008,28 @@ onBeforeUnmount(() => {
                   t('configuration.editor.htmlTitle', { name: machineFiles.currentFile.name })
                 "
               />
-              <div
+              <MachineCodeEditor
                 v-else
-                class="machine-code-editor"
+                ref="codeEditor"
+                v-model="machineFiles.editorContent"
+                :class="{ 'machine-code-editor--link-modifier': isLinkModifierHeld }"
                 :data-pending="machineFiles.isEditorLoading || machineFiles.isMutating"
-              >
-                <!--
-                  Stands in the body's own cell while the browser lays out a large
-                  file, so arriving here is instant and the wait belongs to the
-                  editor. The body then fades in over the same surface the bar sat
-                  on — see ADR 0004 on a fade being a consequence of deferring.
-                -->
-                <div
-                  v-if="!editorBodyMounted"
-                  class="machine-editor-loading"
-                  role="status"
-                  aria-live="polite"
-                >
-                  <p>
-                    {{ t('configuration.editor.opening', { name: machineFiles.currentFile.name }) }}
-                  </p>
-                  <div class="machine-editor-loading__track" aria-hidden="true">
-                    <span></span>
-                  </div>
-                </div>
-                <!--
-                  Both layers mount only the lines the window covers, and hold
-                  the place of everything above it with one spacer. The spans
-                  are joined tag-to-tag on purpose: this is `white-space: pre`,
-                  so any whitespace between them would print.
-                -->
-                <div
-                  v-if="editorBodyMounted"
-                  class="machine-line-numbers"
-                  :class="{ 'machine-editor-body-in': editorBodyDeferred }"
-                  aria-hidden="true"
-                >
-                  <pre ref="lineNumbersContent"><span
-                    class="machine-code-spacer"
-                    :style="{ height: `${renderedWindowOffset}px` }"
-                  ></span><span
-                    v-for="row in highlightedLines"
-                    :key="row.line"
-                    class="machine-line-number"
-                    :class="{ 'machine-line-number--current': currentEditorLine === row.line + 1 }"
-                  ><span
-                    v-if="lineChangeAt(row.line)"
-                    class="machine-line-mark machine-line-mark--change"
-                    :class="`machine-line-mark--${lineChangeAt(row.line)}`"
-                    :title="
-                      t(
-                        lineChangeAt(row.line) === 'unsaved'
-                          ? 'configuration.editor.changedUnsaved'
-                          : 'configuration.editor.changedSaved',
-                      )
-                    "
-                  ></span><span
-                    v-if="removedAboveLine(row.line)"
-                    class="machine-line-mark machine-line-mark--removed"
-                    :class="`machine-line-mark--${removedAboveLine(row.line)}`"
-                    :title="
-                      t(
-                        removedAboveLine(row.line) === 'unsaved'
-                          ? 'configuration.editor.removedUnsaved'
-                          : 'configuration.editor.removedSaved',
-                      )
-                    "
-                  ></span><span
-                    v-if="removedBelowLine(row.line)"
-                    class="machine-line-mark machine-line-mark--removed machine-line-mark--removed-below"
-                    :class="`machine-line-mark--${removedBelowLine(row.line)}`"
-                    :title="
-                      t(
-                        removedBelowLine(row.line) === 'unsaved'
-                          ? 'configuration.editor.removedUnsaved'
-                          : 'configuration.editor.removedSaved',
-                      )
-                    "
-                  ></span>{{ row.line + 1 }}</span></pre>
-                </div>
-                <div
-                  v-if="editorBodyMounted"
-                  class="machine-editor-source"
-                  :class="{ 'machine-editor-body-in': editorBodyDeferred }"
-                >
-                  <pre class="machine-code-highlight selectable" aria-hidden="true"><code
-                    ref="syntaxContent"
-                  ><span
-                    class="machine-code-spacer"
-                    :style="{ height: `${renderedWindowOffset}px` }"
-                  ></span><span
-                    v-for="row in highlightedLines"
-                    :key="row.line"
-                    class="machine-code-line"
-                    :class="{
-                      'machine-code-line--current': currentEditorLine === row.line + 1,
-                      'machine-code-line--search-match': row.matched,
-                    }"
-                  ><span
-                    v-for="(token, tokenIndex) in row.tokens"
-                    :key="tokenIndex"
-                    :class="[
-                      `machine-syntax--${token.kind}`,
-                      {
-                        'machine-syntax--includePath-dead':
-                          token.kind === 'includePath' && deadIncludeLines.has(row.line),
-                        'machine-syntax--includePath-hover':
-                          token.kind === 'includePath' &&
-                          hoveredIncludeLink?.line === row.line &&
-                          !deadIncludeLines.has(row.line),
-                        'machine-syntax-match': token.matched,
-                      },
-                    ]"
-                  >{{ token.text }}</span></span></code></pre>
-                  <textarea
-                    ref="editor"
-                    v-model="machineFiles.editorContent"
-                    spellcheck="false"
-                    :readonly="currentFileReadOnly"
-                    :class="{
-                      'machine-code-editor__textarea--hotlink':
-                        hoveredIncludeLink && isLinkModifierHeld,
-                    }"
-                    :title="hotlinkTooltip"
-                    :aria-label="
-                      t('configuration.editor.contentLabel', {
-                        name: machineFiles.currentFile.name,
-                      })
-                    "
-                    @click="handleEditorClick"
-                    @input="updateCurrentEditorLine"
-                    @keydown="handleEditorKeydown"
-                    @keyup="updateCurrentEditorLine"
-                    @scroll="syncEditorScroll"
-                    @select="updateCurrentEditorLine"
-                    @mousemove="handleEditorMouseMove"
-                    @mouseleave="handleEditorMouseLeave"
-                    @contextmenu="handleEditorContextMenu"
-                    @pointerdown="rememberEditorPointer"
-                  ></textarea>
-                </div>
-              </div>
+                :read-only="currentFileReadOnly"
+                :formats-klipper-config="highlightsSyntax"
+                :indent-width="indentWidth"
+                :changes="lineChanges"
+                :search-query="editorSearchQuery"
+                :content-label="
+                  t('configuration.editor.contentLabel', { name: machineFiles.currentFile.name })
+                "
+                :labels="editorLabels"
+                :describe-include="describeInclude"
+                :include-generation="includeGeneration"
+                :commands="editorCommands"
+                @cursor-line="currentEditorLine = $event"
+                @open-include="openIncludeTarget"
+                @context-menu="handleEditorContextMenu"
+              />
 
               <aside
                 v-if="!isCurrentFilePreview && fileStructure.length > 0"

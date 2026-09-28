@@ -1,3 +1,4 @@
+import { EditorView } from '@codemirror/view'
 import { createPinia, setActivePinia, type Pinia } from 'pinia'
 import { enableAutoUnmount, flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { nextTick } from 'vue'
@@ -82,22 +83,37 @@ async function openConfigFile({ attach = false } = {}) {
   return view
 }
 
-/*
- * Waits for the deferred editor body to arrive. Polled rather than awaited
- * through one frame: the view defers through a frame callback and then a task
- * queued from inside it, and how those interleave with a promise flush is a
- * detail of the environment rather than something the view promises.
+/**
+ * Places the caret (or a selection) in the open file and presses one key, the
+ * way the editor's own keymap sees it. Returns the event too, so a test can
+ * assert what the editor did *not* claim.
  */
-async function settleEditorBody(view: VueWrapper): Promise<void> {
-  for (let attempt = 0; attempt < 25; attempt += 1) {
-    if (view.find('.machine-code-editor textarea').exists()) break
-    await new Promise((resolve) => setTimeout(resolve, 8))
-    await flushPromises()
-  }
+async function press(
+  view: VueWrapper,
+  content: string,
+  selection: [number, number],
+  init: KeyboardEventInit,
+): Promise<{ content: string; event: KeyboardEvent }> {
+  const files = useMachineFilesStore(pinia)
+  files.editorContent = content
   await nextTick()
+  const editor = editorView(view)
+  editor.dispatch({ selection: { anchor: selection[0], head: selection[1] } })
+  const event = new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init })
+  editor.contentDOM.dispatchEvent(event)
+  await nextTick()
+  return { content: files.editorContent, event }
 }
 
-async function openLogFile({ settle = true } = {}) {
+/** The CodeMirror view behind the editor component, which owns the document. */
+function editorView(view: VueWrapper): EditorView {
+  const element = view.find('.cm-editor').element as HTMLElement
+  const found = EditorView.findFromDOM(element)
+  if (!found) throw new Error('the editor is not mounted')
+  return found
+}
+
+async function openLogFile() {
   const moonraker = useMoonrakerStore(pinia)
   vi.spyOn(moonraker, 'rpcCall').mockResolvedValue(logsListing)
   stubFetch(hugeLog)
@@ -113,55 +129,37 @@ async function openLogFile({ settle = true } = {}) {
     modified: 20,
     permissions: 'r',
   })
-  // `nextTick` rather than `flushPromises`, so the body's own deferred task is
-  // still pending and the standing-in bar is observable.
   await nextTick()
-  if (settle) await settleEditorBody(view)
   return view
 }
 
 describe('the code editor renders a window, not a file', () => {
   /**
-   * The defect this pins: the highlight layer spent one element per line plus one
-   * per syntax token, for the whole file. A real 2 MB sliced G-code file came to
-   * 539,271 token spans and 659,111 elements — mounted on arrival, rebuilt on
-   * every keystroke and every `[include]` hover, and torn down and rebuilt again
-   * each time the route was left and re-entered. None of it was visible: the
-   * layer is `aria-hidden` and shows at most a screenful.
-   */
-  it('mounts a bounded number of rows for a 20,000-line file', async () => {
-    const view = await openLogFile()
-
-    const rows = view.findAll('.machine-code-line')
-    expect(rows.length).toBeGreaterThan(0)
-    expect(rows.length).toBeLessThan(200)
-    // The gutter follows the same window, so the numbers stay beside their lines.
-    expect(view.findAll('.machine-line-number')).toHaveLength(rows.length)
-    expect(view.findAll('.machine-code-spacer').length).toBe(2)
-  })
-
-  it('numbers the rows it mounts by their line in the file, counting from one', async () => {
-    const view = await openLogFile()
-
-    const numbers = view.findAll('.machine-line-number').map((node) => node.text())
-    expect(numbers[0]).toBe('1')
-    expect(numbers.at(-1)).toBe(String(numbers.length))
-  })
-
-  /**
-   * A log is not a Klipper config file, and coloring it against that grammar
-   * invents structure: a capitalized first word becomes a command, `key: value`
+   * A log is not a Klipper config file, and colouring it against that grammar
+   * invents structure: a capitalised first word becomes a command, `key: value`
    * inside a stack trace becomes a property.
    */
   it('shows a log as plain text', async () => {
     const view = await openLogFile()
 
-    expect(view.find('.machine-code-line').exists()).toBe(true)
     for (const kind of ['command', 'parameter', 'section', 'key', 'comment']) {
       expect(view.findAll(`.machine-syntax--${kind}`), kind).toHaveLength(0)
     }
     // Still shown — plain, not withheld.
-    expect(view.find('.machine-code-highlight').text()).toContain('G1 X0 Y0')
+    expect(editorView(view).state.doc.line(1).text).toContain('G1 X0 Y0')
+  })
+
+  /**
+   * The whole file is in the document even though only a viewport of it is in
+   * the DOM. The editor this replaced held the file in a textarea and mounted a
+   * hand-rolled window of coloured rows beside it, and the two could disagree;
+   * here there is one document and the rendering is CodeMirror's business.
+   */
+  it('holds the whole file while rendering a fraction of it', async () => {
+    const view = await openLogFile()
+
+    expect(editorView(view).state.doc.lines).toBe(20_000)
+    expect(view.findAll('.cm-line').length).toBeLessThan(20_000)
   })
 
   it('colors a config file in the config root', async () => {
@@ -188,63 +186,14 @@ describe('the code editor renders a window, not a file', () => {
   })
 })
 
-describe('a large file is laid out after the event that asked for it', () => {
-  /**
-   * Windowing the highlight layer left the textarea, which holds the whole file
-   * because it owns the text, the caret, and the selection. Handing the browser
-   * a 2.5 MB file to lay out blocked the main thread for 233 ms, and it was
-   * charged to whatever event asked for it — so arriving on the route was what
-   * appeared to hang, rather than the editor appearing to load.
-   */
-  it('shows a bar in the body’s place first, then the body', async () => {
-    const view = await openLogFile({ settle: false })
-
-    const bar = view.find('.machine-editor-loading')
-    expect(bar.exists()).toBe(true)
-    expect(bar.attributes('role')).toBe('status')
-    expect(bar.text()).toContain('klippy.log')
-    expect(view.find('.machine-code-editor textarea').exists()).toBe(false)
-
-    await settleEditorBody(view)
-
-    expect(view.find('.machine-editor-loading').exists()).toBe(false)
-    expect(view.find('.machine-code-editor textarea').exists()).toBe(true)
-    expect(view.findAll('.machine-code-line').length).toBeGreaterThan(0)
-  })
-
-  /**
-   * The other half of the rule: a wait shown for work that was already done is a
-   * delay the interface invented. Every configuration file is far below the
-   * threshold, so none of them may flash it.
-   */
-  it('mounts a configuration file with no bar at all', async () => {
-    const view = await openConfigFile()
-
-    expect(view.find('.machine-editor-loading').exists()).toBe(false)
-    expect(view.find('.machine-code-editor textarea').exists()).toBe(true)
-  })
-})
-
 describe('the editor indents with spaces', () => {
-  /*
-   * jsdom implements no `execCommand`, so `insertAtCursor` takes its fallback —
-   * the same path a browser that refuses the command takes, and the one that
-   * has to produce identical text.
-   */
   beforeEach(() => {
-    document.execCommand = vi.fn(() => false)
     useEditorIndent().setIndentWidth(2)
   })
 
   async function typeInto(view: VueWrapper, content: string, key: string): Promise<string> {
-    const files = useMachineFilesStore(pinia)
-    files.editorContent = content
-    await nextTick()
-    const textarea = view.find('.machine-code-editor textarea')
-    const element = textarea.element as HTMLTextAreaElement
-    element.setSelectionRange(content.length, content.length)
-    await textarea.trigger('keydown', { key })
-    return files.editorContent
+    const { content: after } = await press(view, content, [content.length, content.length], { key })
+    return after
   }
 
   it('inserts spaces rather than a tab when Tab is pressed', async () => {
@@ -299,31 +248,8 @@ describe('the editor indents with spaces', () => {
 
 describe('the editor’s line commands', () => {
   beforeEach(() => {
-    document.execCommand = vi.fn(() => false)
     useEditorIndent().setIndentWidth(2)
   })
-
-  /**
-   * Places the caret (or a selection) in the open file and presses one key.
-   * Returns the event, so a test can also assert what the editor did *not*
-   * claim.
-   */
-  async function press(
-    view: VueWrapper,
-    content: string,
-    selection: [number, number],
-    init: KeyboardEventInit,
-  ): Promise<{ content: string; event: KeyboardEvent }> {
-    const files = useMachineFilesStore(pinia)
-    files.editorContent = content
-    await nextTick()
-    const element = view.find('.machine-code-editor textarea').element as HTMLTextAreaElement
-    element.setSelectionRange(selection[0], selection[1])
-    const event = new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init })
-    element.dispatchEvent(event)
-    await nextTick()
-    return { content: files.editorContent, event }
-  }
 
   it('comments the caret’s line and uncomments it again', async () => {
     const view = await openConfigFile()
@@ -408,7 +334,7 @@ describe('the editor’s line commands', () => {
     const saveFile = vi.spyOn(files, 'saveFile').mockResolvedValue(true)
     files.editorContent = `${configFile}# edited`
     await nextTick()
-    const element = view.find('.machine-code-editor textarea').element as HTMLTextAreaElement
+    const element = editorView(view).contentDOM
 
     element.dispatchEvent(
       new KeyboardEvent('keydown', { key: 's', ctrlKey: true, bubbles: true, cancelable: true }),
@@ -489,15 +415,37 @@ describe('the editor’s line commands', () => {
     expect((await press(view, 'G28', [3, 3], { key: 'Tab' })).content).toBe('G28 ')
   })
 
+  /*
+   * A read-only file is read-only to the commands too, not just to typing.
+   * Marking the view uneditable stops the browser writing into it and says
+   * nothing to a command that dispatches a transaction itself, so both halves
+   * have to be set — and reconfigured together when the open file changes.
+   */
+  it('refuses a command on a file the printer will not let us write', async () => {
+    const view = await openConfigFile()
+    const files = useMachineFilesStore(pinia)
+    await files.openFile({
+      kind: 'file',
+      name: 'readonly.cfg',
+      size: 10,
+      modified: 20,
+      permissions: 'r',
+    })
+    await flushPromises()
+
+    expect(editorView(view).state.readOnly).toBe(true)
+    expect((await press(view, '  G28', [4, 4], { key: '/', ctrlKey: true })).content).toBe('  G28')
+  })
+
   /* Nothing here may act on a file the printer will not let us write. */
   it('does nothing at all in a read-only file', async () => {
     const view = await openLogFile()
     const files = useMachineFilesStore(pinia)
     const before = files.editorContent
 
-    const element = view.find('.machine-code-editor textarea').element as HTMLTextAreaElement
-    element.setSelectionRange(0, 0)
-    element.dispatchEvent(
+    const editor = editorView(view)
+    editor.dispatch({ selection: { anchor: 0 } })
+    editor.contentDOM.dispatchEvent(
       new KeyboardEvent('keydown', { key: '/', ctrlKey: true, bubbles: true, cancelable: true }),
     )
     await nextTick()
@@ -543,7 +491,7 @@ describe('finding the editor’s shortcuts', () => {
 
   it('opens from the keyboard', async () => {
     const view = await openConfigFile()
-    const element = view.find('.machine-code-editor textarea').element as HTMLTextAreaElement
+    const element = editorView(view).contentDOM
 
     element.dispatchEvent(
       new KeyboardEvent('keydown', { key: '?', ctrlKey: true, bubbles: true, cancelable: true }),
@@ -560,7 +508,7 @@ describe('finding the editor’s shortcuts', () => {
   it('opens in a read-only file too', async () => {
     const view = await openLogFile()
 
-    const element = view.find('.machine-code-editor textarea').element as HTMLTextAreaElement
+    const element = editorView(view).contentDOM
     element.dispatchEvent(
       new KeyboardEvent('keydown', { key: '?', ctrlKey: true, bubbles: true, cancelable: true }),
     )

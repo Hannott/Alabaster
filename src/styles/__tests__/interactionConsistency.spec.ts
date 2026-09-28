@@ -134,7 +134,7 @@ describe('interaction and iconography contract', () => {
       'components/console/ConsoleTranscript.vue': 'gcode-console selectable',
       'components/UpdateCommitList.vue': 'update-recovery-commits selectable',
       'components/MachineUpdateConsoleDialog.vue': 'update-console selectable',
-      'views/ConfigurationView.vue': 'machine-code-highlight selectable',
+      'components/machine/MachineCodeEditor.vue': "contentAttributes.of({ class: 'selectable' })",
     }
 
     for (const [path, marker] of Object.entries(selectable)) {

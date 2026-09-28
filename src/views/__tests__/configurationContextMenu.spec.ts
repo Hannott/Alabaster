@@ -1,3 +1,5 @@
+import { undo } from '@codemirror/commands'
+import { EditorView } from '@codemirror/view'
 import { createPinia, setActivePinia, type Pinia } from 'pinia'
 import { enableAutoUnmount, flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -60,21 +62,30 @@ async function mountWith(name: string, permissions = 'rw'): Promise<VueWrapper> 
   return view
 }
 
-function textarea(view: VueWrapper): HTMLTextAreaElement {
-  return view.find('textarea').element as HTMLTextAreaElement
+function editorView(view: VueWrapper): EditorView {
+  const found = EditorView.findFromDOM(view.find('.cm-editor').element as HTMLElement)
+  if (!found) throw new Error('the editor is not mounted')
+  return found
+}
+
+function content(view: VueWrapper): HTMLElement {
+  return editorView(view).contentDOM
 }
 
 /*
- * jsdom lays nothing out, so the pointer hit test has no character width to
- * measure. The keyboard path reads the caret instead, which is what these
- * tests drive; the pointer path shares everything after the hit test.
+ * jsdom lays nothing out, so `posAtCoords` has no geometry to answer from. The
+ * keyboard path reads the caret instead, which is what these tests drive; the
+ * pointer path shares everything after the position is resolved.
  */
-async function openMenuAtCaret(view: VueWrapper, offset: number): Promise<MouseEvent> {
-  const element = textarea(view)
-  element.setSelectionRange(offset, offset)
-  element.dispatchEvent(new KeyboardEvent('keydown', { key: 'ContextMenu', bubbles: true }))
-  const event = new MouseEvent('contextmenu', { bubbles: true, cancelable: true })
-  element.dispatchEvent(event)
+async function openMenuAtCaret(view: VueWrapper, offset: number): Promise<KeyboardEvent> {
+  const editor = editorView(view)
+  editor.dispatch({ selection: { anchor: offset } })
+  const event = new KeyboardEvent('keydown', {
+    key: 'ContextMenu',
+    bubbles: true,
+    cancelable: true,
+  })
+  editor.contentDOM.dispatchEvent(event)
   await flushPromises()
   return event
 }
@@ -100,7 +111,7 @@ describe('Configuration editor context menu', () => {
   it('leaves Shift+right-click to the browser, which is how to paste', async () => {
     const view = await mountWith('printer.cfg')
     const event = new MouseEvent('contextmenu', { bubbles: true, cancelable: true, shiftKey: true })
-    textarea(view).dispatchEvent(event)
+    content(view).dispatchEvent(event)
     await flushPromises()
 
     expect(event.defaultPrevented).toBe(false)
@@ -115,21 +126,24 @@ describe('Configuration editor context menu', () => {
     expect(document.body.querySelector('.file-context-menu')).toBeNull()
   })
 
+  /*
+   * One transaction, so one Ctrl+Z restores the section. The old editor had to
+   * express this as a single `execCommand` call against a textarea to get one
+   * undo step; a transaction is one step however many ranges it touches, and
+   * the history extension is what records it.
+   */
   it('comments a section out as one edit, so one undo restores it', async () => {
-    const execCommand = vi.fn().mockReturnValue(true)
-    document.execCommand = execCommand
     const view = await mountWith('printer.cfg')
     await openMenuAtCaret(view, 2)
 
     menuButton('Comment out section')?.click()
     await flushPromises()
 
-    expect(execCommand).toHaveBeenCalledOnce()
-    expect(execCommand).toHaveBeenCalledWith(
-      'insertText',
-      false,
-      '# [printer]\n# kinematics: corexy',
-    )
+    const editor = editorView(view)
+    expect(editor.state.doc.toString()).toBe('# [printer]\n# kinematics: corexy\n')
+
+    undo({ state: editor.state, dispatch: (transaction) => editor.dispatch(transaction) })
+    expect(editor.state.doc.toString()).toBe(configFile)
   })
 
   it('offers no editing on a file the printer will not let us write', async () => {
@@ -146,7 +160,7 @@ describe('Configuration editor context menu', () => {
     const view = await mountWith('printer.cfg')
     await openMenuAtCaret(view, 2)
     const press = new PointerEvent('pointerdown', { bubbles: true, cancelable: true })
-    textarea(view).dispatchEvent(press)
+    content(view).dispatchEvent(press)
     await flushPromises()
 
     expect(press.defaultPrevented).toBe(false)
@@ -162,7 +176,7 @@ describe('Configuration editor context menu', () => {
     await flushPromises()
     expect(document.body.querySelector('.file-context-menu')).not.toBeNull()
 
-    textarea(view).dispatchEvent(new WheelEvent('wheel', { bubbles: true, deltaY: 40 }))
+    content(view).dispatchEvent(new WheelEvent('wheel', { bubbles: true, deltaY: 40 }))
     await flushPromises()
     expect(document.body.querySelector('.file-context-menu')).toBeNull()
   })

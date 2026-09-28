@@ -1197,10 +1197,10 @@ input[type='radio']:focus-visible,
  *
  * Unlike `text-action`, it does not read as part of surrounding text — nothing
  * frames it, so all caps and a fixed danger color have to say "find this
- * fast" on their own. There is no hover or focus color change: the response
- * is `AppIcon`'s `emergencyStop` glyph replaying its draw-in animation once
- * (`App.vue`'s `replayEstopIcon`), which already says "something happened
- * here" without a second, unvalidated red next to one already at rest.
+ * fast" on their own. There is no hover or focus color change, and no
+ * animation: `AppIcon`'s `alertOctagon`/`helpOctagon` glyphs are static, and
+ * App.vue swaps between them by whether the click ahead opens a confirmation
+ * or acts immediately.
  *
  * Its text sits at the `md` size token, one step up from the `sm` this outlier
  * used before: `.header-icon` below explains why the header's own action
@@ -2492,11 +2492,10 @@ input[type='number']::-webkit-inner-spin-button {
 }
 
 /*
- * Deliberately not `.machine-editor-loading__track`. That one covers the main
- * thread laying out a file and sits on the viewer's dark surface; this one covers
- * a network request and sits on the page. They merely look alike, so a shared
- * class would have to answer to both — and the first change to either would move
- * the other.
+ * Its own class rather than one shared with any other indeterminate bar: this
+ * one covers a network request and sits on the page, and anything that merely
+ * looks like it would have to answer to both, so the first change to either
+ * would move the other.
  */
 .page-placeholder__track {
   position: relative;
@@ -11512,106 +11511,10 @@ body.machine-editor-fullscreen-open {
 .machine-code-editor {
   --code-font-size: var(--console-editor-text-size);
   --search-mark: color-mix(in srgb, var(--color-data-yellow) 50%, var(--text-primary));
-  display: grid;
   min-width: 0;
   min-height: 0;
   overflow: hidden;
   background: var(--code-surface);
-  grid-template-columns: 3.6rem minmax(0, 1fr);
-  /*
-   * One explicit row, so the standing-in bar can be placed over both columns of
-   * that row instead of being pushed onto an implicit second one.
-   */
-  grid-template-rows: minmax(0, 1fr);
-}
-
-/*
- * Stands in for the editor body while the browser lays out a large file, in the
- * body's own cell — the pane's geometry is a grid cell, so nothing moves when
- * the body arrives. Opaque, because it covers the body rather than sitting
- * beside it: two elements fading past each other in one cell would show the
- * text through the bar.
- */
-.machine-editor-loading {
-  z-index: 2;
-  display: grid;
-  padding: 2rem;
-  gap: 0.85rem;
-  background: var(--code-surface);
-  grid-area: 1 / 1 / -1 / -1;
-  justify-items: center;
-  place-content: center;
-}
-
-.machine-editor-loading p {
-  max-width: 22rem;
-  overflow: hidden;
-  color: var(--text-muted);
-  font-size: var(--text-panel-message-size);
-  text-align: center;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/*
- * Deliberately not the G-code viewer's `.gcode-loading-track`. That one is
- * determinate — its span's width is a download percentage — and this one cannot
- * be: no browser reports how far it has got through laying out a file. They
- * merely look alike, so they are separate rules rather than one shared class
- * that would have to mean both things.
- */
-.machine-editor-loading__track {
-  position: relative;
-  overflow: hidden;
-  width: min(18rem, 70%);
-  height: 0.3rem;
-  border-radius: 999px;
-  background: var(--surface-on-strong-soft);
-}
-
-/*
- * Transform only, and that is the whole point rather than a preference: the work
- * this covers blocks the main thread for the length of the wait, so an animation
- * driven by anything the main thread has to touch would freeze exactly when it
- * is needed. A transform runs on the compositor and keeps sweeping.
- */
-.machine-editor-loading__track span {
-  position: absolute;
-  inset-block: 0;
-  width: 40%;
-  border-radius: inherit;
-  animation: editor-loading-sweep var(--motion-duration-pending) var(--motion-ease-standard)
-    infinite;
-  background: var(--viewer-accent);
-}
-
-@keyframes editor-loading-sweep {
-  from {
-    transform: translateX(-100%);
-  }
-
-  to {
-    transform: translateX(250%);
-  }
-}
-
-/*
- * The body's reveal, as a CSS animation rather than a Vue `<Transition>`. Not a
- * style preference: a transition's bookkeeping is scheduled on animation frames,
- * and animation frames are the one thing not happening while the main thread lays
- * the file out — the leave stalled holding `-leave-from` and never finished, so
- * the bar stayed on top of the text. An animation is started by the style system
- * and needs nothing scheduled. It fades over `--code-surface`, which is the
- * same surface the bar sat on, so there is no empty frame between them.
- */
-.machine-editor-body-in {
-  animation: editor-body-in var(--motion-duration-standard) var(--motion-ease-standard);
-}
-
-@keyframes editor-body-in {
-  from {
-    opacity: 0;
-  }
 }
 
 .image-viewer {
@@ -11753,52 +11656,37 @@ body.machine-editor-fullscreen-open {
   min-height: 0;
 }
 
-.machine-editor-source {
-  position: relative;
-  min-width: 0;
-  min-height: 0;
-  overflow: hidden;
-}
-
-.machine-line-numbers {
-  overflow: hidden;
-  padding: 1rem 0.75rem calc(1rem + 1.5rem);
-  border-inline-end: 1px solid var(--border-subtle);
-  color: var(--text-muted);
-  text-align: end;
-  user-select: none;
-}
-
-.machine-line-numbers pre,
-.machine-code-highlight,
-.machine-code-editor textarea {
-  margin: 0;
-  font-family: var(--font-mono);
-  font-size: var(--code-font-size);
-  font-variant-ligatures: none;
-  line-height: 1.5rem;
+/*
+ * CodeMirror's own DOM, given Alabaster's typography and surfaces.
+ *
+ * The editor is one component with a real document model now, so the three
+ * stacked layers the old textarea needed — a gutter, a highlight layer and the
+ * textarea itself, kept in step by transform — are gone, and with them the rule
+ * that no two of them could ever be styled apart. What is left is a theme.
+ *
+ * Declared here rather than through an `EditorView.theme` object because a
+ * theme object names its colours in JavaScript, which would put them outside
+ * the semantic roles a theme pack implements and outside the contrast spec that
+ * checks them. See src/themes/README.md.
+ */
+/*
+ * The parts of CodeMirror's DOM that CodeMirror does not style itself, and so
+ * can be styled from here. Everything it *does* style — the scroller's
+ * typography, the content and line padding, the gutters, the active line, the
+ * selection — is set through `features/machine/editor/theme.ts` instead, and
+ * not by preference: CodeMirror injects its base theme unlayered, and every
+ * stylesheet here is imported into `@layer components`, which the cascade puts
+ * underneath regardless of specificity. A rule for `.cm-content` written here
+ * would look right and do nothing.
+ */
+.machine-code-editor .cm-editor {
   /*
    * The editor's own indent width (useEditorIndent), so a file that already
    * contains literal tabs paints at the same depth as the spaces typed into it
-   * rather than forming a second grid beside them. All three layers take it
-   * from one declaration — see configuration-editor.md on why they can never be
-   * styled apart.
+   * rather than forming a second grid beside them. CodeMirror never sets
+   * `tab-size`, so this one reaches.
    */
   tab-size: var(--code-tab-size, 2);
-}
-
-.machine-line-number {
-  position: relative;
-  display: block;
-  min-height: 1.5rem;
-  padding-inline-end: 0.1rem;
-  /*
-   * Where a change mark sits relative to this row's own box, so it lands on the
-   * gutter's outer edge rather than inside its padding. The current row bleeds
-   * its background out to that same edge with a negative margin, so it cancels
-   * the offset rather than the mark overshooting by the padding twice.
-   */
-  --line-mark-inset: -0.75rem;
 }
 
 /*
@@ -11812,11 +11700,21 @@ body.machine-editor-fullscreen-open {
  * A deletion has no line left to mark, so it takes a short tick on the edge the
  * removed lines used to be on instead of a full-height bar. That is a different
  * shape and not merely a different length, because a shorter bar of the same
- * color would read as a smaller change rather than as another kind of one.
+ * colour would read as a smaller change rather than as another kind of one.
  */
+.machine-change-gutter {
+  width: 3px;
+}
+
+.machine-line-marks {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
 .machine-line-mark {
   position: absolute;
-  inset-inline-start: var(--line-mark-inset);
+  inset-inline-start: 0;
 }
 
 .machine-line-mark--change {
@@ -11847,122 +11745,93 @@ body.machine-editor-fullscreen-open {
 }
 
 /*
- * Much stronger than the code line's own `--current` tint (main.css, near
- * .machine-code-line--current): the gutter has no syntax color competing for
- * attention, so the active row needs its own unmistakable marker there,
- * not just a echo of the faint sky tint across the line itself.
+ * The fold controls answer a hover over the editor rather than standing there
+ * permanently: a config file is mostly foldable — every section and every
+ * key with a block under it opens one — so a full column of chevrons beside the
+ * line numbers would be a second ruler competing with the one that says where
+ * the reader is.
+ *
+ * A closed one stays visible whatever the pointer is doing. It is the margin's
+ * only statement that lines are missing, and a reader who cannot see it has no
+ * way to know the file is not what it appears to be.
  */
-.machine-line-number--current {
-  --line-mark-inset: 0rem;
-
-  margin-inline: -0.75rem;
-  padding-inline: 0.75rem 0.85rem;
-  background: color-mix(in srgb, var(--action-primary) 28%, transparent);
-  color: var(--text-primary);
-  font-weight: var(--font-weight);
+.machine-fold-marker--open {
+  opacity: 0;
+  transition: opacity var(--motion-duration-quick) var(--motion-ease-standard);
 }
 
-.machine-code-highlight,
-.machine-code-editor textarea {
-  width: 100%;
-  height: 100%;
-  min-height: 0;
-  padding: 1rem 1.2rem;
-  white-space: pre;
+.machine-code-editor .cm-editor:hover .machine-fold-marker--open,
+.machine-code-editor .cm-editor .cm-gutterElement:focus-within .machine-fold-marker--open {
+  opacity: 1;
 }
 
-.machine-code-highlight {
-  position: absolute;
-  inset: 0;
-  overflow: hidden;
-  margin: 0;
-  padding-bottom: calc(1rem + 1.5rem);
-  background: transparent;
-  color: var(--text-primary);
-  pointer-events: none;
+@media (prefers-reduced-motion: reduce) {
+  .machine-fold-marker--open {
+    transition: none;
+  }
 }
 
-.machine-code-highlight code {
-  display: block;
-  min-width: max-content;
+/*
+ * What stands in for the hidden lines, and it says how many rather than only
+ * that there are some: how many is the whole question when what is folded is a
+ * macro body of unknown length, and the only other way to find out is to
+ * unfold, which is what the fold was for.
+ */
+.machine-fold-placeholder {
+  margin-inline-start: 0.5rem;
+  padding-inline: 0.4rem;
+  border-radius: 0.25rem;
+  background: color-mix(in srgb, var(--text-muted) 18%, transparent);
+  color: var(--text-muted);
+  font-size: 0.85em;
+  cursor: pointer;
 }
 
-.machine-code-line {
-  display: block;
-  width: max-content;
-  min-width: 100%;
-  min-height: 1.5rem;
+.machine-fold-placeholder:hover {
+  background: color-mix(in srgb, var(--text-muted) 28%, transparent);
 }
 
-.machine-code-line--current {
-  background: color-mix(in srgb, var(--color-data-sky) 7%, transparent);
+/*
+ * Ctrl/Cmd is held, so every include path is a link. A real `:hover` now that
+ * nothing sits on top of the text — the pixel hit test this replaced existed
+ * only because a textarea covered the coloured layer and always won the
+ * pointer.
+ */
+.machine-code-editor--link-modifier .machine-syntax--includePath-link {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  cursor: pointer;
 }
 
 /*
  * A faint whole-row tint for any line the explorer's search box currently
  * matches, so a reader scrolling a long file can spot which rows to look at
- * before reading a single character. Declared after `--current` so the two
- * resolve to this tint on a line that happens to be both — the point of
+ * before reading a single character. Declared after the active-line tint so the
+ * two resolve to this one on a line that happens to be both — the point of
  * typing into the search box is to look at matches, so that intent wins.
  */
-.machine-code-line--search-match {
+.machine-code-editor .cm-editor .machine-code-line--search-match {
   background: color-mix(in srgb, var(--search-mark) 10%, transparent);
 }
 
 /*
  * The word-level mark inside a matched row: a wash plus an underline, not a
- * solid fill with a forced text color. The syntax palette spans green, blue,
- * orange, purple, and red (see the `.machine-syntax--*` rules below, which
- * this can't safely sit after in the cascade without also out-specificity-ing
- * every one of them individually), and there is no single foreground color
- * that stays legible over a strongly saturated yellow fill for all of them at
- * once — an earlier version tried `color: var(--text-primary)` here and it
- * both lost the cascade to the kind-specific colors declared later in this
- * file and, on the dark pack, would have put white text on yellow either way.
- * A thin underline only has to contrast against the page, never against
- * whatever color the matched text already is, which is what makes it work
- * uniformly.
- *
- * The page is the one thing it does have to contrast against, and raw yellow
- * cannot on a light surface: it measured 1.16:1 as the underline and 1.04:1 as
- * the wash, so in light mode a match was marked in nothing a reader could see.
- * `--search-mark` mixes it halfway toward `--text-primary`, which darkens it to
- * an olive in light mode (4.35:1 on the code surface) and lightens it in dark
- * (17:1), so one expression holds in both without a mode of its own.
+ * solid fill with a forced text colour. The syntax palette spans green, blue,
+ * orange, purple and red, and there is no single foreground colour that stays
+ * legible over a strongly saturated fill for all of them at once — an earlier
+ * version tried `color: var(--text-primary)` here and it both lost the cascade
+ * to the kind-specific colours declared later in this file and, on the dark
+ * pack, would have put white text on yellow either way. A thin underline only
+ * has to contrast against the page, never against whatever colour the matched
+ * text already is, which is what makes it work uniformly. Raw yellow cannot
+ * clear the page in light mode — 1.16:1 as the underline — so `--search-mark`
+ * mixes it halfway toward `--text-primary`: an olive in light mode (4.35:1 on
+ * the code surface) and a pale yellow in dark (17:1).
  */
 .machine-syntax-match {
   border-radius: 0.1rem;
   background: color-mix(in srgb, var(--search-mark) 22%, transparent);
   box-shadow: inset 0 -0.125rem 0 0 var(--search-mark);
-}
-
-/*
- * Holds the place of the lines above the rendered window in both the gutter and
- * the highlight layer, so the mounted rows sit where the textarea has put the
- * text. Its height is the only thing either layer knows about the rest of the
- * file. See features/machine/codeWindow.ts for what mounting the rest costs.
- */
-.machine-code-spacer {
-  display: block;
-  overflow: hidden;
-}
-
-.machine-code-editor textarea {
-  position: relative;
-  z-index: 1;
-  resize: none;
-  border: 0;
-  outline: 0;
-  background: transparent;
-  /*
-   * The text's own color, not the accent. A caret is one pixel wide and no
-   * browser lets that be changed, so its color is all the weight it has: the
-   * accent blue measured 4.5:1 on the light code surface and still read as
-   * missing, where `--text-primary` is 18:1 and 17:1 in dark.
-   */
-  caret-color: var(--text-primary);
-  color: transparent;
-  -webkit-text-fill-color: transparent;
 }
 
 .machine-syntax--comment {
@@ -12029,26 +11898,9 @@ body.machine-editor-fullscreen-open {
 }
 
 /*
- * The underline that appears while the pointer is over an [include] path.
- * Driven by JS-tracked pixel coordinates rather than a real :hover — see
- * hotlinkAt() in FileExplorerView — because the highlight layer sits behind
- * the interactive textarea and can never receive pointer events itself.
- */
-.machine-syntax--includePath-hover {
-  text-decoration: underline;
-  text-decoration-thickness: 1px;
-}
-
-/* Ctrl/Cmd is held over that same path: clicking will open it. */
-.machine-code-editor textarea.machine-code-editor__textarea--hotlink {
-  cursor: pointer;
-}
-
-/*
  * A dead [include] target: persistent, like a spell-checker's mark, not tied
- * to hover — the tooltip (on the textarea, for the same reason the hover
- * underline above is JS-driven) is what explains it and offers Ctrl+click to
- * create the missing file.
+ * to hover. Its tooltip is what explains it and offers Ctrl+click to create the
+ * missing file.
  */
 .machine-syntax--includePath-dead {
   text-decoration: underline wavy var(--status-danger-text);

@@ -1,24 +1,33 @@
 import { COMMENT_LINE, isContinuationLine, opensValue } from '@/features/machine/configLines'
 
-export type MachineSyntaxKind =
-  | 'plain'
-  | 'comment'
-  | 'autogen'
-  | 'section'
-  | 'key'
-  | 'parameter'
-  | 'value'
-  | 'boolean'
-  | 'pin'
-  | 'number'
-  | 'string'
-  | 'command'
-  | 'gcode'
-  | 'templateDelimiter'
-  | 'templateKeyword'
-  | 'templateGlobal'
-  | 'templateFilter'
-  | 'includePath'
+/*
+ * Every kind a token can be, as a value rather than only a type, because the
+ * editor's highlighter has to enumerate them to build one tag per kind. A kind
+ * named in the type but missing from this list would colour as plain text with
+ * nothing failing, so the type is derived from the list instead of beside it.
+ */
+export const MACHINE_SYNTAX_KINDS = [
+  'plain',
+  'comment',
+  'autogen',
+  'section',
+  'key',
+  'parameter',
+  'value',
+  'boolean',
+  'pin',
+  'number',
+  'string',
+  'command',
+  'gcode',
+  'templateDelimiter',
+  'templateKeyword',
+  'templateGlobal',
+  'templateFilter',
+  'includePath',
+] as const
+
+export type MachineSyntaxKind = (typeof MACHINE_SYNTAX_KINDS)[number]
 
 export interface MachineSyntaxToken {
   kind: MachineSyntaxKind
