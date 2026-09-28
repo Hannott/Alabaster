@@ -284,3 +284,32 @@ describe('normalizeQuickConfigPins', () => {
     ).toEqual([{ section: 'printer', option: 'max_accel' }])
   })
 })
+
+describe('pinning one option from the editor', () => {
+  it('adds an option to the pins and takes it off again', async () => {
+    const quickConfig = await loadedStore()
+    quickConfig.setSectionPins('printer', ['max_velocity'])
+    expect(quickConfig.isPinned('printer', 'max_accel')).toBe(false)
+
+    quickConfig.pinOption('Printer', 'MAX_ACCEL')
+    expect(quickConfig.isPinned('printer', 'max_accel')).toBe(true)
+    expect(quickConfig.pins).toContainEqual({ section: 'printer', option: 'max_accel' })
+
+    quickConfig.unpinOption('printer', 'max_accel')
+    expect(quickConfig.isPinned('printer', 'max_accel')).toBe(false)
+    expect(quickConfig.isPinned('printer', 'max_velocity')).toBe(true)
+  })
+
+  it('keeps running until the last view that started it stops', () => {
+    const quickConfig = useQuickConfigStore()
+    const moonraker = useMoonrakerStore()
+    const unsubscribe = vi.fn()
+    vi.spyOn(moonraker, 'onNotification').mockReturnValue(unsubscribe)
+    quickConfig.start()
+    quickConfig.start()
+    quickConfig.stop()
+    expect(unsubscribe).not.toHaveBeenCalled()
+    quickConfig.stop()
+    expect(unsubscribe).toHaveBeenCalledOnce()
+  })
+})

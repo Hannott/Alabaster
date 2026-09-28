@@ -35,6 +35,8 @@ import {
 import { normalizeDashboardProfile, useDashboardLayoutStore } from '@/stores/dashboardLayout'
 import type { QuickConfigPin } from '@/features/config/quickConfigFields'
 import { useQuickConfigStore } from '@/stores/quickConfig'
+import { useDocumentationSiteStore } from '@/stores/documentationSite'
+import type { DocsSite } from '@/features/machine/docsLinks'
 import { useZMotionStore, type ZMotion } from '@/stores/zMotion'
 import { defaultThemePackId, isThemePackId, type ThemePackId } from '@/themes/registry'
 import { isRecord } from '@/utils/records'
@@ -96,6 +98,12 @@ export interface SettingsBundle {
    * it. Null while the printer has no stored answer.
    */
   zMotion: ZMotion | null
+  /**
+   * Which firmware's documentation the configuration editor links to on the
+   * active printer. Null while it follows the firmware the update manager
+   * reports.
+   */
+  documentationSite: DocsSite | null
 }
 
 function isGcodeColorMode(value: unknown): value is GcodeColorMode {
@@ -119,6 +127,7 @@ export function collectSettingsBundle(): SettingsBundle {
   const gcodeViewer = useGcodeViewerSettings()
   const quickConfig = useQuickConfigStore()
   const zMotion = useZMotionStore()
+  const documentationSite = useDocumentationSiteStore()
 
   return {
     version: 1,
@@ -151,6 +160,7 @@ export function collectSettingsBundle(): SettingsBundle {
     },
     quickConfigPins: quickConfig.storedPins,
     zMotion: zMotion.stored,
+    documentationSite: documentationSite.stored,
   }
 }
 
@@ -180,6 +190,7 @@ export async function applySettingsBundle(input: unknown): Promise<void> {
   const gcodeViewer = useGcodeViewerSettings()
   const quickConfig = useQuickConfigStore()
   const zMotion = useZMotionStore()
+  const documentationSite = useDocumentationSiteStore()
 
   if (isRecord(input.theme)) {
     if (typeof input.theme.mode === 'string' && isThemeMode(input.theme.mode)) {
@@ -225,6 +236,7 @@ export async function applySettingsBundle(input: unknown): Promise<void> {
   if (input.dashboardProfile !== undefined) layout.replaceProfile(input.dashboardProfile)
   if (input.quickConfigPins !== undefined) quickConfig.replacePins(input.quickConfigPins)
   if (input.zMotion !== undefined) zMotion.replace(input.zMotion)
+  if (input.documentationSite !== undefined) documentationSite.replace(input.documentationSite)
   if (isRecord(input.gcodeViewer)) {
     const viewer = input.gcodeViewer
     if (isGcodeColorMode(viewer.colorMode)) gcodeViewer.setColorMode(viewer.colorMode)
@@ -269,5 +281,6 @@ export function defaultSettingsBundle(): SettingsBundle {
     },
     quickConfigPins: null,
     zMotion: null,
+    documentationSite: null,
   }
 }

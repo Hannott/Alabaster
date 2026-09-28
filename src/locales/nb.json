@@ -1874,6 +1874,86 @@
       "removeFromPrinterConfig": "Fjern fra printer.cfg",
       "delete": "Slett"
     },
+    "editorMenu": {
+      "label": "Handlinger i redigeringen",
+      "reference": {
+        "klipper": "Klipper-referanse: {name}",
+        "kalico": "Kalico-referanse: {name}"
+      },
+      "guide": {
+        "klipper": "Klipper-veiledning: {title}",
+        "kalico": "Kalico-veiledning: {title}"
+      },
+      "commandReference": {
+        "klipper": "Klipper-kommandoer: {name}",
+        "kalico": "Kalico-kommandoer: {name}"
+      },
+      "statusReference": {
+        "klipper": "Klipper-status: {name}",
+        "kalico": "Kalico-status: {name}"
+      },
+      "templateGuide": {
+        "klipper": "Klipper-veiledning: Kommandomaler",
+        "kalico": "Kalico-veiledning: Kommandomaler"
+      },
+      "jinja": {
+        "keyword": "Jinja: {name}",
+        "filter": "Jinja-filter: {name}",
+        "test": "Jinja-test: {name}",
+        "global": "Jinja-funksjon: {name}"
+      },
+      "findUses": "Finn bruk av {name}",
+      "searchFor": "Søk etter «{name}» i konfigurasjonsfilene",
+      "choosePins": "Velg opsjoner for hurtigoppsettet …",
+      "pin": "Legg til i hurtigoppsettet",
+      "unpin": "Fjern fra hurtigoppsettet",
+      "showInQuickConfig": "Vis i hurtigoppsettet",
+      "otherDefinition": "Annen definisjon",
+      "goToOverriding": "Gå til verdien Klipper bruker",
+      "goToSaved": "Gå til den lagrede verdien",
+      "goToNamedSection": "Gå til {name}",
+      "goToDefinition": "Gå til definisjonen",
+      "applyUntilRestart": "Bruk {value} fram til omstart",
+      "openFile": "Åpne filen",
+      "openNamed": "Åpne {name}",
+      "reveal": "Vis i utforskeren",
+      "createFile": "Opprett filen",
+      "openLink": "Åpne lenken",
+      "selectBlock": "Merk blokken",
+      "selectBody": "Merk malen",
+      "selectSection": "Merk seksjonen",
+      "commentSection": "Kommenter ut seksjonen",
+      "uncommentSection": "Fjern kommentering av seksjonen",
+      "uncomment": "Fjern kommentering",
+      "cut": "Klipp ut",
+      "copy": "Kopier",
+      "toggleComment": "Kommenter av eller på",
+      "goToLine": "Gå til linje …",
+      "shortcuts": "Hurtigtaster",
+      "goToLineTitle": "Gå til linje",
+      "goToLineLabel": "Linje, 1 til {count}",
+      "goToLineConfirm": "Gå",
+      "lineOutOfRange": "Skriv inn en linje fra 1 til {count}.",
+      "facts": {
+        "notLoaded": "Ikke lastet av Klipper",
+        "text": "{text}",
+        "overridden": "Overstyrt av {location}",
+        "savedBySaveConfig": "Overstyrt av SAVE_CONFIG-blokken",
+        "running": "Klipper kjører {value}",
+        "default": "Standard: {value}",
+        "pendingCalibration": "SAVE_CONFIG vil overskrive denne",
+        "noMatches": "Treffer ingen filer",
+        "missingInclude": "Filen finnes ikke",
+        "unknownCommand": "Klipper kjenner ikke denne kommandoen",
+        "writtenBySaveConfig": "Skrevet av SAVE_CONFIG",
+        "now": "Nå: {value}"
+      },
+      "keys": {
+        "cut": "Ctrl + X",
+        "copy": "Ctrl + C",
+        "shortcuts": "Ctrl + ?"
+      }
+    },
     "deleteEntry": {
       "file": "Slette {name}? Dette kan ikke angres.",
       "folder": "Slette mappen {name} og alt innholdet? Dette kan ikke angres.",
@@ -2088,6 +2168,14 @@
         "openInclude": {
           "keys": "Ctrl + klikk",
           "label": "Åpne filen en [include]-linje peker til"
+        },
+        "contextMenu": {
+          "keys": "Menytast  /  Shift + F10",
+          "label": "Åpne redigeringsmenyen ved markøren"
+        },
+        "browserMenu": {
+          "keys": "Shift + høyreklikk",
+          "label": "Åpne nettleserens egen meny, for å lime inn"
         },
         "exitFullscreen": {
           "keys": "Esc",
@@ -2433,9 +2521,16 @@
   },
   "editor": {
     "eyebrow": "Redigering",
-    "title": "Innrykk",
+    "title": "Konfigurasjonsredigering",
     "indentLabel": "Bredde på innrykk",
-    "indentOption": "{count} mellomrom"
+    "indentOption": "{count} mellomrom",
+    "docsLabel": "Dokumentasjon",
+    "docsAutomatic": "Samme som fastvaren",
+    "docsAutomaticDetected": "Samme som fastvaren ({site})",
+    "docsSite": {
+      "klipper": "Klipper",
+      "kalico": "Kalico"
+    }
   },
   "formats": {
     "timeLabel": "Klokkeslett",

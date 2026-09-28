@@ -170,6 +170,11 @@ The editor inserts spaces, not a tab character, so a file you edit here reads
 at the same width wherever it is opened next. Indentation already in a file is
 left as it is, including tabs, though tabs are displayed at this width too.
 
+**Documentation**: which site the editor menu's reference links open, for the
+printer you are connected to. **Match the firmware** follows the firmware
+Moonraker's update manager reports and names the one it found. Choose Klipper
+or Kalico when the update manager does not manage the firmware.
+
 ## Confirmations
 
 This card lists every confirmation dialog in Alabaster, grouped by area:

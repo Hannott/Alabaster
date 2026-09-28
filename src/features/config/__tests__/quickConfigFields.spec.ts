@@ -238,6 +238,8 @@ describe('buildOptionCatalogue', () => {
         '[printer]',
         'max_accel: 5000',
         '[gcode_macro PRINT_START]',
+        'description: Start a print',
+        'variable_purge_length: 30',
         'gcode:',
         '  G28',
         '[bed_mesh default]',
@@ -252,7 +254,11 @@ describe('buildOptionCatalogue', () => {
   const index = indexConfig('printer.cfg', files, files.keys())
   const settings = {
     printer: { max_accel: 5000, square_corner_velocity: 5 },
-    'gcode_macro print_start': { gcode: 'G28' },
+    'gcode_macro print_start': {
+      gcode: 'G28',
+      description: 'Start a print',
+      variable_purge_length: 30,
+    },
     'bed_mesh default': { x_count: 5 },
     z_tilt: { z_positions: [[0, 0]], retries: 5 },
     idle_timeout: { timeout: 600, gcode: 'TURN_OFF_HEATERS\nM84' },
@@ -261,14 +267,16 @@ describe('buildOptionCatalogue', () => {
   it('offers what the file sets and every default, leaving out what cannot be a field', () => {
     const catalogue = buildOptionCatalogue(index, settings)
 
+    // A macro offers its variables and nothing else: a body and a description are not fields.
     expect(
       catalogue.map((entry) => [entry.key, entry.options.map((option) => option.option)]),
     ).toEqual([
+      ['gcode_macro print_start', ['variable_purge_length']],
       ['idle_timeout', ['timeout']],
       ['printer', ['max_accel', 'square_corner_velocity']],
       ['z_tilt', ['retries']],
     ])
-    expect(catalogue[1]?.options).toEqual([
+    expect(catalogue[2]?.options).toEqual([
       { option: 'max_accel', value: '5000', isDefault: false },
       { option: 'square_corner_velocity', value: '5', isDefault: true },
     ])

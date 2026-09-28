@@ -10944,6 +10944,48 @@ body.machine-editor-fullscreen-open {
 }
 
 /*
+ * The configuration editor's menu names what was clicked before offering
+ * anything, in the editor's own face, because the rows below only make sense
+ * against it: "Go to definition" of which command, "Klipper is running 5000"
+ * for which option. The facts under it are one line each and never
+ * instructions — see configuration-editor.md's "The context menu".
+ */
+.editor-context-menu__head {
+  display: grid;
+  gap: 0.15rem;
+  padding: 0.35rem 0.6rem 0.5rem;
+  margin-block-end: 0.25rem;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.editor-context-menu__target {
+  overflow-wrap: anywhere;
+  font-family: var(--font-mono);
+  font-size: var(--text-meta-size);
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.editor-context-menu__fact {
+  overflow-wrap: anywhere;
+  font-size: var(--text-hint-size);
+  line-height: 1.35;
+  color: var(--text-muted);
+}
+
+.editor-context-menu__fact[data-caution='true'] {
+  color: var(--status-caution-text);
+}
+
+/* A chord or a location, pushed to the row's far end so the labels stay aligned. */
+.editor-context-menu__hint {
+  margin-inline-start: auto;
+  padding-inline-start: 1.5rem;
+  color: var(--text-muted);
+  font-size: var(--text-hint-size);
+}
+
+/*
  * The row a context menu belongs to keeps its hover treatment while the pointer
  * is over the menu, so it stays obvious which file is about to be acted on.
  */

@@ -30,7 +30,7 @@ async function clampIntoViewport(): Promise<void> {
   }
   // Focus moves into the menu so Escape and Tab behave, and so a keyboard user
   // who opened it with the context-menu key is not left behind on the row.
-  panel.querySelector<HTMLElement>('button:not(:disabled)')?.focus()
+  panel.querySelector<HTMLElement>('button:not(:disabled), a[href]')?.focus()
 }
 
 watch(() => [props.x, props.y], clampIntoViewport, { immediate: true })

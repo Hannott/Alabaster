@@ -487,6 +487,21 @@ export function tokenizeMachineLine(
   return tokenizeTemplate(line, state)
 }
 
+/**
+ * What the lines above `line` leave behind for it, read from the section header
+ * it sits under — the same walk `tokenizeMachineRange` colours a window from,
+ * so anything that asks what a line is gets the answer the colouring shows.
+ */
+export function syntaxStateBefore(lines: readonly string[], line: number): MachineSyntaxState {
+  let anchor = line
+  while (anchor > 0 && !(lines[anchor] ?? '').startsWith('[')) anchor -= 1
+  const state = initialSyntaxState()
+  for (let index = anchor; index < line; index += 1) {
+    tokenizeMachineLine(lines[index] ?? '', state)
+  }
+  return state
+}
+
 export function tokenizeMachineConfig(content: string): MachineSyntaxToken[][] {
   const state = initialSyntaxState()
   return content.split('\n').map((line) => tokenizeMachineLine(line, state))
@@ -505,12 +520,7 @@ export function tokenizeMachineRange(
   start: number,
   end: number,
 ): MachineSyntaxToken[][] {
-  let anchor = start
-  while (anchor > 0 && !(lines[anchor] ?? '').startsWith('[')) anchor -= 1
-  const state = initialSyntaxState()
-  for (let index = anchor; index < start; index += 1) {
-    tokenizeMachineLine(lines[index] ?? '', state)
-  }
+  const state = syntaxStateBefore(lines, start)
   const rows: MachineSyntaxToken[][] = []
   for (let index = start; index < end; index += 1) {
     rows.push(tokenizeMachineLine(lines[index] ?? '', state))

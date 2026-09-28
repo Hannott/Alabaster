@@ -135,7 +135,8 @@ function kindOf(setting: unknown): QuickConfigFieldKind {
   return 'text'
 }
 
-function textOf(setting: unknown): string | null {
+/** A `configfile.settings` value as the file would spell it, or null for one that is not a single value. */
+export function textOf(setting: unknown): string | null {
   if (setting === null || setting === undefined) return null
   if (typeof setting === 'boolean') return setting ? 'True' : 'False'
   if (Array.isArray(setting)) return setting.join(', ')
@@ -249,21 +250,24 @@ export interface OptionCatalogueSection {
 
 /*
  * Sections that are either not options at all or data a calibration writes:
- * a macro's body, a shell command registered as G-code, an include, a pin
- * alias table, and a saved mesh profile's grid (`bed_mesh default`, as opposed
- * to `bed_mesh` itself).
+ * a shell command registered as G-code, an include, a pin alias table, and a
+ * saved mesh profile's grid (`bed_mesh default`, as opposed to `bed_mesh`
+ * itself). A macro is pinnable only by its `variable_*` values — its body and
+ * description are not fields, but a park height or a purge length is exactly
+ * the kind of value people come back to tune.
  */
 const unpinnableSectionTypes = new Set([
-  'gcode_macro',
   'delayed_gcode',
   'gcode_shell_command',
   'include',
   'board_pins',
 ])
 
-function isPinnableSection(key: string): boolean {
+export function isPinnableOption(section: string, option: string): boolean {
+  const key = sectionKey(section)
   const type = key.split(/\s+/)[0] ?? ''
   if (unpinnableSectionTypes.has(type)) return false
+  if (type === 'gcode_macro') return option.toLowerCase().startsWith('variable_')
   return !(type === 'bed_mesh' && key.includes(' '))
 }
 
@@ -280,7 +284,7 @@ export function buildOptionCatalogue(
 
   function add(section: string, option: string, value: string | null, isDefault: boolean): void {
     const key = sectionKey(section)
-    if (!isPinnableSection(key)) return
+    if (!isPinnableOption(section, option)) return
     let entry = sections.get(key)
     if (!entry) {
       entry = { section: current.sections.get(key)?.[0]?.section ?? section, key, options: [] }

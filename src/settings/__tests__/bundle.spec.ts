@@ -5,6 +5,7 @@ import { useFont } from '@/composables/useFont'
 import { useWakeLock } from '@/composables/useWakeLock'
 import { useConfirmationsStore } from '@/stores/confirmations'
 import { useDashboardLayoutStore } from '@/stores/dashboardLayout'
+import { useDocumentationSiteStore } from '@/stores/documentationSite'
 import { useZMotionStore } from '@/stores/zMotion'
 
 /*
@@ -75,6 +76,19 @@ describe('settings bundle', () => {
 
     await applySettingsBundle(bundle)
     expect(zMotion.motion).toEqual({ movingPart: 'bed', zPlus: 'up' })
+  })
+
+  it("carries the active printer's documentation site, and clears one it does not know", async () => {
+    const documentationSite = useDocumentationSiteStore()
+    documentationSite.setSite('kalico')
+    const bundle = collectSettingsBundle()
+    expect(bundle.documentationSite).toBe('kalico')
+
+    await applySettingsBundle({ documentationSite: 'marlin' })
+    expect(documentationSite.stored).toBeNull()
+
+    await applySettingsBundle(bundle)
+    expect(documentationSite.stored).toBe('kalico')
   })
 
   it('leaves every field untouched when given something that is not a record', async () => {

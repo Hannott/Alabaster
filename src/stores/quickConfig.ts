@@ -101,6 +101,8 @@ export const useQuickConfigStore = defineStore('quickConfig', () => {
 
   /** Which view Configuration shows. Kept for the session, so leaving the route does not reset it. */
   const viewMode = ref<ConfigurationViewMode>('files')
+  /** A field the editor asked Quick config to scroll to, cleared once it has. */
+  const revealRequest = ref<QuickConfigPin | null>(null)
   const storedPins = ref<QuickConfigPin[] | null>(
     normalizeQuickConfigPins(readScoped(pinsTable(), printers.activeScopeKeys)),
   )
@@ -113,7 +115,12 @@ export const useQuickConfigStore = defineStore('quickConfig', () => {
   const touchedPaths = ref(new Set<string>())
   const fieldErrors = ref(new Map<string, OptionWriteFailure>())
   let loadGeneration = 0
-  let started = false
+  /*
+   * Counted rather than a flag: Quick config and the editor's context menu
+   * both read the index, and the view that unmounts first must not stop the
+   * reload the other is still showing results from.
+   */
+  let starts = 0
   let reloadTimer: ReturnType<typeof setTimeout> | null = null
   const disposers: Array<() => void> = []
 
@@ -359,6 +366,22 @@ export const useQuickConfigStore = defineStore('quickConfig', () => {
     ])
   }
 
+  function isPinned(section: string, option: string): boolean {
+    const key = optionKey(section, option)
+    return pins.value.some((pin) => optionKey(pin.section, pin.option) === key)
+  }
+
+  /** Adds one option to the end of its section's card, the way the editor's context menu pins it. */
+  function pinOption(section: string, option: string): void {
+    if (isPinned(section, option)) return
+    setStoredPins([...pins.value, { section: section.toLowerCase(), option: option.toLowerCase() }])
+  }
+
+  function unpinOption(section: string, option: string): void {
+    const key = optionKey(section, option)
+    setStoredPins(pins.value.filter((pin) => optionKey(pin.section, pin.option) !== key))
+  }
+
   function unpinSection(section: string): void {
     const key = section.toLowerCase()
     setStoredPins(pins.value.filter((candidate) => candidate.section !== key))
@@ -382,8 +405,8 @@ export const useQuickConfigStore = defineStore('quickConfig', () => {
   }
 
   function start(): void {
-    if (started) return
-    started = true
+    starts += 1
+    if (starts > 1) return
     disposers.push(
       moonraker.onPrinterChange(printerChanged),
       watch(
@@ -403,8 +426,9 @@ export const useQuickConfigStore = defineStore('quickConfig', () => {
   }
 
   function stop(): void {
-    if (!started) return
-    started = false
+    if (starts === 0) return
+    starts -= 1
+    if (starts > 0) return
     loadGeneration += 1
     isLoading.value = false
     if (reloadTimer) clearTimeout(reloadTimer)
@@ -414,6 +438,9 @@ export const useQuickConfigStore = defineStore('quickConfig', () => {
 
   return {
     viewMode,
+    revealRequest,
+    /** Every included file's sections and options, for the editor's context menu. */
+    index: currentIndex,
     storedPins,
     pins,
     cards,
@@ -434,6 +461,9 @@ export const useQuickConfigStore = defineStore('quickConfig', () => {
     savedValue,
     persistOption,
     setSectionPins,
+    isPinned,
+    pinOption,
+    unpinOption,
     unpinSection,
     replacePins,
     load,

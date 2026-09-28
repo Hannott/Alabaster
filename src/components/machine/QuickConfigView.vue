@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import AppButton from '@/components/AppButton.vue'
@@ -199,12 +199,38 @@ function confirmDiscard(): void {
   quickConfig.discard()
 }
 
+/*
+ * The editor's "Show in Quick config" switches to this view and asks for one
+ * field, which may not be rendered until the files it reads have loaded — so
+ * the request waits for the field rather than being answered once on mount.
+ */
+const root = ref<HTMLElement | null>(null)
+watch(
+  () => [quickConfig.revealRequest, quickConfig.cards] as const,
+  async ([request]) => {
+    if (!request) return
+    await nextTick()
+    const field = root.value?.querySelector<HTMLElement>(
+      `[data-quick-config-field="${CSS.escape(`${request.section}/${request.option}`)}"]`,
+    )
+    if (!field) return
+    quickConfig.revealRequest = null
+    field.scrollIntoView({ block: 'center' })
+    field.querySelector<HTMLElement>('input, button, select')?.focus({ preventScroll: true })
+  },
+  { immediate: true, flush: 'post' },
+)
+
 onMounted(() => quickConfig.start())
 onBeforeUnmount(() => quickConfig.stop())
 </script>
 
 <template>
-  <div class="quick-config" :data-pending="quickConfig.isLoading || machineFiles.isMutating">
+  <div
+    ref="root"
+    class="quick-config"
+    :data-pending="quickConfig.isLoading || machineFiles.isMutating"
+  >
     <div class="quick-config__toolbar">
       <p v-if="quickConfig.unsavedCount > 0" class="quick-config__count">
         {{ t('configuration.quickConfig.unsavedCount', { count: quickConfig.unsavedCount }) }}
@@ -369,7 +395,12 @@ ${change.option}`"
           </template>
 
           <div v-else class="quick-config-card__fields">
-            <div v-for="field in card.fields" :key="field.option" class="quick-config-field">
+            <div
+              v-for="field in card.fields"
+              :key="field.option"
+              class="quick-config-field"
+              :data-quick-config-field="`${field.section}/${field.option}`"
+            >
               <div class="quick-config-field__row">
                 <label v-if="isBoolean(field)" class="check-row quick-config-field__control">
                   <input

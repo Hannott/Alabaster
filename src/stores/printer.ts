@@ -192,6 +192,12 @@ export const printerCommandKeys = [
    * the reader never saw.
    */
   'calibration',
+  /*
+   * A macro variable the configuration editor applies until restart. Its own
+   * key because no card owns macro variables, so nothing else's pending state
+   * should dim while one is in flight.
+   */
+  'macroVariable',
 ] as const
 
 export type PrinterCommandKey = (typeof printerCommandKeys)[number]

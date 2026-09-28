@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import AppButton from '@/components/AppButton.vue'
@@ -22,6 +22,7 @@ import { useSidebar } from '@/composables/useSidebar'
 import { useTextWeight, type TextWeightMode } from '@/composables/useTextWeight'
 import { useTheme, type ThemeMode } from '@/composables/useTheme'
 import { useWakeLock } from '@/composables/useWakeLock'
+import { docsSites, type DocsSite } from '@/features/machine/docsLinks'
 import { indentWidths, type IndentWidth } from '@/features/machine/indent'
 import { navigationDestinations } from '@/navigation/destinations'
 import { ensureAllFontsLoaded, type FontId } from '@/fonts/registry'
@@ -53,6 +54,7 @@ import {
   useConfirmationsStore,
 } from '@/stores/confirmations'
 import { useDashboardLayoutStore } from '@/stores/dashboardLayout'
+import { useDocumentationSiteStore } from '@/stores/documentationSite'
 import { useMoonrakerStore, type ConnectionErrorKind } from '@/stores/moonraker'
 import {
   printerDisplayLabel,
@@ -90,6 +92,16 @@ const { timeMode, dateMode, dateCustomPattern, setTimeMode, setDateMode, setDate
   useDateTimeFormatMode()
 const wakeLock = useWakeLock()
 const { indentWidth, setIndentWidth } = useEditorIndent()
+const documentationSite = useDocumentationSiteStore()
+onMounted(() => documentationSite.start())
+onBeforeUnmount(() => documentationSite.stop())
+const automaticDocsLabel = computed(() =>
+  documentationSite.detected
+    ? t('editor.docsAutomaticDetected', {
+        site: t(`editor.docsSite.${documentationSite.detected}`),
+      })
+    : t('editor.docsAutomatic'),
+)
 const moonraker = useMoonrakerStore()
 const printers = usePrintersStore()
 const layout = useDashboardLayoutStore()
@@ -1614,6 +1626,28 @@ const lastSyncedDisplay = computed(() => {
                   @change="setIndentWidth(width as IndentWidth)"
                 />
                 <span>{{ t('editor.indentOption', { count: width }) }}</span>
+              </label>
+            </div>
+
+            <p class="mt-7 text-group-title">{{ t('editor.docsLabel') }}</p>
+            <div class="check-set mt-2">
+              <label class="check-row">
+                <input
+                  type="radio"
+                  name="documentation-site"
+                  :checked="documentationSite.stored === null"
+                  @change="documentationSite.setSite(null)"
+                />
+                <span>{{ automaticDocsLabel }}</span>
+              </label>
+              <label v-for="site in docsSites" :key="site" class="check-row">
+                <input
+                  type="radio"
+                  name="documentation-site"
+                  :checked="documentationSite.stored === site"
+                  @change="documentationSite.setSite(site as DocsSite)"
+                />
+                <span>{{ t(`editor.docsSite.${site}`) }}</span>
               </label>
             </div>
           </section>

@@ -52,6 +52,9 @@ writes to its log.
 **Add option**, or the edit button on a card, lists every option a section
 has, including the ones still at their default. Click an option to put it on
 the card or take it off, and drag to set the order the card shows them in.
+A macro's `variable_*` values can be pinned too, which puts a park height or a
+purge length one field away. To pin an option while reading the file,
+right-click it and choose **Add to Quick config**.
 
 The pinned options are saved per printer and included in settings sync and
 backups. On first use, Quick config shows common limits, bed mesh, leveling,
@@ -122,6 +125,48 @@ along with any path that would climb out of the configuration root.
 number. Your mouse's back and forward buttons, or Alt+Left and Alt+Right, step
 through the last ten files you opened.
 
+## The editor menu
+
+Right-click in a config file for actions on what you clicked.
+
+- **Sections**: open the section's entry in the Klipper reference, and its
+  guide where one exists. Choose which of its options Quick config shows,
+  comment the whole section out or back in as one undo step, or select it. A
+  section Klipper did not load says so, and a section split across files links
+  to its other definitions.
+- **Options**: add the option to Quick config, or show or remove it there.
+  When the line differs from the value Klipper is running, the menu shows the
+  running value. When a later line overrides this one, including a value
+  `SAVE_CONFIG` stored at the end of `printer.cfg`, the menu says so and goes
+  to the line Klipper uses.
+- **Apply until restart** sends a velocity limit, pressure advance, input
+  shaper, firmware retraction or macro variable value to the running printer
+  without saving it, to try a value before keeping it. A restart returns to
+  the value in the file.
+- **Pins**: go to the `[mcu]` section a pin's chip names, and find every other
+  use of the pin.
+- **Commands in a macro** show Klipper's help text for the command. Go to a
+  macro's definition, find its other uses, or open the command in the G-code
+  reference. A command Klipper does not know is marked, which catches a typo
+  before the macro runs.
+- **Templates**: a `printer.` path shows its current value, kept live while
+  the menu is open, and links to the status reference. `params`, `rawparams`,
+  and the `action_` functions link to Klipper's template guide. Jinja
+  keywords, filters, and tests link to the Jinja documentation.
+- **Includes**: open the file, reveal it in the tree, or create it when it is
+  missing.
+- **Links in comments** open in a new tab.
+
+The menu also has Cut, Copy, and Toggle comment, and on an empty line Go to
+line. To paste with the mouse, hold Shift while right-clicking to get the
+browser's own menu. The Menu key and Shift+F10 open the editor menu at the
+cursor.
+
+Documentation links go to Klipper's or Kalico's site, matching the firmware
+Moonraker's update manager reports for the printer. Choose the site per
+printer under [Settings → Editor](/interface/settings#editor). The links need
+an internet connection.
+
 ## Moving included files
 
 Moving a file that `printer.cfg` includes breaks that include, which is
@@ -172,6 +217,7 @@ refusing.
 | Duplicate line up / down | Shift+Alt+Up / Shift+Alt+Down |
 | Reindent the whole file  | Shift+Alt+F                   |
 | Indent / outdent         | Tab / Shift+Tab               |
+| Open the editor menu     | Menu key / Shift+F10          |
 
 These commands act on the config formats the syntax highlighter understands.
 Each one assumes something about Klipper's format: `#` as the comment

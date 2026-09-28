@@ -1874,6 +1874,86 @@
       "removeFromPrinterConfig": "Remove from printer.cfg",
       "delete": "Delete"
     },
+    "editorMenu": {
+      "label": "Editor actions",
+      "reference": {
+        "klipper": "Klipper reference: {name}",
+        "kalico": "Kalico reference: {name}"
+      },
+      "guide": {
+        "klipper": "Klipper guide: {title}",
+        "kalico": "Kalico guide: {title}"
+      },
+      "commandReference": {
+        "klipper": "Klipper commands: {name}",
+        "kalico": "Kalico commands: {name}"
+      },
+      "statusReference": {
+        "klipper": "Klipper status: {name}",
+        "kalico": "Kalico status: {name}"
+      },
+      "templateGuide": {
+        "klipper": "Klipper guide: Command Templates",
+        "kalico": "Kalico guide: Command Templates"
+      },
+      "jinja": {
+        "keyword": "Jinja: {name}",
+        "filter": "Jinja filter: {name}",
+        "test": "Jinja test: {name}",
+        "global": "Jinja function: {name}"
+      },
+      "findUses": "Find uses of {name}",
+      "searchFor": "Search config files for “{name}”",
+      "choosePins": "Choose options for Quick config…",
+      "pin": "Add to Quick config",
+      "unpin": "Remove from Quick config",
+      "showInQuickConfig": "Show in Quick config",
+      "otherDefinition": "Other definition",
+      "goToOverriding": "Go to the value Klipper uses",
+      "goToSaved": "Go to the saved value",
+      "goToNamedSection": "Go to {name}",
+      "goToDefinition": "Go to definition",
+      "applyUntilRestart": "Apply {value} until restart",
+      "openFile": "Open file",
+      "openNamed": "Open {name}",
+      "reveal": "Reveal in explorer",
+      "createFile": "Create this file",
+      "openLink": "Open link",
+      "selectBlock": "Select block",
+      "selectBody": "Select template",
+      "selectSection": "Select section",
+      "commentSection": "Comment out section",
+      "uncommentSection": "Uncomment section",
+      "uncomment": "Uncomment",
+      "cut": "Cut",
+      "copy": "Copy",
+      "toggleComment": "Toggle comment",
+      "goToLine": "Go to line…",
+      "shortcuts": "Keyboard shortcuts",
+      "goToLineTitle": "Go to line",
+      "goToLineLabel": "Line, 1 to {count}",
+      "goToLineConfirm": "Go",
+      "lineOutOfRange": "Enter a line from 1 to {count}.",
+      "facts": {
+        "notLoaded": "Not loaded by Klipper",
+        "text": "{text}",
+        "overridden": "Overridden by {location}",
+        "savedBySaveConfig": "Overridden by the SAVE_CONFIG block",
+        "running": "Klipper is running {value}",
+        "default": "Default: {value}",
+        "pendingCalibration": "SAVE_CONFIG will overwrite this",
+        "noMatches": "Matches no files",
+        "missingInclude": "File does not exist",
+        "unknownCommand": "Klipper does not know this command",
+        "writtenBySaveConfig": "Written by SAVE_CONFIG",
+        "now": "Now: {value}"
+      },
+      "keys": {
+        "cut": "Ctrl + X",
+        "copy": "Ctrl + C",
+        "shortcuts": "Ctrl + ?"
+      }
+    },
     "deleteEntry": {
       "file": "Delete {name}? This cannot be undone.",
       "folder": "Delete the folder {name} and everything inside it? This cannot be undone.",
@@ -2088,6 +2168,14 @@
         "openInclude": {
           "keys": "Ctrl + click",
           "label": "Open the file an [include] line points to"
+        },
+        "contextMenu": {
+          "keys": "Menu key  /  Shift + F10",
+          "label": "Open the editor menu at the caret"
+        },
+        "browserMenu": {
+          "keys": "Shift + right-click",
+          "label": "Open the browser’s own menu, to paste"
         },
         "exitFullscreen": {
           "keys": "Esc",
@@ -2433,9 +2521,16 @@
   },
   "editor": {
     "eyebrow": "Editor",
-    "title": "Indentation",
+    "title": "Configuration editor",
     "indentLabel": "Indent width",
-    "indentOption": "{count} spaces"
+    "indentOption": "{count} spaces",
+    "docsLabel": "Documentation",
+    "docsAutomatic": "Match the firmware",
+    "docsAutomaticDetected": "Match the firmware ({site})",
+    "docsSite": {
+      "klipper": "Klipper",
+      "kalico": "Kalico"
+    }
   },
   "formats": {
     "timeLabel": "Time",

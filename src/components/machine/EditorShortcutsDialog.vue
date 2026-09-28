@@ -31,7 +31,17 @@ const groups: ReadonlyArray<{ id: string; items: readonly string[] }> = [
     id: 'editing',
     items: ['comment', 'move', 'duplicate', 'indent', 'outdent', 'format', 'continue'],
   },
-  { id: 'navigation', items: ['historyBack', 'historyForward', 'openInclude', 'exitFullscreen'] },
+  {
+    id: 'navigation',
+    items: [
+      'historyBack',
+      'historyForward',
+      'openInclude',
+      'contextMenu',
+      'browserMenu',
+      'exitFullscreen',
+    ],
+  },
   { id: 'file', items: ['save', 'saveRestart'] },
 ]
 

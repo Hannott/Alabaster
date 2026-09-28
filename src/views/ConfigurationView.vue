@@ -12,8 +12,10 @@ import PromptDialog from '@/components/PromptDialog.vue'
 import HeaderMenu from '@/components/HeaderMenu.vue'
 import EditorShortcutsDialog from '@/components/machine/EditorShortcutsDialog.vue'
 import ConfigurationTabWell from '@/components/machine/ConfigurationTabWell.vue'
+import EditorContextMenu from '@/components/machine/EditorContextMenu.vue'
 import FileContextMenu from '@/components/machine/FileContextMenu.vue'
 import HtmlFileViewer from '@/components/machine/HtmlFileViewer.vue'
+import QuickConfigOptionDialog from '@/components/machine/QuickConfigOptionDialog.vue'
 import QuickConfigView from '@/components/machine/QuickConfigView.vue'
 import { useAutoHidePanel } from '@/composables/useAutoHidePanel'
 import { useAvailability } from '@/composables/useAvailability'
@@ -32,6 +34,9 @@ import {
   flattenExplorerTree,
   type ExplorerTreeRow,
 } from '@/features/machine/explorerTree'
+import { loadDocsAnchors } from '@/features/machine/docsLinks'
+import { resolveEditorContext, type EditorContext } from '@/features/machine/editorContext'
+import type { EditorMenuAction } from '@/features/machine/editorMenu'
 import { classifyFileKind, isLargeFile } from '@/features/machine/fileKind'
 import { continuationIndent, softTabInsertion } from '@/features/machine/indent'
 import {
@@ -63,6 +68,7 @@ import {
 } from '@/features/machine/visibility'
 import { createDateTimeFormatter } from '@/i18n/formats'
 import { useConfirmationsStore } from '@/stores/confirmations'
+import { useDocumentationSiteStore } from '@/stores/documentationSite'
 import {
   PRIMARY_CONFIG,
   useMachineFilesStore,
@@ -110,6 +116,7 @@ const machineFiles = useMachineFilesStore()
 const quickConfig = useQuickConfigStore()
 const viewModes: ConfigurationViewMode[] = ['files', 'quickConfig']
 const confirmations = useConfirmationsStore()
+const documentationSite = useDocumentationSiteStore()
 const { availability: moonrakerAvailability } = useAvailability('moonraker')
 const { availability: klipperAvailability } = useAvailability('klipper')
 const {
@@ -196,6 +203,33 @@ interface ContextMenuState {
 
 const contextMenu = ref<ContextMenuState | null>(null)
 let contextMenuRequestId = 0
+interface EditorMenuState {
+  x: number
+  y: number
+  context: EditorContext
+  selection: string
+}
+/** The editor's own right-click menu, which replaces the browser's on a config file. */
+const editorMenu = ref<EditorMenuState | null>(null)
+/*
+ * Set by the Menu key and Shift+F10 just before the browser fires the
+ * `contextmenu` they cause, so the menu opens at the caret rather than at
+ * whatever pointer coordinates a keyboard event carries.
+ */
+let keyboardMenuRequested = false
+/*
+ * A long press answers with `contextmenu` too, and not every browser says on
+ * that event which pointer caused it, so the last press on the editor does.
+ */
+let lastEditorPointerType = ''
+/*
+ * Quick config's index reads every file the config includes, so it is started
+ * by the first right-click rather than on every visit to the route, and runs
+ * until the route is left.
+ */
+let quickConfigStartedForMenu = false
+const pendingGoToLine = ref(false)
+const editorPickerSection = ref<string | null>(null)
 const pendingDelete = ref<MachineFileEntry | null>(null)
 const pendingCreateFile = ref(false)
 const pendingCreateDirectory = ref(false)
@@ -1595,6 +1629,7 @@ function handleEditorEnter(event: KeyboardEvent, textarea: HTMLTextAreaElement):
 }
 
 function handleEditorKeydown(event: KeyboardEvent): void {
+  keyboardMenuRequested = event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10')
   /*
    * Ahead of the read-only gate: the reference describes the editor, and a file
    * this printer will not let us write is still one whose shortcuts for reading
@@ -1728,6 +1763,7 @@ function stepFileHistory(event: Event, direction: -1 | 1): boolean {
 }
 
 function handleWindowMouseDown(event: MouseEvent): void {
+  keyboardMenuRequested = false
   claimedHistoryButton = false
   if (event.button !== historyMouseButtons.back && event.button !== historyMouseButtons.forward) {
     return
@@ -1820,23 +1856,276 @@ function editorCharWidth(textarea: HTMLTextAreaElement): number {
  * information from pixel coordinates instead, against the monospace grid the
  * textarea and highlight layer both render with identical font and padding.
  */
-function hotlinkAt(event: MouseEvent): IncludeHotlink | null {
+function positionAt(clientX: number, clientY: number): { line: number; column: number } | null {
   const textarea = editor.value
-  if (!textarea || includeHotlinks.value.length === 0) return null
+  if (!textarea) return null
   const charWidth = editorCharWidth(textarea)
   if (!charWidth) return null
   const style = getComputedStyle(textarea)
   const rect = textarea.getBoundingClientRect()
-  const x = event.clientX - rect.left + textarea.scrollLeft - parseFloat(style.paddingLeft)
-  const y = event.clientY - rect.top + textarea.scrollTop - parseFloat(style.paddingTop)
+  const x = clientX - rect.left + textarea.scrollLeft - parseFloat(style.paddingLeft)
+  const y = clientY - rect.top + textarea.scrollTop - parseFloat(style.paddingTop)
   if (x < 0 || y < 0) return null
-  const line = Math.floor(y / parseFloat(style.lineHeight))
-  const column = Math.floor(x / charWidth)
+  return { line: Math.floor(y / parseFloat(style.lineHeight)), column: Math.floor(x / charWidth) }
+}
+
+/** The inverse of `positionAt`: the screen point just under a line and column. */
+function clientPointOf(line: number, column: number): { x: number; y: number } | null {
+  const textarea = editor.value
+  if (!textarea) return null
+  const style = getComputedStyle(textarea)
+  const rect = textarea.getBoundingClientRect()
+  const left = rect.left + parseFloat(style.paddingLeft) - textarea.scrollLeft
+  const top = rect.top + parseFloat(style.paddingTop) - textarea.scrollTop
+  return {
+    x: left + column * editorCharWidth(textarea),
+    y: top + (line + 1) * parseFloat(style.lineHeight),
+  }
+}
+
+function hotlinkAt(event: MouseEvent): IncludeHotlink | null {
+  if (includeHotlinks.value.length === 0) return null
+  const position = positionAt(event.clientX, event.clientY)
+  if (!position) return null
+  const { line, column } = position
   return (
     includeHotlinks.value.find(
       (link) => link.line === line && column >= link.start && column < link.end,
     ) ?? null
   )
+}
+
+function lineStartOffset(line: number): number {
+  let offset = 0
+  const lines = editorLines.value
+  for (let index = 0; index < line && index < lines.length; index += 1) {
+    offset += (lines[index] ?? '').length + 1
+  }
+  return offset
+}
+
+const editorMenuFiles = computed(() =>
+  machineFiles.searchFilesLoaded ? machineFiles.searchFiles.map((file) => file.path) : null,
+)
+
+/*
+ * The editor answers a right-click with a menu about what was clicked, in
+ * place of the browser's text menu — but only on the files it can say
+ * something about. A log, a `.json`, or a `.txt` keeps the browser's own menu,
+ * the same `highlightsSyntax` gate the line commands share, since there is
+ * nothing Klipper-specific to offer there and replacing it would cost those
+ * files their Paste.
+ *
+ * Paste is also why Shift is left alone: over plain HTTP a page can cut and
+ * copy but never read the clipboard, so the browser's menu has to stay one
+ * gesture away — the gesture Firefox already honours on every page. Touch
+ * keeps the native long-press, whose selection handles and paste bubble are
+ * the editing tools on a phone.
+ */
+function handleEditorContextMenu(event: MouseEvent): void {
+  const fromKeyboard = keyboardMenuRequested
+  keyboardMenuRequested = false
+  const textarea = editor.value
+  if (!textarea || !highlightsSyntax.value || !machineFiles.currentFile) return
+  if (event.shiftKey && !fromKeyboard) return
+  if (((event as PointerEvent).pointerType || lastEditorPointerType) === 'touch') return
+
+  let line: number
+  let column: number
+  if (fromKeyboard) {
+    line = lineNumberAt(textarea.value, textarea.selectionStart) - 1
+    column = textarea.selectionStart - lineStartOffset(line)
+  } else {
+    const position = positionAt(event.clientX, event.clientY)
+    if (!position) return
+    line = Math.min(position.line, editorLines.value.length - 1)
+    column = position.column
+    /*
+     * The menu acts on what was pointed at, so the caret moves there first —
+     * unless the pointer is inside the selection, which Cut and Copy then keep.
+     * `setSelectionRange` does not touch the undo stack.
+     */
+    const lineLength = (editorLines.value[line] ?? '').length
+    const offset = lineStartOffset(line) + Math.min(column, lineLength)
+    const { selectionStart, selectionEnd } = textarea
+    if (selectionStart === selectionEnd || offset < selectionStart || offset > selectionEnd) {
+      textarea.setSelectionRange(offset, offset)
+      updateCurrentEditorLine()
+    }
+  }
+  const point = fromKeyboard ? clientPointOf(line, column) : { x: event.clientX, y: event.clientY }
+  if (!point) return
+  event.preventDefault()
+  hoveredIncludeLink.value = null
+  if (!quickConfigStartedForMenu) {
+    quickConfigStartedForMenu = true
+    quickConfig.start()
+  }
+  editorMenu.value = {
+    x: point.x,
+    y: point.y,
+    context: resolveEditorContext(editorLines.value, line, column),
+    selection: textarea.value.slice(textarea.selectionStart, textarea.selectionEnd),
+  }
+}
+
+function rememberEditorPointer(event: PointerEvent): void {
+  lastEditorPointerType = event.pointerType
+}
+
+function closeEditorMenu(): void {
+  editorMenu.value = null
+}
+
+function focusEditor(): HTMLTextAreaElement | null {
+  const textarea = editor.value
+  textarea?.focus()
+  return textarea
+}
+
+function lineRangeOffsets(range: { from: number; to: number }): { from: number; to: number } {
+  return {
+    from: lineStartOffset(range.from),
+    to: lineStartOffset(range.to) + (editorLines.value[range.to] ?? '').length,
+  }
+}
+
+/*
+ * Through `execCommand`, not the Clipboard API: the API needs a secure
+ * context, which the plain-HTTP deployment in ADR 0003 never is, while a copy
+ * or cut run from inside the click that asked for it still works there. With
+ * nothing selected, Copy takes the token the menu names, and the selection is
+ * put back afterwards.
+ */
+function copyFromEditor(cut: boolean, context: EditorContext): void {
+  const textarea = focusEditor()
+  if (!textarea) return
+  const { selectionStart, selectionEnd } = textarea
+  if (selectionStart !== selectionEnd || !context.span) {
+    document.execCommand(cut ? 'cut' : 'copy')
+    return
+  }
+  const lineStart = lineStartOffset(context.line)
+  textarea.setSelectionRange(lineStart + context.span.start, lineStart + context.span.end)
+  document.execCommand('copy')
+  textarea.setSelectionRange(selectionStart, selectionEnd)
+}
+
+async function openLocation(path: string, line: number): Promise<void> {
+  if (machineFiles.currentFile?.path !== path) await openFileAtPath(path)
+  await nextTick()
+  goToLine(line + 1)
+}
+
+async function requestCreateFile(targetPath: string): Promise<void> {
+  const directory = targetPath.includes('/') ? targetPath.slice(0, targetPath.lastIndexOf('/')) : ''
+  const pending = {
+    targetPath,
+    directory,
+    directoryMissing: machineFiles.searchFilesLoaded && !directoryIsKnownToExist(directory),
+  }
+  if (confirmations.shouldConfirm('createIncludeTarget')) pendingIncludeCreate.value = pending
+  else await createIncludeTarget(pending)
+}
+
+/** Finding uses is a search of file contents, so it turns the explorer's content search on. */
+function searchConfigFiles(query: string): void {
+  if (!searchInFileContents.value) setSearchInFileContents(true)
+  showExplorer()
+  search.value = query
+}
+
+async function runEditorMenuAction(action: EditorMenuAction): Promise<void> {
+  const context = editorMenu.value?.context
+  closeEditorMenu()
+  if (!context) return
+  const textarea = editor.value
+  switch (action.type) {
+    case 'cut':
+    case 'copy':
+      copyFromEditor(action.type === 'cut', context)
+      return
+    case 'toggleComment':
+      if (!textarea || currentFileReadOnly.value) return
+      focusEditor()
+      applyLineEdit(
+        textarea,
+        toggleComment(textarea.value, textarea.selectionStart, textarea.selectionEnd),
+      )
+      return
+    case 'commentLines': {
+      if (!textarea || currentFileReadOnly.value) return
+      focusEditor()
+      const { from, to } = lineRangeOffsets(action.range)
+      applyLineEdit(textarea, toggleComment(textarea.value, from, to))
+      return
+    }
+    case 'selectLines': {
+      if (!textarea) return
+      focusEditor()
+      const { from, to } = lineRangeOffsets(action.range)
+      textarea.setSelectionRange(from, to)
+      updateCurrentEditorLine()
+      return
+    }
+    case 'selectSpan': {
+      if (!textarea) return
+      focusEditor()
+      const lineStart = lineStartOffset(context.line)
+      textarea.setSelectionRange(lineStart + action.start, lineStart + action.end)
+      return
+    }
+    case 'goTo':
+      await openLocation(action.path, action.line)
+      return
+    case 'openFile':
+      await openFileAtPath(action.path, { preview: true })
+      return
+    case 'reveal':
+      await revealInExplorer(action.path)
+      return
+    case 'createFile':
+      await requestCreateFile(action.path)
+      return
+    case 'search':
+      searchConfigFiles(action.query)
+      return
+    case 'showInQuickConfig':
+      quickConfig.revealRequest = { section: action.section, option: action.option }
+      quickConfig.viewMode = 'quickConfig'
+      return
+    case 'choosePins':
+      editorPickerSection.value = action.section.toLowerCase()
+      return
+    case 'goToLine':
+      pendingGoToLine.value = true
+      return
+    case 'shortcuts':
+      shortcutsOpen.value = true
+      return
+    case 'pinOption':
+    case 'unpinOption':
+    case 'applyRuntime':
+      // The menu runs these itself; they reach here only if it stops doing so.
+      return
+  }
+}
+
+function saveEditorPickerCard(section: string, options: string[]): void {
+  editorPickerSection.value = null
+  quickConfig.setSectionPins(section, options)
+}
+
+function validateLineNumber(value: string): string | undefined {
+  const line = Number(value.trim())
+  return Number.isInteger(line) && line >= 1 && line <= editorLines.value.length
+    ? undefined
+    : t('configuration.editorMenu.lineOutOfRange', { count: editorLines.value.length })
+}
+
+function confirmGoToLine(value: string): void {
+  pendingGoToLine.value = false
+  goToLine(Number(value.trim()))
 }
 
 function handleEditorMouseMove(event: MouseEvent): void {
@@ -2015,6 +2304,11 @@ function handleBeforeUnload(event: BeforeUnloadEvent): void {
 
 onMounted(() => {
   machineFiles.start()
+  // Which documentation site this printer links to, and the anchor table, are
+  // both small and started here, so the first right-click finds its links
+  // ready rather than filling them in while the menu is on screen.
+  documentationSite.start()
+  void loadDocsAnchors().catch(() => undefined)
   // Loaded eagerly rather than waiting for the search box, so a freshly
   // opened file's dead-include squigglies appear promptly instead of only
   // after the user happens to search for something.
@@ -2060,6 +2354,8 @@ watch(editor, (textarea) => {
 
 onBeforeUnmount(() => {
   machineFiles.stop()
+  if (quickConfigStartedForMenu) quickConfig.stop()
+  documentationSite.stop()
   editorResizeObserver?.disconnect()
   window.removeEventListener('beforeunload', handleBeforeUnload)
   window.removeEventListener('keydown', handleWindowKeydown)
@@ -2310,6 +2606,8 @@ onBeforeUnmount(() => {
                     @select="updateCurrentEditorLine"
                     @mousemove="handleEditorMouseMove"
                     @mouseleave="handleEditorMouseLeave"
+                    @contextmenu="handleEditorContextMenu"
+                    @pointerdown="rememberEditorPointer"
                   ></textarea>
                 </div>
               </div>
@@ -3300,5 +3598,39 @@ onBeforeUnmount(() => {
     />
 
     <EditorShortcutsDialog :open="shortcutsOpen" @close="shortcutsOpen = false" />
+
+    <EditorContextMenu
+      v-if="editorMenu && machineFiles.currentFile"
+      :x="editorMenu.x"
+      :y="editorMenu.y"
+      :context="editorMenu.context"
+      :path="machineFiles.currentFile.path"
+      :lines="editorLines"
+      :read-only="currentFileReadOnly"
+      :selection="editorMenu.selection"
+      :files="editorMenuFiles"
+      @close="closeEditorMenu"
+      @action="runEditorMenuAction"
+    />
+
+    <QuickConfigOptionDialog
+      :open="editorPickerSection !== null"
+      :catalogue="quickConfig.catalogue"
+      :pins="quickConfig.pins"
+      :initial-section="editorPickerSection"
+      @save="saveEditorPickerCard"
+      @cancel="editorPickerSection = null"
+    />
+
+    <PromptDialog
+      :open="pendingGoToLine"
+      :title="t('configuration.editorMenu.goToLineTitle')"
+      :label="t('configuration.editorMenu.goToLineLabel', { count: editorLines.length })"
+      :initial-value="String(currentEditorLine)"
+      :confirm-label="t('configuration.editorMenu.goToLineConfirm')"
+      :validate="validateLineNumber"
+      @confirm="confirmGoToLine"
+      @cancel="pendingGoToLine = false"
+    />
   </section>
 </template>

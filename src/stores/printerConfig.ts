@@ -234,7 +234,9 @@ export const usePrinterConfigStore = defineStore('printerConfig', () => {
    *
    * Deliberately not a `isKalico` boolean. A capability is discovered from what
    * the machine reports, never from what it calls itself, and a boolean here
-   * would be the shape that invites a firmware branch later.
+   * would be the shape that invites a firmware branch later. The one bounded
+   * exception is `documentationSite.ts`, which asks which project's manual
+   * describes this firmware and only ever uses the answer to pick a URL.
    *
    * Kept current by `refresh()` on Klipper ready, which is exactly when a
    * changed `printer.cfg` takes effect — there is no notification for a config
