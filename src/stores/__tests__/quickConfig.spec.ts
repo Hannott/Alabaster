@@ -202,6 +202,27 @@ describe('quick config store', () => {
   })
 })
 
+describe('arranging cards', () => {
+  it('spreads cards across the columns until one is moved, then keeps where it was put', async () => {
+    const quickConfig = await loadedStore()
+    expect(quickConfig.columnsFor(2)).toEqual([['printer'], ['input_shaper']])
+
+    quickConfig.setColumns([[], ['input_shaper', 'printer']])
+
+    expect(quickConfig.columnsFor(2)).toEqual([[], ['input_shaper', 'printer']])
+    expect(window.localStorage.getItem('alabaster.quickConfig.columns')).toContain('input_shaper')
+  })
+
+  it('reads the arrangement back for the same printer', async () => {
+    const quickConfig = await loadedStore()
+    quickConfig.setColumns([['input_shaper'], ['printer']])
+
+    setActivePinia(createPinia())
+
+    expect(useQuickConfigStore().storedColumns).toEqual([['input_shaper'], ['printer']])
+  })
+})
+
 describe('quick config card options', () => {
   it('replaces one section’s options in order and leaves the others', async () => {
     const quickConfig = await loadedStore()

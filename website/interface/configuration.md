@@ -56,8 +56,13 @@ A macro's `variable_*` values can be pinned too, which puts a park height or a
 purge length one field away. To pin an option while reading the file,
 right-click it and choose **Add to Quick config**.
 
-The pinned options are saved per printer and included in settings sync and
-backups. On first use, Quick config shows common limits, bed mesh, leveling,
+Drag a card by its grip into any column, above or below another card, and it
+stays exactly there; no other card changes column. The arrow buttons on each
+card make the same moves from the keyboard. On a narrower screen the columns
+that no longer fit continue below the last one, in order.
+
+The pinned options and their arrangement are saved per printer and included in
+settings sync and backups. On first use, Quick config shows common limits, bed mesh, leveling,
 input shaper, pressure advance, and retraction options, limited to the ones
 your configuration has. A pinned section that is later removed from the
 configuration stays as a card until you unpin it.

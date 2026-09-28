@@ -34,6 +34,7 @@ import {
 } from '@/stores/confirmations'
 import { normalizeDashboardProfile, useDashboardLayoutStore } from '@/stores/dashboardLayout'
 import type { QuickConfigPin } from '@/features/config/quickConfigFields'
+import type { QuickConfigColumns } from '@/features/config/quickConfigLayout'
 import { useQuickConfigStore } from '@/stores/quickConfig'
 import { useDocumentationSiteStore } from '@/stores/documentationSite'
 import type { DocsSite } from '@/features/machine/docsLinks'
@@ -93,6 +94,8 @@ export interface SettingsBundle {
    * other sections keeps choosing defaults from that printer's own config.
    */
   quickConfigPins: QuickConfigPin[] | null
+  /** Which column each of those cards sits in. Null until a card has been moved. */
+  quickConfigColumns: QuickConfigColumns | null
   /**
    * The active printer's Z motion — which part moves and which way Z+ takes
    * it. Null while the printer has no stored answer.
@@ -159,6 +162,7 @@ export function collectSettingsBundle(): SettingsBundle {
       followByDefault: gcodeViewer.followByDefault.value,
     },
     quickConfigPins: quickConfig.storedPins,
+    quickConfigColumns: quickConfig.storedColumns,
     zMotion: zMotion.stored,
     documentationSite: documentationSite.stored,
   }
@@ -235,6 +239,7 @@ export async function applySettingsBundle(input: unknown): Promise<void> {
   if (input.confirmations !== undefined) confirmations.replaceAll(input.confirmations)
   if (input.dashboardProfile !== undefined) layout.replaceProfile(input.dashboardProfile)
   if (input.quickConfigPins !== undefined) quickConfig.replacePins(input.quickConfigPins)
+  if (input.quickConfigColumns !== undefined) quickConfig.setColumns(input.quickConfigColumns)
   if (input.zMotion !== undefined) zMotion.replace(input.zMotion)
   if (input.documentationSite !== undefined) documentationSite.replace(input.documentationSite)
   if (isRecord(input.gcodeViewer)) {
@@ -280,6 +285,7 @@ export function defaultSettingsBundle(): SettingsBundle {
       followByDefault: true,
     },
     quickConfigPins: null,
+    quickConfigColumns: null,
     zMotion: null,
     documentationSite: null,
   }

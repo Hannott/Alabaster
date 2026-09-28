@@ -4,10 +4,13 @@ import { useI18n } from 'vue-i18n'
 
 import AppButton from '@/components/AppButton.vue'
 import AppField from '@/components/AppField.vue'
+import AppIcon from '@/components/AppIcon.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import QuickConfigOptionDialog from '@/components/machine/QuickConfigOptionDialog.vue'
 import { useAvailability } from '@/composables/useAvailability'
+import { useDashboardCardDrag } from '@/composables/useDashboardCardDrag'
 import type { QuickConfigField, UnappliedChange } from '@/features/config/quickConfigFields'
+import { moveQuickConfigCard, slotOf } from '@/features/config/quickConfigLayout'
 import { useConfirmationsStore } from '@/stores/confirmations'
 import { useMachineFilesStore } from '@/stores/machineFiles'
 import { usePrinterStore } from '@/stores/printer'
@@ -189,6 +192,121 @@ function saveCard(section: string, options: string[]): void {
   quickConfig.setSectionPins(section, options)
 }
 
+const root = ref<HTMLElement | null>(null)
+const scroller = ref<HTMLElement | null>(null)
+const probe = ref<HTMLElement | null>(null)
+
+/*
+ * As many card-width columns as fit. Measured, not left to CSS, because a card
+ * keeps the column it was put in: the count has to be a number the arrangement
+ * can be laid out against. The probe is one card wide with the grid's gap as
+ * its own `column-gap`, so both come back in pixels from the stylesheet's one
+ * definition rather than a second copy of it here.
+ */
+const columnCount = ref(1)
+
+function measureColumns(): void {
+  const container = scroller.value
+  const sample = probe.value
+  if (!container || !sample || sample.offsetWidth <= 0) return
+  const box = getComputedStyle(container)
+  const width =
+    container.clientWidth -
+    (Number.parseFloat(box.paddingLeft) || 0) -
+    (Number.parseFloat(box.paddingRight) || 0)
+  if (width <= 0) return
+  const gap = Number.parseFloat(getComputedStyle(sample).columnGap) || 0
+  columnCount.value = Math.max(1, Math.floor((width + gap) / (sample.offsetWidth + gap)))
+}
+
+let columnResize: ResizeObserver | null = null
+
+const cardsByKey = computed(() => new Map(quickConfig.cards.map((card) => [card.key, card])))
+const committedColumns = computed(() => quickConfig.columnsFor(columnCount.value))
+
+/*
+ * Found in the document rather than held as template refs: the columns are
+ * TransitionGroups, whose ref is a component instance, not the element.
+ */
+function columnElements(): (HTMLElement | null | undefined)[] {
+  return Array.from({ length: columnCount.value }, (_, index) =>
+    root.value?.querySelector<HTMLElement>(`[data-quick-config-column="${index}"]`),
+  )
+}
+
+/*
+ * The dashboard's pointer drag, for the same reason the dashboard has it: the
+ * cards sit in columns, and a drop has to name a slot in one — "under this
+ * card" — rather than a card to land on. It also previews the result: the card
+ * is rendered in the slot it would land in while only the cards below that
+ * slot, and below the one it left, move aside.
+ */
+const drag = useDashboardCardDrag({
+  columns: columnElements,
+  scroller: () => scroller.value,
+  origin: (key) => slotOf(committedColumns.value, key) ?? { column: 0, index: 0 },
+  commit: (key, target) =>
+    quickConfig.setColumns(moveQuickConfigCard(committedColumns.value, key, target)),
+})
+
+const displayedColumns = computed(() => {
+  const dragged = drag.instanceId.value
+  const slot = drag.target.value
+  const columns =
+    dragged && slot
+      ? moveQuickConfigCard(committedColumns.value, dragged, slot)
+      : committedColumns.value
+  return columns.map((keys) =>
+    keys.flatMap((key) => {
+      const card = cardsByKey.value.get(key)
+      return card ? [card] : []
+    }),
+  )
+})
+
+/** Off for the whole drag and one tick past it — see DashboardView's `columnsAnimated`. */
+const columnsAnimated = ref(true)
+watch(
+  () => drag.instanceId.value,
+  async (dragging) => {
+    if (dragging !== null) {
+      columnsAnimated.value = false
+      return
+    }
+    await nextTick()
+    columnsAnimated.value = true
+  },
+)
+
+const draggedGhost = computed(() => {
+  const position = drag.ghost.value
+  const card = drag.instanceId.value ? cardsByKey.value.get(drag.instanceId.value) : undefined
+  if (!position || !card) return null
+  // A ghost narrower than a hand is not recognisable as the card it came from.
+  return { ...position, width: Math.max(position.width, 180), title: `[${card.section}]` }
+})
+
+function moveWithinColumn(key: string, direction: -1 | 1): void {
+  const slot = slotOf(committedColumns.value, key)
+  if (!slot) return
+  quickConfig.setColumns(
+    moveQuickConfigCard(committedColumns.value, key, {
+      column: slot.column,
+      index: slot.index + direction,
+    }),
+  )
+}
+
+/** Keeps the card's position in the column where the neighbour has room for it. */
+function moveToColumn(key: string, direction: -1 | 1): void {
+  const slot = slotOf(committedColumns.value, key)
+  const column = slot ? slot.column + direction : -1
+  if (!slot || column < 0 || column >= committedColumns.value.length) return
+  quickConfig.setColumns(
+    moveQuickConfigCard(committedColumns.value, key, { column, index: slot.index }),
+  )
+}
+
 function requestDiscard(): void {
   if (confirmations.shouldConfirm('discardAllFiles')) pendingDiscard.value = true
   else quickConfig.discard()
@@ -204,7 +322,6 @@ function confirmDiscard(): void {
  * field, which may not be rendered until the files it reads have loaded — so
  * the request waits for the field rather than being answered once on mount.
  */
-const root = ref<HTMLElement | null>(null)
 watch(
   () => [quickConfig.revealRequest, quickConfig.cards] as const,
   async ([request]) => {
@@ -221,8 +338,18 @@ watch(
   { immediate: true, flush: 'post' },
 )
 
-onMounted(() => quickConfig.start())
-onBeforeUnmount(() => quickConfig.stop())
+onMounted(() => {
+  quickConfig.start()
+  measureColumns()
+  if (typeof ResizeObserver === 'undefined') return
+  columnResize = new ResizeObserver(measureColumns)
+  if (scroller.value) columnResize.observe(scroller.value)
+  if (probe.value) columnResize.observe(probe.value)
+})
+onBeforeUnmount(() => {
+  columnResize?.disconnect()
+  quickConfig.stop()
+})
 </script>
 
 <template>
@@ -271,12 +398,25 @@ onBeforeUnmount(() => quickConfig.stop())
       </div>
     </div>
 
-    <div class="quick-config__scroll">
+    <div ref="scroller" class="quick-config__scroll">
+      <div ref="probe" class="quick-config__probe" aria-hidden="true"></div>
+
       <p v-if="quickConfig.hasLoaded && quickConfig.cards.length === 0" class="quick-config__empty">
         {{ t('configuration.quickConfig.empty') }}
       </p>
 
-      <div v-if="quickConfig.hasLoaded" class="quick-config__grid">
+      <!--
+        A row of their own above the columns rather than cards among them: they
+        come and go with Klipper's state, and appearing inside an arrangement
+        would push the user's own cards down whenever they did.
+      -->
+      <div
+        v-if="
+          quickConfig.hasLoaded &&
+          (quickConfig.unapplied.length > 0 || printer.configWarnings.length > 0)
+        "
+        class="quick-config__notices"
+      >
         <!--
           Across the whole configuration, not only pinned options: an edit
           nobody restarted for usually sits in a file nobody has open.
@@ -345,138 +485,253 @@ ${change.option}`"
             </li>
           </ul>
         </section>
+      </div>
 
-        <section
-          v-for="card in quickConfig.cards"
-          :key="card.key"
-          class="quick-config-card"
-          :class="{ 'quick-config-card--missing': card.missing }"
-          :aria-label="card.section"
+      <div
+        v-if="quickConfig.hasLoaded"
+        class="quick-config__columns"
+        :data-dragging="drag.instanceId.value ? true : undefined"
+        :style="{ '--quick-config-column-count': columnCount }"
+      >
+        <!--
+          One TransitionGroup per column with `css` switched off during a drag,
+          exactly as the dashboard's columns do and for the reason recorded
+          there: a card previewed into another column has to leave one group
+          and enter the other instantly, while `-move` still slides the cards
+          that make room for it.
+        -->
+        <TransitionGroup
+          v-for="(column, columnIndex) in displayedColumns"
+          :key="columnIndex"
+          name="dashboard-grid"
+          tag="div"
+          class="quick-config__column"
+          :css="columnsAnimated"
+          :data-quick-config-column="columnIndex"
         >
-          <header class="quick-config-card__header">
-            <h2 class="quick-config-card__title">[{{ card.section }}]</h2>
-            <span v-if="card.files.length === 1" class="quick-config-card__files">{{
-              card.files[0]
-            }}</span>
-            <span v-else-if="card.files.length > 1" class="quick-config-card__files">{{
-              t('configuration.quickConfig.files', { count: card.files.length })
-            }}</span>
-            <AppButton
-              v-if="!card.missing"
-              variant="quiet"
-              size="xs"
-              icon-only
-              icon="edit"
-              class="quick-config-card__edit"
-              :aria-label="t('configuration.quickConfig.editCard', { section: card.section })"
-              :title="t('configuration.quickConfig.editCard', { section: card.section })"
-              @click="openPicker(card.key)"
-            />
-          </header>
-
-          <ul
-            v-if="quickConfig.warningsFor(card.key).length > 0"
-            class="quick-config-card__warnings"
+          <section
+            v-for="(card, index) in column"
+            :key="card.key"
+            class="quick-config-card"
+            :class="{ 'quick-config-card--missing': card.missing }"
+            :aria-label="card.section"
+            :data-instance-id="card.key"
+            :data-dragging="drag.instanceId.value === card.key || undefined"
           >
-            <li v-for="(warning, index) in quickConfig.warningsFor(card.key)" :key="index">
-              {{ warning.message }}
-            </li>
-          </ul>
-
-          <template v-if="card.missing">
-            <p class="quick-config-card__missing">
-              {{ t('configuration.quickConfig.missingSection') }}
-            </p>
-            <AppButton
-              size="sm"
-              :label="t('configuration.quickConfig.unpinSection')"
-              @click="quickConfig.unpinSection(card.key)"
-            />
-          </template>
-
-          <div v-else class="quick-config-card__fields">
-            <div
-              v-for="field in card.fields"
-              :key="field.option"
-              class="quick-config-field"
-              :data-quick-config-field="`${field.section}/${field.option}`"
-            >
-              <div class="quick-config-field__row">
-                <label v-if="isBoolean(field)" class="check-row quick-config-field__control">
-                  <input
-                    type="checkbox"
-                    :checked="checked(field)"
-                    :disabled="field.lock !== null || !moonrakerAvailability.isAvailable"
-                    @change="setBoolean(field, ($event.target as HTMLInputElement).checked)"
-                  />
-                  <span class="quick-config-field__name">{{ field.option }}</span>
-                </label>
-                <AppField
-                  v-else-if="field.kind === 'number'"
-                  class="quick-config-field__control"
-                  :label="field.option"
-                  type="number"
-                  v-bind="unitProps(field)"
-                  :model-value="numberValue(field)"
-                  :readonly="field.lock !== null"
-                  :disabled="!moonrakerAvailability.isAvailable"
-                  @update:model-value="setNumber(field, $event)"
-                />
-                <AppField
-                  v-else
-                  class="quick-config-field__control"
-                  :label="field.option"
-                  type="text"
-                  v-bind="unitProps(field)"
-                  :model-value="shownText(field)"
-                  :readonly="field.lock !== null"
-                  :disabled="!moonrakerAvailability.isAvailable"
-                  @update:model-value="setText(field, $event)"
-                />
-                <AppButton
-                  v-if="field.location"
-                  variant="quiet"
-                  size="xs"
-                  icon-only
-                  icon="popout"
-                  :aria-label="locationLabel(field)"
-                  :title="locationLabel(field)"
-                  @click="openLocation(field)"
-                />
-              </div>
-
+            <header class="quick-config-card__header">
+              <h2 class="quick-config-card__title" :title="`[${card.section}]`">
+                [{{ card.section }}]
+              </h2>
               <!--
-                Only when the field has something to say. A resting field is
-                one line; where it lives is behind the popout, and whether it
-                is Klipper's own SAVE_CONFIG line is in that button's name.
+                Only the grip starts a drag: a card is full of fields and
+                buttons, and a press on any of them has to stay a press.
+                Pointer-only and not focusable, like the dashboard's handle —
+                the move buttons are the keyboard path.
               -->
-              <p v-if="hasStatus(field)" class="quick-config-field__status">
-                <span v-if="fieldError(field)" class="quick-config-field__error">{{
-                  t('configuration.quickConfig.invalidValue')
-                }}</span>
-                <span v-if="field.unsaved" class="quick-config-field__was"
-                  >{{ wasLabel(field) }}
+              <span
+                class="quick-config-card__grip"
+                aria-hidden="true"
+                @pointerdown="drag.begin($event, card.key)"
+              >
+                <AppIcon name="drag" class="size-4" />
+              </span>
+              <div class="quick-config-card__actions">
+                <!--
+                  Quiet at rest, like Macros' reorder pair: the keyboard and
+                  touch path for a move a mouse makes with the grip.
+                -->
+                <div class="quick-config-card__reorder">
                   <AppButton
                     variant="quiet"
                     size="xs"
                     icon-only
-                    icon="reset"
-                    :aria-label="t('configuration.quickConfig.revert', { option: field.option })"
-                    :title="t('configuration.quickConfig.revert', { option: field.option })"
-                    @click="quickConfig.revert(field)"
-                /></span>
-                <span v-else-if="field.unapplied" class="quick-config-field__unapplied">{{
-                  t('configuration.quickConfig.unapplied')
-                }}</span>
-                <span v-if="field.lock">{{ lockLabel(field) }}</span>
-                <span v-else-if="!field.location && !field.unsaved">{{
-                  t('configuration.quickConfig.default')
-                }}</span>
+                    icon="up"
+                    :disabled="index === 0"
+                    :aria-label="
+                      t('configuration.quickConfig.moveEarlier', { section: card.section })
+                    "
+                    :title="t('configuration.quickConfig.moveEarlier', { section: card.section })"
+                    @click="moveWithinColumn(card.key, -1)"
+                  />
+                  <AppButton
+                    variant="quiet"
+                    size="xs"
+                    icon-only
+                    icon="down"
+                    :disabled="index === column.length - 1"
+                    :aria-label="
+                      t('configuration.quickConfig.moveLater', { section: card.section })
+                    "
+                    :title="t('configuration.quickConfig.moveLater', { section: card.section })"
+                    @click="moveWithinColumn(card.key, 1)"
+                  />
+                  <!-- Both would be disabled with one column, and a phone's header has no room for them. -->
+                  <template v-if="displayedColumns.length > 1">
+                    <AppButton
+                      variant="quiet"
+                      size="xs"
+                      icon-only
+                      icon="left"
+                      :disabled="columnIndex === 0"
+                      :aria-label="
+                        t('configuration.quickConfig.moveToPreviousColumn', {
+                          section: card.section,
+                        })
+                      "
+                      :title="
+                        t('configuration.quickConfig.moveToPreviousColumn', {
+                          section: card.section,
+                        })
+                      "
+                      @click="moveToColumn(card.key, -1)"
+                    />
+                    <AppButton
+                      variant="quiet"
+                      size="xs"
+                      icon-only
+                      icon="right"
+                      :disabled="columnIndex === displayedColumns.length - 1"
+                      :aria-label="
+                        t('configuration.quickConfig.moveToNextColumn', { section: card.section })
+                      "
+                      :title="
+                        t('configuration.quickConfig.moveToNextColumn', { section: card.section })
+                      "
+                      @click="moveToColumn(card.key, 1)"
+                    />
+                  </template>
+                </div>
+                <AppButton
+                  v-if="!card.missing"
+                  variant="quiet"
+                  size="xs"
+                  icon-only
+                  icon="edit"
+                  :aria-label="t('configuration.quickConfig.editCard', { section: card.section })"
+                  :title="t('configuration.quickConfig.editCard', { section: card.section })"
+                  @click="openPicker(card.key)"
+                />
+              </div>
+            </header>
+
+            <ul
+              v-if="quickConfig.warningsFor(card.key).length > 0"
+              class="quick-config-card__warnings"
+            >
+              <li v-for="(warning, index) in quickConfig.warningsFor(card.key)" :key="index">
+                {{ warning.message }}
+              </li>
+            </ul>
+
+            <template v-if="card.missing">
+              <p class="quick-config-card__missing">
+                {{ t('configuration.quickConfig.missingSection') }}
               </p>
+              <AppButton
+                size="sm"
+                :label="t('configuration.quickConfig.unpinSection')"
+                @click="quickConfig.unpinSection(card.key)"
+              />
+            </template>
+
+            <div v-else class="quick-config-card__fields">
+              <div
+                v-for="field in card.fields"
+                :key="field.option"
+                class="quick-config-field"
+                :data-quick-config-field="`${field.section}/${field.option}`"
+              >
+                <div class="quick-config-field__row">
+                  <label v-if="isBoolean(field)" class="check-row quick-config-field__control">
+                    <input
+                      type="checkbox"
+                      :checked="checked(field)"
+                      :disabled="field.lock !== null || !moonrakerAvailability.isAvailable"
+                      @change="setBoolean(field, ($event.target as HTMLInputElement).checked)"
+                    />
+                    <span class="quick-config-field__name">{{ field.option }}</span>
+                  </label>
+                  <AppField
+                    v-else-if="field.kind === 'number'"
+                    class="quick-config-field__control"
+                    :label="field.option"
+                    type="number"
+                    v-bind="unitProps(field)"
+                    :model-value="numberValue(field)"
+                    :readonly="field.lock !== null"
+                    :disabled="!moonrakerAvailability.isAvailable"
+                    @update:model-value="setNumber(field, $event)"
+                  />
+                  <AppField
+                    v-else
+                    class="quick-config-field__control"
+                    :label="field.option"
+                    type="text"
+                    v-bind="unitProps(field)"
+                    :model-value="shownText(field)"
+                    :readonly="field.lock !== null"
+                    :disabled="!moonrakerAvailability.isAvailable"
+                    @update:model-value="setText(field, $event)"
+                  />
+                  <AppButton
+                    v-if="field.location"
+                    variant="quiet"
+                    size="xs"
+                    icon-only
+                    icon="popout"
+                    :aria-label="locationLabel(field)"
+                    :title="locationLabel(field)"
+                    @click="openLocation(field)"
+                  />
+                </div>
+
+                <!--
+                Only when the field has something to say. A resting field is
+                one line; where it lives is behind the popout, and whether it
+                is Klipper's own SAVE_CONFIG line is in that button's name.
+              -->
+                <p v-if="hasStatus(field)" class="quick-config-field__status">
+                  <span v-if="fieldError(field)" class="quick-config-field__error">{{
+                    t('configuration.quickConfig.invalidValue')
+                  }}</span>
+                  <span v-if="field.unsaved" class="quick-config-field__was"
+                    >{{ wasLabel(field) }}
+                    <AppButton
+                      variant="quiet"
+                      size="xs"
+                      icon-only
+                      icon="reset"
+                      :aria-label="t('configuration.quickConfig.revert', { option: field.option })"
+                      :title="t('configuration.quickConfig.revert', { option: field.option })"
+                      @click="quickConfig.revert(field)"
+                  /></span>
+                  <span v-else-if="field.unapplied" class="quick-config-field__unapplied">{{
+                    t('configuration.quickConfig.unapplied')
+                  }}</span>
+                  <span v-if="field.lock">{{ lockLabel(field) }}</span>
+                  <span v-else-if="!field.location && !field.unsaved">{{
+                    t('configuration.quickConfig.default')
+                  }}</span>
+                </p>
+              </div>
             </div>
-          </div>
-        </section>
+          </section>
+        </TransitionGroup>
       </div>
+    </div>
+
+    <!-- The header alone, like the dashboard's ghost, so it does not hide the columns it passes over. -->
+    <div
+      v-if="draggedGhost"
+      class="quick-config-drag-ghost"
+      :style="{
+        width: `${draggedGhost.width}px`,
+        transform: `translate3d(${draggedGhost.x}px, ${draggedGhost.y}px, 0)`,
+      }"
+      aria-hidden="true"
+    >
+      <AppIcon name="drag" class="size-4 shrink-0" />
+      <span class="truncate">{{ draggedGhost.title }}</span>
     </div>
 
     <QuickConfigOptionDialog

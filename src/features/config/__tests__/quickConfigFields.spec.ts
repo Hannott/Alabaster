@@ -176,6 +176,19 @@ describe('buildQuickConfigCards', () => {
     expect(field(cards, 'invert').kind).toBe('boolean')
   })
 
+  it('orders cards by when each section was first pinned, not alphabetically', () => {
+    const cards = buildQuickConfigCards(
+      inputs({
+        pins: [
+          { section: 'z_tilt', option: 'retries' },
+          { section: 'printer', option: 'max_accel' },
+        ],
+      }),
+    )
+
+    expect(cards.map((card) => card.key)).toEqual(['z_tilt', 'printer'])
+  })
+
   it('keeps a pinned section that is gone, as a card of its own after the rest', () => {
     const cards = buildQuickConfigCards(
       inputs({
@@ -190,17 +203,6 @@ describe('buildQuickConfigCards', () => {
       ['printer', false],
       ['heater_generic chamber', true],
     ])
-  })
-
-  it('names every file a section is split across', () => {
-    const files = new Map([
-      ['printer.cfg', '[printer]\nmax_accel: 5000\n[include limits.cfg]\n'],
-      ['limits.cfg', '[printer]\nmax_velocity: 600\n'],
-    ])
-    const index = indexConfig('printer.cfg', files, files.keys())
-    const cards = buildQuickConfigCards(inputs({ current: index, saved: index }))
-
-    expect(cards[0]?.files).toEqual(['printer.cfg', 'limits.cfg'])
   })
 })
 

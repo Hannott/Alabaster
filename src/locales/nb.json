@@ -2235,7 +2235,6 @@
       "invalidValue": "Klipper kan ikke lese denne verdien",
       "missingSection": "Finnes ikke i denne printerens konfigurasjon",
       "unpinSection": "Løsne",
-      "files": "{count} filer",
       "empty": "Ingen opsjoner festet",
       "loadFailed": "Noen konfigurasjonsfiler kunne ikke leses",
       "units": {
@@ -2248,6 +2247,10 @@
       },
       "addOption": "Legg til opsjon",
       "editCard": "Rediger opsjoner i [{section}]",
+      "moveEarlier": "Flytt [{section}] tidligere",
+      "moveLater": "Flytt [{section}] senere",
+      "moveToPreviousColumn": "Flytt [{section}] til forrige kolonne",
+      "moveToNextColumn": "Flytt [{section}] til neste kolonne",
       "picker": {
         "title": "Opsjoner på kortet",
         "section": "Seksjon",

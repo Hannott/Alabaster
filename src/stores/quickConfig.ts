@@ -18,6 +18,11 @@ import {
   visiblePins,
   type QuickConfigPin,
 } from '@/features/config/quickConfigFields'
+import {
+  arrangeQuickConfigColumns,
+  normalizeQuickConfigColumns,
+  type QuickConfigColumns,
+} from '@/features/config/quickConfigLayout'
 import { useAvailabilityStore } from '@/stores/availability'
 import { useMachineFilesStore } from '@/stores/machineFiles'
 import { useMoonrakerStore } from '@/stores/moonraker'
@@ -40,6 +45,7 @@ export type PersistResult =
   | { status: 'refused'; reason: 'unavailable' | 'autosave' | 'pending' | OptionWriteFailure }
 
 const pinsStorageKey = 'alabaster.quickConfig.pins'
+const columnsStorageKey = 'alabaster.quickConfig.columns'
 
 export function isQuickConfigPin(value: unknown): value is QuickConfigPin {
   return (
@@ -73,9 +79,9 @@ export function normalizeQuickConfigPins(value: unknown): QuickConfigPin[] | nul
   return pins
 }
 
-function pinsTable(): Record<string, unknown> {
+function storedTable(key: string): Record<string, unknown> {
   try {
-    const parsed: unknown = JSON.parse(window.localStorage.getItem(pinsStorageKey) ?? '{}')
+    const parsed: unknown = JSON.parse(window.localStorage.getItem(key) ?? '{}')
     return isRecord(parsed) ? parsed : {}
   } catch {
     return {}
@@ -104,7 +110,13 @@ export const useQuickConfigStore = defineStore('quickConfig', () => {
   /** A field the editor asked Quick config to scroll to, cleared once it has. */
   const revealRequest = ref<QuickConfigPin | null>(null)
   const storedPins = ref<QuickConfigPin[] | null>(
-    normalizeQuickConfigPins(readScoped(pinsTable(), printers.activeScopeKeys)),
+    normalizeQuickConfigPins(readScoped(storedTable(pinsStorageKey), printers.activeScopeKeys)),
+  )
+  /** Which column each card sits in, per printer like the pins; null until a card is moved. */
+  const storedColumns = ref<QuickConfigColumns | null>(
+    normalizeQuickConfigColumns(
+      readScoped(storedTable(columnsStorageKey), printers.activeScopeKeys),
+    ),
   )
   const availablePaths = ref<string[]>([])
   const loadedPaths = ref<string[]>([])
@@ -127,15 +139,24 @@ export const useQuickConfigStore = defineStore('quickConfig', () => {
   watch(
     () => printers.activeScopeKeys.join(','),
     () => {
-      storedPins.value = normalizeQuickConfigPins(readScoped(pinsTable(), printers.activeScopeKeys))
+      storedPins.value = normalizeQuickConfigPins(
+        readScoped(storedTable(pinsStorageKey), printers.activeScopeKeys),
+      )
+      storedColumns.value = normalizeQuickConfigColumns(
+        readScoped(storedTable(columnsStorageKey), printers.activeScopeKeys),
+      )
     },
   )
 
-  function persistPins(): void {
+  function persist(key: string, value: unknown): void {
     window.localStorage.setItem(
-      pinsStorageKey,
-      JSON.stringify(writeScoped(pinsTable(), printers.activeScopeKeys, storedPins.value)),
+      key,
+      JSON.stringify(writeScoped(storedTable(key), printers.activeScopeKeys, value)),
     )
+  }
+
+  function persistPins(): void {
+    persist(pinsStorageKey, storedPins.value)
   }
 
   function filesFrom(side: 'content' | 'saved'): Map<string, string> {
@@ -382,6 +403,25 @@ export const useQuickConfigStore = defineStore('quickConfig', () => {
     setStoredPins(pins.value.filter((pin) => optionKey(pin.section, pin.option) !== key))
   }
 
+  /** The cards laid out in however many columns the view has room for. */
+  function columnsFor(count: number): QuickConfigColumns {
+    return arrangeQuickConfigColumns(
+      cards.value.map((card) => card.key),
+      storedColumns.value,
+      count,
+    )
+  }
+
+  /**
+   * Stores an arrangement — the view's, as displayed after a move, or the
+   * settings bundle's, re-validated. A card unpinned later stays named here, so
+   * pinning its section again brings it back to the same place.
+   */
+  function setColumns(value: unknown): void {
+    storedColumns.value = normalizeQuickConfigColumns(value)
+    persist(columnsStorageKey, storedColumns.value)
+  }
+
   function unpinSection(section: string): void {
     const key = section.toLowerCase()
     setStoredPins(pins.value.filter((candidate) => candidate.section !== key))
@@ -461,6 +501,9 @@ export const useQuickConfigStore = defineStore('quickConfig', () => {
     savedValue,
     persistOption,
     setSectionPins,
+    storedColumns,
+    columnsFor,
+    setColumns,
     isPinned,
     pinOption,
     unpinOption,

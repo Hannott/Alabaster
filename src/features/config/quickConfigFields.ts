@@ -98,8 +98,6 @@ export interface QuickConfigCard {
   /** The section as written in the file, or the pinned name when it is missing. */
   section: string
   key: string
-  /** Files holding a block of this section, in Klipper's reading order. */
-  files: string[]
   /** The section is not in the configuration; the card keeps its pins until they are removed. */
   missing: boolean
   fields: QuickConfigField[]
@@ -185,7 +183,6 @@ export function buildQuickConfigCards(inputs: QuickConfigInputs): QuickConfigCar
       card = {
         section: blocks[0]?.section ?? pin.section,
         key,
-        files: [...new Set(blocks.map((block) => block.path))],
         missing: blocks.length === 0,
         fields: [],
       }
@@ -229,9 +226,14 @@ export function buildQuickConfigCards(inputs: QuickConfigInputs): QuickConfigCar
     })
   }
 
+  /*
+   * Otherwise the order sections were first pinned in (`cards` is a Map), which
+   * is the order a card the arrangement has not placed yet is handed a column
+   * in — see `quickConfigLayout.ts`. A missing section sorts after the rest.
+   */
   return [...cards.values()].sort((left, right) => {
     if (left.missing !== right.missing) return left.missing ? 1 : -1
-    return left.key.localeCompare(right.key)
+    return 0
   })
 }
 

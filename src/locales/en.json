@@ -2235,7 +2235,6 @@
       "invalidValue": "Klipper cannot read this value",
       "missingSection": "Not in this printer’s config",
       "unpinSection": "Unpin",
-      "files": "{count} files",
       "empty": "No options pinned",
       "loadFailed": "Some config files could not be read",
       "units": {
@@ -2248,6 +2247,10 @@
       },
       "addOption": "Add option",
       "editCard": "Edit options in [{section}]",
+      "moveEarlier": "Move [{section}] earlier",
+      "moveLater": "Move [{section}] later",
+      "moveToPreviousColumn": "Move [{section}] to the previous column",
+      "moveToNextColumn": "Move [{section}] to the next column",
       "picker": {
         "title": "Card options",
         "section": "Section",
