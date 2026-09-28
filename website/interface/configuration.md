@@ -6,8 +6,8 @@ files sit in tabs on the left, and the file tree sits on the right.
 Requires `config_path` to be set in `moonraker.conf`. Without it, the page
 does not appear.
 
-Switch between the **Config** and **Logs** roots at the top. The header shows
-available configuration storage next to them.
+Switch between the **Config** and **Logs** roots at the right edge of the
+page. The explorer shows how much storage is free.
 
 ## Quick config
 
@@ -80,9 +80,11 @@ Each tab has a pin and a close button that show on hover. A middle click
 closes a tab, and so does Delete on a focused tab. Right-click a tab to close
 the others, close every unpinned tab, or reveal the file in the tree.
 
-The tree follows the file you have open and opens the folders above it. Hide
-the tree with the button at the end of the tab row when you want the width
-for the file.
+The tree follows the file you have open and opens the folders above it.
+Unpin it with the pin above Config and Logs when you want the width for the
+file. It then slides out while you point at Config and Logs and slides away
+when you move on. On a touch screen, tap Config or Logs to bring it out. Pin
+it again to keep it open.
 
 Config and Logs each keep their own tabs, and switching back brings them
 back.
@@ -102,8 +104,9 @@ above it at any depth, and on the Configuration entry in the desktop sidebar
 and the mobile bar, from whatever page you are on. The marker is a badge dot, so it
 does not depend on color alone.
 
-**Save all** and **Discard all** act on every unsaved file at once. Both list
-the files they will touch before doing it.
+**Save all files** and **Discard all changes**, in the menu beside **Save**,
+act on every unsaved file at once, including files whose tab you have closed.
+Both list the files they will touch before doing it.
 
 ## Include links
 
@@ -176,8 +179,7 @@ marker, and its continuation-line indentation. A plain-text file was never
 written to that format.
 
 The full reference of every editor shortcut opens from the help button
-beside the tabs, or with Ctrl/Cmd+?. Save, Save and restart, and Discard
-changes sit next to it.
+beside the tabs, or with Ctrl/Cmd+?.
 
 **Save and restart** saves the current file and restarts Klipper. If it is
 the only file with unsaved edits, this happens immediately. If other files

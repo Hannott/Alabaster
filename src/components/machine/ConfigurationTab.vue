@@ -117,10 +117,9 @@ function onPin(): void {
         variant="quiet"
         size="xs"
         icon-only
-        icon="filePin"
+        :icon="pinned ? 'filePinSlash' : 'filePin'"
         class="document-tab__control document-tab__control--pin"
         tabindex="-1"
-        :aria-pressed="Boolean(pinned)"
         :aria-label="pinLabel"
         :title="pinLabel"
         @click="onPin"

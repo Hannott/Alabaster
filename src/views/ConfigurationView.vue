@@ -15,6 +15,7 @@ import ConfigurationTabWell from '@/components/machine/ConfigurationTabWell.vue'
 import FileContextMenu from '@/components/machine/FileContextMenu.vue'
 import HtmlFileViewer from '@/components/machine/HtmlFileViewer.vue'
 import QuickConfigView from '@/components/machine/QuickConfigView.vue'
+import { useAutoHidePanel } from '@/composables/useAutoHidePanel'
 import { useAvailability } from '@/composables/useAvailability'
 import { useConfigFileHistory } from '@/composables/useConfigFileHistory'
 import { useEditorIndent } from '@/composables/useEditorIndent'
@@ -99,8 +100,8 @@ function initialEditorDisplayMode(): EditorDisplayMode {
 
 /*
  * Below this width the workspace shows one card at a time — see the
- * `max-width: 54.999rem` block in components.css — so the explorer toggle
- * swaps cards there instead of hiding a column.
+ * `max-width: 54.999rem` block in components.css — so the explorer has no
+ * pin there, and the side strip's roots swap cards instead.
  */
 const SINGLE_PANE_QUERY = '(max-width: 54.999rem)'
 
@@ -415,6 +416,11 @@ const canSaveAll = computed(
     !machineFiles.isMutating &&
     machineFiles.hasUnsavedFiles,
 )
+/** Unsaved files other than the one on screen — every unsaved file while nothing is open. */
+const otherUnsavedCount = computed(
+  () =>
+    machineFiles.unsavedFilePaths.filter((path) => path !== machineFiles.currentFile?.path).length,
+)
 // printer.cfg lives at the config root, not the directory currently browsed,
 // so adding or removing an include is gated on root permissions rather than canMutate.
 const canEditPrimaryConfig = computed(
@@ -723,28 +729,59 @@ function isSinglePane(): boolean {
   return singlePaneQuery?.matches ?? false
 }
 
-/** Whether the explorer is on screen next to — or, on a narrow screen, instead of — the viewer. */
-const isExplorerShown = computed(() =>
-  machineFiles.currentFile === null ? true : !explorerHidden.value,
+/**
+ * The explorer auto-hides while unpinned, as a Visual Studio tool window does:
+ * it slides out over the viewer while the pointer is on the side strip or on
+ * it, and away again once it is not. Only where it can dock at all — below
+ * 55 rem the workspace shows one card at a time instead — and never in
+ * fullscreen, which covers the strip.
+ */
+const explorerAutoHides = computed(
+  () => explorerHidden.value && !singlePane.value && !isEditorFullscreen.value,
 )
+const explorerPane = ref<HTMLElement | null>(null)
+const sideStrip = ref<HTMLElement | null>(null)
+const explorerPinButton = ref<InstanceType<typeof AppButton> | null>(null)
+const explorerPeek = useAutoHidePanel({
+  enabled: explorerAutoHides,
+  regions: () => [explorerPane.value, sideStrip.value],
+  busy: () =>
+    contextMenu.value !== null ||
+    draggingEntry.value !== null ||
+    isExternalDropZoneActive.value ||
+    document.querySelector('dialog[open]') !== null,
+  returnFocus: () => (explorerPinButton.value?.$el as HTMLElement | undefined) ?? null,
+})
+const explorerPeekOpen = explorerPeek.open
 
-function toggleExplorer(): void {
-  if (isSinglePane()) {
-    mobileExplorerOpen.value = !mobileExplorerOpen.value
-    return
-  }
+/*
+ * Stored under the key the old hide toggle used, because "hidden" meant the
+ * same choice: the explorer does not hold a column of its own beside the
+ * file. A reader who had hidden it gets it auto-hidden rather than docked.
+ */
+function toggleExplorerPin(): void {
   explorerHidden.value = !explorerHidden.value
   localStorage.setItem(explorerHiddenStorageKey, String(explorerHidden.value))
 }
 
-/** Whether the explorer toggle would bring the explorer into view rather than put it away. */
-const explorerToggleShows = computed(() =>
-  singlePane.value ? !mobileExplorerOpen.value : !isExplorerShown.value,
-)
-
 function showExplorer(): void {
   if (isSinglePane()) mobileExplorerOpen.value = true
-  else if (explorerHidden.value) toggleExplorer()
+  else if (explorerAutoHides.value) explorerPeek.show()
+}
+
+/**
+ * Choosing a root is asking to see it, so an auto-hidden explorer slides out
+ * with it, which is also how a touch screen, with no hover, opens it at all.
+ */
+function chooseRoot(root: MachineFileRoot): void {
+  if (machineFiles.currentRoot !== root) void machineFiles.setRoot(root)
+  // One card at a time has no pin to put the explorer away with, so the root
+  // already on screen hands the card back to the open file.
+  else if (singlePane.value && mobileExplorerOpen.value && machineFiles.currentFile) {
+    mobileExplorerOpen.value = false
+    return
+  }
+  showExplorer()
 }
 
 /**
@@ -2080,7 +2117,8 @@ onBeforeUnmount(() => {
         :class="{
           'machine-workspace--editor-open': machineFiles.currentFile,
           'machine-workspace--fullscreen': isEditorFullscreen,
-          'machine-workspace--explorer-hidden': !isExplorerShown,
+          'machine-workspace--explorer-unpinned': explorerAutoHides,
+          'machine-workspace--explorer-peek': explorerPeekOpen,
           'machine-workspace--mobile-explorer': mobileExplorerOpen,
         }"
         :data-pending="
@@ -2104,65 +2142,22 @@ onBeforeUnmount(() => {
           >
             <template #tools>
               <!--
-                The open file's actions live beside its tab rather than on a
-                toolbar row of their own: the tab names the file, back and
-                forward are the mouse's buttons and Alt+arrow, and a row that
-                repeated the path cost the editor its height. The well is part
-                of the viewer, so fullscreen keeps every one of them.
+                Only the viewer's own chrome stays beside the tabs. The file's
+                actions carry labels, which the well's `xs` height cannot hold,
+                so they live in the command bar at the foot of this card.
               -->
-              <div
-                v-if="machineFiles.currentFile"
-                class="machine-editor-actions"
-                role="group"
-                :aria-label="t('configuration.editor.actions')"
-              >
-                <span v-if="currentFileReadOnly" class="machine-readonly-mark">{{
-                  t('configuration.editor.readOnly')
-                }}</span>
-                <template v-if="!isCurrentFilePreview">
-                  <AppButton
-                    variant="primary"
-                    size="xs"
-                    icon-only
-                    icon="save"
-                    :disabled="!canSave || !machineFiles.isDirty"
-                    :aria-label="t('configuration.editor.save')"
-                    :title="t('configuration.editor.save')"
-                    @click="save(false)"
-                  />
-                  <AppButton
-                    size="xs"
-                    icon-only
-                    icon="refresh"
-                    :disabled="
-                      !canSave || !machineFiles.isDirty || !klipperAvailability.isAvailable
-                    "
-                    :aria-label="t('configuration.editor.saveRestart')"
-                    :title="t('configuration.editor.saveRestart')"
-                    @click="save(true)"
-                  />
-                  <AppButton
-                    variant="danger-quiet"
-                    size="xs"
-                    icon-only
-                    icon="undo"
-                    :disabled="!machineFiles.isDirty"
-                    :aria-label="t('configuration.editor.discard')"
-                    :title="t('configuration.editor.discard')"
-                    @click="requestDiscardChanges"
-                  />
-                  <span class="document-tabs__separator" aria-hidden="true"></span>
-                  <AppButton
-                    variant="quiet"
-                    size="xs"
-                    icon-only
-                    icon="help"
-                    aria-haspopup="dialog"
-                    :aria-label="t('configuration.shortcuts.open')"
-                    :title="t('configuration.shortcuts.open')"
-                    @click="shortcutsOpen = true"
-                  />
-                </template>
+              <div v-if="machineFiles.currentFile" class="machine-editor-actions">
+                <AppButton
+                  v-if="!isCurrentFilePreview"
+                  variant="quiet"
+                  size="xs"
+                  icon-only
+                  icon="help"
+                  aria-haspopup="dialog"
+                  :aria-label="t('configuration.shortcuts.open')"
+                  :title="t('configuration.shortcuts.open')"
+                  @click="shortcutsOpen = true"
+                />
                 <AppButton
                   variant="quiet"
                   size="xs"
@@ -2174,28 +2169,6 @@ onBeforeUnmount(() => {
                   @click="toggleFullscreen"
                 />
               </div>
-              <AppButton
-                variant="quiet"
-                size="xs"
-                icon-only
-                :icon="explorerToggleShows ? 'sidebarExpand' : 'sidebarCollapse'"
-                class="machine-explorer-toggle"
-                :aria-label="
-                  t(
-                    explorerToggleShows
-                      ? 'configuration.explorer.show'
-                      : 'configuration.explorer.hide',
-                  )
-                "
-                :title="
-                  t(
-                    explorerToggleShows
-                      ? 'configuration.explorer.show'
-                      : 'configuration.explorer.hide',
-                  )
-                "
-                @click="toggleExplorer"
-              />
             </template>
           </ConfigurationTabWell>
 
@@ -2407,9 +2380,143 @@ onBeforeUnmount(() => {
               {{ t('configuration.editor.emptyTitle') }}
             </h2>
           </div>
+
+          <!--
+            Inside the viewer card, so fullscreen keeps it, and present with
+            nothing open: closing a tab keeps its buffer, so unsaved files can
+            outlive every tab and the menu is how they are still reached.
+          -->
+          <footer class="machine-command-bar">
+            <p class="machine-command-bar__state">
+              <span v-if="currentFileReadOnly" class="machine-readonly-mark">{{
+                t('configuration.editor.readOnly')
+              }}</span>
+              <span
+                v-else-if="machineFiles.currentFile && machineFiles.isDirty"
+                class="machine-dirty-mark"
+                >{{ t('configuration.editor.unsaved') }}</span
+              >
+              <span v-if="otherUnsavedCount > 0" class="machine-command-bar__count">{{
+                t(
+                  machineFiles.currentFile
+                    ? 'configuration.editor.otherUnsaved'
+                    : 'configuration.editor.filesUnsaved',
+                  { count: otherUnsavedCount },
+                )
+              }}</span>
+            </p>
+            <div
+              class="machine-command-bar__actions"
+              role="group"
+              :aria-label="t('configuration.editor.actions')"
+            >
+              <template v-if="machineFiles.currentFile && !isCurrentFilePreview">
+                <AppButton
+                  variant="primary"
+                  size="sm"
+                  icon="save"
+                  :label="t('configuration.editor.save')"
+                  :disabled="!canSave || !machineFiles.isDirty"
+                  :pending="machineFiles.isMutating && machineFiles.isDirty"
+                  @click="save(false)"
+                />
+                <AppButton
+                  size="sm"
+                  icon="saveRestart"
+                  :label="t('configuration.editor.saveRestart')"
+                  :disabled="!canSave || !machineFiles.isDirty || !klipperAvailability.isAvailable"
+                  @click="save(true)"
+                />
+                <AppButton
+                  variant="danger-quiet"
+                  size="sm"
+                  icon="undo"
+                  class="machine-command-bar__discard"
+                  :label="t('configuration.editor.discard')"
+                  :disabled="!machineFiles.isDirty"
+                  @click="requestDiscardChanges"
+                />
+              </template>
+              <HeaderMenu
+                :label="t('configuration.editor.moreActions')"
+                align="end"
+                placement="above"
+                trigger-variant="quiet"
+                trigger-size="sm"
+                trigger-icon-only
+              >
+                <template #trigger>
+                  <AppIcon name="more" aria-hidden="true" />
+                </template>
+                <template #default="{ close }">
+                  <!-- Only shown where the bar is too narrow to hold it; see components.css. -->
+                  <template v-if="machineFiles.currentFile && !isCurrentFilePreview">
+                    <AppButton
+                      variant="danger-quiet"
+                      size="sm"
+                      start
+                      block
+                      class="machine-command-bar__menu-discard"
+                      :label="t('configuration.editor.discard')"
+                      :disabled="!machineFiles.isDirty"
+                      @click="
+                        () => {
+                          close()
+                          requestDiscardChanges()
+                        }
+                      "
+                    />
+                    <p
+                      class="header-menu__divider machine-command-bar__menu-divider"
+                      role="separator"
+                    ></p>
+                  </template>
+                  <p class="header-menu__section-title">
+                    {{ t('configuration.editor.allUnsaved') }}
+                  </p>
+                  <AppButton
+                    variant="quiet"
+                    size="sm"
+                    start
+                    block
+                    :label="t('configuration.actions.saveAll')"
+                    :disabled="!canSaveAll"
+                    @click="
+                      () => {
+                        close()
+                        requestSaveAll()
+                      }
+                    "
+                  />
+                  <AppButton
+                    variant="danger-quiet"
+                    size="sm"
+                    start
+                    block
+                    :label="t('configuration.actions.discardAll')"
+                    :disabled="!machineFiles.hasUnsavedFiles"
+                    @click="
+                      () => {
+                        close()
+                        requestDiscardAll()
+                      }
+                    "
+                  />
+                </template>
+              </HeaderMenu>
+            </div>
+          </footer>
         </section>
 
-        <aside class="machine-explorer" :aria-label="t('configuration.files.title')">
+        <aside
+          ref="explorerPane"
+          class="machine-explorer"
+          :aria-label="t('configuration.files.title')"
+          @pointerenter="explorerPeek.onPanelPointerEnter"
+          @pointerleave="explorerPeek.onPointerLeave"
+          @focusin="explorerPeek.onFocusIn"
+          @focusout="explorerPeek.onFocusOut"
+        >
           <header class="machine-pane-header">
             <div class="machine-pane-header__identity">
               <p class="machine-pane-storage">
@@ -2434,25 +2541,6 @@ onBeforeUnmount(() => {
                 -->
                 <AppIcon name="refresh" class="size-4" aria-hidden="true" />
               </AppButton>
-              <AppButton
-                size="xs"
-                icon="save"
-                :disabled="!canSaveAll"
-                :pending="machineFiles.isMutating && machineFiles.hasUnsavedFiles"
-                :aria-label="t('configuration.actions.saveAll')"
-                :title="t('configuration.actions.saveAll')"
-                @click="requestSaveAll"
-              />
-              <AppButton
-                variant="danger-quiet"
-                size="xs"
-                icon-only
-                icon="undo"
-                :disabled="!machineFiles.hasUnsavedFiles"
-                :aria-label="t('configuration.actions.discardAll')"
-                :title="t('configuration.actions.discardAll')"
-                @click="requestDiscardAll"
-              />
               <AppButton
                 size="xs"
                 icon-only
@@ -2545,20 +2633,6 @@ onBeforeUnmount(() => {
               </HeaderMenu>
             </div>
           </header>
-
-          <div class="machine-root-tabs" role="group" :aria-label="t('configuration.roots.label')">
-            <button
-              v-for="root in fileRoots"
-              :key="root"
-              type="button"
-              class="tab-select"
-              :aria-pressed="machineFiles.currentRoot === root"
-              :disabled="!moonrakerAvailability.isAvailable"
-              @click="machineFiles.setRoot(root)"
-            >
-              {{ t(`configuration.roots.${root}`) }}
-            </button>
-          </div>
 
           <div class="machine-file-controls">
             <label class="field field--sm field--on-soft machine-search">
@@ -2799,6 +2873,58 @@ onBeforeUnmount(() => {
             >
           </footer>
         </aside>
+
+        <!--
+          Visual Studio's tool-window strip: outside both cards, so the pin
+          exists whether or not a tab does and whether or not the explorer is
+          out, and the roots cost the tree none of its height. A file dragged
+          in from the desktop over it brings an auto-hidden explorer out to
+          drop onto.
+        -->
+        <div
+          ref="sideStrip"
+          class="machine-side-strip"
+          @pointerenter="explorerPeek.onStripPointerEnter"
+          @pointerleave="explorerPeek.onPointerLeave"
+          @focusin="explorerPeek.onFocusIn"
+          @focusout="explorerPeek.onFocusOut"
+          @dragenter="explorerPeek.show"
+        >
+          <!--
+            The icon is the state, as Visual Studio's pushpin is: upright while
+            docked, on its side while auto-hidden. No pressed state, so no
+            accent either; the name says what a press will do.
+          -->
+          <AppButton
+            v-if="!singlePane"
+            ref="explorerPinButton"
+            variant="quiet"
+            size="xs"
+            icon-only
+            :icon="explorerHidden ? 'pushpinSideways' : 'pushpin'"
+            class="machine-explorer-pin"
+            :aria-label="
+              t(explorerHidden ? 'configuration.explorer.pin' : 'configuration.explorer.unpin')
+            "
+            :title="
+              t(explorerHidden ? 'configuration.explorer.pin' : 'configuration.explorer.unpin')
+            "
+            @click="toggleExplorerPin"
+          />
+          <div class="machine-root-tabs" role="group" :aria-label="t('configuration.roots.label')">
+            <button
+              v-for="root in fileRoots"
+              :key="root"
+              type="button"
+              class="tab-select tab-select--vertical"
+              :aria-pressed="machineFiles.currentRoot === root"
+              :disabled="!moonrakerAvailability.isAvailable"
+              @click="chooseRoot(root)"
+            >
+              {{ t(`configuration.roots.${root}`) }}
+            </button>
+          </div>
+        </div>
       </div>
     </AvailabilityRegion>
 

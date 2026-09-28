@@ -229,7 +229,7 @@ onBeforeUnmount(() => quickConfig.stop())
           @click="save(false)"
         />
         <AppButton
-          icon="refresh"
+          icon="saveRestart"
           :label="t('configuration.quickConfig.saveRestart')"
           :title="saveRestartTitle"
           :disabled="!canSaveRestart"

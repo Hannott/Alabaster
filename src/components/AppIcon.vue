@@ -81,6 +81,8 @@ export type AppIconName =
   | 'overview'
   | 'pause'
   | 'pin'
+  | 'pushpin'
+  | 'pushpinSideways'
   | 'play'
   | 'plusCircleOutlined'
   | 'popout'
@@ -94,6 +96,7 @@ export type AppIconName =
   | 'rename'
   | 'right'
   | 'save'
+  | 'saveRestart'
   | 'send'
   | 'sensor'
   | 'settings'
@@ -1154,6 +1157,19 @@ defineProps<{ name: AppIconName }>()
       <path d="M5 3h12l3 3v15H4V4a1 1 0 0 1 1-1Z" />
       <path d="M8 3v6h8V3M8 21v-7h8v7" />
     </g>
+    <!--
+      Drawn for this grid rather than sourced: `save`'s outline cut back to
+      the top left, with a restart arc in the corner it gave up. Save and
+      restart used to borrow `refresh`, which on the same page also meant
+      re-reading the explorer's folder, so one glyph stood for both a harmless
+      listing refresh and a Klipper restart.
+    -->
+    <g v-else-if="name === 'saveRestart'">
+      <path d="M11 17H4V4a1 1 0 0 1 1-1h8l3 3v4" />
+      <path d="M7 3v4h6V3M7 17v-4h4" />
+      <path d="M21 17.5a3.5 3.5 0 1 1-1.03-2.47" />
+      <path d="M20 12.5V15h-2.5" />
+    </g>
     <!-- Griddy Icons' "file-search" glyph (MIT licensed). -->
     <g v-else-if="name === 'fileSearch'" fill="currentColor" stroke="none">
       <path
@@ -1509,6 +1525,15 @@ defineProps<{ name: AppIconName }>()
       <path d="m17.5 12.5 2.5-2.5 2.5 2.5" />
       <path d="m17.5 17.5 2.5 2.5 2.5-2.5" />
     </g>
+    <!--
+      Visual Studio's auto-hide pushpin, drawn for this grid: upright while a
+      panel is docked, turned on its side while it auto-hides. The two are one
+      glyph rotated a quarter turn, so they read as the same pin in two states
+      rather than two different controls. Unlike `filePin`, which names the
+      action on a document tab, these show the state the panel is in.
+    -->
+    <path v-else-if="name === 'pushpin'" d="M8 3h8M10 3v6l-3 3v1h10v-1l-3-3V3M12 13v8" />
+    <path v-else-if="name === 'pushpinSideways'" d="M21 8v8M21 10h-6l-3-3h-1v10h1l3-3h6M11 12H3" />
     <g v-else>
       <rect x="3" y="3" width="18" height="18" rx="3" />
       <path d="M9 3v18" />

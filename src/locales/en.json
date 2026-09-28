@@ -1904,6 +1904,10 @@
       "saveAllRestartDescription": "Other files have unsaved changes. These are saved before the firmware restarts:",
       "unsaved": "Unsaved",
       "readOnly": "Read only",
+      "otherUnsaved": "Other unsaved files: {count}",
+      "filesUnsaved": "Unsaved files: {count}",
+      "moreActions": "More file actions",
+      "allUnsaved": "All unsaved files",
       "contentLabel": "Contents of {name}",
       "opening": "Opening {name}…",
       "openInclude": "Ctrl+click to open {path}",
@@ -1939,8 +1943,8 @@
       "menuLabel": "Actions for {name}"
     },
     "explorer": {
-      "show": "Show explorer",
-      "hide": "Hide explorer"
+      "pin": "Pin explorer",
+      "unpin": "Unpin explorer"
     },
     "errors": {
       "directory": "The folder could not be refreshed. Existing files remain visible.",

@@ -342,7 +342,7 @@ describe('page layout contract', () => {
    */
   it('reserves the height of every band in a file workspace stack', () => {
     for (const band of [
-      '.machine-root-tabs',
+      '.machine-command-bar',
       '.machine-file-controls',
       '.print-files-breadcrumbs',
     ]) {
@@ -363,20 +363,31 @@ describe('page layout contract', () => {
     expect(view).toContain('<footer class="machine-explorer-footer">')
   })
 
-  it('gives the root switcher its own band rather than a row inside the header', () => {
+  /*
+   * The roots and the explorer's pin used to be a band inside the explorer and
+   * a hide button at the end of the tab well — a card away from the pane it
+   * hid, and gone whenever no tab was open. They share one strip outside
+   * both cards, after the explorer, where neither depends on the other.
+   */
+  it('keeps the roots and the explorer pin in a side strip outside both cards', () => {
     const view = source('views/ConfigurationView.vue')
 
-    // The band sits between the header and the search band, and closes with a
-    // border like every other band in this stack.
-    expect(view).toMatch(/<\/header>\s*<div class="machine-root-tabs"/s)
-    expect(styles).toMatch(/\.machine-root-tabs\s*\{[^}]*border-block-end:\s*1px solid/s)
-    expect(styles).toMatch(/\.machine-pane-header\s*\{[^}]*height:\s*4rem/s)
+    const strip = view.slice(view.indexOf('class="machine-side-strip"'))
+    expect(view.indexOf('class="machine-side-strip"')).toBeGreaterThan(
+      view.indexOf('class="machine-explorer"'),
+    )
+    expect(strip).toMatch(/^[^]*?machine-explorer-pin[^]*?<div class="machine-root-tabs"/)
+    expect(view).not.toMatch(/<\/header>\s*<div class="machine-root-tabs"/s)
+    expect(view.slice(0, view.indexOf('</ConfigurationTabWell>'))).not.toContain(
+      'machine-explorer-pin',
+    )
 
-    // Underline tabs from the documented `tab-select` pattern, and the accent has
-    // to sit over the strip's border rather than inside the tab's own box — inside
-    // it leaves that border showing underneath and reads as two lines.
-    expect(view).toContain('class="tab-select"')
-    expect(view).not.toContain('machine-root-switch')
+    // Still the documented `tab-select`, turned with `writing-mode` rather than
+    // a transform, and its accent sits over the strip's border: the underline is
+    // written in logical properties, which is what moves it to the left edge.
+    expect(view).toContain('class="tab-select tab-select--vertical"')
+    expect(styles).toMatch(/\.tab-select--vertical\s*\{[^}]*writing-mode:\s*vertical-rl/s)
+    expect(styles).toMatch(/\.machine-side-strip\s*\{[^}]*border-inline-start:\s*1px solid/s)
     expect(styles).toMatch(
       /\.tab-select\[aria-pressed='true'\]::after\s*\{[^}]*inset-block-end:\s*-1px/s,
     )

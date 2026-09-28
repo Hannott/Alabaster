@@ -1904,6 +1904,10 @@
       "saveAllRestartDescription": "Andre filer har ulagrede endringer. Disse lagres før fastvaren starter på nytt:",
       "unsaved": "Ikke lagret",
       "readOnly": "Skrivebeskyttet",
+      "otherUnsaved": "Andre ulagrede filer: {count}",
+      "filesUnsaved": "Ulagrede filer: {count}",
+      "moreActions": "Flere filhandlinger",
+      "allUnsaved": "Alle ulagrede filer",
       "contentLabel": "Innholdet i {name}",
       "opening": "Åpner {name} …",
       "openInclude": "Ctrl-klikk for å åpne {path}",
@@ -1939,8 +1943,8 @@
       "menuLabel": "Handlinger for {name}"
     },
     "explorer": {
-      "show": "Vis utforskeren",
-      "hide": "Skjul utforskeren"
+      "pin": "Fest utforskeren",
+      "unpin": "Løsne utforskeren"
     },
     "errors": {
       "directory": "Mappen kunne ikke oppdateres. Eksisterende filer forblir synlige.",

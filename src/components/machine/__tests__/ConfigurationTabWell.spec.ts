@@ -204,6 +204,19 @@ describe('ConfigurationTabWell', () => {
     expect(view.emitted('pin')).toEqual([['a.cfg']])
   })
 
+  it('names a pinned tab’s pin as its action rather than pressing it', async () => {
+    const view = await mountWell({ pinned: [file('printer.cfg')] })
+    const pinnedPin = view.find('.document-tabs__row--pinned .document-tab__control--pin')
+    const openPin = view
+      .find('.document-tabs__rows [data-tab-path="a.cfg"]')
+      .element.parentElement!.querySelector('.document-tab__control--pin')!
+
+    expect(pinnedPin.attributes('aria-pressed')).toBeUndefined()
+    expect(pinnedPin.attributes('aria-label')).toBe('Unpin printer.cfg')
+    expect(openPin.getAttribute('aria-pressed')).toBeNull()
+    expect(openPin.getAttribute('aria-label')).toBe('Pin a.cfg')
+  })
+
   it('divides pinned tabs from the rest only when both are there', async () => {
     const both = await mountWell({ pinned: [file('printer.cfg')] })
     expect(both.find('.document-tabs__row--divided').exists()).toBe(true)

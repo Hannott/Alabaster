@@ -1056,6 +1056,19 @@ input[type='radio']:focus-visible,
   background: var(--action-primary);
 }
 
+/*
+ * Configuration's side strip, reading top to bottom as Visual Studio's does.
+ * `writing-mode` rather than a rotation, so layout, hit-testing, zoom, and the
+ * reader's typeface all see real text. The underline above is written in
+ * logical properties, so in vertical writing it lands on the tab's left edge,
+ * over the strip's inner border and facing the explorer it names.
+ */
+.tab-select--vertical {
+  writing-mode: vertical-rl;
+  padding-block: 0;
+  padding-inline: 0.6rem;
+}
+
 /* A label that is a value, not a verb: step sizes, jog distances, speeds. */
 .button--value {
   font-family: var(--font-mono);
@@ -10685,10 +10698,10 @@ select {
  * cards on a board.
  */
 .machine-workspace {
+  position: relative;
   display: flex;
   block-size: 100%;
   min-height: 0;
-  gap: 1rem;
   --machine-card-radius: 0.25rem;
 }
 
@@ -10712,12 +10725,67 @@ body.machine-editor-fullscreen-open {
   border-radius: var(--machine-card-radius);
   background: var(--surface-soft);
   contain: inline-size;
+  /* A margin rather than the workspace's gap: the side strip after it sits closer. */
+  margin-inline-start: 1rem;
   --machine-explorer-width: 22rem;
 }
 
-/* Hidden only beside an open file: with nothing open it is the whole page. */
-.machine-workspace--editor-open.machine-workspace--explorer-hidden .machine-explorer {
-  display: none;
+/*
+ * Unpinned, the explorer auto-hides the way a Visual Studio tool window does:
+ * out of the flow, so the viewer takes its width, and slid away behind the
+ * side strip until the strip is hovered. It slides back over the viewer into
+ * exactly the place it docks in, so pinning it while it is out moves nothing.
+ *
+ * A transform, not a width: the viewer's width changes once, when the pin
+ * does, and is never animated (ADR 0004). The slide is the only movement, and
+ * it is on one composited layer. `visibility` follows the slide out, so the
+ * hidden explorer leaves the Tab order and the accessibility tree, and comes
+ * back at once on the way in. Only where the explorer can dock at all: below
+ * 55 rem the workspace shows one card at a time instead.
+ */
+@media (min-width: 55rem) {
+  .machine-workspace--explorer-unpinned {
+    /* The slid-away explorer would otherwise widen the page by its own width. */
+    overflow: clip;
+  }
+
+  .machine-workspace--explorer-unpinned .machine-explorer {
+    position: absolute;
+    z-index: 20;
+    inset-block: 0;
+    /* The strip's 2rem and its 0.5rem gap, where the docked explorer ends. */
+    inset-inline-end: 2.5rem;
+    margin-inline-start: 0;
+    box-shadow: -0.75rem 0 2rem color-mix(in srgb, var(--ito-black) 16%, transparent);
+    transform: translateX(calc(100% + 2.5rem));
+    visibility: hidden;
+    transition:
+      transform var(--motion-duration-standard) var(--motion-ease-standard),
+      visibility 0s linear var(--motion-duration-standard);
+  }
+
+  .machine-workspace--explorer-unpinned.machine-workspace--explorer-peek .machine-explorer {
+    transform: none;
+    visibility: visible;
+    transition:
+      transform var(--motion-duration-standard) var(--motion-ease-standard),
+      visibility 0s;
+  }
+
+  /* Above the sliding explorer and opaque, so the explorer travels out from behind it. */
+  .machine-workspace--explorer-unpinned .machine-side-strip {
+    position: relative;
+    z-index: 21;
+    background: var(--surface-canvas);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* No slide, and no delayed hide either: the explorer is simply there or not. */
+  .machine-workspace--explorer-unpinned .machine-explorer,
+  .machine-workspace--explorer-unpinned.machine-workspace--explorer-peek .machine-explorer {
+    transition: none;
+  }
 }
 
 .machine-pane-header {
@@ -10756,35 +10824,30 @@ body.machine-editor-fullscreen-open {
 }
 
 /*
- * The root switcher gets a band of its own in the pane's stack, between the
- * header and the breadcrumbs, rather than a third line inside the header.
- *
- * Two reasons, both learned by getting it wrong: `.machine-pane-header` is a
- * fixed `4rem`, so anything added to its identity block is clipped rather than
- * given room — the heading lost its top edge. And a control sitting in the title
- * block reads as floating over the copy instead of belonging to the pane, because
- * every other band here is a full-width strip closed by a border.
- *
- * The control itself is the shared `segmented` track, which already states a
- * choice among a few options and keeps its width fixed as the selection moves.
- * A bespoke one was the wrong instinct: `button-system.md` documents this exact
- * shape, and the reason it exists is that four near-identical ones had grown per
- * feature before it.
+ * Visual Studio's tool-window strip, at the workspace's right edge and outside
+ * both cards: the explorer toggle on top, then the roots as tabs whose text
+ * runs top to bottom. It used to be two things in two places — the toggle at
+ * the end of the viewer's tab well, a card away from the pane it hid and gone
+ * whenever no tab was open, and the roots in a 2.9rem band inside the
+ * explorer, height the tree paid for. Flat on the page rather than a card of
+ * its own, because a third card would read as a third pane.
  */
+.machine-side-strip {
+  display: flex;
+  flex: 0 0 2rem;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  margin-inline-start: 0.5rem;
+  padding-block-start: 0.35rem;
+  border-inline-start: 1px solid var(--border-subtle);
+}
+
 .machine-root-tabs {
   display: flex;
-  /* The breadcrumbs' own band height, so the two strips below the header read as
-     a pair rather than one bulging above the other. */
-  height: 2.9rem;
-  min-height: 2.9rem;
-  flex: 0 0 2.9rem;
-  align-items: center;
-  gap: 0.9rem;
-  /* 1rem, matching the breadcrumbs and the column strip below. The header's own
-     0.75rem is the outlier in this stack, and following it here would put this
-     band out of line with both of its neighbors to gain alignment with one. */
-  padding-inline: 1rem;
-  border-block-end: 1px solid var(--border-subtle);
+  flex-direction: column;
+  align-self: stretch;
+  gap: 0.25rem;
 }
 
 .machine-pane-storage {
@@ -11071,8 +11134,9 @@ body.machine-editor-fullscreen-open {
  */
 .machine-explorer-footer {
   display: flex;
-  block-size: 2.25rem;
-  flex: 0 0 2.25rem;
+  /* The viewer's command bar's height, so the two cards end on one line. */
+  block-size: 2.5rem;
+  flex: 0 0 2.5rem;
   align-items: center;
   gap: 0.6rem;
   overflow: hidden;
@@ -11288,26 +11352,89 @@ body.machine-editor-fullscreen-open {
   filter: saturate(0.58);
 }
 
-/*
- * The open file's actions, in the tab well's tool column. Icon-only at every
- * width: they used to carry labels on a toolbar row of their own, which cost
- * the editor a row to say what the tab already said.
- */
+/* The viewer's own chrome in the tab well's tool column: help and fullscreen. */
 .machine-editor-actions {
   display: flex;
   align-items: center;
   gap: 0.15rem;
 }
 
-.machine-editor-actions .machine-readonly-mark {
-  margin-inline-end: 0.3rem;
+/*
+ * The open file's actions, labelled, and a menu for every unsaved file. They
+ * were icon-only in the tab well, where `xs` cannot carry a label, and Save
+ * all and Discard all sat in the explorer header with the same glyphs as
+ * Save and Discard, so two save and two discard buttons stood a card apart
+ * looking identical. A band of fixed height, so the state text changing never
+ * moves the editor.
+ */
+.machine-command-bar {
+  display: flex;
+  block-size: 2.5rem;
+  min-height: 2.5rem;
+  flex: 0 0 2.5rem;
+  align-items: center;
+  gap: 0.5rem;
+  padding-inline: 0.75rem 0.25rem;
+  border-block-start: 1px solid var(--border-subtle);
+  background: var(--surface-raised);
 }
 
-.document-tabs__separator {
-  inline-size: 1px;
-  block-size: 1rem;
-  margin-inline: 0.3rem;
-  background: var(--border-subtle);
+.machine-command-bar__state {
+  display: flex;
+  flex: 1 1 0;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: var(--text-meta-size);
+  font-weight: var(--font-weight);
+  white-space: nowrap;
+}
+
+.machine-command-bar__count {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.machine-command-bar__actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/*
+ * Discard changes has one place at each width: on the bar while the three
+ * labelled actions fit, in the menu once they would not. Every label keeps
+ * its words at every width, so the bar never falls back to icons.
+ */
+.machine-command-bar__menu-discard,
+.machine-command-bar__menu-divider {
+  display: none;
+}
+
+@container machine-editor-pane (max-width: 32rem) {
+  .machine-command-bar__discard {
+    display: none;
+  }
+
+  .machine-command-bar__menu-discard {
+    display: flex;
+  }
+
+  .machine-command-bar__menu-divider {
+    display: block;
+  }
+
+  .machine-command-bar__state {
+    display: none;
+  }
+
+  .machine-command-bar__actions {
+    flex: 1 1 auto;
+    justify-content: flex-end;
+  }
 }
 
 .machine-feedback {
@@ -12074,8 +12201,9 @@ body.machine-editor-fullscreen-open {
 /*
  * Pin and close, in that order, in the slots the tab reserved — Visual
  * Studio's arrangement. Both show on hover, on focus, and on the tab on
- * screen; a pinned tab's pin shows always, since it is what says the tab is
- * pinned. Outlier 14 in button-system.md: a tab is shorter than the size
+ * screen, and nowhere else: a pinned tab is already told apart by the row it
+ * sits in, so its unpin control has no marking job that would keep it
+ * showing. Outlier 14 in button-system.md: a tab is shorter than the size
  * scale's smallest control, so these two are sized to the tab rather than
  * growing it. `min-inline-size` has to be reset as well as `inline-size`, or
  * `button--xs`'s own minimum keeps each control 1.75rem wide and the pair
@@ -12108,13 +12236,8 @@ body.machine-editor-fullscreen-open {
 .document-tab:hover .document-tab__control,
 .document-tab:focus-within .document-tab__control,
 .document-tab--active .document-tab__control--pin,
-.document-tab--active:not(.document-tab--dirty) .document-tab__control--close,
-.document-tab--pinned .document-tab__control--pin {
+.document-tab--active:not(.document-tab--dirty) .document-tab__control--close {
   opacity: 1;
-}
-
-.document-tab--pinned .document-tab__control--pin {
-  color: var(--text-primary);
 }
 
 .document-tab--dirty:hover .document-tab__dirty-dot,
@@ -12270,28 +12393,20 @@ body.machine-editor-fullscreen-open {
 
   /*
    * One card at a time: the explorer until a file opens, then the viewer, and
-   * the explorer again whenever its toggle in the tab well asks for it.
+   * the explorer again whenever the side strip's toggle or a root asks for it.
+   * The strip stays at this width: it is the way back to the explorer that
+   * does not mean choosing a file.
    */
-  .machine-workspace {
-    display: block;
-    block-size: 100%;
-    min-height: 0;
-  }
-
   .machine-explorer {
-    inline-size: 100%;
+    inline-size: auto;
     height: 100%;
     min-height: 0;
-    flex-basis: auto;
+    flex: 1 1 0;
+    margin-inline-start: 0;
   }
 
   .machine-workspace--editor-open:not(.machine-workspace--mobile-explorer) .machine-explorer {
     display: none;
-  }
-
-  .machine-workspace--editor-open.machine-workspace--explorer-hidden.machine-workspace--mobile-explorer
-    .machine-explorer {
-    display: flex;
   }
 
   .machine-editor-pane {
