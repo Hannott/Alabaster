@@ -141,4 +141,29 @@ describe('Configuration editor context menu', () => {
     expect(menuButton('Toggle comment')).toBeUndefined()
     expect(menuButton('Copy')).toBeDefined()
   })
+
+  it('closes on a press outside and lets the press through to the page', async () => {
+    const view = await mountWith('printer.cfg')
+    await openMenuAtCaret(view, 2)
+    const press = new PointerEvent('pointerdown', { bubbles: true, cancelable: true })
+    textarea(view).dispatchEvent(press)
+    await flushPromises()
+
+    expect(press.defaultPrevented).toBe(false)
+    expect(document.body.querySelector('.file-context-menu')).toBeNull()
+  })
+
+  it('closes when the file scrolls, and not when the reader works inside the menu', async () => {
+    const view = await mountWith('printer.cfg')
+    await openMenuAtCaret(view, 2)
+    document.body
+      .querySelector('.file-context-menu')
+      ?.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }))
+    await flushPromises()
+    expect(document.body.querySelector('.file-context-menu')).not.toBeNull()
+
+    textarea(view).dispatchEvent(new WheelEvent('wheel', { bubbles: true, deltaY: 40 }))
+    await flushPromises()
+    expect(document.body.querySelector('.file-context-menu')).toBeNull()
+  })
 })

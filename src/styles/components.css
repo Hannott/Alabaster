@@ -10929,17 +10929,13 @@ body.machine-editor-fullscreen-open {
 /*
  * The right-click menu reuses the header menu's panel so there is one popover
  * look in the product. Only the positioning is its own: it opens at the pointer
- * rather than under a trigger, and a full-viewport backdrop catches the click
- * that dismisses it without swallowing the pointer events the panel needs.
+ * rather than under a trigger. It has no backdrop — a press outside closes it
+ * and still lands on the page, as an operating system's context menu does —
+ * so its layer is its own.
  */
-.file-context-menu__backdrop {
-  position: fixed;
-  z-index: 120;
-  inset: 0;
-}
-
 .file-context-menu {
   position: fixed;
+  z-index: 120;
   min-inline-size: 11rem;
 }
 
@@ -14556,7 +14552,7 @@ body.machine-editor-fullscreen-open {
  * own content, and clears itself once the reader has had time to read it.
  *
  * The stack sits above everything with a normal stacking context — including
- * `.macro-params__backdrop` and `.file-context-menu__backdrop`'s `120` — but
+ * `.macro-params__backdrop` and `.file-context-menu`'s `120` — but
  * never above a native `<dialog>`, which promotes to the browser's own top
  * layer regardless of any z-index here. `pointer-events: none` on the stack
  * keeps it from stealing clicks over whatever is underneath; only a toast's

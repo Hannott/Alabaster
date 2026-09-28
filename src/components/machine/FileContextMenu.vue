@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 const props = defineProps<{
   /** Viewport coordinates of the pointer that opened the menu. */
@@ -40,6 +40,47 @@ const style = computed(() => ({
   insetBlockStart: `${position.value.y}px`,
 }))
 
+/*
+ * It behaves like the operating system's own context menu: a press anywhere
+ * else closes it and still reaches whatever is under the pointer, and any
+ * scroll, resize, or loss of window focus closes it, since the row or text it
+ * was opened about has moved out from under it. A full-viewport backdrop used
+ * to take the dismissing press instead, which swallowed the click the reader
+ * meant for the page and froze every scroll area until the menu was dismissed.
+ *
+ * Listening in the capture phase is what lets the press close the menu before
+ * a right-click elsewhere opens the next one, and nothing here prevents it.
+ */
+function isInside(event: Event): boolean {
+  return event.target instanceof Node && (root.value?.contains(event.target) ?? false)
+}
+
+function closeFromOutside(event: Event): void {
+  if (!isInside(event)) emit('close')
+}
+
+function close(): void {
+  emit('close')
+}
+
+const outsideEvents = ['pointerdown', 'contextmenu', 'wheel', 'scroll'] as const
+
+onMounted(() => {
+  for (const type of outsideEvents) {
+    document.addEventListener(type, closeFromOutside, { capture: true, passive: true })
+  }
+  window.addEventListener('resize', close)
+  window.addEventListener('blur', close)
+})
+
+onBeforeUnmount(() => {
+  for (const type of outsideEvents) {
+    document.removeEventListener(type, closeFromOutside, { capture: true })
+  }
+  window.removeEventListener('resize', close)
+  window.removeEventListener('blur', close)
+})
+
 function onKeydown(event: KeyboardEvent): void {
   if (event.key === 'Escape') {
     event.stopPropagation()
@@ -54,18 +95,16 @@ function onKeydown(event: KeyboardEvent): void {
     scroll containers, and rendered above the workspace.
   -->
   <Teleport to="body">
-    <div class="file-context-menu__backdrop" @pointerdown="emit('close')" @contextmenu.prevent>
-      <div
-        ref="root"
-        class="header-menu__panel file-context-menu"
-        :style="style"
-        role="menu"
-        :aria-label="label"
-        @pointerdown.stop
-        @keydown="onKeydown"
-      >
-        <slot />
-      </div>
+    <div
+      ref="root"
+      class="header-menu__panel file-context-menu"
+      :style="style"
+      role="menu"
+      :aria-label="label"
+      @contextmenu.prevent
+      @keydown="onKeydown"
+    >
+      <slot />
     </div>
   </Teleport>
 </template>
