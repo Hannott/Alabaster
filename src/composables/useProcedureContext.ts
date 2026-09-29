@@ -9,6 +9,7 @@ import { useMacrosStore } from '@/stores/macros'
 import { usePrinterStore } from '@/stores/printer'
 import { usePrinterConfigStore } from '@/stores/printerConfig'
 import { useRunoutSensorsStore } from '@/stores/runoutSensors'
+import { useScrewsTiltStore } from '@/stores/screwsTilt'
 import { useShakeTuneStore } from '@/stores/shakeTune'
 import { useTelemetryStore } from '@/stores/telemetry'
 
@@ -29,6 +30,7 @@ export function useProcedureContext(): ComputedRef<ProcedureContext> {
   const printer = usePrinterStore()
   const printerConfig = usePrinterConfigStore()
   const runoutSensors = useRunoutSensorsStore()
+  const screwsTilt = useScrewsTiltStore()
   const shakeTune = useShakeTuneStore()
   const telemetry = useTelemetryStore()
 
@@ -73,6 +75,7 @@ export function useProcedureContext(): ComputedRef<ProcedureContext> {
               temperature: bedMesh.activeProbeTemperature,
             },
       newestGraph: (category) => shakeTune.resultsByCategory[category][0]?.name ?? null,
+      screwsTilt: () => (printerConfig.hasSection('screws_tilt_adjust') ? screwsTilt.status : null),
     }
   })
 }

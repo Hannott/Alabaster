@@ -13624,6 +13624,66 @@ body.machine-editor-fullscreen-open {
   font-weight: var(--font-weight-increased);
 }
 
+/*
+ * Bed screws as the bed: a grid whose columns and rows come from the screws'
+ * own coordinates, rear row first, so the reader stands in front of it. A
+ * base screw takes the accent border and the word, a level one the check
+ * colour and the word — never the colour alone.
+ */
+.calibration-screws {
+  display: grid;
+  grid-template-columns: repeat(var(--screw-columns, 2), minmax(0, 1fr));
+  grid-template-rows: repeat(var(--screw-rows, 2), auto);
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.calibration-screw {
+  display: grid;
+  gap: 0.15rem;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: 0.25rem;
+  background-color: var(--surface-raised);
+}
+
+.calibration-screw--base {
+  border-color: color-mix(in srgb, var(--accent-primary) 45%, transparent);
+}
+
+.calibration-screw__name {
+  color: var(--text-primary);
+  font-size: var(--text-row-name-size);
+  font-weight: var(--font-weight);
+}
+
+.calibration-screw__turn {
+  display: flex;
+  gap: 0.3rem;
+  align-items: baseline;
+  font-family: var(--font-mono);
+  font-size: var(--text-value-size);
+  font-variant-numeric: tabular-nums;
+}
+
+.calibration-screw--level .calibration-screw__turn {
+  color: var(--status-available);
+}
+
+.calibration-screw__z {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-hint-size);
+  font-variant-numeric: tabular-nums;
+}
+
+.calibration-screw > .button {
+  justify-self: start;
+  margin-block-start: 0.25rem;
+}
+
 .calibration-result__outcome {
   font-size: var(--text-hint-size);
 }

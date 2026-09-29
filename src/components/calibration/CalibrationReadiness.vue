@@ -23,7 +23,7 @@ const { t } = useI18n({ useScope: 'global' })
 const printer = usePrinterStore()
 const requirements = useProcedureRequirements()
 
-const order: readonly ProcedureRequirement[] = ['homed', 'notPrinting']
+const order: readonly ProcedureRequirement[] = ['homed', 'notPrinting', 'accelerometer']
 
 /** Only the conditions some procedure on this stage asks for; the band says nothing else. */
 const relevant = computed(() => {
@@ -31,8 +31,10 @@ const relevant = computed(() => {
   for (const procedure of props.procedures) {
     for (const requirement of procedure.requires) asked.add(requirement)
   }
-  // A probe position is one procedure's concern; its own checklist says it.
+  // A probe position, and a cleared mesh before a Z calibration, are one
+  // procedure's concern each; its own checklist says it.
   asked.delete('probeInBed')
+  asked.delete('zeroedForZ')
   // A fixed order, so the band reads the same on every stage.
   return order
     .filter((requirement) => asked.has(requirement))

@@ -321,9 +321,23 @@
       },
       "probeInBed": {
         "met": "Proben er over sengen",
-        "unmet": "Probens forskyvning ville ført den utenfor sengen. Flytt verktøyhodet først."
+        "unmet": "Probeforskyvningen ville ført den utenfor sengen."
       },
-      "homeAll": "Hom alle"
+      "homeAll": "Hom alle",
+      "accelerometer": {
+        "met": "Akselerometeret svarer",
+        "unmet": "Akselerometeret har ikke svart."
+      },
+      "zeroedForZ": {
+        "met": "Ingen mesh lastet, ingen Z-forskyvning",
+        "unmet": "En mesh er lastet eller en Z-forskyvning er satt; målingen ville tatt den med."
+      },
+      "fix": {
+        "home": "Hom alle",
+        "moveOverBed": "Flytt over sengen",
+        "checkAccelerometer": "Sjekk akselerometeret",
+        "zeroForZ": "Nullstill mesh og Z-forskyvning"
+      }
     },
     "result": {
       "title": "Resultat",
@@ -365,7 +379,8 @@
       "graph": "Graf",
       "similarity": "Remmelikhet",
       "health": "Mekanisk helse",
-      "symmetry": "Vibrasjonssymmetri"
+      "symmetry": "Vibrasjonssymmetri",
+      "maxDeviation": "Avviksgrense"
     },
     "param": {
       "stepper": "Motor",
@@ -381,7 +396,11 @@
       "bothAxes": "Begge",
       "defaultChip": "Standard",
       "advance": "Trykkforsprang",
-      "smoothTime": "Utjevningstid"
+      "smoothTime": "Utjevningstid",
+      "direction": "Skruretning",
+      "directionRelative": "Relativt til skrue 1",
+      "directionCw": "Alle med klokken",
+      "directionCcw": "Alle mot klokken"
     },
     "unit": {
       "seconds": "s",
@@ -725,6 +744,13 @@
       "no": "nei",
       "record": "Loggfør svarene",
       "recorded": "Loggført med denne kjøringen."
+    },
+    "screws": {
+      "base": "Basis",
+      "level": "I nivå",
+      "goTo": "Gå til",
+      "z": "z {value}",
+      "overLimit": "Over avviksgrensen: juster skruene og kjør på nytt."
     }
   },
   "history": {

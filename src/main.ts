@@ -8,6 +8,7 @@ import { useAnnouncementsStore } from '@/stores/announcements'
 import { useAuthStore } from '@/stores/auth'
 import { useBedMeshStore } from '@/stores/bedMesh'
 import { useBedScrewsStore } from '@/stores/bedScrews'
+import { useScrewsTiltStore } from '@/stores/screwsTilt'
 import { useConsoleStore } from '@/stores/console'
 import { useDevicePowerStore } from '@/stores/devicePower'
 import { useExcludeObjectStore } from '@/stores/excludeObject'
@@ -55,6 +56,7 @@ useManualProbeStore(pinia).start()
 // The same for a bed-screw round: `BED_SCREWS_ADJUST` is its own Klipper helper
 // with its own status object, so watching the probe never sees one.
 useBedScrewsStore(pinia).start()
+useScrewsTiltStore(pinia).start()
 // A runout can trip while the user is looking at any other page, so this
 // watches the sensor objects from startup rather than only while Calibration
 // happens to be open.

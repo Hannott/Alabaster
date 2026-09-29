@@ -19,6 +19,7 @@ import {
   parseProbeAccuracy,
   parseRetries,
   parseScrews,
+  parseScrewsStatus,
   parseShakeTuneShaper,
   parseShaperCalibrate,
   parseZOffset,
@@ -49,6 +50,7 @@ function context(
     pendingItems: () => ({}),
     mesh: () => null,
     newestGraph: () => null,
+    screwsTilt: () => null,
     ...overrides,
   }
 }
@@ -524,5 +526,70 @@ describe('what is due', () => {
     const procedures = [procedureById('probeAccuracy')!, procedureById('bedMesh')!]
     expect(initialProcedure(procedures, () => null, now)?.id).toBe('bedMesh')
     expect(initialProcedure(procedures, () => now, now)?.id).toBe('probeAccuracy')
+  })
+})
+
+describe('bed screws from the status object', () => {
+  const settings = (section: string) =>
+    section === 'screws_tilt_adjust'
+      ? {
+          screw1: [30, 30],
+          screw1_name: 'front left',
+          screw2: [200, 30],
+          screw2_name: 'front right',
+          screw3: [115, 200],
+          screw3_name: 'rear',
+        }
+      : null
+  const results = {
+    screw1: { z: 2.329, sign: 'CW' as const, adjust: '00:00', isBase: true },
+    screw2: { z: 2.391, sign: 'CW' as const, adjust: '00:15', isBase: false },
+    screw3: { z: 2.351, sign: 'CCW' as const, adjust: '00:05', isBase: false },
+  }
+
+  it('reads every screw from the status once it has changed since the run started', () => {
+    const ctx = context({
+      settings,
+      screwsTilt: () => ({ error: false, maxDeviation: 0.05, results }),
+    })
+    const procedure = procedureById('screwsTilt')!
+    const before = procedure.snapshot!({}, context({ screwsTilt: () => null }))
+    const result = parseScrewsStatus(['// front left (base) : x=30.0'], before, {}, ctx)
+    expect(result?.outcome).toBe('measured')
+    expect(result?.screws?.map((screw) => [screw.name, screw.sign, screw.minutes])).toEqual([
+      ['front left', null, 0],
+      ['front right', 'CW', 15],
+      ['rear', 'CCW', 5],
+    ])
+    expect(result?.rows).toEqual([
+      { label: { literal: 'front left' }, after: '' },
+      { label: { literal: 'front right' }, after: 'CW 00:15' },
+      { label: { literal: 'rear' }, after: 'CCW 00:05' },
+      { label: { key: 'calibration.result.maxDeviation' }, after: '0.050 mm' },
+    ])
+  })
+
+  it('falls back to the printed lines while the status is the previous run’s, or absent', () => {
+    const ctx = context({
+      settings,
+      screwsTilt: () => ({ error: false, maxDeviation: null, results }),
+    })
+    const before = procedureById('screwsTilt')!.snapshot!({}, ctx)
+    const lines = [
+      '// front left (base) : x=30.0, y=30.0, z=2.32900',
+      '// front right : x=200.0, y=30.0, z=2.39100 : adjust CW 00:15',
+    ]
+    const stale = parseScrewsStatus(lines, before, {}, ctx)
+    expect(stale?.screws).toBeUndefined()
+    expect(stale?.rows.map((row) => row.after)).toEqual(['', 'CW 00:15'])
+    expect(parseScrewsStatus(lines, {}, {}, context({ settings }))?.screws).toBeUndefined()
+  })
+
+  it('sends the turn direction only when one is chosen', () => {
+    const procedure = procedureById('screwsTilt')!
+    expect(procedure.build!({ DIRECTION: '' }, context())).toBe('SCREWS_TILT_CALCULATE')
+    expect(procedure.build!({ DIRECTION: 'CCW' }, context())).toBe(
+      'SCREWS_TILT_CALCULATE DIRECTION=CCW',
+    )
   })
 })

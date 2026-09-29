@@ -25,6 +25,7 @@ const context: ProcedureContext = {
   pendingItems: () => usePrinterStore().saveConfigPendingItems,
   mesh: () => null,
   newestGraph: () => null,
+  screwsTilt: () => null,
 }
 
 function say(raw: string, kind: 'response' | 'command' = 'response'): void {

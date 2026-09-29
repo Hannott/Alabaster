@@ -7,10 +7,14 @@ import AppField from '@/components/AppField.vue'
 import AppIcon from '@/components/AppIcon.vue'
 import AppSelect from '@/components/AppSelect.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
+import CalibrationScrewsGrid from '@/components/calibration/CalibrationScrewsGrid.vue'
 import { useActionGuard } from '@/composables/useActionGuard'
 import { useAvailability } from '@/composables/useAvailability'
 import { useProcedureContext } from '@/composables/useProcedureContext'
-import { useProcedureRequirements } from '@/composables/useProcedureRequirements'
+import {
+  useProcedureRequirements,
+  type RequirementFixId,
+} from '@/composables/useProcedureRequirements'
 import { useProcedureText } from '@/composables/useProcedureText'
 import {
   initialProcedureValues,
@@ -125,6 +129,23 @@ const unmet = computed(() =>
     .filter((state) => !state.met),
 )
 
+/*
+ * A fix moves or reads the machine, so it waits for the same things a run
+ * does: Klipper there, no print, and no procedure under way — a fix pressed
+ * mid-run would move the toolhead out from under a probe.
+ */
+const canFix = computed(
+  () =>
+    klipperAvailability.value.isAvailable &&
+    !printer.hasActivePrint &&
+    calibration.activeRun === null,
+)
+
+const fixIcons: Partial<Record<RequirementFixId, 'home' | 'move'>> = {
+  home: 'home',
+  moveOverBed: 'move',
+}
+
 const script = computed(() => props.procedure.build?.(values.value, context.value) ?? null)
 const missing = computed(() => missingProcedureValues(props.procedure, values.value))
 
@@ -221,6 +242,10 @@ function actionNote(action: ProcedureAction, at?: number): string | null {
 }
 
 const outcomeText = computed(() => {
+  // A screws run past its deviation limit fails on purpose, and says so itself.
+  if (run.value?.succeeded === false && result.value?.screws?.length) {
+    return t('calibration.screws.overLimit')
+  }
   if (run.value?.succeeded === false) return t('calibration.result.outcome.failed')
   if (!result.value) return null
   return t(`calibration.result.outcome.${result.value.outcome}`)
@@ -335,13 +360,13 @@ const effects = computed(() =>
           )
         }}</span>
         <AppButton
-          v-if="!requirements[requirement].met && requirements[requirement].fix === 'home'"
+          v-if="!requirements[requirement].met && requirements[requirement].fix"
           size="xs"
-          icon="home"
-          :label="t('calibration.requirement.homeAll')"
-          :pending="printer.pendingCommands.home"
-          :disabled="!klipperAvailability.isAvailable || printer.hasActivePrint"
-          @click="printer.homeAxes()"
+          :icon="fixIcons[requirements[requirement].fix!.id]"
+          :label="t(`calibration.requirement.fix.${requirements[requirement].fix!.id}`)"
+          :pending="requirements[requirement].fix!.pending"
+          :disabled="!canFix"
+          @click="requirements[requirement].fix!.run()"
         />
       </li>
     </ul>
@@ -431,7 +456,12 @@ const effects = computed(() =>
         <span class="calibration-result__when">{{ when(run.startedAt) }}</span>
       </div>
 
-      <table v-if="result && result.rows.length > 0" class="calibration-result__table">
+      <CalibrationScrewsGrid v-if="result?.screws?.length" :screws="result.screws" />
+
+      <table
+        v-if="result && result.rows.length > 0 && !result.screws?.length"
+        class="calibration-result__table"
+      >
         <thead>
           <tr>
             <th scope="col">{{ t('calibration.result.value') }}</th>

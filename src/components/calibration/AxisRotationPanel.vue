@@ -282,13 +282,13 @@ const history = computed(() => [...calibration.historyFor('axisRotation')].rever
             t(`calibration.requirement.${state.requirement}.unmet`)
           }}</span>
           <AppButton
-            v-if="state.fix === 'home'"
+            v-if="state.fix?.id === 'home'"
             size="xs"
             icon="home"
             :label="t('calibration.requirement.homeAll')"
-            :pending="printer.pendingCommands.home"
+            :pending="state.fix.pending"
             :disabled="!klipperAvailability.isAvailable || printer.hasActivePrint"
-            @click="printer.homeAxes()"
+            @click="state.fix.run()"
           />
         </li>
       </ul>

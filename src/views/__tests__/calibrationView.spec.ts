@@ -9,6 +9,7 @@ import { useAvailabilityStore } from '@/stores/availability'
 import { useBedMeshStore } from '@/stores/bedMesh'
 import { useCalibrationStore } from '@/stores/calibration'
 import { useConsoleStore } from '@/stores/console'
+import { useScrewsTiltStore } from '@/stores/screwsTilt'
 import { useDashboardLayoutStore } from '@/stores/dashboardLayout'
 import { useMacrosStore } from '@/stores/macros'
 import { useMoonrakerStore } from '@/stores/moonraker'
@@ -119,7 +120,18 @@ async function mountResonance() {
   vi.spyOn(useMacrosStore(pinia), 'hasMacro').mockImplementation(
     (name: string) => name === 'AXES_SHAPER_CALIBRATION',
   )
+  await withResonanceTester()
   return mountView('resonance')
+}
+
+/**
+ * A `[resonance_tester]` section, which every accelerometer run requires:
+ * before a query has answered, it is what says the chip is worth trusting.
+ */
+async function withResonanceTester(): Promise<void> {
+  const printerConfig = await import('@/stores/printerConfig')
+  const config = printerConfig.usePrinterConfigStore(pinia)
+  config.settings = { ...config.settings, resonance_tester: {} } as never
 }
 
 function seedTuningResults(): void {
@@ -1203,6 +1215,7 @@ describe('Calibration view', () => {
     vi.spyOn(useMacrosStore(pinia), 'hasMacro').mockImplementation(
       (name: string) => name === 'AXES_SHAPER_CALIBRATION',
     )
+    await withResonanceTester()
     homed()
     let resolveRpc: (() => void) | undefined
     vi.spyOn(useMoonrakerStore(pinia), 'rpcCall').mockImplementation(
@@ -1268,5 +1281,113 @@ describe('Calibration view', () => {
     const view = await mountView('resonance')
 
     expect(view.text()).not.toContain('EXCITATE_AXIS_AT_FREQ')
+  })
+  it('draws a screws run as the bed, from the status object, with a way to each screw', async () => {
+    const printerConfig = await import('@/stores/printerConfig')
+    const config = printerConfig.usePrinterConfigStore(pinia)
+    vi.spyOn(config, 'hasProbe', 'get').mockReturnValue(true)
+    config.settings = {
+      screws_tilt_adjust: {
+        screw1: [30, 30],
+        screw1_name: 'front left',
+        screw2: [200, 30],
+        screw2_name: 'front right',
+        screw3: [200, 200],
+        screw3_name: 'rear right',
+        screw4: [30, 200],
+        screw4_name: 'rear left',
+      },
+    } as never
+    homed()
+    const view = await mountView('bed')
+    const rpcCall = vi.spyOn(useMoonrakerStore(pinia), 'rpcCall').mockResolvedValue('ok' as never)
+    await selectProcedure(view, 'screwsTilt')
+
+    await runButton(view).trigger('click')
+    await flushPromises()
+    useScrewsTiltStore(pinia).results = {
+      screw1: { z: 2.329, sign: 'CW', adjust: '00:00', isBase: true },
+      screw2: { z: 2.391, sign: 'CW', adjust: '00:15', isBase: false },
+      screw3: { z: 2.351, sign: 'CCW', adjust: '00:05', isBase: false },
+      screw4: { z: 2.412, sign: 'CW', adjust: '01:20', isBase: false },
+    }
+    await flushPromises()
+
+    const screws = view.findAll('.calibration-screw')
+    expect(screws.map((screw) => screw.get('.calibration-screw__name').text())).toEqual([
+      'front left',
+      'front right',
+      'rear right',
+      'rear left',
+    ])
+    expect(screws[0]!.text()).toContain('Base')
+    expect(screws[1]!.text()).toContain('CW 00:15')
+    expect(screws[2]!.text()).toContain('Level')
+    // Rear row first: the grid reads the way the reader stands at the machine.
+    expect(screws[2]!.attributes('style')).toContain('grid-row: 1')
+    expect(screws[0]!.attributes('style')).toContain('grid-row: 2')
+    expect(view.find('.calibration-result__table').exists()).toBe(false)
+
+    await screws[1]!.get('button').trigger('click')
+    await flushPromises()
+    const move = rpcCall.mock.calls.find(
+      ([method, params]) =>
+        method === 'printer.gcode.script' &&
+        String((params as { script?: string })?.script).includes('G1 X200.00 Y30.00'),
+    )
+    expect(move).toBeDefined()
+  })
+
+  it('offers to move the probe over the bed, and holds every fix while a procedure runs', async () => {
+    const printerConfig = await import('@/stores/printerConfig')
+    const config = printerConfig.usePrinterConfigStore(pinia)
+    vi.spyOn(config, 'hasProbe', 'get').mockReturnValue(true)
+    vi.spyOn(config, 'probeOffset', 'get').mockReturnValue({ x: 20, y: 0 })
+    config.settings = { probe: { z_offset: 0.5 } } as never
+    const printer = usePrinterStore(pinia)
+    printer.buildVolume.minimum = [0, 0, 0]
+    printer.buildVolume.maximum = [200, 200, 200]
+    printer.motion.position = [190, 100, 5]
+    homed()
+    let resolveRpc: (() => void) | undefined
+    const rpcCall = vi.spyOn(useMoonrakerStore(pinia), 'rpcCall').mockImplementation(
+      (method: string) =>
+        new Promise((resolve) => {
+          if (method !== 'printer.gcode.script') {
+            resolve({ x: 'TRIGGERED', y: 'open' } as never)
+            return
+          }
+          resolveRpc = () => resolve('ok' as never)
+        }) as never,
+    )
+    const view = await mountView('bed')
+    await selectProcedure(view, 'probeAccuracy')
+
+    const fix = view
+      .findAll('.calibration-check button')
+      .find((button) => button.text().includes('Move over the bed'))!
+    expect(fix.attributes('disabled')).toBeUndefined()
+    await fix.trigger('click')
+    await flushPromises()
+    const move = rpcCall.mock.calls.find(
+      ([method, params]) =>
+        method === 'printer.gcode.script' &&
+        String((params as { script?: string })?.script).includes('G1 X100.00 Y100.00 Z10.00'),
+    )
+    expect(move).toBeDefined()
+    resolveRpc?.()
+    await flushPromises()
+
+    // A run under way: the fix waits, so it cannot move the toolhead out from under a probe.
+    await selectProcedure(view, 'probeZOffset')
+    await runButton(view).trigger('click')
+    await flushPromises()
+    await selectProcedure(view, 'probeAccuracy')
+    const held = view
+      .findAll('.calibration-check button')
+      .find((button) => button.text().includes('Move over the bed'))!
+    expect(held.attributes('disabled')).toBeDefined()
+    resolveRpc?.()
+    await flushPromises()
   })
 })

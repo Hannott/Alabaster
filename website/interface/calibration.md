@@ -31,8 +31,13 @@ Pick a calibration from the list. It shows what it does, how long it takes,
 and whether it moves the toolhead, heats, or probes.
 
 - **Conditions** such as _Homed_ or _No print running_ are listed with a mark
-  each. An unmet one says so and offers the fix, such as **Home all**. The band
-  above the list shows the conditions for the whole job.
+  each. An unmet one says so and offers the fix: **Home all**, **Move over the
+  bed** for a probe test whose probe would otherwise land past the bed's edge
+  (to the mesh's zero reference, the safe-Z home, or the bed's centre, in that
+  order), **Check accelerometer** before a resonance run, and **Clear mesh and
+  Z offset** before a Z calibration, so what it measures is the probe alone.
+  A fix waits while a calibration runs. The band above the list shows the
+  conditions for the whole job.
 - **Values** you might change, such as a mesh profile name or a heater's
   target, are fields with Klipper's default shown. The command they build is
   shown under them.
@@ -170,6 +175,17 @@ screw's name, the current round, and Klipper's three answers: **Accept**,
 including closing the window: a **Bed screws** control appears in the header
 while a round is waiting. See
 [the Movement module](/interface/modules#bed-levelling).
+
+## Bed screws
+
+**Bed screws** probes beside each screw and draws the result as the bed: each
+screw in its corner, rear row first, with the turn that levels it against the
+base screw and the height it probed at. A screw within a few minutes of a
+turn says **Level**. **Go to** moves the toolhead over that screw, for a
+paper check or to reach the screw with the nozzle out of the way. The turn
+direction can be fixed for every screw, clockwise or counter-clockwise, so
+you never turn one back. A run past the deviation limit set in the config
+says so and asks for another run after the adjustment.
 
 ## Homing and levelling
 

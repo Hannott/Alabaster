@@ -1,5 +1,10 @@
 import { axisSteppers } from '@/features/calibration/axisRotation'
 import { isNonlinearModel, readNpaConfig } from '@/features/calibration/nonlinearPressureAdvance'
+import {
+  screwReadings,
+  type ScrewReading,
+  type ScrewsTiltStatus,
+} from '@/features/calibration/screws'
 import type { CalibrationStageId } from '@/features/calibration/stages'
 import {
   latestShaperRecommendations,
@@ -57,8 +62,14 @@ export type ProcedureId =
   | 'nonlinearPressureAdvance'
   | 'runoutSensors'
 
-/** What a procedure needs before Run is offered. Each has a word, and most have a fix. */
-export type ProcedureRequirement = 'homed' | 'notPrinting' | 'probeInBed'
+/**
+ * What a procedure needs before Run is offered. Each has a word, and most
+ * have a fix. `zeroedForZ` is Klipper's own advice before a Z calibration —
+ * no mesh loaded and no Z offset applied, so the number it measures is the
+ * probe's and not the probe's plus whatever the last print left behind.
+ */
+export type ProcedureRequirement =
+  'homed' | 'notPrinting' | 'probeInBed' | 'accelerometer' | 'zeroedForZ'
 
 /** What a procedure does to the machine, stated once in its workspace. */
 export type ProcedureEffect = 'moves' | 'heats' | 'probes'
@@ -163,6 +174,8 @@ export interface ProcedureContext {
   mesh: () => MeshState | null
   /** The newest graph's file name in a Shake&Tune result folder, or null. */
   newestGraph: (category: GraphCategory) => string | null
+  /** `screws_tilt_adjust`'s status, or null where the printer has no such section. */
+  screwsTilt: () => ScrewsTiltStatus | null
 }
 
 export interface ProcedureResultRow {
@@ -205,6 +218,8 @@ export interface ProcedureResult {
   rows: readonly ProcedureResultRow[]
   outcome: ProcedureOutcome
   actions?: readonly ProcedureAction[]
+  /** Bed screws with their place on the bed, for a result drawn as the bed rather than listed. */
+  screws?: readonly ScrewReading[]
 }
 
 export type ProcedureValues = Readonly<Record<string, string>>
@@ -609,6 +624,38 @@ export function parseScrews(lines: readonly string[]): ProcedureResult | null {
   }
   if (rows.length === 0) return outcomeOnly(lines)
   return { rows, outcome: 'measured' }
+}
+
+/**
+ * Bed screws from `screws_tilt_adjust`'s status rather than its lines: every
+ * screw's height, direction and turn, and whether the run went past
+ * `MAX_DEVIATION`. The status persists between runs, so a result is read
+ * only once it differs from the one the run started with; until then, or on
+ * a Klipper too old to report the object, the printed lines are read as
+ * before.
+ */
+export function parseScrewsStatus(
+  lines: readonly string[],
+  before: ProcedureSnapshot,
+  _values: ProcedureValues,
+  context: ProcedureContext,
+): ProcedureResult | null {
+  const status = context.screwsTilt()
+  const unchanged = status === null || JSON.stringify(status.results) === before.results
+  if (unchanged || Object.keys(status.results).length === 0) return parseScrews(lines)
+  const screws = screwReadings(status, context.settings('screws_tilt_adjust'))
+  if (screws.length === 0) return parseScrews(lines)
+  const rows: ProcedureResultRow[] = screws.map((screw) => ({
+    label: literal(screw.name),
+    after: screw.isBase ? '' : `${screw.sign} ${screw.adjust}`,
+  }))
+  if (status.maxDeviation !== null) {
+    rows.push({
+      label: key('calibration.result.maxDeviation'),
+      after: `${status.maxDeviation.toFixed(3)} mm`,
+    })
+  }
+  return { rows, outcome: 'measured', screws }
 }
 
 export function parsePid(
@@ -1067,7 +1114,7 @@ export const calibrationProcedures: readonly CalibrationProcedure[] = [
     stage: 'axes',
     command: 'AXES_MAP_CALIBRATION',
     available: (context) => context.hasMacro('AXES_MAP_CALIBRATION'),
-    requires: ['homed', 'notPrinting'],
+    requires: ['homed', 'notPrinting', 'accelerometer'],
     effects: ['moves'],
     duration: 'minute',
     staleAfterDays: null,
@@ -1168,8 +1215,24 @@ export const calibrationProcedures: readonly CalibrationProcedure[] = [
     effects: ['moves', 'probes'],
     duration: 'minute',
     staleAfterDays: 90,
-    build: () => 'SCREWS_TILT_CALCULATE',
-    parse: (lines) => parseScrews(lines),
+    params: [
+      {
+        key: 'DIRECTION',
+        kind: 'select',
+        label: 'calibration.param.direction',
+        initial: () => '',
+        options: () => [
+          { value: '', label: key('calibration.param.directionRelative') },
+          { value: 'CW', label: key('calibration.param.directionCw') },
+          { value: 'CCW', label: key('calibration.param.directionCcw') },
+        ],
+      },
+    ],
+    build: (values) => buildWithWords('SCREWS_TILT_CALCULATE', values, ['DIRECTION']),
+    snapshot: (_values, context) => ({
+      results: JSON.stringify(context.screwsTilt()?.results ?? {}),
+    }),
+    parse: parseScrewsStatus,
   },
   {
     id: 'bedScrews',
@@ -1200,7 +1263,7 @@ export const calibrationProcedures: readonly CalibrationProcedure[] = [
     stage: 'bed',
     command: 'PROBE_CALIBRATE',
     available: (context) => context.hasSection('probe') || context.hasSection('bltouch'),
-    requires: ['homed', 'notPrinting'],
+    requires: ['homed', 'notPrinting', 'zeroedForZ'],
     effects: ['moves', 'probes'],
     duration: 'interactive',
     staleAfterDays: 180,
@@ -1350,7 +1413,7 @@ export const calibrationProcedures: readonly CalibrationProcedure[] = [
     stage: 'bed',
     command: 'CALIBRATE_Z',
     available: (context) => context.hasCommand('CALIBRATE_Z'),
-    requires: ['homed', 'notPrinting'],
+    requires: ['homed', 'notPrinting', 'zeroedForZ'],
     effects: ['moves', 'probes'],
     duration: 'minute',
     staleAfterDays: null,
@@ -1430,7 +1493,7 @@ export const calibrationProcedures: readonly CalibrationProcedure[] = [
     command: 'SHAPER_CALIBRATE',
     available: (context) =>
       context.hasSection('resonance_tester') && context.hasSection('input_shaper'),
-    requires: ['homed', 'notPrinting'],
+    requires: ['homed', 'notPrinting', 'accelerometer'],
     effects: ['moves'],
     duration: 'minutes',
     staleAfterDays: 90,
@@ -1463,7 +1526,7 @@ export const calibrationProcedures: readonly CalibrationProcedure[] = [
     stage: 'resonance',
     command: 'AXES_SHAPER_CALIBRATION',
     available: (context) => context.hasMacro('AXES_SHAPER_CALIBRATION'),
-    requires: ['homed', 'notPrinting'],
+    requires: ['homed', 'notPrinting', 'accelerometer'],
     effects: ['moves'],
     duration: 'minutes',
     staleAfterDays: 90,
@@ -1478,7 +1541,7 @@ export const calibrationProcedures: readonly CalibrationProcedure[] = [
     command: 'COMPARE_BELTS_RESPONSES',
     available: (context) =>
       context.hasMacro('COMPARE_BELTS_RESPONSES') && isCoreKinematics(context),
-    requires: ['homed', 'notPrinting'],
+    requires: ['homed', 'notPrinting', 'accelerometer'],
     effects: ['moves'],
     duration: 'minutes',
     staleAfterDays: 90,
@@ -1491,7 +1554,7 @@ export const calibrationProcedures: readonly CalibrationProcedure[] = [
     stage: 'resonance',
     command: 'CREATE_VIBRATIONS_PROFILE',
     available: (context) => context.hasMacro('CREATE_VIBRATIONS_PROFILE'),
-    requires: ['homed', 'notPrinting'],
+    requires: ['homed', 'notPrinting', 'accelerometer'],
     effects: ['moves'],
     duration: 'minutes',
     staleAfterDays: null,
@@ -1534,7 +1597,7 @@ export const calibrationProcedures: readonly CalibrationProcedure[] = [
     stage: 'resonance',
     command: 'MEASURE_AXES_NOISE',
     available: (context) => context.hasSection('resonance_tester'),
-    requires: [],
+    requires: ['accelerometer'],
     effects: [],
     duration: 'seconds',
     staleAfterDays: null,

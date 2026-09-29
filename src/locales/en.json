@@ -321,9 +321,23 @@
       },
       "probeInBed": {
         "met": "Probe over the bed",
-        "unmet": "The probe offset would carry it outside the bed. Move the toolhead first."
+        "unmet": "The probe offset would carry it outside the bed."
       },
-      "homeAll": "Home all"
+      "homeAll": "Home all",
+      "accelerometer": {
+        "met": "Accelerometer answering",
+        "unmet": "The accelerometer has not answered."
+      },
+      "zeroedForZ": {
+        "met": "No mesh loaded, no Z offset",
+        "unmet": "A mesh is loaded or a Z offset is applied; the reading would include it."
+      },
+      "fix": {
+        "home": "Home all",
+        "moveOverBed": "Move over the bed",
+        "checkAccelerometer": "Check accelerometer",
+        "zeroForZ": "Clear mesh and Z offset"
+      }
     },
     "result": {
       "title": "Result",
@@ -365,7 +379,8 @@
       "graph": "Graph",
       "similarity": "Belt similarity",
       "health": "Mechanical health",
-      "symmetry": "Vibration symmetry"
+      "symmetry": "Vibration symmetry",
+      "maxDeviation": "Deviation limit"
     },
     "param": {
       "stepper": "Stepper",
@@ -381,7 +396,11 @@
       "bothAxes": "Both",
       "defaultChip": "Default",
       "advance": "Pressure advance",
-      "smoothTime": "Smooth time"
+      "smoothTime": "Smooth time",
+      "direction": "Turn direction",
+      "directionRelative": "Relative to screw 1",
+      "directionCw": "All clockwise",
+      "directionCcw": "All counter-clockwise"
     },
     "unit": {
       "seconds": "s",
@@ -725,6 +744,13 @@
       "no": "no",
       "record": "Record answers",
       "recorded": "Recorded with this run."
+    },
+    "screws": {
+      "base": "Base",
+      "level": "Level",
+      "goTo": "Go to",
+      "z": "z {value}",
+      "overLimit": "Past the deviation limit: adjust the screws and run it again."
     }
   },
   "history": {
