@@ -35,7 +35,6 @@ export type ProcedureId =
   | 'bedScrews'
   | 'deltaCalibrate'
   | 'probeZOffset'
-  | 'nozzleZ'
   | 'probeAccuracy'
   | 'bedTilt'
   | 'eddyDriveCurrent'
@@ -993,18 +992,6 @@ export const calibrationProcedures: readonly CalibrationProcedure[] = [
         '',
     }),
     parse: parseZOffset,
-  },
-  {
-    id: 'nozzleZ',
-    stage: 'bed',
-    command: 'CALIBRATE_NOZZLE_Z',
-    available: (context) => context.hasMacro('CALIBRATE_NOZZLE_Z'),
-    requires: ['homed', 'notPrinting'],
-    effects: ['moves', 'probes'],
-    duration: 'interactive',
-    staleAfterDays: 180,
-    build: () => 'CALIBRATE_NOZZLE_Z',
-    parse: (lines) => outcomeOnly(lines),
   },
   {
     id: 'probeAccuracy',

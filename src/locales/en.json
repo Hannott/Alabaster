@@ -466,11 +466,6 @@
         "description": "Paper test under the nozzle; sets the probe's z_offset.",
         "detail": "Probes the bed, then lowers the nozzle onto a sheet of paper in steps you choose, and stages the new z_offset for SAVE_CONFIG. A dialog walks you through it."
       },
-      "nozzleZ": {
-        "name": "Nozzle Z calibration",
-        "description": "Runs this printer's own nozzle calibration macro.",
-        "detail": "Runs CALIBRATE_NOZZLE_Z, which your probe's macro pack defines, and follows it through the paper test when it asks for one."
-      },
       "probeAccuracy": {
         "name": "Probe accuracy",
         "description": "Probes one point several times and reports the spread.",
@@ -1121,9 +1116,9 @@
       "showHomeXY": "Show a combined X/Y home button",
       "levelBedShort": "Level bed",
       "showLevelBedShortcut": "Show bed level macro",
-      "calibrateNozzleZShort": "Calibrate Z",
-      "calibrateNozzleZ": "Calibrate nozzle Z",
-      "showCalibrateNozzleZShortcut": "Show nozzle Z calibration macro",
+      "probeCalibrateShort": "Calibrate Z",
+      "probeCalibrate": "Calibrate nozzle Z",
+      "showProbeCalibrateShortcut": "Show nozzle Z calibration shortcut",
       "feedrateUnit": "mm/s",
       "feedrateLabel": "Toolhead speed",
       "zOffsetUnsaved": "Applied to the probe. Save the new config to keep it.",
@@ -1197,9 +1192,9 @@
       "levelingConfirmTitle": "Start leveling?",
       "levelingConfirmDescription": "Are you sure you want to start {method}?",
       "levelingConfirmAction": "Start",
-      "calibrateNozzleZConfirmTitle": "Start nozzle Z calibration?",
-      "calibrateNozzleZConfirmDescription": "Are you sure you want to start CALIBRATE_NOZZLE_Z?",
-      "calibrateNozzleZConfirmAction": "Start",
+      "probeCalibrateConfirmTitle": "Start nozzle Z calibration?",
+      "probeCalibrateConfirmDescription": "Are you sure you want to start PROBE_CALIBRATE?",
+      "probeCalibrateConfirmAction": "Start",
       "screwBase": "Reference",
       "screwLevel": "Level",
       "screwClockwise": "CW",
@@ -1214,7 +1209,7 @@
       "confirmationsTitle": "Confirmations",
       "skipMotorsOffWarning": "Turn off motors without confirming",
       "skipLevelingWarning": "Start bed leveling without confirming",
-      "skipCalibrateNozzleZWarning": "Start nozzle Z calibration without confirming"
+      "skipProbeCalibrateWarning": "Start nozzle Z calibration without confirming"
     },
     "controls": {
       "partFan": "Part fan",

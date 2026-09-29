@@ -32,8 +32,8 @@ const manualProbeSelection: PrinterObjectSelection = {
  *
  * **Nothing here polls, and nothing here infers.** The helper can be started by
  * anything — `MANUAL_PROBE`, `Z_ENDSTOP_CALIBRATE`, `PROBE_CALIBRATE`,
- * `DELTA_CALIBRATE` on a probe-less delta, or a user macro such as
- * `CALIBRATE_NOZZLE_Z` — from the console, a macro button, a printer's own
+ * `DELTA_CALIBRATE` on a probe-less delta, or a user macro that calls one of
+ * them — from the console, a macro button, a printer's own
  * screen, or a second browser. Watching the object is the only way a prompt can
  * appear for all of those; watching what Alabaster itself sent would miss every
  * one it did not start.

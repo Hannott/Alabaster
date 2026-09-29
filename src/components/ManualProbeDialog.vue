@@ -4,8 +4,8 @@
 
   Klipper's `manual_probe` helper stops the machine mid-command and waits for a
   person to say where the bed is. Anything can start it: `MANUAL_PROBE`,
-  `Z_ENDSTOP_CALIBRATE`, `PROBE_CALIBRATE`, or a user macro such as
-  `CALIBRATE_NOZZLE_Z`, from the console, a macro button, the printer's own
+  `Z_ENDSTOP_CALIBRATE`, `PROBE_CALIBRATE`, or a user macro that calls one of
+  them, from the console, a macro button, the printer's own
   screen, or a second browser. Without this dialog the wait is invisible: the
   only sign is a line in the console transcript and a machine that has stopped
   answering, and the only way out is typing `TESTZ` by hand.

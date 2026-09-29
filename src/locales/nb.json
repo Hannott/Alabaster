@@ -466,11 +466,6 @@
         "description": "Papirtest under dysen; setter probens z_offset.",
         "detail": "Prober sengen, senker så dysen ned mot et papirark i steg du velger, og legger ny z_offset klar for SAVE_CONFIG. En dialog viser vei."
       },
-      "nozzleZ": {
-        "name": "Kalibrering av dyse-Z",
-        "description": "Kjører skriverens egen kalibreringsmakro for dysen.",
-        "detail": "Kjører CALIBRATE_NOZZLE_Z, som probens makropakke definerer, og følger den gjennom papirtesten når den ber om det."
-      },
       "probeAccuracy": {
         "name": "Probenøyaktighet",
         "description": "Prober ett punkt flere ganger og rapporterer spredningen.",
@@ -1121,9 +1116,9 @@
       "showHomeXY": "Vis en knapp som kjører X og Y til nullpunkt",
       "levelBedShort": "Level bedet",
       "showLevelBedShortcut": "Vis bed level makro",
-      "calibrateNozzleZShort": "Kalibrer Z",
-      "calibrateNozzleZ": "Kalibrer dyse-Z",
-      "showCalibrateNozzleZShortcut": "Vis makro for dyse-Z-kalibrering",
+      "probeCalibrateShort": "Kalibrer Z",
+      "probeCalibrate": "Kalibrer dyse-Z",
+      "showProbeCalibrateShortcut": "Vis snarvei for dyse-Z-kalibrering",
       "feedrateUnit": "mm/s",
       "feedrateLabel": "Hastighet på skrivehodet",
       "zOffsetUnsaved": "Lagt inn i proben. Lagre den nye konfigurasjonen for å beholde den.",
@@ -1197,9 +1192,9 @@
       "levelingConfirmTitle": "Start nivellering?",
       "levelingConfirmDescription": "{method} beveger skriveren og prober bedet, noe som tar noen minutter. Ikke start dette under en utskrift.",
       "levelingConfirmAction": "Start",
-      "calibrateNozzleZConfirmTitle": "Start dyse-Z-kalibrering?",
-      "calibrateNozzleZConfirmDescription": "CALIBRATE_NOZZLE_Z beveger skrivehodet mot bedet. Ikke start dette under en utskrift.",
-      "calibrateNozzleZConfirmAction": "Start",
+      "probeCalibrateConfirmTitle": "Start dyse-Z-kalibrering?",
+      "probeCalibrateConfirmDescription": "PROBE_CALIBRATE beveger skrivehodet mot bedet. Ikke start dette under en utskrift.",
+      "probeCalibrateConfirmAction": "Start",
       "screwBase": "Referanse",
       "screwLevel": "I nivå",
       "screwClockwise": "med klokka",
@@ -1214,7 +1209,7 @@
       "confirmationsTitle": "Bekreftelser",
       "skipMotorsOffWarning": "Slå av motorer uten bekreftelse",
       "skipLevelingWarning": "Start bednivellering uten bekreftelse",
-      "skipCalibrateNozzleZWarning": "Start dyse-Z-kalibrering uten bekreftelse"
+      "skipProbeCalibrateWarning": "Start dyse-Z-kalibrering uten bekreftelse"
     },
     "controls": {
       "partFan": "Delevifte",

@@ -4136,7 +4136,7 @@ input.z-axis__slider {
  * Level bed leads and Calibrate Z follows, in that order, the same reason
  * `.jog-actions` keeps home-xy before motors-off: "beside Level bed" is
  * simply document order inside one flex row, and either button is free to be
- * absent (a printer with no leveling method, or no `CALIBRATE_NOZZLE_Z`)
+ * absent (a printer with no leveling method, or no probe)
  * without leaving a gap for the other to fall into.
  *
  * `flex-wrap: wrap` is load-bearing, not decoration: measured against the
@@ -4176,11 +4176,11 @@ input.z-axis__slider {
  * `nowrap` trades that for the reverse, smaller defect: at that one width the
  * label can overflow its own cell by a handful of pixels rather than wrap,
  * and every wider card — a docked settings card among them — has room for it
- * on one line with nothing to trade at all. `.jog-calibrate-nozzle-shortcut`
+ * on one line with nothing to trade at all. `.jog-probe-calibrate-shortcut`
  * carries the same rule for the same reason, against its own shorter label.
  */
 .jog-leveling-shortcut,
-.jog-calibrate-nozzle-shortcut {
+.jog-probe-calibrate-shortcut {
   white-space: nowrap;
 }
 

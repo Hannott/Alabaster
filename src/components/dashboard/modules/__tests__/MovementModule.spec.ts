@@ -353,88 +353,71 @@ describe('MovementModule', () => {
     expect(buttonNamed(wrapper, 'Check bed screws')).toBeUndefined()
   })
 
-  /**
-   * `CALIBRATE_NOZZLE_Z` is a community macro, not a Klipper core command —
-   * unlike the leveling shortcut above, there is no `printerConfig` section to
-   * gate on, so the button appears only once `macros` actually confirms the
-   * name, the same test `PrintModule`'s pause-at-layer row already applies.
-   */
-  it('offers the calibrate-nozzle-Z shortcut only once the printer confirms the macro', async () => {
-    const { printer, wrapper, pinia } = mountModule({
-      config: { showCalibrateNozzleZShortcut: true },
-    })
-    readyToMove(printer)
+  it('offers the probe calibration shortcut only on a printer with a probe', async () => {
+    const withProbe = mountModule({ config: { showProbeCalibrateShortcut: true } })
+    readyToMove(withProbe.printer)
     await flushPromises()
-    expect(wrapper.find('.jog-calibrate-nozzle-shortcut').exists()).toBe(false)
-
-    const macros = useMacrosStore(pinia)
-    macros.allMacroNames = new Set(['CALIBRATE_NOZZLE_Z'])
-    macros.hasDiscovered = true
-    await flushPromises()
-
-    const shortcut = wrapper.find('.jog-calibrate-nozzle-shortcut')
+    const shortcut = withProbe.wrapper.find('.jog-probe-calibrate-shortcut')
     expect(shortcut.exists()).toBe(true)
     expect(shortcut.text()).toBe('Calibrate Z')
     expect(shortcut.attributes('aria-label')).toBe('Calibrate nozzle Z')
-  })
 
-  it('hides the calibrate-nozzle-Z shortcut when its own setting is off, even with the macro present', async () => {
-    const { printer, wrapper, pinia } = mountModule({
-      config: { showCalibrateNozzleZShortcut: false },
+    const withoutProbe = mountModule({
+      sections: {},
+      config: { showProbeCalibrateShortcut: true },
     })
-    readyToMove(printer)
-    const macros = useMacrosStore(pinia)
-    macros.allMacroNames = new Set(['CALIBRATE_NOZZLE_Z'])
-    macros.hasDiscovered = true
+    readyToMove(withoutProbe.printer)
     await flushPromises()
-
-    expect(wrapper.find('.jog-calibrate-nozzle-shortcut').exists()).toBe(false)
+    expect(withoutProbe.wrapper.find('.jog-probe-calibrate-shortcut').exists()).toBe(false)
   })
 
-  it('runs CALIBRATE_NOZZLE_Z behind a confirmation, and disables the shortcut while a manual probe is already active', async () => {
-    const { printer, wrapper, pinia } = mountModule({
-      config: { showCalibrateNozzleZShortcut: true },
+  it('hides the probe calibration shortcut when its own setting is off, even with a probe', async () => {
+    const { printer, wrapper } = mountModule({
+      config: { showProbeCalibrateShortcut: false },
     })
-    const macros = useMacrosStore(pinia)
-    macros.allMacroNames = new Set(['CALIBRATE_NOZZLE_Z'])
-    macros.hasDiscovered = true
-    const run = vi.spyOn(macros, 'run').mockResolvedValue(true)
     readyToMove(printer)
     await flushPromises()
 
-    const shortcut = wrapper.get('.jog-calibrate-nozzle-shortcut')
+    expect(wrapper.find('.jog-probe-calibrate-shortcut').exists()).toBe(false)
+  })
+
+  it('runs PROBE_CALIBRATE behind a confirmation, and disables the shortcut while a manual probe is already active', async () => {
+    const { printer, wrapper, pinia } = mountModule({
+      config: { showProbeCalibrateShortcut: true },
+    })
+    const run = vi.spyOn(useMacrosStore(pinia), 'run').mockResolvedValue(true)
+    readyToMove(printer)
+    await flushPromises()
+
+    const shortcut = wrapper.get('.jog-probe-calibrate-shortcut')
     expect(shortcut.attributes('disabled')).toBeUndefined()
     await shortcut.trigger('click')
     await flushPromises()
     expect(run).not.toHaveBeenCalled()
 
     await confirmOpenDialog(wrapper)
-    expect(run).toHaveBeenCalledWith('CALIBRATE_NOZZLE_Z')
+    expect(run).toHaveBeenCalledWith('PROBE_CALIBRATE')
 
     const manualProbe = useManualProbeStore(pinia)
     manualProbe.isActive = true
     await flushPromises()
-    expect(wrapper.get('.jog-calibrate-nozzle-shortcut').attributes('disabled')).toBeDefined()
+    expect(wrapper.get('.jog-probe-calibrate-shortcut').attributes('disabled')).toBeDefined()
   })
 
-  it('wears the danger variant for calibrate-nozzle-Z exactly when its confirmation is turned off', async () => {
-    const guarded = mountModule({ config: { showCalibrateNozzleZShortcut: true } })
-    useMacrosStore(guarded.pinia).allMacroNames = new Set(['CALIBRATE_NOZZLE_Z'])
-    useMacrosStore(guarded.pinia).hasDiscovered = true
+  it('wears the danger variant for probe calibration exactly when its confirmation is turned off', async () => {
+    const guarded = mountModule({ config: { showProbeCalibrateShortcut: true } })
     readyToMove(guarded.printer)
     await flushPromises()
-    expect(guarded.wrapper.find('.jog-calibrate-nozzle-shortcut').classes()).not.toContain(
+    expect(guarded.wrapper.find('.jog-probe-calibrate-shortcut').classes()).not.toContain(
       'button--danger',
     )
 
     const unguarded = mountModule({
-      config: { showCalibrateNozzleZShortcut: true, skipCalibrateNozzleZWarning: true },
+      config: { showProbeCalibrateShortcut: true, skipProbeCalibrateWarning: true },
     })
-    useMacrosStore(unguarded.pinia).allMacroNames = new Set(['CALIBRATE_NOZZLE_Z'])
-    useMacrosStore(unguarded.pinia).hasDiscovered = true
     readyToMove(unguarded.printer)
     await flushPromises()
-    expect(unguarded.wrapper.find('.jog-calibrate-nozzle-shortcut').classes()).toContain(
+    expect(unguarded.wrapper.find('.jog-probe-calibrate-shortcut').classes()).toContain(
       'button--danger',
     )
   })

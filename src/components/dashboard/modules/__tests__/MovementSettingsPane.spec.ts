@@ -160,7 +160,7 @@ describe('MovementSettingsPane', () => {
     [
       'skip nozzle Z calibration confirming',
       'Start nozzle Z calibration without confirming',
-      'skipCalibrateNozzleZWarning',
+      'skipProbeCalibrateWarning',
     ],
   ])('offers to %s, off by default', async (_label, text, key) => {
     const { wrapper, config } = mountPane()

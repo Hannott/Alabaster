@@ -60,23 +60,19 @@ export const movementCardDefaults = {
    */
   showLevelBedShortcut: true,
   /**
-   * A second shortcut beside "Level bed", for `CALIBRATE_NOZZLE_Z` — a
-   * community macro, not a Klipper core command, that starts a manual
-   * paper-test probe through Klipper's `manual_probe` helper (see
-   * `manualProbe.ts`'s own doc comment). Gated on `macros.hasMacro` rather
-   * than on any `printerConfig` capability, since nothing about this macro is
-   * declared by a config section the way a leveling method is — a printer
-   * either defines it (typically from a probe macro pack) or does not, and
-   * Alabaster ships no gcode of its own for it: doing so risked silently
-   * replacing a printer's own more capable version (deploying and stowing a
-   * probe, computing an offset) with a bare one nobody asked for.
+   * A second shortcut beside "Level bed", for Klipper's `PROBE_CALIBRATE`: it
+   * probes the bed, then hands the nozzle to the `manual_probe` helper for a
+   * paper test (see `manualProbe.ts`'s own doc comment), and the accepted
+   * result becomes the probe's `z_offset`. The button is gated on
+   * `printerConfig.hasProbe`, and stays disabled until every axis is homed,
+   * since the command does not home on its own.
    *
    * Defaults on like `showLevelBedShortcut`, for the same reason: the gate is
-   * `hasMacro`, so a printer without the macro sees nothing regardless of this
-   * setting, and a printer that has it should not need a trip to settings
+   * the probe itself, so a printer without one sees nothing regardless of this
+   * setting, and a printer that has one should not need a trip to settings
    * first.
    */
-  showCalibrateNozzleZShortcut: true,
+  showProbeCalibrateShortcut: true,
 } as const
 
 export type MovementCardSettingKey = keyof typeof movementCardDefaults

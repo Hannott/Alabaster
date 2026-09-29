@@ -68,7 +68,7 @@ const manualProbe = useManualProbeStore()
 const { config, isSettingsOpen, updateConfig } = useDashboardModule('movement')
 
 const confirmingMotorsOff = ref(false)
-const confirmingCalibrateNozzleZ = ref(false)
+const confirmingProbeCalibrate = ref(false)
 /**
  * That *this* card staged the offset, which is what makes the notice below
  * about the thing the user just did rather than about the printer's config in
@@ -227,25 +227,23 @@ const showLevelBedShortcut = computed(() =>
 const primaryLevelingMethod = computed<LevelingMethod | null>(
   () => printerConfig.levelingMethods[0] ?? null,
 )
-const showCalibrateNozzleZShortcut = computed(() =>
-  readMovementCardSetting(config.value, 'showCalibrateNozzleZShortcut'),
+const showProbeCalibrateShortcut = computed(() =>
+  readMovementCardSetting(config.value, 'showProbeCalibrateShortcut'),
 )
 /**
- * `CALIBRATE_NOZZLE_Z` is a community macro, not a Klipper core command — it
- * only exists on a printer whose own config (typically a probe macro pack)
- * defines it, so the shortcut is gated on `macros.hasMacro` rather than on
- * any `printerConfig` capability. See `movementCardSettings.ts` for why
- * Alabaster ships no gcode of its own for it.
+ * Klipper registers `PROBE_CALIBRATE` from the probe object, so on a machine
+ * with no probe section the command does not exist — the same reason
+ * "Save offset" reads `hasProbe`.
  */
-const canCalibrateNozzleZ = computed(() => macros.hasMacro('CALIBRATE_NOZZLE_Z'))
+const canProbeCalibrate = computed(() => printerConfig.hasProbe)
 const skipMotorsOffWarning = computed(() =>
   configBoolean(config.value, 'skipMotorsOffWarning', false),
 )
 const skipLevelingWarning = computed(() =>
   configBoolean(config.value, 'skipLevelingWarning', false),
 )
-const skipCalibrateNozzleZWarning = computed(() =>
-  configBoolean(config.value, 'skipCalibrateNozzleZWarning', false),
+const skipProbeCalibrateWarning = computed(() =>
+  configBoolean(config.value, 'skipProbeCalibrateWarning', false),
 )
 /**
  * Every Z control is laid out as the part that moves — down on the left, up on
@@ -681,10 +679,10 @@ const levelingGuard = useActionGuard({
   moduleFlag: skipLevelingWarning,
 })
 
-const calibrateNozzleZGuard = useActionGuard({
+const probeCalibrateGuard = useActionGuard({
   tier: 'terminal',
   emphasis: 'neutral',
-  moduleFlag: skipCalibrateNozzleZWarning,
+  moduleFlag: skipProbeCalibrateWarning,
 })
 
 async function confirmMotorsOff(): Promise<void> {
@@ -729,15 +727,15 @@ function requestLevelingShortcut(): void {
   requestLeveling(method)
 }
 
-async function confirmCalibrateNozzleZ(): Promise<void> {
-  confirmingCalibrateNozzleZ.value = false
-  await macros.run('CALIBRATE_NOZZLE_Z')
+async function confirmProbeCalibrate(): Promise<void> {
+  confirmingProbeCalibrate.value = false
+  await macros.run('PROBE_CALIBRATE')
 }
 
-function requestCalibrateNozzleZ(): void {
-  calibrateNozzleZGuard.request(
-    () => void macros.run('CALIBRATE_NOZZLE_Z'),
-    () => (confirmingCalibrateNozzleZ.value = true),
+function requestProbeCalibrate(): void {
+  probeCalibrateGuard.request(
+    () => void macros.run('PROBE_CALIBRATE'),
+    () => (confirmingProbeCalibrate.value = true),
   )
 }
 
@@ -1068,30 +1066,30 @@ function screwInstruction(screw: (typeof screwResults.value)[number]): string {
                   @click="requestLevelingShortcut"
                 />
                 <!--
-                Gated on `macros.hasMacro`, never on a `printerConfig`
-                capability — see `canCalibrateNozzleZ`'s own doc comment.
-                Disabled while another manual probe is already active, from
-                this shortcut, the console, or a second browser: starting a
+                Gated on the printer having a probe — see
+                `canProbeCalibrate`'s own doc comment. Disabled while another
+                manual probe is already active, from this shortcut, the
+                console, or a second browser: starting a
                 second one would only orphan Klipper's own helper rather than
                 do anything to the one already waiting.
               -->
                 <AppButton
-                  v-if="showCalibrateNozzleZShortcut && canCalibrateNozzleZ"
+                  v-if="showProbeCalibrateShortcut && canProbeCalibrate"
                   size="sm"
-                  :guard="calibrateNozzleZGuard"
-                  :pending="macros.isRunning('CALIBRATE_NOZZLE_Z')"
-                  :label="t('dashboard.movement.calibrateNozzleZShort')"
-                  class="jog-calibrate-nozzle-shortcut"
-                  :aria-busy="macros.isRunning('CALIBRATE_NOZZLE_Z') || undefined"
+                  :guard="probeCalibrateGuard"
+                  :pending="macros.isRunning('PROBE_CALIBRATE')"
+                  :label="t('dashboard.movement.probeCalibrateShort')"
+                  class="jog-probe-calibrate-shortcut"
+                  :aria-busy="macros.isRunning('PROBE_CALIBRATE') || undefined"
                   :disabled="
-                    macros.isRunning('CALIBRATE_NOZZLE_Z') ||
+                    macros.isRunning('PROBE_CALIBRATE') ||
                     manualProbe.isActive ||
                     homing ||
                     !isFullyHomed
                   "
-                  :aria-label="t('dashboard.movement.calibrateNozzleZ')"
-                  :title="t('dashboard.movement.calibrateNozzleZ')"
-                  @click="requestCalibrateNozzleZ"
+                  :aria-label="t('dashboard.movement.probeCalibrate')"
+                  :title="t('dashboard.movement.probeCalibrate')"
+                  @click="requestProbeCalibrate"
                 />
               </div>
               <AppButton
@@ -1386,13 +1384,13 @@ function screwInstruction(screw: (typeof screwResults.value)[number]): string {
     @skip="updateConfig({ skipLevelingWarning: true })"
   />
   <ConfirmDialog
-    :open="confirmingCalibrateNozzleZ"
-    :title="t('dashboard.movement.calibrateNozzleZConfirmTitle')"
-    :description="t('dashboard.movement.calibrateNozzleZConfirmDescription')"
-    :confirm-label="t('dashboard.movement.calibrateNozzleZConfirmAction')"
+    :open="confirmingProbeCalibrate"
+    :title="t('dashboard.movement.probeCalibrateConfirmTitle')"
+    :description="t('dashboard.movement.probeCalibrateConfirmDescription')"
+    :confirm-label="t('dashboard.movement.probeCalibrateConfirmAction')"
     show-skip-option
-    @confirm="confirmCalibrateNozzleZ"
-    @cancel="confirmingCalibrateNozzleZ = false"
-    @skip="updateConfig({ skipCalibrateNozzleZWarning: true })"
+    @confirm="confirmProbeCalibrate"
+    @cancel="confirmingProbeCalibrate = false"
+    @skip="updateConfig({ skipProbeCalibrateWarning: true })"
   />
 </template>
