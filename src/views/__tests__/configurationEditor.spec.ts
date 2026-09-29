@@ -2,7 +2,7 @@ import { EditorView } from '@codemirror/view'
 import { createPinia, setActivePinia, type Pinia } from 'pinia'
 import { enableAutoUnmount, flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { nextTick } from 'vue'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { useConfigFileHistory } from '@/composables/useConfigFileHistory'
 import { useEditorIndent } from '@/composables/useEditorIndent'
@@ -13,6 +13,18 @@ import { useMoonrakerStore } from '@/stores/moonraker'
 import ConfigurationView from '@/views/ConfigurationView.vue'
 
 enableAutoUnmount(afterEach)
+
+beforeAll(() => {
+  // CodeMirror measures text through a Range on the next animation frame, and
+  // jsdom's Range has no layout methods. Without them the frame throws after
+  // the test that scheduled it, and only when the suite is slow enough for the
+  // frame to land while an editor is still mounted.
+  const rangePrototype = window.Range.prototype as unknown as Record<string, unknown>
+  if (typeof rangePrototype.getClientRects !== 'function') {
+    rangePrototype.getClientRects = () => []
+    rangePrototype.getBoundingClientRect = () => new DOMRect()
+  }
+})
 
 /** Roughly the shape of a sliced file or a Klipper log: long, and not a config. */
 const hugeLog = Array.from({ length: 20_000 }, (_, index) => `G1 X${index} Y${index} E0.02`).join(

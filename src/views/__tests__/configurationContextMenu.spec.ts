@@ -2,7 +2,7 @@ import { undo } from '@codemirror/commands'
 import { EditorView } from '@codemirror/view'
 import { createPinia, setActivePinia, type Pinia } from 'pinia'
 import { enableAutoUnmount, flushPromises, mount, type VueWrapper } from '@vue/test-utils'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { useConfigFileHistory } from '@/composables/useConfigFileHistory'
 import { i18n } from '@/i18n'
@@ -12,6 +12,18 @@ import { useMoonrakerStore } from '@/stores/moonraker'
 import ConfigurationView from '@/views/ConfigurationView.vue'
 
 enableAutoUnmount(afterEach)
+
+beforeAll(() => {
+  // CodeMirror measures text through a Range on the next animation frame, and
+  // jsdom's Range has no layout methods. Without them the frame throws after
+  // the test that scheduled it, and only when the suite is slow enough for the
+  // frame to land while an editor is still mounted.
+  const rangePrototype = window.Range.prototype as unknown as Record<string, unknown>
+  if (typeof rangePrototype.getClientRects !== 'function') {
+    rangePrototype.getClientRects = () => []
+    rangePrototype.getBoundingClientRect = () => new DOMRect()
+  }
+})
 
 const configFile = ['[printer]', 'kinematics: corexy', ''].join('\n')
 
