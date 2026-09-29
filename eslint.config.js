@@ -6,6 +6,8 @@ import tseslint from 'typescript-eslint'
 export default tseslint.config(
   {
     ignores: [
+      // Workflow scripts persisted here run against runtime-injected globals.
+      '.claude/**',
       'coverage/**',
       'dist/**',
       'website/.vitepress/cache/**',
