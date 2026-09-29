@@ -13411,6 +13411,23 @@ body.machine-editor-fullscreen-open {
 }
 
 /*
+ * What the printer is set to, under the description: the logged result's
+ * values, else the file's. Mono and in the primary color, so the row reads
+ * as name, sentence, value — a value in the muted hint color read as more
+ * description.
+ */
+.calibration-procedure__value {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: var(--text-hint-size);
+  font-variant-numeric: tabular-nums;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/*
  * Below the middle width the list is a `<select>` above the workspace, the
  * choice the stage strip also collapses to, rather than a column of rows
  * pushing the workspace a screen down.

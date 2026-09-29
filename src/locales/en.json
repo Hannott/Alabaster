@@ -307,7 +307,8 @@
         "moves": "Moves the toolhead",
         "heats": "Heats",
         "probes": "Probes the bed"
-      }
+      },
+      "current": "{value} (in the file)"
     },
     "requirement": {
       "homed": {
@@ -357,7 +358,14 @@
       },
       "noise": "Noise, {chip} (x · y · z)",
       "keepInFile": "Keep {option} in the file",
-      "writeToSection": "Write {option} to [{section}]"
+      "writeToSection": "Write {option} to [{section}]",
+      "profile": "Profile",
+      "points": "Points",
+      "bedTemperature": "Bed temperature",
+      "graph": "Graph",
+      "similarity": "Belt similarity",
+      "health": "Mechanical health",
+      "symmetry": "Vibration symmetry"
     },
     "param": {
       "stepper": "Stepper",
@@ -708,6 +716,15 @@
         "halfExtrude": "Half the length: a 0.9° motor set up as 1.8°. The fix is full_steps_per_rotation: {steps}, not rotation_distance.",
         "doubleExtrude": "Twice the length: a 1.8° motor set up as 0.9°. The fix is full_steps_per_rotation: {steps}, not rotation_distance."
       }
+    },
+    "answer": {
+      "title": "What did you see?",
+      "moved": "It moved",
+      "direction": "It moved the right way",
+      "yes": "yes",
+      "no": "no",
+      "record": "Record answers",
+      "recorded": "Recorded with this run."
     }
   },
   "history": {

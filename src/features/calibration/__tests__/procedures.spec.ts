@@ -8,7 +8,11 @@ import {
   parseAccelerometer,
   parseAxesMap,
   parseAxesNoise,
+  parseBedMesh,
   parseBedTilt,
+  parseBelts,
+  parseVibrations,
+  rowsFromPendingItems,
   parseEndstopPhase,
   parsePid,
   parsePositionEndstop,
@@ -42,6 +46,9 @@ function context(
     hasRunoutSensors: false,
     livePressureAdvance: null,
     liveSmoothTime: null,
+    pendingItems: () => ({}),
+    mesh: () => null,
+    newestGraph: () => null,
     ...overrides,
   }
 }
@@ -367,11 +374,139 @@ describe('reading results', () => {
 
   it('says a run staged something when Klipper mentions SAVE_CONFIG, and nothing before output arrives', () => {
     const buzz = procedureById('deltaCalibrate')!
-    expect(buzz.parse!([], {}, {})).toBeNull()
+    expect(buzz.parse!([], {}, {}, context())).toBeNull()
     expect(
-      buzz.parse!(['// The SAVE_CONFIG command will update the printer config file'], {}, {})
-        ?.outcome,
+      buzz.parse!(
+        ['// The SAVE_CONFIG command will update the printer config file'],
+        {},
+        {},
+        context(),
+      )?.outcome,
     ).toBe('staged')
+  })
+})
+
+describe('what a run staged', () => {
+  const settings = (section: string) =>
+    section === 'printer'
+      ? { delta_radius: 140 }
+      : section === 'stepper_a'
+        ? { angle: 210, position_endstop: 297.5 }
+        : null
+
+  it('lists every option new or changed since the run started, against the file', () => {
+    const before = { printer: { delta_radius: '140.000' }, 'bed_mesh old': { points: '1\n2' } }
+    const after = {
+      printer: { delta_radius: '140.612' },
+      stepper_a: { angle: '210.184', position_endstop: '297.5' },
+      'bed_mesh old': { points: '1\n2' },
+    }
+    expect(rowsFromPendingItems(before, after, settings)).toEqual([
+      { label: { literal: 'printer · delta_radius' }, before: '140', after: '140.612' },
+      { label: { literal: 'stepper_a · angle' }, before: '210', after: '210.184' },
+      { label: { literal: 'stepper_a · position_endstop' }, before: '297.5', after: '297.5' },
+    ])
+  })
+
+  it('leaves out a multi-line value, which is data rather than a number to compare', () => {
+    const after = { 'bed_mesh default': { points: '0.1, 0.2\n0.3, 0.4', version: '1' } }
+    expect(rowsFromPendingItems({}, after, settings)).toEqual([
+      { label: { literal: 'bed_mesh default · version' }, before: null, after: '1' },
+    ])
+  })
+})
+
+describe('reading a mesh, a belt comparison and a vibration profile', () => {
+  it('reads the mesh from the map beside it, against the profile that was loaded', () => {
+    const ctx = context({
+      mesh: () => ({ profile: 'hot', range: 0.1214, points: 25, temperature: 60.4 }),
+    })
+    const result = parseBedMesh(['// done'], { profile: 'default', range: '0.144 mm' }, {}, ctx)
+    expect(result?.outcome).toBe('staged')
+    expect(result?.rows).toEqual([
+      { label: { key: 'calibration.result.profile' }, before: 'default', after: 'hot' },
+      { label: { key: 'calibration.result.range' }, before: '0.144 mm', after: '0.121 mm' },
+      { label: { key: 'calibration.result.points' }, after: '25' },
+      { label: { key: 'calibration.result.bedTemperature' }, after: '60 °C' },
+    ])
+    expect(parseBedMesh([], {}, {}, ctx)).toBeNull()
+    expect(parseBedMesh(['// done'], {}, {}, context())?.rows).toEqual([])
+  })
+
+  it('snapshots the loaded mesh a calibration replaces, and says what is loaded now', () => {
+    const procedure = procedureById('bedMesh')!
+    const ctx = context({
+      mesh: () => ({ profile: 'default', range: 0.144, points: 9, temperature: null }),
+    })
+    expect(procedure.snapshot?.({}, ctx)).toEqual({ profile: 'default', range: '0.144 mm' })
+    expect(procedure.current?.(ctx)).toBe('default · 0.144 mm')
+    expect(procedure.current?.(context())).toBeNull()
+  })
+
+  it('reads the belts’ similarity and health, and names the graph the run wrote', () => {
+    const ctx = context({ newestGraph: () => 'beltscomparison_20260929_211936.png' })
+    const lines = [
+      '// Belts estimated similarity: 87.3%',
+      '// Mechanical health: Excellent mechanical health',
+    ]
+    const result = parseBelts(lines, { graph: 'beltscomparison_old.png' }, {}, ctx)
+    expect(result?.outcome).toBe('measured')
+    expect(result?.rows).toEqual([
+      { label: { key: 'calibration.result.similarity' }, after: '87.3%' },
+      { label: { key: 'calibration.result.health' }, after: 'Excellent mechanical health' },
+      { label: { key: 'calibration.result.graph' }, after: 'beltscomparison_20260929_211936' },
+    ])
+    // The graph it started with is not the one it wrote.
+    expect(
+      parseBelts(lines, { graph: 'beltscomparison_20260929_211936.png' }, {}, ctx)?.rows,
+    ).toHaveLength(2)
+  })
+
+  it('reads a vibration profile’s symmetry', () => {
+    const result = parseVibrations(
+      ['// Machine estimated vibration symmetry: 91.0%'],
+      { graph: '' },
+      {},
+      context(),
+    )
+    expect(result?.rows).toEqual([
+      { label: { key: 'calibration.result.symmetry' }, after: '91.0%' },
+    ])
+  })
+})
+
+describe('what the printer is set to', () => {
+  it('says the file’s value for a procedure that has never run here', () => {
+    const ctx = context({
+      sections: ['probe', 'input_shaper', 'stepper_z', 'extruder'],
+      settings: (section) =>
+        ({
+          probe: { z_offset: -0.85 },
+          input_shaper: {
+            shaper_type_x: 'mzv',
+            shaper_freq_x: 52.4,
+            shaper_type_y: 'ei',
+            shaper_freq_y: 38.2,
+          },
+          stepper_z: { position_endstop: 0.5 },
+          extruder: { rotation_distance: 22.678 },
+        })[section] ?? null,
+      livePressureAdvance: 0.045,
+    })
+    expect(procedureById('probeZOffset')!.current?.(ctx)).toBe('z_offset -0.85')
+    expect(procedureById('shaperCalibrate')!.current?.(ctx)).toBe('x mzv 52.4 Hz · y ei 38.2 Hz')
+    expect(procedureById('shakeTuneShaper')!.current?.(ctx)).toBe('x mzv 52.4 Hz · y ei 38.2 Hz')
+    expect(procedureById('zEndstop')!.current?.(ctx)).toBe('position_endstop 0.5')
+    expect(procedureById('rotationDistance')!.current?.(ctx)).toBe('rotation_distance 22.678')
+    expect(procedureById('pressureAdvance')!.current?.(ctx)).toBe('pressure_advance 0.045')
+    expect(procedureById('probeZOffset')!.current?.(context())).toBeNull()
+  })
+
+  it('asks the stepper check what only the reader saw', () => {
+    expect(procedureById('stepperBuzz')!.answers?.map((question) => question.key)).toEqual([
+      'moved',
+      'direction',
+    ])
   })
 })
 

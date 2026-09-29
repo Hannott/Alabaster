@@ -7,6 +7,7 @@ import { resetCalibrationSelection } from '@/composables/useCalibrationSelection
 import { i18n } from '@/i18n'
 import { useAvailabilityStore } from '@/stores/availability'
 import { useBedMeshStore } from '@/stores/bedMesh'
+import { useCalibrationStore } from '@/stores/calibration'
 import { useConsoleStore } from '@/stores/console'
 import { useDashboardLayoutStore } from '@/stores/dashboardLayout'
 import { useMacrosStore } from '@/stores/macros'
@@ -951,6 +952,63 @@ describe('Calibration view', () => {
     await view.get('.calibration-stage__map button[aria-pressed]').trigger('click')
 
     expect(view.find('.module-settings__link').exists()).toBe(false)
+  })
+
+  it('says what each procedure is set to, from the log or else the file', async () => {
+    const printerConfig = await import('@/stores/printerConfig')
+    const config = printerConfig.usePrinterConfigStore(pinia)
+    vi.spyOn(config, 'hasProbe', 'get').mockReturnValue(true)
+    vi.spyOn(config, 'hasBedMesh', 'get').mockReturnValue(true)
+    config.settings = { probe: { z_offset: -0.85 }, bed_mesh: {} } as never
+    useBedMeshStore(pinia).$patch({
+      profileName: 'default',
+      probedMatrix: [
+        [0, 0.144],
+        [0.02, 0.1],
+      ],
+    } as never)
+    // The page loads the log from the printer's database as it mounts, so it is
+    // seeded there rather than in the store, which the load would replace.
+    const logged = {
+      version: 1,
+      procedures: {
+        probeAccuracy: [
+          {
+            at: Date.now() - 3_600_000,
+            values: {},
+            rows: [
+              { label: { key: 'calibration.result.range' }, after: '0.012' },
+              { label: { literal: 'standard deviation' }, after: '0.004' },
+            ],
+            outcome: 'measured',
+          },
+        ],
+      },
+    }
+    vi.spyOn(useMoonrakerStore(pinia), 'rpcCall').mockImplementation(((method: string) =>
+      Promise.resolve(
+        method === 'server.database.get_item' ? { value: logged } : { x: 'TRIGGERED', y: 'open' },
+      )) as never)
+
+    const view = await mountView('bed')
+    expect(useCalibrationStore(pinia).lastRunAt('probeAccuracy')).not.toBeNull()
+    const rows = view.findAll('.calibration-procedure')
+    const rowFor = (id: string) =>
+      rows.find((row) => row.text().includes(i18n.global.t(`calibration.procedure.${id}.name`)))!
+
+    // A logged run's values, in the order the result showed them.
+    expect(rowFor('probeAccuracy').get('.calibration-procedure__value').text()).toBe(
+      'Range 0.012 · standard deviation 0.004',
+    )
+    // Never run here, so the file's value, said to be the file's.
+    expect(rowFor('probeZOffset').get('.calibration-procedure__value').text()).toBe(
+      'z_offset -0.85 (in the file)',
+    )
+    expect(rowFor('probeZOffset').text()).toContain('Never run')
+    // The loaded mesh's own numbers; a saved profile is in the file too.
+    expect(rowFor('bedMesh').get('.calibration-procedure__value').text()).toBe(
+      'default · 0.144 mm (in the file)',
+    )
   })
 
   it('runs a probe accuracy test and reports its result', async () => {

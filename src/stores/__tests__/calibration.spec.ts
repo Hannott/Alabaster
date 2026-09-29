@@ -22,6 +22,9 @@ const context: ProcedureContext = {
   hasRunoutSensors: false,
   livePressureAdvance: null,
   liveSmoothTime: null,
+  pendingItems: () => usePrinterStore().saveConfigPendingItems,
+  mesh: () => null,
+  newestGraph: () => null,
 }
 
 function say(raw: string, kind: 'response' | 'command' = 'response'): void {
@@ -126,6 +129,95 @@ describe('calibration runs', () => {
       before: '1.4',
       after: '1.535',
     })
+  })
+})
+
+describe('what a run staged', () => {
+  it('reads what the run staged for SAVE_CONFIG where its module printed nothing', async () => {
+    const database: Database = { value: undefined }
+    const { calibration, finish } = setup(database)
+    const printer = usePrinterStore()
+    // Staged before the run is somebody else's, and never counts as this run's.
+    printer.saveConfigPendingItems = { probe: { z_offset: '-0.850' } }
+    const run = calibration.run(procedureById('autoZ')!, {}, context)
+    await flushPromises()
+    say('// Z-CALIBRATION: ENDSTOP=-0.100 NOZZLE=-0.050 PROBE=1.400')
+    await finish()
+    await run
+    expect(calibration.resultFor('autoZ')).toMatchObject({ rows: [], outcome: 'done' })
+
+    // The status update trails the acknowledgement.
+    printer.saveConfigPendingItems = {
+      probe: { z_offset: '-0.850' },
+      stepper_z: { position_endstop: '0.312' },
+    }
+    await flushPromises()
+    expect(calibration.resultFor('autoZ')).toMatchObject({
+      rows: [{ label: { literal: 'stepper_z · position_endstop' }, after: '0.312' }],
+      outcome: 'staged',
+    })
+
+    // SAVE_CONFIG empties the pending list; the result keeps what it saw.
+    printer.saveConfigPendingItems = {}
+    await flushPromises()
+    expect(calibration.resultFor('autoZ')?.rows).toHaveLength(1)
+    const stored = database.value as { procedures: Record<string, { rows: unknown[] }[]> }
+    expect(stored.procedures.autoZ?.[0]?.rows).toHaveLength(1)
+  })
+
+  it('keeps a parser’s own rows over the staged list', async () => {
+    const { calibration, finish } = setup()
+    const printer = usePrinterStore()
+    const run = calibration.run(procedureById('probeZOffset')!, {}, context)
+    await flushPromises()
+    await finish()
+    await run
+    say('// probe: z_offset: 1.535')
+    printer.saveConfigPendingItems = { probe: { z_offset: '1.535' } }
+    await flushPromises()
+
+    expect(calibration.resultFor('probeZOffset')?.rows).toEqual([
+      { label: { literal: 'z_offset' }, before: '1.4', after: '1.535' },
+    ])
+  })
+})
+
+describe('what the reader answered', () => {
+  it('logs the answers as the run’s result, once', async () => {
+    const database: Database = { value: undefined }
+    const { calibration, finish } = setup(database)
+    const run = calibration.run(procedureById('stepperBuzz')!, { STEPPER: 'stepper_x' }, context)
+    await flushPromises()
+    say('// ok')
+    await finish()
+    await run
+    await flushPromises()
+
+    calibration.answer('stepperBuzz', [
+      { label: { key: 'calibration.answer.moved' }, after: 'yes' },
+      { label: { key: 'calibration.answer.direction' }, after: 'no' },
+    ])
+    await flushPromises()
+
+    expect(calibration.resultFor('stepperBuzz')).toMatchObject({
+      outcome: 'measured',
+      rows: [{ after: 'yes' }, { after: 'no' }],
+    })
+    const stored = database.value as { procedures: Record<string, { rows: unknown[] }[]> }
+    expect(stored.procedures.stepperBuzz).toHaveLength(1)
+    expect(stored.procedures.stepperBuzz?.[0]?.rows).toHaveLength(2)
+  })
+
+  it('takes no answers for a run that is still going or failed', async () => {
+    const { calibration, finish } = setup()
+    const run = calibration.run(procedureById('stepperBuzz')!, { STEPPER: 'stepper_x' }, context)
+    await flushPromises()
+    calibration.answer('stepperBuzz', [
+      { label: { key: 'calibration.answer.moved' }, after: 'yes' },
+    ])
+    expect(calibration.resultFor('stepperBuzz')).toBeNull()
+    await finish()
+    await run
   })
 })
 

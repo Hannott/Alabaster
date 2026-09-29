@@ -226,6 +226,37 @@ const outcomeText = computed(() => {
   return t(`calibration.result.outcome.${result.value.outcome}`)
 })
 
+/*
+ * A procedure's questions, asked once its run has finished: the check rows
+ * are the reader's answers, recorded into the run's result and its log entry
+ * together. Kept per procedure while the page is open, like the values.
+ */
+const answersById = ref<Record<string, Record<string, boolean>>>({})
+const askAnswers = computed(
+  () =>
+    run.value?.succeeded === true && !isRunning.value && (props.procedure.answers?.length ?? 0) > 0,
+)
+const answersRecorded = computed(() => (run.value?.answers.length ?? 0) > 0)
+
+function answerChecked(key: string): boolean {
+  return answersById.value[props.procedure.id]?.[key] ?? false
+}
+
+function setAnswer(key: string, checked: boolean): void {
+  answersById.value = {
+    ...answersById.value,
+    [props.procedure.id]: { ...answersById.value[props.procedure.id], [key]: checked },
+  }
+}
+
+function recordAnswers(): void {
+  const rows = (props.procedure.answers ?? []).map((question) => ({
+    label: { key: question.label },
+    after: t(answerChecked(question.key) ? 'calibration.answer.yes' : 'calibration.answer.no'),
+  }))
+  calibration.answer(props.procedure.id, rows)
+}
+
 const history = computed(() =>
   [...calibration.historyFor(props.procedure.id)]
     .filter((entry) => entry.at !== run.value?.startedAt)
@@ -431,6 +462,31 @@ const effects = computed(() =>
       >
         {{ outcomeText }}
       </p>
+
+      <fieldset v-if="askAnswers" class="calibration-choice" :disabled="answersRecorded">
+        <legend class="calibration-choice__legend">{{ t('calibration.answer.title') }}</legend>
+        <label
+          v-for="question in procedure.answers"
+          :key="question.key"
+          class="check-row check-row--block calibration-choice__row"
+        >
+          <input
+            type="checkbox"
+            :checked="answerChecked(question.key)"
+            @change="setAnswer(question.key, ($event.target as HTMLInputElement).checked)"
+          />
+          <span>{{ t(question.label) }}</span>
+        </label>
+      </fieldset>
+      <p v-if="askAnswers && answersRecorded" class="calibration-panel__hint">
+        {{ t('calibration.answer.recorded') }}
+      </p>
+      <AppButton
+        v-else-if="askAnswers"
+        size="sm"
+        :label="t('calibration.answer.record')"
+        @click="recordAnswers"
+      />
 
       <ul v-if="result?.actions?.length" class="calibration-result__actions">
         <li v-for="action in result.actions" :key="action.id">

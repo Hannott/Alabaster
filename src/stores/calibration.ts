@@ -3,7 +3,9 @@ import { computed, reactive, ref, watch } from 'vue'
 
 import {
   procedureById,
+  rowsFromPendingItems,
   type CalibrationProcedure,
+  type PendingItems,
   type ProcedureAction,
   type ProcedureContext,
   type ProcedureId,
@@ -48,6 +50,18 @@ export interface CalibrationRun {
   startedAt: number
   running: boolean
   succeeded: boolean | null
+  /** What the run reads the printer through; its closures read live state. */
+  context: ProcedureContext
+  /** What was staged for SAVE_CONFIG when the run started, so only its own staging counts. */
+  pendingBefore: PendingItems
+  /**
+   * What the run staged, kept once seen: SAVE_CONFIG empties the pending
+   * list, and a result that vanished the moment it was saved would be the
+   * wrong way round.
+   */
+  stagedRows: ProcedureResultRow[]
+  /** The reader's answers to a procedure's questions, once given. */
+  answers: ProcedureResultRow[]
 }
 
 export type PersistActionOutcome = 'saved' | 'buffered' | 'unchanged' | 'refused' | 'restarting'
@@ -199,11 +213,39 @@ export const useCalibrationStore = defineStore('calibration', () => {
     return run ? outputFor(run) : []
   }
 
+  /**
+   * What a run found: its parser's rows, or what it staged where the parser
+   * found nothing, plus whatever the reader answered. A parser that returned
+   * no rows while the run staged something is the case the pending-items
+   * fallback exists for; a parser that found rows already said more than the
+   * staged list would, and keeps them.
+   */
   function resultFor(id: ProcedureId): ProcedureResult | null {
     const run = runs.get(id)
     const procedure = procedureById(id)
     if (!run || !procedure?.parse) return null
-    return procedure.parse(outputFor(run), run.before, run.values)
+    const parsed = procedure.parse(outputFor(run), run.before, run.values, run.context)
+    const staged = run.stagedRows
+    let result = parsed
+    if (staged.length > 0 && (parsed === null || parsed.rows.length === 0)) {
+      result = { ...(parsed ?? {}), rows: staged, outcome: 'staged' }
+    }
+    if (run.answers.length === 0) return result
+    return {
+      ...(result ?? {}),
+      rows: [...(result?.rows ?? []), ...run.answers],
+      outcome: result?.outcome === 'done' || result === null ? 'measured' : result.outcome,
+    }
+  }
+
+  /** Whatever the run has staged since it started, beyond what it had already recorded. */
+  function stagedRowsFor(run: CalibrationRun): ProcedureResultRow[] {
+    const rows = rowsFromPendingItems(
+      run.pendingBefore,
+      run.context.pendingItems(),
+      run.context.settings,
+    )
+    return rows.length > run.stagedRows.length ? rows : run.stagedRows
   }
 
   function historyFor(id: ProcedureId): readonly CalibrationLogEntry[] {
@@ -345,6 +387,10 @@ export const useCalibrationStore = defineStore('calibration', () => {
       startedAt: Date.now(),
       running: true,
       succeeded: null,
+      context,
+      pendingBefore: context.pendingItems(),
+      stagedRows: [],
+      answers: [],
     }
     runs.set(procedure.id, record)
     const succeeded = await dispatch(procedure, script, values)
@@ -352,19 +398,45 @@ export const useCalibrationStore = defineStore('calibration', () => {
     if (current && current.startedAt === record.startedAt) {
       current.running = false
       current.succeeded = succeeded
+      current.stagedRows = stagedRowsFor(current)
       recordRun(current)
     }
     return succeeded
   }
 
   /*
-   * An interactive run — a paper test, a screw-by-screw adjustment — answers
-   * with its result after the command itself has returned, when the reader
-   * accepts. So a finished run's log entry is refreshed as more of its result
-   * arrives, for as long as it is the latest run of its procedure.
+   * A run's staging can land after its command returned — an interactive
+   * one stages on ACCEPT, and a status update can trail the acknowledgement
+   * — so every finished run keeps reading what is pending, and grows its own
+   * rows from it. It never shrinks them: see `stagedRows`.
    */
   watch(
-    () => gcodeConsole.consoleEntries.length,
+    () => printer.saveConfigPendingItems,
+    () => {
+      for (const current of runs.values()) {
+        if (current.running) continue
+        current.stagedRows = stagedRowsFor(current)
+      }
+    },
+    { deep: true },
+  )
+
+  /*
+   * An interactive run — a paper test, a screw-by-screw adjustment — answers
+   * with its result after the command itself has returned, when the reader
+   * accepts, and a Shake&Tune run's graph lands after its last line. So a
+   * finished run's log entry is refreshed as more of its result arrives, for
+   * as long as it is the latest run of its procedure. Watching the results
+   * themselves, rather than the transcript, is what lets a result that grew
+   * from a status update or a directory listing be logged too.
+   */
+  watch(
+    () =>
+      [...runs.values()].map((current) =>
+        current.running || current.succeeded !== true
+          ? -1
+          : (resultFor(current.procedureId)?.rows.length ?? 0),
+      ),
     () => {
       for (const current of runs.values()) {
         if (current.running || current.succeeded !== true) continue
@@ -376,6 +448,18 @@ export const useCalibrationStore = defineStore('calibration', () => {
       }
     },
   )
+
+  /**
+   * Logs what only the reader could see — that the stepper moved, and the
+   * right way — as the run's result, one row per question. Answered once per
+   * run: a second set of answers replaces the first rather than adding to it.
+   */
+  function answer(id: ProcedureId, rows: ProcedureResultRow[]): void {
+    const current = runs.get(id)
+    if (!current || current.running || current.succeeded !== true) return
+    current.answers = [...rows]
+    recordRun(current)
+  }
 
   /**
    * Logs a procedure that runs as its own guided panel rather than as one
@@ -489,6 +573,7 @@ export const useCalibrationStore = defineStore('calibration', () => {
     lastRunAt,
     run,
     runAction,
+    answer,
     recordManual,
     clearLog,
     loadLog,

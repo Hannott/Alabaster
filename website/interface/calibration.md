@@ -39,14 +39,25 @@ and whether it moves the toolhead, heats, or probes.
 - **Run** sends it. One calibration runs at a time.
 - **The result** lists what the calibration found next to what the printer had
   before, and says where it went: staged for `SAVE_CONFIG`, applied until
-  Klipper restarts, or measured only. **Show output** opens the lines the
-  printer answered with.
+  Klipper restarts, or measured only. A calibration that stages values
+  without printing them, such as a delta calibration or a plugin's own
+  calibration, still lists every value it staged, section by section, next to
+  what the config file holds. A bed mesh lists the profile it went under, its
+  range against the mesh that was loaded, its point count and the bed
+  temperature it was probed at. **Show output** opens the lines the printer
+  answered with.
+- **A question, where only you can answer it.** The stepper check asks
+  whether the motor moved, and the right way, once it has run. **Record
+  answers** keeps them with the run.
 
-Each calibration also shows when it last ran on this printer, and its earlier
-results, with the same buttons the result had, so an older shaper run can still
-be applied or saved. The record is kept on the printer, so every browser sees
-the same dates. A calibration that is due, such as a mesh older than 30 days or heater
-models older than 90, is marked as due, and the job opens on it.
+Each calibration also shows when it last ran on this printer, and what the
+printer is set to: the values its last run found, or, for one that has never
+run here, the value in the config file, such as the probe's `z_offset` or the
+configured input shaper. Its earlier results are listed with the same buttons
+the result had, so an older shaper run can still be applied or saved. The
+record is kept on the printer, so every browser sees the same dates. A
+calibration that is due, such as a mesh older than 30 days or heater models
+older than 90, is marked as due, and the job opens on it.
 
 ## The console
 

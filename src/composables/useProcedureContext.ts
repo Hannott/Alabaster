@@ -3,11 +3,13 @@ import { useI18n } from 'vue-i18n'
 
 import { sensorLabel } from '@/components/dashboard/modules/temperatureSensors'
 import type { ProcedureContext, ProcedureHeater } from '@/features/calibration/procedures'
+import { useBedMeshStore } from '@/stores/bedMesh'
 import { useConsoleStore } from '@/stores/console'
 import { useMacrosStore } from '@/stores/macros'
 import { usePrinterStore } from '@/stores/printer'
 import { usePrinterConfigStore } from '@/stores/printerConfig'
 import { useRunoutSensorsStore } from '@/stores/runoutSensors'
+import { useShakeTuneStore } from '@/stores/shakeTune'
 import { useTelemetryStore } from '@/stores/telemetry'
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -21,11 +23,13 @@ function isRecord(value: unknown): value is Record<string, unknown> {
  */
 export function useProcedureContext(): ComputedRef<ProcedureContext> {
   const { t } = useI18n({ useScope: 'global' })
+  const bedMesh = useBedMeshStore()
   const gcodeConsole = useConsoleStore()
   const macros = useMacrosStore()
   const printer = usePrinterStore()
   const printerConfig = usePrinterConfigStore()
   const runoutSensors = useRunoutSensorsStore()
+  const shakeTune = useShakeTuneStore()
   const telemetry = useTelemetryStore()
 
   const commands = computed(
@@ -58,6 +62,17 @@ export function useProcedureContext(): ComputedRef<ProcedureContext> {
       hasRunoutSensors: runoutSensors.hasSensors,
       livePressureAdvance: printer.extruder.pressureAdvance,
       liveSmoothTime: printer.extruder.smoothTime,
+      pendingItems: () => printer.saveConfigPendingItems,
+      mesh: () =>
+        bedMesh.profileName === ''
+          ? null
+          : {
+              profile: bedMesh.profileName,
+              range: bedMesh.range,
+              points: bedMesh.rowCount * bedMesh.columnCount,
+              temperature: bedMesh.activeProbeTemperature,
+            },
+      newestGraph: (category) => shakeTune.resultsByCategory[category][0]?.name ?? null,
     }
   })
 }

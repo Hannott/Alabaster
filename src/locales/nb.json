@@ -307,7 +307,8 @@
         "moves": "Beveger verktøyhodet",
         "heats": "Varmer",
         "probes": "Prober sengen"
-      }
+      },
+      "current": "{value} (i filen)"
     },
     "requirement": {
       "homed": {
@@ -357,7 +358,14 @@
       },
       "noise": "Støy, {chip} (x · y · z)",
       "keepInFile": "Behold {option} i filen",
-      "writeToSection": "Skriv {option} til [{section}]"
+      "writeToSection": "Skriv {option} til [{section}]",
+      "profile": "Profil",
+      "points": "Punkter",
+      "bedTemperature": "Sengtemperatur",
+      "graph": "Graf",
+      "similarity": "Remmelikhet",
+      "health": "Mekanisk helse",
+      "symmetry": "Vibrasjonssymmetri"
     },
     "param": {
       "stepper": "Motor",
@@ -708,6 +716,15 @@
         "halfExtrude": "Halve lengden: en 0,9°-motor satt opp som 1,8°. Rettelsen er full_steps_per_rotation: {steps}, ikke rotation_distance.",
         "doubleExtrude": "Dobbel lengde: en 1,8°-motor satt opp som 0,9°. Rettelsen er full_steps_per_rotation: {steps}, ikke rotation_distance."
       }
+    },
+    "answer": {
+      "title": "Hva så du?",
+      "moved": "Den beveget seg",
+      "direction": "Den gikk riktig vei",
+      "yes": "ja",
+      "no": "nei",
+      "record": "Loggfør svarene",
+      "recorded": "Loggført med denne kjøringen."
     }
   },
   "history": {

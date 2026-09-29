@@ -111,6 +111,29 @@ export interface ProcedureHeater {
   kind: 'pid' | 'mpc'
 }
 
+/** `configfile.save_config_pending_items`: section → option → the value SAVE_CONFIG would write. */
+export type PendingItems = Readonly<Record<string, Readonly<Record<string, string | undefined>>>>
+
+/** The mesh Klipper has loaded, as the bed mesh store reads it. */
+export interface MeshState {
+  profile: string
+  /** Highest minus lowest probed point, or null before any point exists. */
+  range: number | null
+  points: number
+  /** The bed temperature the loaded profile was probed at, where Alabaster recorded one. */
+  temperature: number | null
+}
+
+/** The Shake&Tune result folders whose runs are procedures here. */
+export type GraphCategory = 'belts' | 'vibrations'
+
+/** A question only the reader can answer once a run ends, logged with their answer. */
+export interface ProcedureAnswer {
+  key: string
+  /** A message key for the check row's words. */
+  label: string
+}
+
 /**
  * Everything a procedure may ask about the printer, gathered once by
  * `useProcedureContext` so the registry stays pure and testable.
@@ -130,6 +153,16 @@ export interface ProcedureContext {
   /** The pressure advance running right now, which the extruder reports and the config does not. */
   livePressureAdvance: number | null
   liveSmoothTime: number | null
+  /*
+   * Read through functions rather than copied in, because a run keeps the
+   * context it started with and reads its result through it later: what is
+   * staged, what mesh is loaded and which graph is newest all change after
+   * the command returns, and a value copied at the start would never see it.
+   */
+  pendingItems: () => PendingItems
+  mesh: () => MeshState | null
+  /** The newest graph's file name in a Shake&Tune result folder, or null. */
+  newestGraph: (category: GraphCategory) => string | null
 }
 
 export interface ProcedureResultRow {
@@ -195,12 +228,27 @@ export interface CalibrationProcedure {
   /** The script Run sends, or null while the values cannot build one. */
   build?: (values: ProcedureValues, context: ProcedureContext) => string | null
   snapshot?: (values: ProcedureValues, context: ProcedureContext) => ProcedureSnapshot
-  /** Reads the lines printed since the run started. Null until there is something to show. */
+  /**
+   * Reads the lines printed since the run started, and the printer's state
+   * through the context the run kept. Null until there is something to show.
+   */
   parse?: (
     lines: readonly string[],
     before: ProcedureSnapshot,
     values: ProcedureValues,
+    context: ProcedureContext,
   ) => ProcedureResult | null
+  /**
+   * The value the printer is set to right now, for the list to show where no
+   * run has been logged: the file's `z_offset`, the running shaper. A logged
+   * result wins over it.
+   */
+  current?: (context: ProcedureContext) => string | null
+  /**
+   * What only the reader can say once the run ends — whether the motor moved,
+   * and the right way — logged as the run's result with their answers.
+   */
+  answers?: readonly ProcedureAnswer[]
   /**
    * The actions an earlier run's logged rows still support, for a run logged
    * before the log kept its actions.
@@ -369,6 +417,141 @@ const baseScrewPattern = /^(.+?) \(base\) : x=/
 const detectedAxesMapPattern =
   /Detected axes_map:\s*([-+]?[xyz])\s*,\s*([-+]?[xyz])\s*,\s*([-+]?[xyz])/i
 const existingAxesMapPattern = /existing axes_map \(([^)]*)\)/i
+/** Shake&Tune's `belts_computation.py`, printed for CoreXY and CoreXZ only. */
+const beltSimilarityPattern = /Belts estimated similarity: ([\d.]+)%/
+const mechanicalHealthPattern = /Mechanical health: (.+)$/
+/** Shake&Tune's `vibrations_computation.py`. */
+const vibrationSymmetryPattern = /Machine estimated vibration symmetry: ([\d.]+)%/
+
+/**
+ * What a run staged for `SAVE_CONFIG`, read from what Klipper reports as
+ * pending rather than from what a module printed: every section and option
+ * that is new or changed since the run started, against the value the file
+ * holds. This is the result of any procedure whose module stages values and
+ * prints nothing worth a parser — a delta calibration, an eddy probe's
+ * height map, a plugin's own calibration — and the fallback for one whose
+ * parser found nothing while something was staged.
+ *
+ * A multi-line value is a mesh's points or a probe's table, data rather than
+ * a number to set beside its old one, so it is left out; the readiness band
+ * still counts it.
+ */
+export function rowsFromPendingItems(
+  before: PendingItems,
+  after: PendingItems,
+  settings: ProcedureContext['settings'],
+): ProcedureResultRow[] {
+  const rows: ProcedureResultRow[] = []
+  for (const [section, options] of Object.entries(after)) {
+    for (const [option, value] of Object.entries(options)) {
+      if (typeof value !== 'string' || value.includes('\n')) continue
+      if (before[section]?.[option] === value) continue
+      const current = settings(section)?.[option.toLowerCase()]
+      rows.push({
+        label: literal(`${section} · ${option}`),
+        before: typeof current === 'number' || typeof current === 'string' ? String(current) : null,
+        after: value,
+      })
+    }
+  }
+  return rows
+}
+
+function millimetres(value: number | null): string {
+  return value === null ? '' : `${value.toFixed(3)} mm`
+}
+
+/**
+ * A mesh's result is the map beside it: the profile it went under, its range
+ * against the profile that was loaded before, how many points it has and the
+ * bed temperature it was probed at. Klipper prints nothing about the mesh it
+ * just took, so the rows come from the loaded mesh rather than the lines,
+ * once the run has produced any.
+ */
+export function parseBedMesh(
+  lines: readonly string[],
+  before: ProcedureSnapshot,
+  _values: ProcedureValues,
+  context: ProcedureContext,
+): ProcedureResult | null {
+  if (lines.length === 0) return null
+  const mesh = context.mesh()
+  if (mesh === null || mesh.points === 0) return outcomeOnly(lines)
+  return {
+    rows: [
+      {
+        label: key('calibration.result.profile'),
+        before: before.profile || null,
+        after: mesh.profile,
+      },
+      {
+        label: key('calibration.result.range'),
+        before: before.range || null,
+        after: millimetres(mesh.range),
+      },
+      { label: key('calibration.result.points'), after: String(mesh.points) },
+      {
+        label: key('calibration.result.bedTemperature'),
+        after: mesh.temperature === null ? '' : `${Math.round(mesh.temperature)} °C`,
+      },
+    ],
+    outcome: 'staged',
+  }
+}
+
+/** The graph a run wrote, where the folder's newest file is not the one it started with. */
+function graphRow(
+  category: GraphCategory,
+  before: ProcedureSnapshot,
+  context: ProcedureContext,
+): ProcedureResultRow | null {
+  const newest = context.newestGraph(category)
+  if (newest === null || newest === before.graph) return null
+  return { label: key('calibration.result.graph'), after: newest.replace(/\.png$/i, '') }
+}
+
+export function parseBelts(
+  lines: readonly string[],
+  before: ProcedureSnapshot,
+  _values: ProcedureValues,
+  context: ProcedureContext,
+): ProcedureResult | null {
+  if (lines.length === 0) return null
+  const rows: ProcedureResultRow[] = []
+  const similarity = lastMatch(lines, beltSimilarityPattern)
+  if (similarity)
+    rows.push({ label: key('calibration.result.similarity'), after: `${similarity[1]}%` })
+  const health = lastMatch(lines, mechanicalHealthPattern)
+  if (health) rows.push({ label: key('calibration.result.health'), after: health[1]!.trim() })
+  const graph = graphRow('belts', before, context)
+  if (graph) rows.push(graph)
+  return { rows, outcome: 'measured' }
+}
+
+export function parseVibrations(
+  lines: readonly string[],
+  before: ProcedureSnapshot,
+  _values: ProcedureValues,
+  context: ProcedureContext,
+): ProcedureResult | null {
+  if (lines.length === 0) return null
+  const rows: ProcedureResultRow[] = []
+  const symmetry = lastMatch(lines, vibrationSymmetryPattern)
+  if (symmetry) rows.push({ label: key('calibration.result.symmetry'), after: `${symmetry[1]}%` })
+  const graph = graphRow('vibrations', before, context)
+  if (graph) rows.push(graph)
+  return { rows, outcome: 'measured' }
+}
+
+/** The shaper `[input_shaper]` is configured with, as "mzv 52.4 Hz · ei 38.2 Hz". */
+function configuredShapers(context: ProcedureContext): string | null {
+  const parts = ['x', 'y'].flatMap((axis) => {
+    const type = settingText(context, 'input_shaper', `shaper_type_${axis}`)
+    const freq = settingText(context, 'input_shaper', `shaper_freq_${axis}`)
+    return type && freq ? [`${axis} ${type} ${freq} Hz`] : []
+  })
+  return parts.length > 0 ? parts.join(' · ') : null
+}
 
 export function parseZOffset(
   lines: readonly string[],
@@ -810,6 +993,15 @@ export const calibrationProcedures: readonly CalibrationProcedure[] = [
     params: [stepperParameter(true)],
     build: (values) => buildWithWords('STEPPER_BUZZ', values, ['STEPPER']),
     parse: (lines) => outcomeOnly(lines),
+    /*
+     * The product is a motor moving, which nothing prints. Whether it did,
+     * and the right way, is the one fact a wiring session produces, so the
+     * reader logs it.
+     */
+    answers: [
+      { key: 'moved', label: 'calibration.answer.moved' },
+      { key: 'direction', label: 'calibration.answer.direction' },
+    ],
   },
   {
     id: 'axisRotation',
@@ -839,6 +1031,10 @@ export const calibrationProcedures: readonly CalibrationProcedure[] = [
       position_endstop: settingText(context, 'stepper_z', 'position_endstop') ?? '',
     }),
     parse: parsePositionEndstop,
+    current: (context) => {
+      const endstop = settingText(context, 'stepper_z', 'position_endstop')
+      return endstop === null ? null : `position_endstop ${endstop}`
+    },
   },
   {
     id: 'endstopPhase',
@@ -884,6 +1080,11 @@ export const calibrationProcedures: readonly CalibrationProcedure[] = [
       }
     },
     parse: parseAxesMap,
+    current: (context) => {
+      const chip = axesMapChip(context)
+      const map = chip ? settingText(context, chip, 'axes_map') : null
+      return map === null ? null : `axes_map ${map}`
+    },
   },
 
   // Bed & probe
@@ -922,7 +1123,17 @@ export const calibrationProcedures: readonly CalibrationProcedure[] = [
         count === '' ? null : `PROBE_COUNT=${count}`,
       ])
     },
-    parse: (lines) => outcomeOnly(lines),
+    snapshot: (_values, context) => {
+      const mesh = context.mesh()
+      return { profile: mesh?.profile ?? '', range: millimetres(mesh?.range ?? null) }
+    },
+    parse: parseBedMesh,
+    current: (context) => {
+      const mesh = context.mesh()
+      if (mesh === null || mesh.points === 0) return null
+      const temperature = mesh.temperature === null ? '' : ` · ${Math.round(mesh.temperature)} °C`
+      return `${mesh.profile} · ${millimetres(mesh.range)}${temperature}`
+    },
   },
   {
     id: 'quadGantryLevel',
@@ -1001,6 +1212,11 @@ export const calibrationProcedures: readonly CalibrationProcedure[] = [
         '',
     }),
     parse: parseZOffset,
+    current: (context) => {
+      const offset =
+        settingText(context, 'probe', 'z_offset') ?? settingText(context, 'bltouch', 'z_offset')
+      return offset === null ? null : `z_offset ${offset}`
+    },
   },
   {
     id: 'probeAccuracy',
@@ -1240,6 +1456,7 @@ export const calibrationProcedures: readonly CalibrationProcedure[] = [
       max_accel: settingText(context, 'printer', 'max_accel') ?? '',
     }),
     parse: parseShaperCalibrate,
+    current: configuredShapers,
   },
   {
     id: 'shakeTuneShaper',
@@ -1253,6 +1470,7 @@ export const calibrationProcedures: readonly CalibrationProcedure[] = [
     build: () => 'AXES_SHAPER_CALIBRATION',
     parse: (lines) => parseShakeTuneShaper(lines),
     actionsFromRows: shakeTuneShaperActionsFromRows,
+    current: configuredShapers,
   },
   {
     id: 'shakeTuneBelts',
@@ -1265,7 +1483,8 @@ export const calibrationProcedures: readonly CalibrationProcedure[] = [
     duration: 'minutes',
     staleAfterDays: 90,
     build: () => 'COMPARE_BELTS_RESPONSES',
-    parse: (lines) => outcomeOnly(lines),
+    snapshot: (_values, context) => ({ graph: context.newestGraph('belts') ?? '' }),
+    parse: parseBelts,
   },
   {
     id: 'shakeTuneVibrations',
@@ -1277,7 +1496,8 @@ export const calibrationProcedures: readonly CalibrationProcedure[] = [
     duration: 'minutes',
     staleAfterDays: null,
     build: () => 'CREATE_VIBRATIONS_PROFILE',
-    parse: (lines) => outcomeOnly(lines),
+    snapshot: (_values, context) => ({ graph: context.newestGraph('vibrations') ?? '' }),
+    parse: parseVibrations,
   },
   {
     id: 'accelerometerQuery',
@@ -1333,6 +1553,10 @@ export const calibrationProcedures: readonly CalibrationProcedure[] = [
     duration: 'minutes',
     staleAfterDays: null,
     panel: 'rotationDistance',
+    current: (context) => {
+      const distance = settingText(context, 'extruder', 'rotation_distance')
+      return distance === null ? null : `rotation_distance ${distance}`
+    },
   },
   {
     id: 'pressureAdvance',
@@ -1383,6 +1607,10 @@ export const calibrationProcedures: readonly CalibrationProcedure[] = [
         context.liveSmoothTime === null ? '' : String(context.liveSmoothTime),
     }),
     parse: parsePressureAdvance,
+    current: (context) =>
+      context.livePressureAdvance === null
+        ? null
+        : `pressure_advance ${context.livePressureAdvance}`,
   },
   {
     id: 'nonlinearPressureAdvance',
