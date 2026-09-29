@@ -120,6 +120,30 @@ function directoryEntries(result: MoonrakerDirectoryResult): MachineFileEntry[] 
 
 export { PRIMARY_CONFIG }
 
+/** Where a content search first matched in a file: zero-based line and column. */
+export interface ContentSearchMatch {
+  line: number
+  column: number
+  length: number
+}
+
+/** `needle` must already be lowercased, as the search lowercases it once for every file. */
+export function firstContentMatch(content: string, needle: string): ContentSearchMatch | null {
+  const lowered = content.toLocaleLowerCase()
+  const index = lowered.indexOf(needle)
+  if (index === -1) return null
+  const lineStart = lowered.lastIndexOf('\n', index - 1) + 1
+  let line = 0
+  for (
+    let at = lowered.indexOf('\n');
+    at !== -1 && at < index;
+    at = lowered.indexOf('\n', at + 1)
+  ) {
+    line += 1
+  }
+  return { line, column: index - lineStart, length: needle.length }
+}
+
 function joinPath(...parts: string[]): string {
   return normalizeMoonrakerRelativePath(parts.filter(Boolean).join('/'))
 }
@@ -166,12 +190,19 @@ export const useMachineFilesStore = defineStore('machineFiles', () => {
   /*
    * The content-search results for `contentSearchQuery`, kept apart from
    * `searchFiles`'s name match so a component can tell the two searches'
-   * results apart without re-deriving which query either one answers.
+   * results apart without re-deriving which query either one answers. Each
+   * path maps to its first match, which is where opening the result lands.
    */
-  const contentSearchMatches = ref<Set<string>>(new Set())
+  const contentSearchMatches = ref<Map<string, ContentSearchMatch>>(new Map())
   const contentSearchQuery = ref('')
   const isSearchingFileContents = ref(false)
   let contentSearchGeneration = 0
+  /**
+   * A config file and zero-based line another surface asked Configuration to
+   * open, cleared once it has. A request rather than a route query, so the
+   * address bar never keeps a line that stops meaning anything once edited.
+   */
+  const locationRequest = ref<{ path: string; line: number } | null>(null)
   const diskUsage = ref({ total: 0, used: 0, free: 0 })
   const rootPermissions = ref('r')
   const currentDirectoryPermissions = ref('r')
@@ -578,7 +609,7 @@ export const useMachineFilesStore = defineStore('machineFiles', () => {
   function clearContentSearch(): void {
     contentSearchGeneration += 1
     contentSearchQuery.value = ''
-    contentSearchMatches.value = new Set()
+    contentSearchMatches.value = new Map()
     isSearchingFileContents.value = false
   }
 
@@ -595,7 +626,7 @@ export const useMachineFilesStore = defineStore('machineFiles', () => {
     const generation = ++contentSearchGeneration
     if (!trimmed) {
       contentSearchQuery.value = ''
-      contentSearchMatches.value = new Set()
+      contentSearchMatches.value = new Map()
       isSearchingFileContents.value = false
       return
     }
@@ -606,7 +637,7 @@ export const useMachineFilesStore = defineStore('machineFiles', () => {
       (file) => classifyFileKind(file.name) === 'text' && !isLargeFile('text', file.size),
     )
     isSearchingFileContents.value = true
-    const matches = new Set<string>()
+    const matches = new Map<string, ContentSearchMatch>()
     await Promise.all(
       candidates.map(async (file) => {
         const buffered = isRootEditable.value
@@ -620,7 +651,8 @@ export const useMachineFilesStore = defineStore('machineFiles', () => {
             return
           }
         }
-        if (content.toLocaleLowerCase().includes(needle)) matches.add(file.path)
+        const match = firstContentMatch(content, needle)
+        if (match) matches.set(file.path, match)
       }),
     )
     if (generation !== contentSearchGeneration) return
@@ -1746,6 +1778,7 @@ export const useMachineFilesStore = defineStore('machineFiles', () => {
     refreshSearchFiles,
     contentSearchMatches,
     contentSearchQuery,
+    locationRequest,
     isSearchingFileContents,
     searchFileContents,
     clearContentSearch,

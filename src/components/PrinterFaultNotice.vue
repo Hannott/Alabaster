@@ -20,7 +20,7 @@
  * config: the reader goes to Configuration with this open, and a fault message
  * ten lines long would otherwise sit on top of the editor for the whole repair.
  */
-import { computed, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
@@ -28,9 +28,11 @@ import AppButton from '@/components/AppButton.vue'
 import AppIcon from '@/components/AppIcon.vue'
 import DisclosureReveal from '@/components/DisclosureReveal.vue'
 import { useAvailability } from '@/composables/useAvailability'
+import { faultReference, locateFault } from '@/features/config/faultLocation'
 import { useAvailabilityStore } from '@/stores/availability'
 import { useMachineFilesStore } from '@/stores/machineFiles'
 import { usePrinterStore } from '@/stores/printer'
+import { useQuickConfigStore } from '@/stores/quickConfig'
 
 const { t } = useI18n({ useScope: 'global' })
 const router = useRouter()
@@ -39,6 +41,7 @@ const { availability, messageKey } = useAvailability('klipper')
 const { availability: moonrakerAvailability } = useAvailability('moonraker')
 const printer = usePrinterStore()
 const machineFiles = useMachineFilesStore()
+const quickConfig = useQuickConfigStore()
 
 /*
  * `error` is the availability phase for the two Klipper states that are
@@ -59,8 +62,49 @@ watch(message, () => {
 
 const isRestartBlocked = computed(() => !moonrakerAvailability.value.isAvailable)
 
+/*
+ * Klipper names the section it refused but not the file, and with includes
+ * the file is often not printer.cfg. The config is read only while a fault
+ * names a section, and kept current while it does, so the link follows the
+ * line as the reader edits above it.
+ */
+const reference = computed(() => (isFaulted.value ? faultReference(message.value) : null))
+const location = computed(() =>
+  reference.value ? locateFault(quickConfig.index, reference.value) : null,
+)
+const messageParts = computed(() => {
+  const found = reference.value
+  if (!found || !location.value) return null
+  return {
+    before: message.value.slice(0, found.start),
+    section: message.value.slice(found.start, found.end),
+    after: message.value.slice(found.end),
+  }
+})
+
+let readingConfig = false
+watch(
+  () => reference.value !== null,
+  (needed) => {
+    if (needed === readingConfig) return
+    readingConfig = needed
+    if (needed) quickConfig.start()
+    else quickConfig.stop()
+  },
+  { immediate: true },
+)
+onBeforeUnmount(() => {
+  if (readingConfig) quickConfig.stop()
+})
+
 function openLogs(): void {
   void machineFiles.setRoot('logs')
+  void router.push({ name: 'configuration' })
+}
+
+function openLocation(): void {
+  if (!location.value) return
+  machineFiles.locationRequest = { ...location.value }
   void router.push({ name: 'configuration' })
 }
 </script>
@@ -92,7 +136,20 @@ function openLogs(): void {
           it landed would push the recovery buttons out from under a cursor
           already on its way to them.
         -->
-        <p class="printer-fault__message selectable">{{ message }}</p>
+        <p v-if="messageParts" class="printer-fault__message selectable">
+          {{ messageParts.before
+          }}<button
+            type="button"
+            class="text-action printer-fault__location"
+            :title="
+              t('printerFault.openLocation', { path: location!.path, line: location!.line + 1 })
+            "
+            @click="openLocation"
+          >
+            {{ messageParts.section }}</button
+          >{{ messageParts.after }}
+        </p>
+        <p v-else class="printer-fault__message selectable">{{ message }}</p>
 
         <div class="printer-fault__actions">
           <!--

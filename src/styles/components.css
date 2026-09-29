@@ -2438,6 +2438,19 @@ input[type='number']::-webkit-inner-spin-button {
   overflow-wrap: anywhere;
 }
 
+/*
+ * The section Klipper refused, linked to its line. Underlined at rest rather
+ * than muted: every word around it is already primary text, so the muted
+ * resting colour would make the one clickable name the faintest thing in the
+ * message, and colour alone would not say it can be clicked anyway.
+ */
+.printer-fault__location {
+  color: var(--text-primary);
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+  white-space: inherit;
+}
+
 .printer-fault__actions {
   display: flex;
   flex-wrap: wrap;

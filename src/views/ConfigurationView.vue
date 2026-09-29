@@ -56,6 +56,7 @@ import { useDocumentationSiteStore } from '@/stores/documentationSite'
 import {
   PRIMARY_CONFIG,
   useMachineFilesStore,
+  type ContentSearchMatch,
   type MachineFileEntry,
   type MachineFileRoot,
   type OpenMachineFile,
@@ -211,6 +212,7 @@ const pendingMove = ref<PendingMove | null>(null)
 // a file dragged in from the desktop is no longer over the list at all.
 const externalDragDepth = ref(0)
 let contentSearchTimer: ReturnType<typeof setTimeout> | null = null
+let stopLocationRequests: (() => void) | null = null
 /*
  * Passed to setDragImage in onDragStart to suppress the browser's own drag
  * image (a snapshot of the whole row, columns and all) in favor of the
@@ -1157,10 +1159,33 @@ async function chooseRow(row: ExplorerTreeRow): Promise<void> {
   }
   void machineFiles.selectDirectory(row.parentPath)
   mobileExplorerOpen.value = false
-  if (machineFiles.currentFile?.path === entry.path) return
-  await openWithWarningGate(entry.name, entry.size, async () => {
-    await machineFiles.openFile(entry, { preview: true })
-  })
+  const match = contentMatchFor(entry.path)
+  if (machineFiles.currentFile?.path !== entry.path) {
+    await openWithWarningGate(entry.name, entry.size, async () => {
+      await machineFiles.openFile(entry, { preview: true })
+    })
+  }
+  if (match && machineFiles.currentFile?.path === entry.path) {
+    await nextTick()
+    revealContentMatch(match)
+  }
+}
+
+/*
+ * Only a result the content search found, for the query on screen: a file
+ * listed because its name matched has no line to land on, and a match left
+ * over from an earlier query would land on text nobody is looking for.
+ */
+function contentMatchFor(path: string): ContentSearchMatch | null {
+  if (!isSearching.value || !searchInFileContents.value) return null
+  if (machineFiles.contentSearchQuery !== search.value.trim()) return null
+  return machineFiles.contentSearchMatches.get(path) ?? null
+}
+
+function revealContentMatch(match: ContentSearchMatch): void {
+  goToLine(match.line + 1)
+  const lineStart = lineStartOffset(match.line)
+  codeEditor.value?.selectRange(lineStart + match.column, lineStart + match.column + match.length)
 }
 
 function keepRow(row: ExplorerTreeRow): void {
@@ -1761,7 +1786,10 @@ function goToLine(line: number): void {
   codeEditor.value?.revealLine(line)
 }
 
-/** Quick config's file-and-line link: the way out to anything a field cannot express. */
+/**
+ * Quick config's file-and-line link, the way out to anything a field cannot
+ * express, and the fault notice's link to the line Klipper refused.
+ */
 async function openQuickConfigLocation(path: string, line: number): Promise<void> {
   quickConfig.viewMode = 'files'
   if (machineFiles.currentRoot !== 'config') await machineFiles.setRoot('config')
@@ -1857,9 +1885,19 @@ onMounted(() => {
   window.addEventListener('blur', clearLinkModifierState)
   window.addEventListener('dragover', trackDragGhost)
   singlePaneQuery?.addEventListener('change', onSinglePaneChange)
+  stopLocationRequests = watch(
+    () => machineFiles.locationRequest,
+    (request) => {
+      if (!request) return
+      machineFiles.locationRequest = null
+      void openQuickConfigLocation(request.path, request.line)
+    },
+    { immediate: true },
+  )
 })
 
 onBeforeUnmount(() => {
+  stopLocationRequests?.()
   machineFiles.stop()
   if (quickConfigStartedForMenu) quickConfig.stop()
   documentationSite.stop()

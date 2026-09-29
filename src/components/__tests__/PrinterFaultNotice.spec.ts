@@ -100,6 +100,47 @@ describe('PrinterFaultNotice', () => {
     expect(router.currentRoute.value.name).toBe('configuration')
   })
 
+  it('links the section Klipper refused to its line, in whichever file holds it', async () => {
+    const machineFiles = useMachineFilesStore(pinia)
+    const files: Record<string, string> = {
+      'printer.cfg': '[include hardware.cfg]\n\n[printer]\nkinematics: cartesian',
+      'hardware.cfg': '[stepper_x]\nstep_pin: PA1\n\n[autotune_tmc extruder]\nmotor: x',
+    }
+    vi.spyOn(machineFiles, 'listConfigFiles').mockResolvedValue(Object.keys(files))
+    vi.spyOn(machineFiles, 'loadConfigFiles').mockResolvedValue(true)
+    vi.spyOn(machineFiles, 'configBuffer').mockImplementation((path: string) => {
+      const text = files[path]
+      return text === undefined ? undefined : ({ content: text, saved: text } as never)
+    })
+    const notice = await mountNotice()
+    faultState("Section 'autotune_tmc extruder' is not a valid config section\n\nPrinter is halted")
+    await flushPromises()
+
+    const message = notice.get('.printer-fault__message')
+    // Still Klipper's sentence, word for word, with only the name made clickable.
+    expect(message.text()).toContain(
+      "Section 'autotune_tmc extruder' is not a valid config section",
+    )
+    const link = message.get('button.printer-fault__location')
+    expect(link.text()).toBe('autotune_tmc extruder')
+
+    await link.trigger('click')
+    await flushPromises()
+    expect(machineFiles.locationRequest).toEqual({ path: 'hardware.cfg', line: 3 })
+    expect(router.currentRoute.value.name).toBe('configuration')
+  })
+
+  it('leaves a section it cannot find as plain text', async () => {
+    const machineFiles = useMachineFilesStore(pinia)
+    vi.spyOn(machineFiles, 'listConfigFiles').mockResolvedValue([])
+    const notice = await mountNotice()
+    faultState("Section 'nowhere' is not a valid config section")
+    await flushPromises()
+
+    expect(notice.find('.printer-fault__location').exists()).toBe(false)
+    expect(notice.get('.printer-fault__message').text()).toContain("Section 'nowhere'")
+  })
+
   it('collapses to its heading so a config can be repaired underneath it', async () => {
     const notice = await mountNotice()
     faultState('Option not valid in section')

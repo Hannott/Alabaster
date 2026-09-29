@@ -822,6 +822,7 @@
   },
   "printerFault": {
     "openLogs": "Åpne logger",
+    "openLocation": "Åpne {path}, linje {line}",
     "expand": "Vis hva Klipper meldte",
     "collapse": "Skjul hva Klipper meldte"
   },

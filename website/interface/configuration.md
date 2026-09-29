@@ -122,6 +122,13 @@ this session, so you can still see what you touched after saving. A short tick
 on a line's edge marks lines you deleted there. Hovering a mark says which it
 is. The marks reset when the file is read from the printer again.
 
+## Fixing a config Klipper refused
+
+When Klipper will not start because of a section or option in your config,
+the section name in its error message is a link. It opens the file that holds
+the section, at the line Klipper means, even when that file is included from
+`printer.cfg` rather than being `printer.cfg` itself.
+
 ## Include links
 
 `[include]` targets are links. Hovering underlines the path. Ctrl+click opens
@@ -264,8 +271,8 @@ lets you find the file that sets `rotation_distance` by searching, instead of
 opening files one at a time.
 
 Opening a file while a search is active highlights every match inside it —
-the line and the exact word — so you land on why it matched instead of
-rereading the whole file to find it.
+the line and the exact word — and a file found by its contents opens at its
+first match, so you land on why it matched instead of scrolling to find it.
 
 Three switches under **Explorer settings** decide what the list shows:
 
