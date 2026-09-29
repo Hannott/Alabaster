@@ -26,8 +26,8 @@ import {
 import { bedExtents } from '@/dashboard/bedPlan'
 import { configBoolean, configString, useDashboardModule } from '@/dashboard/context'
 import { useActionGuard } from '@/composables/useActionGuard'
+import { levelingProcedureIds, useCalibrationRun } from '@/composables/useCalibrationRun'
 import { useConsoleStore } from '@/stores/console'
-import { useMacrosStore } from '@/stores/macros'
 import { useManualProbeStore } from '@/stores/manualProbe'
 import { parseScrewsTiltResults, usePrinterStore } from '@/stores/printer'
 import { usePrintersStore } from '@/stores/printers'
@@ -60,9 +60,9 @@ const printer = usePrinterStore()
 const gcodeConsole = useConsoleStore()
 const printerConfig = usePrinterConfigStore()
 const printers = usePrintersStore()
-const macros = useMacrosStore()
 const zMotion = useZMotionStore()
 const manualProbe = useManualProbeStore()
+const calibrationRun = useCalibrationRun()
 // The card reads its configuration; writing it belongs to the quick settings
 // and the settings pane, which are the two places that present it.
 const { config, isSettingsOpen, updateConfig } = useDashboardModule('movement')
@@ -697,13 +697,18 @@ function requestMotorsOff(): void {
   )
 }
 
+/*
+ * Through the calibration store, not the printer store directly: the run is
+ * then the same registry entry the bench runs — logged, parsed, and the one
+ * `activeRun` both surfaces refuse a second run on. See `useCalibrationRun`.
+ */
 async function runLeveling(method: LevelingMethod): Promise<void> {
   // Only the lines this run produces belong to its result, never whatever was
   // already sitting in the shared console buffer — and never the run before
   // this one, whose rows go the moment a new run starts.
   levelingTranscriptAfter.value = gcodeConsole.consoleEntries.at(-1)?.id ?? 0
   resultsFrom.value = method
-  await printer.runLeveling(method)
+  await calibrationRun.run(levelingProcedureIds[method])
 }
 
 async function confirmLeveling(): Promise<void> {
@@ -729,15 +734,23 @@ function requestLevelingShortcut(): void {
 
 async function confirmProbeCalibrate(): Promise<void> {
   confirmingProbeCalibrate.value = false
-  await macros.run('PROBE_CALIBRATE')
+  await calibrationRun.run('probeZOffset')
 }
 
 function requestProbeCalibrate(): void {
   probeCalibrateGuard.request(
-    () => void macros.run('PROBE_CALIBRATE'),
+    () => void calibrationRun.run('probeZOffset'),
     () => (confirmingProbeCalibrate.value = true),
   )
 }
+
+/**
+ * A calibration under way anywhere — this card or the bench — holds every
+ * calibration shortcut here: the machine
+ * does one physical thing at a time, and the bench refuses a second run for
+ * the same reason.
+ */
+const calibrationBusy = computed(() => calibrationRun.busy.value)
 
 /**
  * Klipper reports a turn as clock-face minutes, which is how the physical
@@ -1060,7 +1073,9 @@ function screwInstruction(screw: (typeof screwResults.value)[number]): string {
                   :label="t('dashboard.movement.levelBedShort')"
                   class="jog-leveling-shortcut"
                   :aria-busy="printer.pendingCommands.leveling || undefined"
-                  :disabled="printer.pendingCommands.leveling || homing || !isFullyHomed"
+                  :disabled="
+                    printer.pendingCommands.leveling || calibrationBusy || homing || !isFullyHomed
+                  "
                   :aria-label="t(`dashboard.movement.leveling.${primaryLevelingMethod}`)"
                   :title="t(`dashboard.movement.leveling.${primaryLevelingMethod}`)"
                   @click="requestLevelingShortcut"
@@ -1077,16 +1092,11 @@ function screwInstruction(screw: (typeof screwResults.value)[number]): string {
                   v-if="showProbeCalibrateShortcut && canProbeCalibrate"
                   size="sm"
                   :guard="probeCalibrateGuard"
-                  :pending="macros.isRunning('PROBE_CALIBRATE')"
+                  :pending="calibrationRun.isRunning('probeZOffset')"
                   :label="t('dashboard.movement.probeCalibrateShort')"
                   class="jog-probe-calibrate-shortcut"
-                  :aria-busy="macros.isRunning('PROBE_CALIBRATE') || undefined"
-                  :disabled="
-                    macros.isRunning('PROBE_CALIBRATE') ||
-                    manualProbe.isActive ||
-                    homing ||
-                    !isFullyHomed
-                  "
+                  :aria-busy="calibrationRun.isRunning('probeZOffset') || undefined"
+                  :disabled="calibrationBusy || manualProbe.isActive || homing || !isFullyHomed"
                   :aria-label="t('dashboard.movement.probeCalibrate')"
                   :title="t('dashboard.movement.probeCalibrate')"
                   @click="requestProbeCalibrate"
@@ -1179,7 +1189,9 @@ function screwInstruction(screw: (typeof screwResults.value)[number]): string {
             :guard="levelingGuard"
             :pending="printer.pendingCommands.leveling"
             :aria-busy="printer.pendingCommands.leveling || undefined"
-            :disabled="printer.pendingCommands.leveling || homing || !isFullyHomed"
+            :disabled="
+              printer.pendingCommands.leveling || calibrationBusy || homing || !isFullyHomed
+            "
             @click="requestLeveling(method)"
           >
             {{ t(`dashboard.movement.leveling.${method}`) }}

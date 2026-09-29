@@ -6,6 +6,7 @@ import AppButton from '@/components/AppButton.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import PromptDialog from '@/components/PromptDialog.vue'
 import { useActionGuard } from '@/composables/useActionGuard'
+import { useCalibrationRun } from '@/composables/useCalibrationRun'
 import { useAvailability } from '@/composables/useAvailability'
 import { profileNameIssue } from '@/features/bedMesh/profileNames'
 import { useBedMeshStore } from '@/stores/bedMesh'
@@ -15,6 +16,7 @@ import { usePrinterStore } from '@/stores/printer'
 const { locale, t } = useI18n({ useScope: 'global' })
 const bedMesh = useBedMeshStore()
 const printer = usePrinterStore()
+const calibrationRun = useCalibrationRun()
 const confirmations = useConfirmationsStore()
 const { availability: klipperAvailability } = useAvailability('klipper')
 
@@ -90,8 +92,8 @@ function validateMeshName(value: string, except?: string): string | undefined {
           :pending="printer.pendingCommands.bedMesh"
           icon="mesh"
           :label="t('calibration.mesh.calibrate')"
-          :disabled="!canCommand"
-          @click="printer.calibrateBedMesh()"
+          :disabled="!canCommand || calibrationRun.busy.value"
+          @click="calibrationRun.run('bedMesh')"
         />
         <AppButton
           size="xs"

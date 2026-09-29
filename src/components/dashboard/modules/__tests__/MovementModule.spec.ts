@@ -1,6 +1,6 @@
 import { createPinia } from 'pinia'
 import { flushPromises, mount } from '@vue/test-utils'
-import { computed, ref } from 'vue'
+import { computed, defineComponent, ref } from 'vue'
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import MovementModule from '@/components/dashboard/modules/MovementModule.vue'
@@ -8,8 +8,8 @@ import { consoleEntryFromResponse } from '@/services/console/transcript'
 import { dashboardModuleContextKey } from '@/dashboard/context'
 import { i18n } from '@/i18n'
 import { useConfirmationsStore } from '@/stores/confirmations'
+import { useCalibrationStore } from '@/stores/calibration'
 import { useConsoleStore } from '@/stores/console'
-import { useMacrosStore } from '@/stores/macros'
 import { useManualProbeStore } from '@/stores/manualProbe'
 import { usePrinterStore } from '@/stores/printer'
 import { usePrinterConfigStore, type LevelingMethod } from '@/stores/printerConfig'
@@ -385,7 +385,7 @@ describe('MovementModule', () => {
     const { printer, wrapper, pinia } = mountModule({
       config: { showProbeCalibrateShortcut: true },
     })
-    const run = vi.spyOn(useMacrosStore(pinia), 'run').mockResolvedValue(true)
+    const sendGcode = vi.spyOn(printer, 'sendGcode').mockResolvedValue(true)
     readyToMove(printer)
     await flushPromises()
 
@@ -393,10 +393,12 @@ describe('MovementModule', () => {
     expect(shortcut.attributes('disabled')).toBeUndefined()
     await shortcut.trigger('click')
     await flushPromises()
-    expect(run).not.toHaveBeenCalled()
+    expect(sendGcode).not.toHaveBeenCalled()
 
     await confirmOpenDialog(wrapper)
-    expect(run).toHaveBeenCalledWith('PROBE_CALIBRATE')
+    // The bench's own registry entry, so the run is logged and gated like one of its.
+    expect(sendGcode).toHaveBeenCalledWith('PROBE_CALIBRATE', 'calibration', { timeoutMs: null })
+    expect(useCalibrationStore(pinia).runFor('probeZOffset')).not.toBeNull()
 
     const manualProbe = useManualProbeStore(pinia)
     manualProbe.isActive = true
@@ -699,6 +701,46 @@ describe('MovementModule', () => {
 
     await confirmOpenDialog(wrapper)
     expect(runLeveling).toHaveBeenCalledWith('quadGantryLevel')
+  })
+
+  it('holds every calibration shortcut while the bench is running a procedure of its own', async () => {
+    const { printer, wrapper, pinia } = mountModule({
+      leveling: ['quadGantryLevel'],
+      config: { showProbeCalibrateShortcut: true },
+    })
+    vi.spyOn(printer, 'runLeveling').mockResolvedValue(true)
+    readyToMove(printer)
+    await flushPromises()
+    expect(wrapper.get('.jog-leveling-shortcut').attributes('disabled')).toBeUndefined()
+
+    // A probe accuracy run started on the Calibration page, still going.
+    let finish: (() => void) | undefined
+    vi.spyOn(printer, 'sendGcode').mockImplementation(
+      () => new Promise((resolve) => (finish = () => resolve(true))),
+    )
+    const calibration = useCalibrationStore(pinia)
+    const { useProcedureContext } = await import('@/composables/useProcedureContext')
+    const { procedureById } = await import('@/features/calibration/procedures')
+    let context: ReturnType<typeof useProcedureContext> | undefined
+    mount(
+      defineComponent({
+        setup() {
+          context = useProcedureContext()
+          return () => null
+        },
+      }),
+      { global: { plugins: [pinia, i18n] } },
+    )
+    const run = calibration.run(procedureById('probeAccuracy')!, {}, context!.value)
+    await flushPromises()
+
+    expect(wrapper.get('.jog-leveling-shortcut').attributes('disabled')).toBeDefined()
+    expect(wrapper.get('.jog-probe-calibrate-shortcut').attributes('disabled')).toBeDefined()
+
+    finish?.()
+    await run
+    await flushPromises()
+    expect(wrapper.get('.jog-leveling-shortcut').attributes('disabled')).toBeUndefined()
   })
 
   /**

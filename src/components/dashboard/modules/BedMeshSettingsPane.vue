@@ -13,6 +13,7 @@ import { configBoolean, configNumber, useDashboardModule } from '@/dashboard/con
 import { profileNameIssue } from '@/features/bedMesh/profileNames'
 import { useBedMeshStore } from '@/stores/bedMesh'
 import { useConfirmationsStore } from '@/stores/confirmations'
+import { useCalibrationRun } from '@/composables/useCalibrationRun'
 import { usePrinterStore } from '@/stores/printer'
 
 /**
@@ -36,6 +37,7 @@ import { usePrinterStore } from '@/stores/printer'
 const { locale, t } = useI18n({ useScope: 'global' })
 const bedMesh = useBedMeshStore()
 const printer = usePrinterStore()
+const calibrationRun = useCalibrationRun()
 const confirmations = useConfirmationsStore()
 const { config, updateConfig } = useDashboardModule('bedMesh')
 
@@ -193,8 +195,8 @@ function validateName(value: string, except?: string): string | undefined {
         size="sm"
         icon="mesh"
         :label="t('dashboard.bedMesh.calibrate')"
-        :disabled="isBusy || printer.hasActivePrint"
-        @click="printer.calibrateBedMesh()"
+        :disabled="isBusy || calibrationRun.busy.value || printer.hasActivePrint"
+        @click="calibrationRun.run('bedMesh')"
       />
     </div>
     <p class="mt-2 text-xs text-muted">{{ t('dashboard.bedMesh.saveProfileHint') }}</p>

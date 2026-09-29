@@ -7,6 +7,7 @@ import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import PromptDialog from '@/components/PromptDialog.vue'
 import { sensorLabel } from '@/components/dashboard/modules/temperatureSensors'
 import { useActionGuard } from '@/composables/useActionGuard'
+import { useCalibrationRun } from '@/composables/useCalibrationRun'
 import { useConsoleStore } from '@/stores/console'
 import { usePrinterStore } from '@/stores/printer'
 import { usePrinterConfigStore } from '@/stores/printerConfig'
@@ -47,6 +48,7 @@ const defaultCalibrationTarget = 200
 const { t } = useI18n({ useScope: 'global' })
 const telemetry = useTelemetryStore()
 const printer = usePrinterStore()
+const calibrationRun = useCalibrationRun()
 // The calibration transcript is read off the console store's raw lines.
 const gcodeConsole = useConsoleStore()
 const printerConfig = usePrinterConfigStore()
@@ -168,11 +170,10 @@ async function startCalibration(): Promise<void> {
   // Only the lines the calibration itself produces belong in its transcript —
   // never whatever else happened to be in the shared console buffer already.
   calibrationTranscriptStart.value = gcodeConsole.consoleLines.length
-  calibrationSucceeded.value = await printer.calibrateHeater(
-    calibrationKind.value,
-    objectName,
-    calibrationTargetDraft.value,
-  )
+  calibrationSucceeded.value = await calibrationRun.run('heaterModel', {
+    HEATER: objectName,
+    TARGET: String(calibrationTargetDraft.value),
+  })
 }
 </script>
 
@@ -194,7 +195,9 @@ async function startCalibration(): Promise<void> {
             : t('dashboard.temperature.calibratePid')
         "
         :aria-busy="isCalibrating(sensor.objectName) || undefined"
-        :disabled="printer.pendingCommands.calibrateHeater || hasJobLoaded"
+        :disabled="
+          printer.pendingCommands.calibrateHeater || calibrationRun.busy.value || hasJobLoaded
+        "
         :title="hasJobLoaded ? t('dashboard.temperature.calibrateBlocked') : undefined"
         @click="openCalibrationPrompt(sensor)"
       />

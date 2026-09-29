@@ -41,7 +41,11 @@ and whether it moves the toolhead, heats, or probes.
 - **Values** you might change, such as a mesh profile name or a heater's
   target, are fields with Klipper's default shown. The command they build is
   shown under them.
-- **Run** sends it. One calibration runs at a time.
+- **Run** sends it. One calibration runs at a time, from wherever it was
+  started: the Movement card's **Level bed** and **Calibrate Z**, the bed mesh
+  card's **Calibrate**, and a heater model from the Temperatures card run the
+  same calibration this page does, are logged with it, and hold each other's
+  buttons while they run.
 - **The result** lists what the calibration found next to what the printer had
   before, and says where it went: staged for `SAVE_CONFIG`, applied until
   Klipper restarts, or measured only. A calibration that stages values

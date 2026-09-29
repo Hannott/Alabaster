@@ -9,6 +9,7 @@ import AppDashboardModule from '@/components/dashboard/AppDashboardModule.vue'
 import BedMeshQuickSettings from '@/components/dashboard/modules/BedMeshQuickSettings.vue'
 import { readBedMeshViewSetting } from '@/components/dashboard/modules/bedMeshViewSettings'
 import { useTouchGesture, type TouchGestureStep } from '@/composables/useTouchGesture'
+import { useCalibrationRun } from '@/composables/useCalibrationRun'
 import { configBoolean, configNumber, configString, useDashboardModule } from '@/dashboard/context'
 import {
   buildMeshScene,
@@ -75,6 +76,7 @@ const { locale, t } = useI18n({ useScope: 'global' })
 const bedMesh = useBedMeshStore()
 const probeRun = useMeshProbeRunStore()
 const printer = usePrinterStore()
+const calibrationRun = useCalibrationRun()
 
 /*
  * `hasActivePrint`, not `isPrinting`. This card gated its three print-sensitive
@@ -1414,10 +1416,10 @@ onBeforeUnmount(() => {
       <p class="text-xs text-muted">{{ t('dashboard.bedMesh.empty') }}</p>
       <AppButton
         size="sm"
-        :disabled="printer.pendingCommands.bedMesh || hasJobLoaded"
+        :disabled="printer.pendingCommands.bedMesh || calibrationRun.busy.value || hasJobLoaded"
         icon="mesh"
         :label="t('dashboard.bedMesh.calibrate')"
-        @click="printer.calibrateBedMesh()"
+        @click="calibrationRun.run('bedMesh')"
       />
     </div>
   </AppDashboardModule>
