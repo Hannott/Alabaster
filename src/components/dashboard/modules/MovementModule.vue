@@ -24,7 +24,12 @@ import {
 } from '@/components/dashboard/modules/movementSteps'
 
 import { bedExtents } from '@/dashboard/bedPlan'
-import { configBoolean, configString, useDashboardModule } from '@/dashboard/context'
+import {
+  configBoolean,
+  configString,
+  moduleShowsSection,
+  useDashboardModule,
+} from '@/dashboard/context'
 import { useActionGuard } from '@/composables/useActionGuard'
 import { levelingProcedureIds, useCalibrationRun } from '@/composables/useCalibrationRun'
 import { useConsoleStore } from '@/stores/console'
@@ -65,7 +70,10 @@ const manualProbe = useManualProbeStore()
 const calibrationRun = useCalibrationRun()
 // The card reads its configuration; writing it belongs to the quick settings
 // and the settings pane, which are the two places that present it.
-const { config, isSettingsOpen, updateConfig } = useDashboardModule('movement')
+const movementContext = useDashboardModule('movement')
+const { config, isSettingsOpen, updateConfig } = movementContext
+/** A section the host of this card asked for — every one, on the dashboard. See `sections` in the registry. */
+const showsSection = (section: string) => moduleShowsSection(movementContext, section)
 
 const confirmingMotorsOff = ref(false)
 const confirmingProbeCalibrate = ref(false)
@@ -201,16 +209,25 @@ function commitSpeedFactor(percent: number): void {
 }
 // Keys and defaults live in `movementCardSettings.ts`, shared with the
 // settings rows so the two cannot drift.
-const showZOffset = computed(() => readMovementCardSetting(config.value, 'showZOffset'))
-const showSpeedFactor = computed(() => readMovementCardSetting(config.value, 'showSpeedFactor'))
-const showParking = computed(() => readMovementCardSetting(config.value, 'showParking'))
-const showBedPlan = computed(() => readMovementCardSetting(config.value, 'showBedPlan'))
+const showZOffset = computed(
+  () => showsSection('zOffset') && readMovementCardSetting(config.value, 'showZOffset'),
+)
+const showSpeedFactor = computed(
+  () => showsSection('speedFactor') && readMovementCardSetting(config.value, 'showSpeedFactor'),
+)
+const showParking = computed(
+  () => showsSection('park') && readMovementCardSetting(config.value, 'showParking'),
+)
+const showBedPlan = computed(
+  () => showsSection('plan') && readMovementCardSetting(config.value, 'showBedPlan'),
+)
 const showBedPlanWhilePrinting = computed(() =>
   readMovementCardSetting(config.value, 'showBedPlanWhilePrinting'),
 )
 const showHomeXY = computed(() => readMovementCardSetting(config.value, 'showHomeXY'))
-const showLevelBedShortcut = computed(() =>
-  readMovementCardSetting(config.value, 'showLevelBedShortcut'),
+const showLeveling = computed(() => showsSection('leveling'))
+const showLevelBedShortcut = computed(
+  () => showLeveling.value && readMovementCardSetting(config.value, 'showLevelBedShortcut'),
 )
 /**
  * The shortcut beside home-all always reads "Level bed" and always exists
@@ -227,8 +244,8 @@ const showLevelBedShortcut = computed(() =>
 const primaryLevelingMethod = computed<LevelingMethod | null>(
   () => printerConfig.levelingMethods[0] ?? null,
 )
-const showProbeCalibrateShortcut = computed(() =>
-  readMovementCardSetting(config.value, 'showProbeCalibrateShortcut'),
+const showProbeCalibrateShortcut = computed(
+  () => showLeveling.value && readMovementCardSetting(config.value, 'showProbeCalibrateShortcut'),
 )
 /**
  * Klipper registers `PROBE_CALIBRATE` from the probe object, so on a machine
@@ -634,10 +651,12 @@ const hasParkRow = computed(() => showParking.value && parkPositions.value.lengt
 const levelingRowMethods = computed(() =>
   printerConfig.levelingMethods.filter((method) => method !== primaryLevelingMethod.value),
 )
-const hasLevelingRow = computed(() => levelingRowMethods.value.length > 0 && !hasJobLoaded.value)
+const hasLevelingRow = computed(
+  () => showLeveling.value && levelingRowMethods.value.length > 0 && !hasJobLoaded.value,
+)
 
 const unappliedLeveling = computed(() => {
-  if (hasJobLoaded.value) return []
+  if (hasJobLoaded.value || !showLeveling.value) return []
   const notices: string[] = []
   if (printer.leveling.quadGantryApplied === false) {
     notices.push(t('dashboard.movement.levelingUnapplied.quadGantryLevel'))
@@ -1219,7 +1238,7 @@ function screwInstruction(screw: (typeof screwResults.value)[number]): string {
       instructions have to share a column edge, which is what `module-table`
       is and what a row-by-row flex container could not do.
     -->
-      <div v-if="screwResults.length > 0" class="module-table screw-table">
+      <div v-if="showLeveling && screwResults.length > 0" class="module-table screw-table">
         <div class="module-table__head">
           <span>{{ t('dashboard.movement.screwColumnName') }}</span>
           <span>{{ t('dashboard.movement.screwColumnAdjustment') }}</span>

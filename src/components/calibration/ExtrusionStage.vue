@@ -21,7 +21,15 @@ const hasExtruder = computed(() => printerConfig.hasSection('extruder'))
 <template>
   <CalibrationBench stage="extrusion">
     <template #live>
-      <HostedDashboardModule v-if="hasExtruder" module-id="extruder">
+      <!--
+        The hotend and the extrude and retract controls; macros, retraction and
+        pressure advance are not what a measurement reaches for.
+      -->
+      <HostedDashboardModule
+        v-if="hasExtruder"
+        module-id="extruder"
+        :sections="['status', 'manual']"
+      >
         <ExtruderModule />
       </HostedDashboardModule>
     </template>

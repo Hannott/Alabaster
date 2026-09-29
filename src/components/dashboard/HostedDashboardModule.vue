@@ -48,6 +48,12 @@ const props = defineProps<{
    */
   title?: string
   hint?: string
+  /**
+   * Only these of the module's declared sections, for a stage whose subject
+   * is part of the module rather than all of it. Left out, the module is
+   * hosted whole.
+   */
+  sections?: readonly string[]
 }>()
 
 const { t } = useI18n({ useScope: 'global' })
@@ -68,6 +74,15 @@ if (import.meta.env.DEV && dashboardModulesById.get(props.moduleId)?.supportsMul
   console.warn(
     `HostedDashboardModule: "${props.moduleId}" supports multiple instances, so there is no single instance a page can host.`,
   )
+}
+
+if (import.meta.env.DEV && props.sections) {
+  const declared = dashboardModulesById.get(props.moduleId)?.sections ?? []
+  for (const section of props.sections) {
+    if (!declared.includes(section)) {
+      console.warn(`HostedDashboardModule: "${props.moduleId}" declares no "${section}" section.`)
+    }
+  }
 }
 
 const heading = computed(() => props.title ?? t(definition.value?.titleKey ?? ''))
@@ -94,6 +109,7 @@ provide(dashboardModuleContextKey, {
   closeSurface: () => {},
   canOpenSurface: false,
   pinAllQuickSettings: true,
+  ...(props.sections ? { sections: props.sections } : {}),
 })
 </script>
 

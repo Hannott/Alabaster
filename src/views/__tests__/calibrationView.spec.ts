@@ -1390,4 +1390,24 @@ describe('Calibration view', () => {
     resolveRpc?.()
     await flushPromises()
   })
+
+  it('hosts only the sections a stage asked for, and the dashboard every one', async () => {
+    const layout = useDashboardLayoutStore(pinia)
+    layout.updateConfig('movement', { showZOffset: true, showSpeedFactor: true, showParking: true })
+    const printer = usePrinterStore(pinia)
+    printer.buildVolume.minimum = [0, 0, 0]
+    printer.buildVolume.maximum = [200, 200, 200]
+    homed()
+    const view = await mountView('axes')
+
+    const card = view.get('.calibration-stage__live, .calibration-bench__column--live')
+    expect(card.find('.trim').exists()).toBe(false)
+    expect(card.text()).not.toContain('Speed Factor')
+    expect(card.text()).toContain('Park')
+
+    const dashboardCard = mount(MovementModule, { global: { plugins: [i18n, pinia] } })
+    await flushPromises()
+    expect(dashboardCard.find('.trim').exists()).toBe(true)
+    dashboardCard.unmount()
+  })
 })

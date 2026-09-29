@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import {
   calibrationProcedures,
   initialProcedure,
+  initialProcedureValues,
   isProcedureStale,
   missingProcedureValues,
   parseAccelerometer,
@@ -591,5 +592,61 @@ describe('bed screws from the status object', () => {
     expect(procedure.build!({ DIRECTION: 'CCW' }, context())).toBe(
       'SCREWS_TILT_CALCULATE DIRECTION=CCW',
     )
+  })
+})
+
+describe('the few parameters a run takes', () => {
+  it('sends a resonance run bare, or with exactly the words that were filled in', () => {
+    const shaper = procedureById('shakeTuneShaper')!
+    const initial = initialProcedureValues(shaper, context())
+    expect(shaper.build!(initial, context())).toBe('AXES_SHAPER_CALIBRATION')
+    expect(
+      shaper.build!({ ...initial, AXIS: 'x', MAX_SMOOTHING: '0.1', FREQ_END: '110' }, context()),
+    ).toBe('AXES_SHAPER_CALIBRATION AXIS=x MAX_SMOOTHING=0.1 FREQ_END=110')
+    expect(
+      procedureById('shaperCalibrate')!.build!({ AXIS: '', MAX_SMOOTHING: '0.2' }, context()),
+    ).toBe('SHAPER_CALIBRATE MAX_SMOOTHING=0.2')
+    expect(
+      procedureById('shakeTuneBelts')!.build!({ FREQ_START: '10', FREQ_END: '' }, context()),
+    ).toBe('COMPARE_BELTS_RESPONSES FREQ_START=10')
+    expect(
+      procedureById('shakeTuneVibrations')!.build!(
+        { SIZE: '80', MAX_SPEED: '', SPEED_INCREMENT: '', ACCEL: '5000' },
+        context(),
+      ),
+    ).toBe('CREATE_VIBRATIONS_PROFILE SIZE=80 ACCEL=5000')
+  })
+
+  it('shows the printer’s own frequency range and probe settings as the placeholders', () => {
+    const ctx = context({
+      sections: ['resonance_tester', 'probe'],
+      settings: (section) =>
+        section === 'resonance_tester'
+          ? { min_freq: 10, max_freq: 120 }
+          : section === 'probe'
+            ? { speed: 8, sample_retract_dist: 1.5 }
+            : null,
+    })
+    const placeholders = (id: string) =>
+      Object.fromEntries(
+        (procedureById(id)!.params ?? []).map((parameter) => [
+          parameter.key,
+          parameter.placeholder?.(ctx) ?? '',
+        ]),
+      )
+    expect(placeholders('shakeTuneBelts')).toEqual({ FREQ_START: '10', FREQ_END: '120' })
+    expect(placeholders('probeAccuracy')).toMatchObject({
+      PROBE_SPEED: '8',
+      SAMPLE_RETRACT_DIST: '1.5',
+    })
+    expect(
+      procedureById('probeAccuracy')!.build!(
+        { SAMPLES: '', PROBE_SPEED: '3', SAMPLE_RETRACT_DIST: '' },
+        ctx,
+      ),
+    ).toBe('PROBE_ACCURACY PROBE_SPEED=3')
+    expect(
+      procedureById('probeDrift')!.build!({ PROBE: 'nozzle', TARGET: '60', STEP: '5' }, ctx),
+    ).toContain('STEP=5')
   })
 })

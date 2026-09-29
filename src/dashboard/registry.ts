@@ -89,6 +89,14 @@ export interface DashboardModuleDefinition {
   /** The module renders a short disclosure layer that the card header can reveal. */
   hasSettings?: boolean
   /**
+   * The ids of the sections a host may limit the module to, for a module
+   * hosted on a page as one stage's subject (`HostedDashboardModule`'s
+   * `sections`). Declared here so the contract is visible in one place and a
+   * host cannot name a section that does not exist. A module without them
+   * is hosted whole.
+   */
+  sections?: readonly string[]
+  /**
    * What changes what the card shows: the rows of the disclosure layer. Named
    * here as well as rendered by the module, because the surface hides the
    * card's gear while it is docked and repeats these at the top of its pane —
@@ -246,6 +254,7 @@ export const dashboardModuleRegistry: readonly DashboardModuleDefinition[] = [
     requires: 'klipper',
     component: markRaw(MovementModule),
     hasSettings: true,
+    sections: ['motion', 'plan', 'park', 'leveling', 'zOffset', 'speedFactor'],
     quickSettingsComponent: markRaw(MovementQuickSettings),
     quickSettingsDefaultKeys: movementDefaultQuickKeys,
     settingsComponent: markRaw(MovementSettingsPane),
@@ -333,6 +342,7 @@ export const dashboardModuleRegistry: readonly DashboardModuleDefinition[] = [
     requires: 'klipper',
     component: markRaw(ExtruderModule),
     hasSettings: true,
+    sections: ['status', 'extrusionFactor', 'manual', 'macros', 'retraction', 'pressureAdvance'],
     quickSettingsComponent: markRaw(ExtruderQuickSettings),
     quickSettingsDefaultKeys: extruderDefaultQuickKeys,
     settingsComponent: markRaw(ExtruderSettingsPane),

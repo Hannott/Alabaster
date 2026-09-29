@@ -20,7 +20,16 @@ const { t } = useI18n({ useScope: 'global' })
 <template>
   <CalibrationBench stage="axes">
     <template #live>
-      <HostedDashboardModule module-id="movement" :title="t('calibration.axes.movementTitle')">
+      <!--
+        Where the toolhead is and how to move it, which is what a procedure here
+        reaches for. Z-offset steps and the speed factor are print tuning, and
+        levelling has its own procedures on the bed stage.
+      -->
+      <HostedDashboardModule
+        module-id="movement"
+        :title="t('calibration.axes.movementTitle')"
+        :sections="['motion', 'plan', 'park']"
+      >
         <MovementModule />
       </HostedDashboardModule>
     </template>

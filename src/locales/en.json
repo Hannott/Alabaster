@@ -400,11 +400,26 @@
       "direction": "Turn direction",
       "directionRelative": "Relative to screw 1",
       "directionCw": "All clockwise",
-      "directionCcw": "All counter-clockwise"
+      "directionCcw": "All counter-clockwise",
+      "maxSmoothing": "Max smoothing",
+      "zHeight": "Z height",
+      "freqStart": "From",
+      "freqEnd": "To",
+      "size": "Pattern size",
+      "maxSpeed": "Max speed",
+      "speedIncrement": "Speed step",
+      "accel": "Acceleration",
+      "probeSpeed": "Probe speed",
+      "sampleRetract": "Retract between samples",
+      "step": "Temperature step"
     },
     "unit": {
       "seconds": "s",
-      "millimetres": "mm"
+      "millimetres": "mm",
+      "hertz": "Hz",
+      "millimetresPerSecond": "mm/s",
+      "millimetresPerSecondSquared": "mm/s²",
+      "degrees": "°C"
     },
     "rotation": {
       "heat": "Heat the hotend: {current} °C now, at least {minimum} °C to extrude.",

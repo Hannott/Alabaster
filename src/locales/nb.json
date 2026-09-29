@@ -400,11 +400,26 @@
       "direction": "Skruretning",
       "directionRelative": "Relativt til skrue 1",
       "directionCw": "Alle med klokken",
-      "directionCcw": "Alle mot klokken"
+      "directionCcw": "Alle mot klokken",
+      "maxSmoothing": "Maks utjevning",
+      "zHeight": "Z-høyde",
+      "freqStart": "Fra",
+      "freqEnd": "Til",
+      "size": "Mønsterstørrelse",
+      "maxSpeed": "Maks hastighet",
+      "speedIncrement": "Hastighetstrinn",
+      "accel": "Akselerasjon",
+      "probeSpeed": "Probehastighet",
+      "sampleRetract": "Løft mellom målinger",
+      "step": "Temperatursteg"
     },
     "unit": {
       "seconds": "s",
-      "millimetres": "mm"
+      "millimetres": "mm",
+      "hertz": "Hz",
+      "millimetresPerSecond": "mm/s",
+      "millimetresPerSecondSquared": "mm/s²",
+      "degrees": "°C"
     },
     "rotation": {
       "heat": "Varm opp hotenden: {current} °C nå, minst {minimum} °C for å ekstrudere.",

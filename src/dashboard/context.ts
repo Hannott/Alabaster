@@ -47,6 +47,21 @@ export interface DashboardModuleContext {
    * an empty or near-empty layer. See `useQuickSettings`.
    */
   pinAllQuickSettings?: boolean
+  /**
+   * The module's sections a host wants shown, by the ids the module declares
+   * in its registry entry; undefined shows every section, which is what every
+   * dashboard card gets. Set only by `HostedDashboardModule`, for a page that
+   * hosts a module as the subject of one stage — the Movement card's Z-offset
+   * steps and speed factor are print tuning, not what an axes calibration
+   * reaches for — and never by reaching into the module's template: the
+   * module decides what a section is, the host only names which.
+   */
+  sections?: readonly string[]
+}
+
+/** Whether a module section renders under this context: every one unless the host named some. */
+export function moduleShowsSection(context: DashboardModuleContext, section: string): boolean {
+  return context.sections === undefined || context.sections.includes(section)
 }
 
 export const dashboardModuleContextKey: InjectionKey<DashboardModuleContext> =

@@ -18,6 +18,11 @@ there.
 | **Resonance**    | Input shaper calibration, Shake&Tune shaper, belts and vibrations, accelerometer check and noise                                       | The Shake&Tune graphs |
 | **Extrusion**    | Rotation distance, pressure advance or nonlinear pressure advance, filament sensors                                                    | The extruder controls |
 
+The card beside a job is the dashboard's own, showing the part a calibration
+reaches for: the Movement card's homing, jog and park controls on **Axes &
+frame**, the Extruder card's hotend and extrude controls on **Extrusion**. Its
+gear changes the same settings the dashboard card has.
+
 A calibration your printer cannot run is not listed. A machine with no probe
 has no **Bed & probe** entry; a machine whose only heater is bang-bang has no
 **Heaters** entry. **Axes & frame** is always there, because endstops exist on
@@ -378,7 +383,13 @@ restarts; **Save config** runs `SAVE_CONFIG`.
 touching the toolhead or a loose mount shows before a real test.
 
 With Shake&Tune installed, its shaper, belts, and vibrations tests are
-calibrations too. The shaper test's recommendations appear in its result:
+calibrations too. Each takes the few values worth changing, with the default
+shown until you type one: the shaper test's axis, smoothing cap, Z height and
+frequency range; the belt test's frequency range; the vibration profile's
+pattern size, speed ceiling, speed step and acceleration. Klipper's own
+shaper calibration takes a smoothing cap, and probe accuracy takes the probe
+speed and the retract between samples, so runs you mean to compare can be
+run alike. The shaper test's recommendations appear in its result:
 **Apply** puts both axes into effect until the next restart, and **Save
 config** writes them to `[input_shaper]` in your configuration and restarts
 Klipper to load them. Where the shaper lines are in the `SAVE_CONFIG` block,

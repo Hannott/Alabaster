@@ -23,7 +23,12 @@ import {
   retractionArguments,
   type RetractionField,
 } from '@/components/dashboard/modules/retractionSettings'
-import { configNumber, configStringList, useDashboardModule } from '@/dashboard/context'
+import {
+  configNumber,
+  configStringList,
+  moduleShowsSection,
+  useDashboardModule,
+} from '@/dashboard/context'
 import { formatMacroLabel, useMacrosStore } from '@/stores/macros'
 import { useSpoolStore } from '@/stores/spool'
 import { usePrinterStore } from '@/stores/printer'
@@ -40,7 +45,10 @@ const toasts = useToastsStore()
 const telemetry = useTelemetryStore()
 const macros = useMacrosStore()
 const spool = useSpoolStore()
-const { config, updateConfig, isSettingsOpen, openSurface } = useDashboardModule('extruder')
+const extruderContext = useDashboardModule('extruder')
+const { config, updateConfig, isSettingsOpen, openSurface } = extruderContext
+/** A section the host of this card asked for — every one, on the dashboard. See `sections` in the registry. */
+const showsSection = (section: string) => moduleShowsSection(extruderContext, section)
 
 /**
  * Pressure advance edits in progress.
@@ -65,16 +73,22 @@ const drafts = reactive<{ advance: number; smoothTime: number | null }>({
 // Which optional blocks the card draws; keys, defaults, and the reasoning
 // behind each default live in `extruderCardSettings.ts`, shared with the
 // settings rows so the two cannot drift.
-const showLoadMacros = computed(() => readExtruderCardSetting(config.value, 'showLoadMacros'))
-const showPressureAdvance = computed(() =>
-  readExtruderCardSetting(config.value, 'showPressureAdvance'),
+const showLoadMacros = computed(
+  () => showsSection('macros') && readExtruderCardSetting(config.value, 'showLoadMacros'),
 )
-const showRetraction = computed(() => readExtruderCardSetting(config.value, 'showRetraction'))
-const showManualExtrusion = computed(() =>
-  readExtruderCardSetting(config.value, 'showManualExtrusion'),
+const showPressureAdvance = computed(
+  () =>
+    showsSection('pressureAdvance') && readExtruderCardSetting(config.value, 'showPressureAdvance'),
 )
-const showExtrusionFactor = computed(() =>
-  readExtruderCardSetting(config.value, 'showExtrusionFactor'),
+const showRetraction = computed(
+  () => showsSection('retraction') && readExtruderCardSetting(config.value, 'showRetraction'),
+)
+const showManualExtrusion = computed(
+  () => showsSection('manual') && readExtruderCardSetting(config.value, 'showManualExtrusion'),
+)
+const showExtrusionFactor = computed(
+  () =>
+    showsSection('extrusionFactor') && readExtruderCardSetting(config.value, 'showExtrusionFactor'),
 )
 const length = computed(() => configNumber(config.value, 'length', 25))
 const feedrate = computed(() => configNumber(config.value, 'feedrate', 5))

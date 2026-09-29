@@ -195,4 +195,16 @@ describe('dashboard module registry', () => {
       ).toBeLessThanOrEqual(12)
     }
   })
+
+  it('declares each hosted module’s sections once, so a host cannot name one twice', () => {
+    for (const definition of dashboardModuleRegistry) {
+      if (!definition.sections) continue
+      expect(new Set(definition.sections).size).toBe(definition.sections.length)
+      expect(definition.sections.length).toBeGreaterThan(1)
+    }
+    expect(summaryFor('movement')).toBeDefined()
+    expect(
+      dashboardModuleRegistry.find((definition) => definition.id === 'movement')?.sections,
+    ).toEqual(expect.arrayContaining(['motion', 'park', 'zOffset']))
+  })
 })
