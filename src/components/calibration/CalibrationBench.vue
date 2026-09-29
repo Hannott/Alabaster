@@ -12,9 +12,8 @@ import RotationDistancePanel from '@/components/calibration/RotationDistancePane
 import RunoutSensorsPanel from '@/components/calibration/RunoutSensorsPanel.vue'
 import { useCalibrationSelection } from '@/composables/useCalibrationSelection'
 import { useProcedureContext } from '@/composables/useProcedureContext'
-import { initialProcedure, proceduresForStage } from '@/features/calibration/procedures'
+import { proceduresForStage } from '@/features/calibration/procedures'
 import type { CalibrationStageId } from '@/features/calibration/stages'
-import { useCalibrationStore } from '@/stores/calibration'
 
 /**
  * One stage of Calibration: what the procedures here need, the procedures
@@ -39,7 +38,6 @@ defineSlots<{ live(): unknown }>()
 /** Forwarded from `CalibrationProcedureWorkspace`, up to whichever stage passed `skipConfirm`. */
 const emit = defineEmits<{ skip: [] }>()
 
-const calibration = useCalibrationStore()
 const context = useProcedureContext()
 
 const procedures = computed(() => proceduresForStage(props.stage, context.value))
@@ -49,15 +47,16 @@ const procedures = computed(() => proceduresForStage(props.stage, context.value)
  * query would remount the page and the docked console with it (see
  * CalibrationView). Resolved against the live
  * list, so a procedure whose hardware disappears mid-sitting falls back rather
- * than leaving an empty workspace. Chosen on arrival as the first ageing
- * procedure that is due, which shows what needs doing without a notification.
+ * than leaving an empty workspace. A stage arrives on its first procedure: the
+ * list is ordered verify-first, and a procedure that is due says so in its own
+ * row and under the result before it.
  */
 const selection = useCalibrationSelection()
 const selected = computed(() => {
   const requested = selection.procedureFor(props.stage)
   const chosen = procedures.value.find((procedure) => procedure.id === requested)
   if (chosen) return chosen
-  return initialProcedure(procedures.value, (id) => calibration.lastRunAt(id), Date.now())
+  return procedures.value[0] ?? null
 })
 </script>
 

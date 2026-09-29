@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest'
 
 import {
   calibrationProcedures,
-  initialProcedure,
   initialProcedureValues,
   isProcedureStale,
   missingProcedureValues,
@@ -82,9 +81,29 @@ describe('the procedure registry', () => {
   it('offers only what the printer has', () => {
     expect(ids('axes', context())).toEqual(['endstops'])
     expect(ids('bed', context({ sections: ['bed_mesh', 'quad_gantry_level'] }))).toEqual([
-      'bedMesh',
       'quadGantryLevel',
+      'bedMesh',
     ])
+  })
+
+  it('verifies the probe before it sets or levels anything, and maps the bed last', () => {
+    const printer = context({
+      sections: ['probe', 'screws_tilt_adjust', 'quad_gantry_level', 'bed_mesh'],
+      hasProbe: true,
+    })
+    expect(ids('bed', printer)).toEqual([
+      'probeAccuracy',
+      'probeZOffset',
+      'screwsTilt',
+      'quadGantryLevel',
+      'bedMesh',
+    ])
+  })
+
+  it('lists the axis map with the resonance procedures, where its graph and accelerometer are', () => {
+    const macros = { hasMacro: (name: string) => name === 'AXES_MAP_CALIBRATION' }
+    expect(ids('resonance', context(macros))).toContain('axesMap')
+    expect(ids('axes', context(macros))).not.toContain('axesMap')
   })
 
   it('offers plugin procedures only where the plugin registered its command', () => {
@@ -521,30 +540,49 @@ describe('what is due', () => {
   it('ages a result past its procedure’s threshold, and never one that does not age', () => {
     expect(isProcedureStale(procedureById('bedMesh')!, now - 31 * day, now)).toBe(true)
     expect(isProcedureStale(procedureById('bedMesh')!, now - 29 * day, now)).toBe(false)
-    expect(isProcedureStale(procedureById('probeAccuracy')!, now - 999 * day, now)).toBe(false)
+    expect(isProcedureStale(procedureById('endstops')!, now - 999 * day, now)).toBe(false)
   })
 
-  it('opens a stage on the first ageing procedure that is due, else the first', () => {
-    const procedures = [procedureById('probeAccuracy')!, procedureById('bedMesh')!]
-    expect(initialProcedure(procedures, () => null, now)?.id).toBe('bedMesh')
-    expect(initialProcedure(procedures, () => now, now)?.id).toBe('probeAccuracy')
+  it('ages the probe accuracy test, so it is named as next once it is old', () => {
+    const procedures = [procedureById('probeAccuracy')!, procedureById('probeZOffset')!]
+    expect(isProcedureStale(procedures[0]!, now - 91 * day, now)).toBe(true)
+    expect(nextProcedure(procedures, null, () => null, now)?.id).toBe('probeAccuracy')
+    expect(nextProcedure(procedures, 'probeAccuracy', () => null, now)?.id).toBe('probeZOffset')
   })
 
-  it('names the next step by the ordering the stage opened on, skipping the open one', () => {
+  it('names the next step in the stage’s order, skipping the open one', () => {
     const procedures = [
-      procedureById('probeAccuracy')!,
+      procedureById('endstops')!,
       procedureById('bedMesh')!,
       procedureById('probeZOffset')!,
     ]
     const lastRun = (id: string) => (id === 'bedMesh' ? now - 40 * day : null)
-    // The stage arrives on the due mesh; a workspace on the accuracy test names it too.
-    expect(initialProcedure(procedures, lastRun, now)?.id).toBe('bedMesh')
-    expect(nextProcedure(procedures, 'probeAccuracy', lastRun, now)?.id).toBe('bedMesh')
+    expect(nextProcedure(procedures, 'endstops', lastRun, now)?.id).toBe('bedMesh')
     // From the mesh itself, the next one due; never the procedure that is open.
     expect(nextProcedure(procedures, 'bedMesh', lastRun, now)?.id).toBe('probeZOffset')
-    // A stage that is up to date has no next step, though it still opens on something.
-    expect(nextProcedure(procedures, 'probeAccuracy', () => now, now)).toBeNull()
-    expect(initialProcedure(procedures, () => now, now)?.id).toBe('probeAccuracy')
+    // A stage that is up to date has no next step.
+    expect(nextProcedure(procedures, 'endstops', () => now, now)).toBeNull()
+  })
+})
+
+describe('procedures that do the same job', () => {
+  const day = 86_400_000
+  const now = 1_000 * day
+  const shapers = [procedureById('shaperCalibrate')!, procedureById('shakeTuneShaper')!]
+
+  it('does not name one shaper as next while the other has a current run', () => {
+    const onlyShakeTune = (id: string) => (id === 'shakeTuneShaper' ? now - 10 * day : null)
+    expect(nextProcedure(shapers, null, onlyShakeTune, now)).toBeNull()
+    const onlyKlipper = (id: string) => (id === 'shaperCalibrate' ? now - 10 * day : null)
+    expect(nextProcedure(shapers, null, onlyKlipper, now)).toBeNull()
+  })
+
+  it('names one of them when neither has run or the run is old, never the other from the open one', () => {
+    expect(nextProcedure(shapers, null, () => null, now)?.id).toBe('shaperCalibrate')
+    expect(nextProcedure(shapers, 'shaperCalibrate', () => null, now)).toBeNull()
+    expect(nextProcedure(shapers, 'shakeTuneShaper', () => null, now)).toBeNull()
+    const old = (id: string) => (id === 'shakeTuneShaper' ? now - 91 * day : null)
+    expect(nextProcedure(shapers, null, old, now)?.id).toBe('shaperCalibrate')
   })
 })
 

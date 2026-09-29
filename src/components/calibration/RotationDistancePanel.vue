@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 
 import AppButton from '@/components/AppButton.vue'
 import AppField from '@/components/AppField.vue'
+import CalibrationCard from '@/components/calibration/CalibrationCard.vue'
 import RotationHardwareFields, {
   type RotationProposal,
 } from '@/components/calibration/RotationHardwareFields.vue'
@@ -139,21 +140,14 @@ const history = computed(() =>
 </script>
 
 <template>
-  <section
-    class="page-card calibration-workspace"
-    :aria-label="t('calibration.procedure.rotationDistance.name')"
+  <CalibrationCard
+    class="calibration-workspace"
+    :title="t('calibration.procedure.rotationDistance.name')"
   >
-    <header class="calibration-workspace__header">
-      <div class="min-w-0">
-        <h2 class="calibration-workspace__title">
-          {{ t('calibration.procedure.rotationDistance.name') }}
-        </h2>
-        <p class="calibration-workspace__meta">
-          <span class="calibration-workspace__command">rotation_distance</span>
-          <span>{{ current === null ? '—' : current }}</span>
-        </p>
-      </div>
-    </header>
+    <template #aside>
+      <span class="calibration-workspace__command">rotation_distance</span>
+      <span>{{ current === null ? '—' : current }}</span>
+    </template>
     <p class="calibration-workspace__description">
       {{ t('calibration.procedure.rotationDistance.detail') }}
     </p>
@@ -303,5 +297,5 @@ const history = computed(() =>
         </li>
       </ul>
     </div>
-  </section>
+  </CalibrationCard>
 </template>

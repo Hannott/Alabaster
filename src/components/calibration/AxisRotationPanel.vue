@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 import AppButton from '@/components/AppButton.vue'
 import AppField from '@/components/AppField.vue'
 import AppIcon from '@/components/AppIcon.vue'
+import CalibrationCard from '@/components/calibration/CalibrationCard.vue'
 import RotationHardwareFields, {
   type RotationProposal,
 } from '@/components/calibration/RotationHardwareFields.vue'
@@ -208,20 +209,13 @@ const history = computed(() => [...calibration.historyFor('axisRotation')].rever
 </script>
 
 <template>
-  <section
-    class="page-card calibration-workspace"
-    :aria-label="t('calibration.procedure.axisRotation.name')"
+  <CalibrationCard
+    class="calibration-workspace"
+    :title="t('calibration.procedure.axisRotation.name')"
   >
-    <header class="calibration-workspace__header">
-      <div class="min-w-0">
-        <h2 class="calibration-workspace__title">
-          {{ t('calibration.procedure.axisRotation.name') }}
-        </h2>
-        <p class="calibration-workspace__meta">
-          <span class="calibration-workspace__command">{{ summary }}</span>
-        </p>
-      </div>
-    </header>
+    <template #aside>
+      <span class="calibration-workspace__command">{{ summary }}</span>
+    </template>
     <p class="calibration-workspace__description">
       {{ t('calibration.procedure.axisRotation.detail') }}
     </p>
@@ -406,5 +400,5 @@ const history = computed(() => [...calibration.historyFor('axisRotation')].rever
         </li>
       </ul>
     </div>
-  </section>
+  </CalibrationCard>
 </template>

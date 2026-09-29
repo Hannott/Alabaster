@@ -58,8 +58,9 @@ describe('availableCalibrationStages', () => {
 
   /**
    * The order is the order the physical dependencies run, not the order the
-   * capabilities happened to be discovered in — the frame is squared before the
-   * bed is mapped, and the bed is mapped before a resonance peak is chased.
+   * capabilities happened to be discovered in — the frame is squared before
+   * anything is heated, the heaters hold before the bed is mapped at a
+   * temperature, and the bed is mapped before a resonance peak is chased.
    */
   it('keeps the dependency order whatever the machine reports', () => {
     const stages = availableCalibrationStages(
@@ -70,7 +71,7 @@ describe('availableCalibrationStages', () => {
         hasExtruder: true,
       }),
     )
-    expect(stages).toEqual(['axes', 'bed', 'heaters', 'resonance', 'extrusion'])
+    expect(stages).toEqual(['axes', 'heaters', 'bed', 'resonance', 'extrusion'])
   })
 })
 

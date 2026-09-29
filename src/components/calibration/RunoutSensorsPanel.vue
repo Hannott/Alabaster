@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 
+import CalibrationCard from '@/components/calibration/CalibrationCard.vue'
 import { useRunoutSensorsStore } from '@/stores/runoutSensors'
 
 /**
@@ -15,13 +16,7 @@ const runoutSensors = useRunoutSensorsStore()
 </script>
 
 <template>
-  <section class="page-card calibration-panel" :aria-label="t('calibration.sensors.title')">
-    <header class="calibration-panel__header">
-      <div>
-        <h2 class="calibration-panel__title">{{ t('calibration.sensors.title') }}</h2>
-      </div>
-    </header>
-
+  <CalibrationCard :title="t('calibration.sensors.title')">
     <ul class="calibration-sensors">
       <li
         v-for="sensor in runoutSensors.readings"
@@ -47,5 +42,5 @@ const runoutSensors = useRunoutSensorsStore()
         </span>
       </li>
     </ul>
-  </section>
+  </CalibrationCard>
 </template>

@@ -14,7 +14,9 @@ import {
 
 /**
  * The calibrations Calibration offers, one entry per procedure, in the order a
- * stage lists them.
+ * stage lists them: what verifies that the hardware works comes before what
+ * adjusts it, because a correction made on a probe or sensor that does not
+ * read true is a correction to the wrong thing.
  *
  * Curated, not a catalog of every command Klipper registers. Each entry is a
  * procedure Alabaster understands: what it needs before it runs, the few
@@ -238,6 +240,13 @@ export interface CalibrationProcedure {
   duration: ProcedureDuration
   /** Days after which the last run reads as old; null for a procedure that does not age. */
   staleAfterDays: number | null
+  /**
+   * Procedures that do the same job by another route, of which running any one
+   * is enough: Klipper's own shaper calibration and Shake&Tune's. A run of an
+   * alternative keeps this one from being named next, and neither is named
+   * next while the other is the open one.
+   */
+  alternatives?: readonly ProcedureId[]
   panel?: ProcedurePanel
   params?: readonly ProcedureParameter[]
   /** The script Run sends, or null while the values cannot build one. */
@@ -1109,177 +1118,57 @@ export const calibrationProcedures: readonly CalibrationProcedure[] = [
     build: (values) => buildWithWords('AUTOTUNE_TMC', values, ['STEPPER']),
     parse: (lines) => outcomeOnly(lines),
   },
-  {
-    id: 'axesMap',
-    stage: 'axes',
-    command: 'AXES_MAP_CALIBRATION',
-    available: (context) => context.hasMacro('AXES_MAP_CALIBRATION'),
-    requires: ['homed', 'notPrinting', 'accelerometer'],
-    effects: ['moves'],
-    duration: 'minute',
-    staleAfterDays: null,
-    build: () => 'AXES_MAP_CALIBRATION',
-    snapshot: (_values, context) => {
-      const chip = axesMapChip(context)
-      return {
-        accel_chip: chip ?? '',
-        axes_map: chip ? (settingText(context, chip, 'axes_map') ?? '') : '',
-      }
-    },
-    parse: parseAxesMap,
-    current: (context) => {
-      const chip = axesMapChip(context)
-      const map = chip ? settingText(context, chip, 'axes_map') : null
-      return map === null ? null : `axes_map ${map}`
-    },
-  },
 
   // Bed & probe
   {
-    id: 'bedMesh',
+    id: 'eddyDriveCurrent',
     stage: 'bed',
-    command: 'BED_MESH_CALIBRATE',
-    available: (context) => context.hasSection('bed_mesh'),
-    requires: ['homed', 'notPrinting'],
-    effects: ['moves', 'probes'],
-    duration: 'minutes',
-    staleAfterDays: 30,
-    params: [
-      {
-        key: 'PROFILE',
-        kind: 'text',
-        label: 'calibration.param.profile',
-        initial: () => '',
-        placeholder: () => 'default',
-      },
-      {
-        key: 'PROBE_COUNT',
-        kind: 'text',
-        label: 'calibration.param.probeCount',
-        initial: () => '',
-        placeholder: (context) => settingText(context, 'bed_mesh', 'probe_count') ?? '',
-      },
-    ],
-    build: (values) => {
-      const profile = values.PROFILE?.trim() ?? ''
-      if (profile !== '' && !/^[A-Za-z0-9_.-]+$/.test(profile)) return null
-      const count = values.PROBE_COUNT?.trim().replace(/\s+/g, '') ?? ''
-      if (count !== '' && !/^\d+(,\d+)?$/.test(count)) return null
-      return withWords('BED_MESH_CALIBRATE', [
-        profile === '' ? null : `PROFILE="${profile}"`,
-        count === '' ? null : `PROBE_COUNT=${count}`,
-      ])
-    },
-    snapshot: (_values, context) => {
-      const mesh = context.mesh()
-      return { profile: mesh?.profile ?? '', range: millimetres(mesh?.range ?? null) }
-    },
-    parse: parseBedMesh,
-    current: (context) => {
-      const mesh = context.mesh()
-      if (mesh === null || mesh.points === 0) return null
-      const temperature = mesh.temperature === null ? '' : ` · ${Math.round(mesh.temperature)} °C`
-      return `${mesh.profile} · ${millimetres(mesh.range)}${temperature}`
-    },
-  },
-  {
-    id: 'quadGantryLevel',
-    stage: 'bed',
-    command: 'QUAD_GANTRY_LEVEL',
-    available: (context) => context.hasSection('quad_gantry_level'),
-    requires: ['homed', 'notPrinting'],
-    effects: ['moves', 'probes'],
-    duration: 'minute',
-    staleAfterDays: 30,
-    build: () => 'QUAD_GANTRY_LEVEL',
-    parse: parseRetries,
-  },
-  {
-    id: 'zTilt',
-    stage: 'bed',
-    command: 'Z_TILT_ADJUST',
-    available: (context) => context.hasSection('z_tilt'),
-    requires: ['homed', 'notPrinting'],
-    effects: ['moves', 'probes'],
-    duration: 'minute',
-    staleAfterDays: 30,
-    build: () => 'Z_TILT_ADJUST',
-    parse: parseRetries,
-  },
-  {
-    id: 'screwsTilt',
-    stage: 'bed',
-    command: 'SCREWS_TILT_CALCULATE',
-    available: (context) => context.hasSection('screws_tilt_adjust'),
-    requires: ['homed', 'notPrinting'],
-    effects: ['moves', 'probes'],
-    duration: 'minute',
-    staleAfterDays: 90,
-    params: [
-      {
-        key: 'DIRECTION',
-        kind: 'select',
-        label: 'calibration.param.direction',
-        initial: () => '',
-        options: () => [
-          { value: '', label: key('calibration.param.directionRelative') },
-          { value: 'CW', label: key('calibration.param.directionCw') },
-          { value: 'CCW', label: key('calibration.param.directionCcw') },
-        ],
-      },
-    ],
-    build: (values) => buildWithWords('SCREWS_TILT_CALCULATE', values, ['DIRECTION']),
-    snapshot: (_values, context) => ({
-      results: JSON.stringify(context.screwsTilt()?.results ?? {}),
-    }),
-    parse: parseScrewsStatus,
-  },
-  {
-    id: 'bedScrews',
-    stage: 'bed',
-    command: 'BED_SCREWS_ADJUST',
-    available: (context) => context.hasSection('bed_screws'),
-    requires: ['homed', 'notPrinting'],
-    effects: ['moves'],
-    duration: 'interactive',
-    staleAfterDays: 90,
-    build: () => 'BED_SCREWS_ADJUST',
-    parse: (lines) => outcomeOnly(lines),
-  },
-  {
-    id: 'deltaCalibrate',
-    stage: 'bed',
-    command: 'DELTA_CALIBRATE',
-    available: (context) => context.hasSection('delta_calibrate'),
-    requires: ['homed', 'notPrinting'],
-    effects: ['moves', 'probes'],
-    duration: 'minutes',
+    command: 'LDC_CALIBRATE_DRIVE_CURRENT',
+    available: (context) => namesWithPrefix(context, 'probe_eddy_current').length > 0,
+    requires: ['notPrinting'],
+    effects: [],
+    duration: 'seconds',
     staleAfterDays: null,
-    build: () => 'DELTA_CALIBRATE',
+    params: [chipParameter('probe_eddy_current')],
+    build: (values) => buildWithWords('LDC_CALIBRATE_DRIVE_CURRENT', values, ['CHIP']),
     parse: (lines) => outcomeOnly(lines),
   },
   {
-    id: 'probeZOffset',
+    id: 'eddyHeight',
     stage: 'bed',
-    command: 'PROBE_CALIBRATE',
-    available: (context) => context.hasSection('probe') || context.hasSection('bltouch'),
-    requires: ['homed', 'notPrinting', 'zeroedForZ'],
+    command: 'PROBE_EDDY_CURRENT_CALIBRATE',
+    available: (context) => namesWithPrefix(context, 'probe_eddy_current').length > 0,
+    requires: ['homed', 'notPrinting'],
     effects: ['moves', 'probes'],
     duration: 'interactive',
     staleAfterDays: 180,
-    build: () => 'PROBE_CALIBRATE',
-    snapshot: (_values, context) => ({
-      z_offset:
-        settingText(context, 'probe', 'z_offset') ??
-        settingText(context, 'bltouch', 'z_offset') ??
-        '',
-    }),
-    parse: parseZOffset,
-    current: (context) => {
-      const offset =
-        settingText(context, 'probe', 'z_offset') ?? settingText(context, 'bltouch', 'z_offset')
-      return offset === null ? null : `z_offset ${offset}`
-    },
+    params: [chipParameter('probe_eddy_current')],
+    build: (values) => buildWithWords('PROBE_EDDY_CURRENT_CALIBRATE', values, ['CHIP']),
+    parse: (lines) => outcomeOnly(lines),
+  },
+  {
+    id: 'beacon',
+    stage: 'bed',
+    command: 'BEACON_CALIBRATE',
+    available: (context) => context.hasCommand('BEACON_CALIBRATE'),
+    requires: ['homed', 'notPrinting'],
+    effects: ['moves', 'probes'],
+    duration: 'interactive',
+    staleAfterDays: 180,
+    build: () => 'BEACON_CALIBRATE',
+    parse: (lines) => outcomeOnly(lines),
+  },
+  {
+    id: 'cartographer',
+    stage: 'bed',
+    command: 'CARTOGRAPHER_CALIBRATE',
+    available: (context) => context.hasCommand('CARTOGRAPHER_CALIBRATE'),
+    requires: ['homed', 'notPrinting'],
+    effects: ['moves', 'probes'],
+    duration: 'interactive',
+    staleAfterDays: 180,
+    build: () => 'CARTOGRAPHER_CALIBRATE',
+    parse: (lines) => outcomeOnly(lines),
   },
   {
     id: 'probeAccuracy',
@@ -1290,7 +1179,7 @@ export const calibrationProcedures: readonly CalibrationProcedure[] = [
     requires: ['homed', 'notPrinting', 'probeInBed'],
     effects: ['moves', 'probes'],
     duration: 'minute',
-    staleAfterDays: null,
+    staleAfterDays: 90,
     params: [
       {
         key: 'SAMPLES',
@@ -1331,46 +1220,38 @@ export const calibrationProcedures: readonly CalibrationProcedure[] = [
     parse: (lines) => parseProbeAccuracy(lines),
   },
   {
-    id: 'bedTilt',
+    id: 'probeZOffset',
     stage: 'bed',
-    command: 'BED_TILT_CALIBRATE',
-    available: (context) => context.hasSection('bed_tilt'),
-    requires: ['homed', 'notPrinting'],
-    effects: ['moves', 'probes'],
-    duration: 'minute',
-    staleAfterDays: 90,
-    build: () => 'BED_TILT_CALIBRATE',
-    snapshot: (_values, context) => ({
-      x_adjust: settingText(context, 'bed_tilt', 'x_adjust') ?? '',
-      y_adjust: settingText(context, 'bed_tilt', 'y_adjust') ?? '',
-      z_adjust: settingText(context, 'bed_tilt', 'z_adjust') ?? '',
-    }),
-    parse: parseBedTilt,
-  },
-  {
-    id: 'eddyDriveCurrent',
-    stage: 'bed',
-    command: 'LDC_CALIBRATE_DRIVE_CURRENT',
-    available: (context) => namesWithPrefix(context, 'probe_eddy_current').length > 0,
-    requires: ['notPrinting'],
-    effects: [],
-    duration: 'seconds',
-    staleAfterDays: null,
-    params: [chipParameter('probe_eddy_current')],
-    build: (values) => buildWithWords('LDC_CALIBRATE_DRIVE_CURRENT', values, ['CHIP']),
-    parse: (lines) => outcomeOnly(lines),
-  },
-  {
-    id: 'eddyHeight',
-    stage: 'bed',
-    command: 'PROBE_EDDY_CURRENT_CALIBRATE',
-    available: (context) => namesWithPrefix(context, 'probe_eddy_current').length > 0,
-    requires: ['homed', 'notPrinting'],
+    command: 'PROBE_CALIBRATE',
+    available: (context) => context.hasSection('probe') || context.hasSection('bltouch'),
+    requires: ['homed', 'notPrinting', 'zeroedForZ'],
     effects: ['moves', 'probes'],
     duration: 'interactive',
     staleAfterDays: 180,
-    params: [chipParameter('probe_eddy_current')],
-    build: (values) => buildWithWords('PROBE_EDDY_CURRENT_CALIBRATE', values, ['CHIP']),
+    build: () => 'PROBE_CALIBRATE',
+    snapshot: (_values, context) => ({
+      z_offset:
+        settingText(context, 'probe', 'z_offset') ??
+        settingText(context, 'bltouch', 'z_offset') ??
+        '',
+    }),
+    parse: parseZOffset,
+    current: (context) => {
+      const offset =
+        settingText(context, 'probe', 'z_offset') ?? settingText(context, 'bltouch', 'z_offset')
+      return offset === null ? null : `z_offset ${offset}`
+    },
+  },
+  {
+    id: 'autoZ',
+    stage: 'bed',
+    command: 'CALIBRATE_Z',
+    available: (context) => context.hasCommand('CALIBRATE_Z'),
+    requires: ['homed', 'notPrinting', 'zeroedForZ'],
+    effects: ['moves', 'probes'],
+    duration: 'minute',
+    staleAfterDays: null,
+    build: () => 'CALIBRATE_Z',
     parse: (lines) => outcomeOnly(lines),
   },
   {
@@ -1421,43 +1302,158 @@ export const calibrationProcedures: readonly CalibrationProcedure[] = [
     parse: (lines) => outcomeOnly(lines),
   },
   {
-    id: 'beacon',
+    id: 'screwsTilt',
     stage: 'bed',
-    command: 'BEACON_CALIBRATE',
-    available: (context) => context.hasCommand('BEACON_CALIBRATE'),
+    command: 'SCREWS_TILT_CALCULATE',
+    available: (context) => context.hasSection('screws_tilt_adjust'),
     requires: ['homed', 'notPrinting'],
-    effects: ['moves', 'probes'],
-    duration: 'interactive',
-    staleAfterDays: 180,
-    build: () => 'BEACON_CALIBRATE',
-    parse: (lines) => outcomeOnly(lines),
-  },
-  {
-    id: 'cartographer',
-    stage: 'bed',
-    command: 'CARTOGRAPHER_CALIBRATE',
-    available: (context) => context.hasCommand('CARTOGRAPHER_CALIBRATE'),
-    requires: ['homed', 'notPrinting'],
-    effects: ['moves', 'probes'],
-    duration: 'interactive',
-    staleAfterDays: 180,
-    build: () => 'CARTOGRAPHER_CALIBRATE',
-    parse: (lines) => outcomeOnly(lines),
-  },
-  {
-    id: 'autoZ',
-    stage: 'bed',
-    command: 'CALIBRATE_Z',
-    available: (context) => context.hasCommand('CALIBRATE_Z'),
-    requires: ['homed', 'notPrinting', 'zeroedForZ'],
     effects: ['moves', 'probes'],
     duration: 'minute',
-    staleAfterDays: null,
-    build: () => 'CALIBRATE_Z',
+    staleAfterDays: 90,
+    params: [
+      {
+        key: 'DIRECTION',
+        kind: 'select',
+        label: 'calibration.param.direction',
+        initial: () => '',
+        options: () => [
+          { value: '', label: key('calibration.param.directionRelative') },
+          { value: 'CW', label: key('calibration.param.directionCw') },
+          { value: 'CCW', label: key('calibration.param.directionCcw') },
+        ],
+      },
+    ],
+    build: (values) => buildWithWords('SCREWS_TILT_CALCULATE', values, ['DIRECTION']),
+    snapshot: (_values, context) => ({
+      results: JSON.stringify(context.screwsTilt()?.results ?? {}),
+    }),
+    parse: parseScrewsStatus,
+  },
+  {
+    id: 'bedScrews',
+    stage: 'bed',
+    command: 'BED_SCREWS_ADJUST',
+    available: (context) => context.hasSection('bed_screws'),
+    requires: ['homed', 'notPrinting'],
+    effects: ['moves'],
+    duration: 'interactive',
+    staleAfterDays: 90,
+    build: () => 'BED_SCREWS_ADJUST',
     parse: (lines) => outcomeOnly(lines),
+  },
+  {
+    id: 'quadGantryLevel',
+    stage: 'bed',
+    command: 'QUAD_GANTRY_LEVEL',
+    available: (context) => context.hasSection('quad_gantry_level'),
+    requires: ['homed', 'notPrinting'],
+    effects: ['moves', 'probes'],
+    duration: 'minute',
+    staleAfterDays: 30,
+    build: () => 'QUAD_GANTRY_LEVEL',
+    parse: parseRetries,
+  },
+  {
+    id: 'zTilt',
+    stage: 'bed',
+    command: 'Z_TILT_ADJUST',
+    available: (context) => context.hasSection('z_tilt'),
+    requires: ['homed', 'notPrinting'],
+    effects: ['moves', 'probes'],
+    duration: 'minute',
+    staleAfterDays: 30,
+    build: () => 'Z_TILT_ADJUST',
+    parse: parseRetries,
+  },
+  {
+    id: 'bedTilt',
+    stage: 'bed',
+    command: 'BED_TILT_CALIBRATE',
+    available: (context) => context.hasSection('bed_tilt'),
+    requires: ['homed', 'notPrinting'],
+    effects: ['moves', 'probes'],
+    duration: 'minute',
+    staleAfterDays: 90,
+    build: () => 'BED_TILT_CALIBRATE',
+    snapshot: (_values, context) => ({
+      x_adjust: settingText(context, 'bed_tilt', 'x_adjust') ?? '',
+      y_adjust: settingText(context, 'bed_tilt', 'y_adjust') ?? '',
+      z_adjust: settingText(context, 'bed_tilt', 'z_adjust') ?? '',
+    }),
+    parse: parseBedTilt,
+  },
+  {
+    id: 'deltaCalibrate',
+    stage: 'bed',
+    command: 'DELTA_CALIBRATE',
+    available: (context) => context.hasSection('delta_calibrate'),
+    requires: ['homed', 'notPrinting'],
+    effects: ['moves', 'probes'],
+    duration: 'minutes',
+    staleAfterDays: null,
+    build: () => 'DELTA_CALIBRATE',
+    parse: (lines) => outcomeOnly(lines),
+  },
+  {
+    id: 'bedMesh',
+    stage: 'bed',
+    command: 'BED_MESH_CALIBRATE',
+    available: (context) => context.hasSection('bed_mesh'),
+    requires: ['homed', 'notPrinting'],
+    effects: ['moves', 'probes'],
+    duration: 'minutes',
+    staleAfterDays: 30,
+    params: [
+      {
+        key: 'PROFILE',
+        kind: 'text',
+        label: 'calibration.param.profile',
+        initial: () => '',
+        placeholder: () => 'default',
+      },
+      {
+        key: 'PROBE_COUNT',
+        kind: 'text',
+        label: 'calibration.param.probeCount',
+        initial: () => '',
+        placeholder: (context) => settingText(context, 'bed_mesh', 'probe_count') ?? '',
+      },
+    ],
+    build: (values) => {
+      const profile = values.PROFILE?.trim() ?? ''
+      if (profile !== '' && !/^[A-Za-z0-9_.-]+$/.test(profile)) return null
+      const count = values.PROBE_COUNT?.trim().replace(/\s+/g, '') ?? ''
+      if (count !== '' && !/^\d+(,\d+)?$/.test(count)) return null
+      return withWords('BED_MESH_CALIBRATE', [
+        profile === '' ? null : `PROFILE="${profile}"`,
+        count === '' ? null : `PROBE_COUNT=${count}`,
+      ])
+    },
+    snapshot: (_values, context) => {
+      const mesh = context.mesh()
+      return { profile: mesh?.profile ?? '', range: millimetres(mesh?.range ?? null) }
+    },
+    parse: parseBedMesh,
+    current: (context) => {
+      const mesh = context.mesh()
+      if (mesh === null || mesh.points === 0) return null
+      const temperature = mesh.temperature === null ? '' : ` · ${Math.round(mesh.temperature)} °C`
+      return `${mesh.profile} · ${millimetres(mesh.range)}${temperature}`
+    },
   },
 
   // Heaters
+  {
+    id: 'heaterCheck',
+    stage: 'heaters',
+    command: 'verify_heater',
+    available: (context) => context.heaters.length > 0,
+    requires: [],
+    effects: [],
+    duration: 'seconds',
+    staleAfterDays: null,
+    panel: 'heaterCheck',
+  },
   {
     id: 'heaterModel',
     stage: 'heaters',
@@ -1510,22 +1506,115 @@ export const calibrationProcedures: readonly CalibrationProcedure[] = [
     },
     parse: parsePid,
   },
+
+  // Resonance
   {
-    id: 'heaterCheck',
-    stage: 'heaters',
-    command: 'verify_heater',
-    available: (context) => context.heaters.length > 0,
+    id: 'accelerometerQuery',
+    stage: 'resonance',
+    command: 'ACCELEROMETER_QUERY',
+    available: (context) => accelerometers(context).length > 0,
     requires: [],
     effects: [],
     duration: 'seconds',
     staleAfterDays: null,
-    panel: 'heaterCheck',
+    params: [
+      {
+        key: 'CHIP',
+        kind: 'select',
+        label: 'calibration.param.chip',
+        initial: () => '',
+        options: (context) => {
+          const named = accelerometers(context).filter((section) => section.includes(' '))
+          return [
+            { value: '', label: key('calibration.param.defaultChip') },
+            ...named.map((section) => {
+              const name = section.slice(section.indexOf(' ') + 1)
+              return { value: name, label: literal(name) }
+            }),
+          ]
+        },
+      },
+    ],
+    build: (values) => buildWithWords('ACCELEROMETER_QUERY', values, ['CHIP']),
+    parse: (lines) => parseAccelerometer(lines),
   },
-
-  // Resonance
+  {
+    id: 'axesNoise',
+    stage: 'resonance',
+    command: 'MEASURE_AXES_NOISE',
+    available: (context) => context.hasSection('resonance_tester'),
+    requires: ['accelerometer'],
+    effects: [],
+    duration: 'seconds',
+    staleAfterDays: null,
+    build: () => 'MEASURE_AXES_NOISE',
+    parse: (lines) => parseAxesNoise(lines),
+  },
+  {
+    id: 'axesMap',
+    stage: 'resonance',
+    command: 'AXES_MAP_CALIBRATION',
+    available: (context) => context.hasMacro('AXES_MAP_CALIBRATION'),
+    requires: ['homed', 'notPrinting', 'accelerometer'],
+    effects: ['moves'],
+    duration: 'minute',
+    staleAfterDays: null,
+    build: () => 'AXES_MAP_CALIBRATION',
+    snapshot: (_values, context) => {
+      const chip = axesMapChip(context)
+      return {
+        accel_chip: chip ?? '',
+        axes_map: chip ? (settingText(context, chip, 'axes_map') ?? '') : '',
+      }
+    },
+    parse: parseAxesMap,
+    current: (context) => {
+      const chip = axesMapChip(context)
+      const map = chip ? settingText(context, chip, 'axes_map') : null
+      return map === null ? null : `axes_map ${map}`
+    },
+  },
+  {
+    id: 'shakeTuneBelts',
+    stage: 'resonance',
+    command: 'COMPARE_BELTS_RESPONSES',
+    available: (context) =>
+      context.hasMacro('COMPARE_BELTS_RESPONSES') && isCoreKinematics(context),
+    requires: ['homed', 'notPrinting', 'accelerometer'],
+    effects: ['moves'],
+    duration: 'minutes',
+    staleAfterDays: 90,
+    params: [
+      {
+        key: 'FREQ_START',
+        kind: 'number',
+        label: 'calibration.param.freqStart',
+        unit: 'calibration.unit.hertz',
+        initial: () => '',
+        placeholder: (context) => settingText(context, 'resonance_tester', 'min_freq') ?? '5',
+        min: 1,
+        max: 500,
+      },
+      {
+        key: 'FREQ_END',
+        kind: 'number',
+        label: 'calibration.param.freqEnd',
+        unit: 'calibration.unit.hertz',
+        initial: () => '',
+        placeholder: (context) => settingText(context, 'resonance_tester', 'max_freq') ?? '133',
+        min: 1,
+        max: 500,
+      },
+    ],
+    build: (values) =>
+      buildWithWords('COMPARE_BELTS_RESPONSES', values, ['FREQ_START', 'FREQ_END']),
+    snapshot: (_values, context) => ({ graph: context.newestGraph('belts') ?? '' }),
+    parse: parseBelts,
+  },
   {
     id: 'shaperCalibrate',
     stage: 'resonance',
+    alternatives: ['shakeTuneShaper'],
     command: 'SHAPER_CALIBRATE',
     available: (context) =>
       context.hasSection('resonance_tester') && context.hasSection('input_shaper'),
@@ -1569,6 +1658,7 @@ export const calibrationProcedures: readonly CalibrationProcedure[] = [
   {
     id: 'shakeTuneShaper',
     stage: 'resonance',
+    alternatives: ['shaperCalibrate'],
     command: 'AXES_SHAPER_CALIBRATION',
     available: (context) => context.hasMacro('AXES_SHAPER_CALIBRATION'),
     requires: ['homed', 'notPrinting', 'accelerometer'],
@@ -1640,43 +1730,6 @@ export const calibrationProcedures: readonly CalibrationProcedure[] = [
     current: configuredShapers,
   },
   {
-    id: 'shakeTuneBelts',
-    stage: 'resonance',
-    command: 'COMPARE_BELTS_RESPONSES',
-    available: (context) =>
-      context.hasMacro('COMPARE_BELTS_RESPONSES') && isCoreKinematics(context),
-    requires: ['homed', 'notPrinting', 'accelerometer'],
-    effects: ['moves'],
-    duration: 'minutes',
-    staleAfterDays: 90,
-    params: [
-      {
-        key: 'FREQ_START',
-        kind: 'number',
-        label: 'calibration.param.freqStart',
-        unit: 'calibration.unit.hertz',
-        initial: () => '',
-        placeholder: (context) => settingText(context, 'resonance_tester', 'min_freq') ?? '5',
-        min: 1,
-        max: 500,
-      },
-      {
-        key: 'FREQ_END',
-        kind: 'number',
-        label: 'calibration.param.freqEnd',
-        unit: 'calibration.unit.hertz',
-        initial: () => '',
-        placeholder: (context) => settingText(context, 'resonance_tester', 'max_freq') ?? '133',
-        min: 1,
-        max: 500,
-      },
-    ],
-    build: (values) =>
-      buildWithWords('COMPARE_BELTS_RESPONSES', values, ['FREQ_START', 'FREQ_END']),
-    snapshot: (_values, context) => ({ graph: context.newestGraph('belts') ?? '' }),
-    parse: parseBelts,
-  },
-  {
     id: 'shakeTuneVibrations',
     stage: 'resonance',
     command: 'CREATE_VIBRATIONS_PROFILE',
@@ -1737,50 +1790,19 @@ export const calibrationProcedures: readonly CalibrationProcedure[] = [
     snapshot: (_values, context) => ({ graph: context.newestGraph('vibrations') ?? '' }),
     parse: parseVibrations,
   },
+
+  // Extrusion
   {
-    id: 'accelerometerQuery',
-    stage: 'resonance',
-    command: 'ACCELEROMETER_QUERY',
-    available: (context) => accelerometers(context).length > 0,
+    id: 'runoutSensors',
+    stage: 'extrusion',
+    command: 'QUERY_FILAMENT_SENSOR',
+    available: (context) => context.hasRunoutSensors,
     requires: [],
     effects: [],
     duration: 'seconds',
     staleAfterDays: null,
-    params: [
-      {
-        key: 'CHIP',
-        kind: 'select',
-        label: 'calibration.param.chip',
-        initial: () => '',
-        options: (context) => {
-          const named = accelerometers(context).filter((section) => section.includes(' '))
-          return [
-            { value: '', label: key('calibration.param.defaultChip') },
-            ...named.map((section) => {
-              const name = section.slice(section.indexOf(' ') + 1)
-              return { value: name, label: literal(name) }
-            }),
-          ]
-        },
-      },
-    ],
-    build: (values) => buildWithWords('ACCELEROMETER_QUERY', values, ['CHIP']),
-    parse: (lines) => parseAccelerometer(lines),
+    panel: 'runoutSensors',
   },
-  {
-    id: 'axesNoise',
-    stage: 'resonance',
-    command: 'MEASURE_AXES_NOISE',
-    available: (context) => context.hasSection('resonance_tester'),
-    requires: ['accelerometer'],
-    effects: [],
-    duration: 'seconds',
-    staleAfterDays: null,
-    build: () => 'MEASURE_AXES_NOISE',
-    parse: (lines) => parseAxesNoise(lines),
-  },
-
-  // Extrusion
   {
     id: 'rotationDistance',
     stage: 'extrusion',
@@ -1870,17 +1892,6 @@ export const calibrationProcedures: readonly CalibrationProcedure[] = [
     staleAfterDays: null,
     panel: 'nonlinearPressureAdvance',
   },
-  {
-    id: 'runoutSensors',
-    stage: 'extrusion',
-    command: 'QUERY_FILAMENT_SENSOR',
-    available: (context) => context.hasRunoutSensors,
-    requires: [],
-    effects: [],
-    duration: 'seconds',
-    staleAfterDays: null,
-    panel: 'runoutSensors',
-  },
 ]
 
 export function proceduresForStage(
@@ -1930,9 +1941,14 @@ export function isProcedureStale(
 
 /**
  * The stage's next step: the first ageing procedure, other than `current`,
- * that has never run or has gone old; null when the stage is up to date. One
- * ordering serves both the procedure a stage opens on and the "Next:" line a
- * workspace shows, so the two can never name different procedures.
+ * that has never run or has gone old; null when the stage is up to date. It is
+ * the "Next:" line a workspace shows. It does not choose what a stage opens
+ * on: that is always the first procedure, because the list is ordered
+ * verify-first and opening past the checks would skip them.
+ *
+ * A procedure with alternatives is done when any of them has a current run, so
+ * a shaper measured one way is never named as due for the other, and the open
+ * procedure's alternatives are skipped along with it.
  */
 export function nextProcedure(
   procedures: readonly CalibrationProcedure[],
@@ -1940,24 +1956,19 @@ export function nextProcedure(
   lastRunAt: (id: ProcedureId) => number | null,
   now: number,
 ): CalibrationProcedure | null {
+  const done = (procedure: CalibrationProcedure): boolean =>
+    [
+      procedure,
+      ...(procedure.alternatives ?? []).flatMap((id) => procedures.filter((p) => p.id === id)),
+    ].some((member) => {
+      const last = lastRunAt(member.id)
+      return last !== null && !isProcedureStale(member, last, now)
+    })
   return (
     procedures.find((procedure) => {
       if (procedure.staleAfterDays === null || procedure.id === current) return false
-      const last = lastRunAt(procedure.id)
-      return last === null || isProcedureStale(procedure, last, now)
+      if (current !== null && procedure.alternatives?.includes(current)) return false
+      return !done(procedure)
     }) ?? null
   )
-}
-
-/**
- * The procedure a stage opens on: the first ageing one that has never run or
- * has gone old, so the stage shows what is due without a notification; else
- * the first in the list.
- */
-export function initialProcedure(
-  procedures: readonly CalibrationProcedure[],
-  lastRunAt: (id: ProcedureId) => number | null,
-  now: number,
-): CalibrationProcedure | null {
-  return nextProcedure(procedures, null, lastRunAt, now) ?? procedures[0] ?? null
 }

@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import AppButton from '@/components/AppButton.vue'
+import CalibrationCard from '@/components/calibration/CalibrationCard.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import PromptDialog from '@/components/PromptDialog.vue'
 import { useActionGuard } from '@/composables/useActionGuard'
@@ -81,29 +82,24 @@ function validateMeshName(value: string, except?: string): string | undefined {
 </script>
 
 <template>
-  <section class="page-card calibration-panel" :aria-label="t('calibration.mesh.title')">
-    <header class="calibration-panel__header">
-      <div>
-        <h2 class="calibration-panel__title">{{ t('calibration.mesh.title') }}</h2>
-      </div>
-      <div class="calibration-panel__actions">
-        <AppButton
-          size="xs"
-          :pending="printer.pendingCommands.bedMesh"
-          icon="mesh"
-          :label="t('calibration.mesh.calibrate')"
-          :disabled="!canCommand || calibrationRun.busy.value"
-          @click="calibrationRun.run('bedMesh')"
-        />
-        <AppButton
-          size="xs"
-          icon="save"
-          :label="t('calibration.mesh.save')"
-          :disabled="!canCommand || !bedMesh.isActive"
-          @click="savingMesh = true"
-        />
-      </div>
-    </header>
+  <CalibrationCard :title="t('calibration.mesh.title')">
+    <template #aside>
+      <AppButton
+        size="xs"
+        :pending="printer.pendingCommands.bedMesh"
+        icon="mesh"
+        :label="t('calibration.mesh.calibrate')"
+        :disabled="!canCommand || calibrationRun.busy.value"
+        @click="calibrationRun.run('bedMesh')"
+      />
+      <AppButton
+        size="xs"
+        icon="save"
+        :label="t('calibration.mesh.save')"
+        :disabled="!canCommand || !bedMesh.isActive"
+        @click="savingMesh = true"
+      />
+    </template>
 
     <p v-if="!bedMesh.isActive" class="calibration-panel__hint">
       {{ t('calibration.mesh.noneLoaded') }}
@@ -186,5 +182,5 @@ function validateMeshName(value: string, except?: string): string | undefined {
       @cancel="deletingProfile = null"
       @skip="confirmations.setSkip('deleteMeshProfile', true)"
     />
-  </section>
+  </CalibrationCard>
 </template>

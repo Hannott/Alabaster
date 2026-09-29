@@ -7,6 +7,7 @@ import AppField from '@/components/AppField.vue'
 import AppIcon from '@/components/AppIcon.vue'
 import AppSelect from '@/components/AppSelect.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
+import CalibrationCard from '@/components/calibration/CalibrationCard.vue'
 import CalibrationScrewsGrid from '@/components/calibration/CalibrationScrewsGrid.vue'
 import CalibrationSparkline from '@/components/calibration/CalibrationSparkline.vue'
 import { useActionGuard } from '@/composables/useActionGuard'
@@ -358,21 +359,11 @@ const effects = computed(() =>
 </script>
 
 <template>
-  <section
-    class="page-card calibration-workspace"
-    :aria-label="t(`calibration.procedure.${procedure.id}.name`)"
+  <CalibrationCard
+    class="calibration-workspace"
+    :title="t(`calibration.procedure.${procedure.id}.name`)"
   >
-    <header class="calibration-workspace__header">
-      <div class="min-w-0">
-        <h2 class="calibration-workspace__title">
-          {{ t(`calibration.procedure.${procedure.id}.name`) }}
-        </h2>
-        <p class="calibration-workspace__meta">
-          <span class="calibration-workspace__command">{{ procedure.command }}</span>
-          <span>{{ effects }}</span>
-        </p>
-      </div>
-    </header>
+    <template #aside>{{ effects }}</template>
 
     <p class="calibration-workspace__description">
       {{ t(`calibration.procedure.${procedure.id}.detail`) }}
@@ -668,5 +659,5 @@ const effects = computed(() =>
       @cancel="confirmOpen = false"
       @skip="emit('skip')"
     />
-  </section>
+  </CalibrationCard>
 </template>

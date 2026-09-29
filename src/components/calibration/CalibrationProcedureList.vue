@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import AppSelect from '@/components/AppSelect.vue'
+import CalibrationCard from '@/components/calibration/CalibrationCard.vue'
 import { useProcedureContext } from '@/composables/useProcedureContext'
 import { useProcedureText } from '@/composables/useProcedureText'
 import {
@@ -77,11 +78,8 @@ const options = computed(() =>
 </script>
 
 <template>
-  <section class="page-card calibration-procedures" :aria-label="t('calibration.bench.procedures')">
-    <header class="calibration-procedures__header">
-      <h2 class="calibration-procedures__title">{{ t('calibration.bench.procedures') }}</h2>
-      <span class="calibration-procedures__count">{{ procedures.length }}</span>
-    </header>
+  <CalibrationCard flush class="calibration-procedures" :title="t('calibration.bench.procedures')">
+    <template #aside>{{ procedures.length }}</template>
     <ul class="calibration-procedures__list">
       <li v-for="row in rows" :key="row.procedure.id">
         <button
@@ -122,5 +120,5 @@ const options = computed(() =>
         @update:model-value="(value) => emit('select', value as ProcedureId)"
       />
     </div>
-  </section>
+  </CalibrationCard>
 </template>

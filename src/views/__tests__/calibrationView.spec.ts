@@ -433,6 +433,7 @@ describe('Calibration view', () => {
 
     expect(stageLabels(view)).toContain('Heaters')
     expect(procedureNames(view)).toContain('Heater model')
+    await selectProcedure(view, 'heaterModel')
     expect(view.get('.calibration-run__script').text()).toBe(
       'PID_CALIBRATE HEATER=extruder TARGET=200',
     )
@@ -668,7 +669,7 @@ describe('Calibration view', () => {
 
     const view = await mountView('bed')
     const saveButton = view
-      .findAll('.calibration-panel__actions button')
+      .findAll('.calibration-card__aside button')
       .find((button) => button.text().includes('Save loaded mesh'))
     await saveButton?.trigger('click')
     await flushPromises()
@@ -694,7 +695,7 @@ describe('Calibration view', () => {
 
     const view = await mountView('bed')
     const saveButton = view
-      .findAll('.calibration-panel__actions button')
+      .findAll('.calibration-card__aside button')
       .find((button) => button.text().includes('Save loaded mesh'))
     await saveButton?.trigger('click')
     await flushPromises()
@@ -717,7 +718,7 @@ describe('Calibration view', () => {
     const view = await mountView('bed')
 
     const calibrate = view
-      .findAll('.calibration-panel__actions button')
+      .findAll('.calibration-card__aside button')
       .find((button) => button.text().includes('Calibrate mesh'))
     expect(calibrate!.attributes('disabled')).toBeDefined()
   })
@@ -744,7 +745,7 @@ describe('Calibration view', () => {
     const images = view.findAll('.calibration-tuning__pane img')
     expect(images).toHaveLength(1)
     expect(images[0]!.attributes('src')).toBe(tuningResult('input_shaper', 'shaper_x_new', 300).url)
-    expect(view.findAll('.calibration-panel img')).toHaveLength(1)
+    expect(view.findAll('.calibration-card img')).toHaveLength(1)
     expect(rows[0]!.attributes('aria-current')).toBe('true')
   })
 
@@ -775,7 +776,7 @@ describe('Calibration view', () => {
     await flushPromises()
 
     const compare = view
-      .findAll('.calibration-panel__actions button')
+      .findAll('.calibration-card__aside button')
       .find((button) => button.text() === 'Compare')
     await compare!.trigger('click')
     expect(compare!.attributes('aria-pressed')).toBe('true')
@@ -1047,13 +1048,13 @@ describe('Calibration view', () => {
       )) as never)
 
     const view = await mountView('bed')
-    // The stage arrived on the mesh, never run here; the accuracy test's workspace says the same.
-    expect(view.get('.calibration-workspace__title').text()).toBe(
-      i18n.global.t('calibration.procedure.bedMesh.name'),
+    // A stage arrives on its first procedure, however much of the rest is due.
+    expect(view.get('.calibration-workspace .calibration-card__title').text()).toBe(
+      i18n.global.t('calibration.procedure.probeAccuracy.name'),
     )
     await selectProcedure(view, 'probeAccuracy')
     expect(view.get('.calibration-next').text()).toContain(
-      'Next: Bed mesh, never run on this printer',
+      'Next: Probe Z offset, never run on this printer',
     )
 
     // Six logged runs: a line with a dot per run, five rows, and the rest behind one button.
@@ -1071,8 +1072,8 @@ describe('Calibration view', () => {
     // Open goes to the procedure the line named.
     await view.get('.calibration-next button').trigger('click')
     await flushPromises()
-    expect(view.get('.calibration-workspace__title').text()).toBe(
-      i18n.global.t('calibration.procedure.bedMesh.name'),
+    expect(view.get('.calibration-workspace .calibration-card__title').text()).toBe(
+      i18n.global.t('calibration.procedure.probeZOffset.name'),
     )
   })
 

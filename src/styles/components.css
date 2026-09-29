@@ -13323,39 +13323,80 @@ body.machine-editor-fullscreen-open {
   color: var(--status-caution-text);
 }
 
-/* The procedure list. */
 /*
- * A strip and the rows under it, flush to the card's edges: the list is
- * twenty rem wide, and a card's own padding on each side took a fifth of
- * that from every row before its sentence started. The rows are the card.
+ * The card every Calibration surface is (CalibrationCard.vue): a strip naming
+ * the card, and a body under it. The procedure list was drawn this way first and
+ * the workspace, the panels and the hosted dashboard modules each drew a padded
+ * `page-card` with a large title inside, so one stage read as four kinds of
+ * object. The strip is the same soft surface and bottom rule on every one.
+ *
+ * Not clipped: a hosted module's popovers open past the card's edge. The strip
+ * rounds its own top corners instead, so its fill stays inside the border. A
+ * `flush` body is the exception because its rows do run to the edge and have to
+ * be clipped to the radius.
  */
-.calibration-procedures {
+.calibration-card {
   display: grid;
-  overflow: hidden;
+  align-content: start;
   padding: 0;
 }
 
-.calibration-procedures__header {
+.calibration-card__header {
   display: flex;
-  align-items: baseline;
+  flex-wrap: wrap;
+  align-items: center;
   justify-content: space-between;
-  gap: 0.5rem;
+  gap: 0.25rem 0.5rem;
+  /*
+   * One `xs` button plus the strip's own padding and rule, so a strip carrying
+   * an action is the height of one that carries only a count, and the strips
+   * of neighbouring columns share a baseline.
+   */
+  min-block-size: calc(1.75rem + 1rem + 1px);
   padding: 0.5rem 0.75rem;
   border-block-end: 1px solid var(--border-subtle);
+  border-start-start-radius: calc(0.5rem - 1px);
+  border-start-end-radius: calc(0.5rem - 1px);
   background-color: var(--surface-soft);
 }
 
-.calibration-procedures__title {
+.calibration-card__title {
+  min-width: 0;
   font-size: var(--text-row-name-size);
   font-weight: var(--font-weight-increased);
 }
 
-.calibration-procedures__count {
+/* Smaller than the title it belongs to and mono where it is a command, like the list's own dates. */
+.calibration-card__aside {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.25rem 0.75rem;
   color: var(--text-muted);
   font-size: var(--text-hint-size);
   font-variant-numeric: tabular-nums;
 }
 
+.calibration-card__body {
+  display: grid;
+  min-width: 0;
+  align-content: start;
+  gap: 0.85rem;
+  padding: 0.85rem 0.75rem;
+}
+
+.calibration-card__body--flush {
+  gap: 0;
+  padding: 0;
+}
+
+.calibration-card:has(> .calibration-card__body--flush) {
+  overflow: hidden;
+}
+
+/* The procedure list. */
 .calibration-procedures__list {
   display: grid;
   margin: 0;
@@ -13457,7 +13498,7 @@ body.machine-editor-fullscreen-open {
  * pushing the workspace a screen down.
  */
 @container calibration-canvas (max-width: 59.999rem) {
-  .calibration-procedures__header,
+  .calibration-procedures .calibration-card__header,
   .calibration-procedures__list {
     display: none;
   }
@@ -13467,35 +13508,7 @@ body.machine-editor-fullscreen-open {
   }
 }
 
-/* The workspace. */
-.calibration-workspace {
-  display: grid;
-  gap: 0.85rem;
-  align-content: start;
-}
-
-.calibration-workspace__header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 0.75rem;
-}
-
-.calibration-workspace__title {
-  font-size: var(--text-dialog-title-size);
-  font-weight: var(--font-weight);
-  letter-spacing: var(--text-dialog-title-tracking);
-}
-
-.calibration-workspace__meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.25rem 0.75rem;
-  margin-block-start: 0.2rem;
-  color: var(--text-muted);
-  font-size: var(--text-hint-size);
-}
-
+/* The workspace: `calibration-workspace` marks the selected procedure's card, its rules below. */
 .calibration-workspace__command {
   font-family: var(--font-mono);
 }
@@ -14398,15 +14411,19 @@ body.machine-editor-fullscreen-open {
 /*
  * Composed on `file-select`, which owns the type, color, hover, and focus, as
  * `history-job` is — a Shake&Tune result and a finished job pick themselves out
- * of a list the same way. Name over date rather than beside it, because the
- * index column is narrow and Shake&Tune's file names are long.
+ * of a list the same way. One line per file, name then date, the way a file
+ * list reads: a two-line row at body size made a handful of results fill the
+ * column and left the graph they choose between far off screen. A name that
+ * does not fit is cut, and its full text is the row's title.
  */
 .calibration-tuning-result {
   display: grid;
   inline-size: 100%;
-  gap: 0.1rem;
-  min-height: 2.75rem;
-  padding: calc(0.4rem - var(--selection-row-border)) calc(0.65rem - var(--selection-row-border));
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 2rem;
+  padding: calc(0.25rem - var(--selection-row-border)) calc(0.5rem - var(--selection-row-border));
 }
 
 .calibration-tuning-result:hover:not(:disabled) {
@@ -14414,16 +14431,18 @@ body.machine-editor-fullscreen-open {
 }
 
 .calibration-tuning-result__name {
+  min-width: 0;
   overflow: hidden;
   font-family: var(--font-mono);
-  font-size: var(--text-meta-size);
+  font-size: var(--text-mono-name-size);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .calibration-tuning-result__meta {
-  font-size: var(--text-meta-size);
+  font-size: var(--text-value-micro-size);
   color: var(--text-muted);
+  white-space: nowrap;
 }
 
 /*

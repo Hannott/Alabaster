@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 
 import AppButton from '@/components/AppButton.vue'
 import AppIcon from '@/components/AppIcon.vue'
+import CalibrationCard from '@/components/calibration/CalibrationCard.vue'
 import { useAvailability } from '@/composables/useAvailability'
 import { createTimeFormatter } from '@/i18n/formats'
 import { useEndstopsStore } from '@/stores/endstops'
@@ -21,12 +22,8 @@ const timeFormatter = computed(() => createTimeFormatter(locale.value))
 </script>
 
 <template>
-  <section class="page-card calibration-panel" :aria-label="t('calibration.endstops.title')">
-    <header class="calibration-panel__header">
-      <div>
-        <h2 class="calibration-panel__title">{{ t('calibration.endstops.title') }}</h2>
-        <p class="calibration-panel__hint">{{ t('calibration.endstops.hint') }}</p>
-      </div>
+  <CalibrationCard :title="t('calibration.endstops.title')" :hint="t('calibration.endstops.hint')">
+    <template #aside>
       <AppButton
         size="xs"
         :pending="endstops.isLoading"
@@ -35,7 +32,7 @@ const timeFormatter = computed(() => createTimeFormatter(locale.value))
         :disabled="!klipperAvailability.isAvailable || endstops.isLoading"
         @click="endstops.refresh()"
       />
-    </header>
+    </template>
 
     <!--
       Said once for the whole panel rather than per row: while a print runs the
@@ -72,5 +69,5 @@ const timeFormatter = computed(() => createTimeFormatter(locale.value))
       </li>
     </ul>
     <p v-else class="calibration-panel__hint">{{ t('calibration.endstops.empty') }}</p>
-  </section>
+  </CalibrationCard>
 </template>

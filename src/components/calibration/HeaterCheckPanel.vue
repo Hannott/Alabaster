@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import CalibrationCard from '@/components/calibration/CalibrationCard.vue'
 import { useProcedureContext } from '@/composables/useProcedureContext'
 import { usePrinterConfigStore } from '@/stores/printerConfig'
 
@@ -61,20 +62,13 @@ const heaters = computed(() =>
 </script>
 
 <template>
-  <section
-    class="page-card calibration-workspace"
-    :aria-label="t('calibration.procedure.heaterCheck.name')"
+  <CalibrationCard
+    class="calibration-workspace"
+    :title="t('calibration.procedure.heaterCheck.name')"
   >
-    <header class="calibration-workspace__header">
-      <div class="min-w-0">
-        <h2 class="calibration-workspace__title">
-          {{ t('calibration.procedure.heaterCheck.name') }}
-        </h2>
-        <p class="calibration-workspace__meta">
-          <span class="calibration-workspace__command">verify_heater</span>
-        </p>
-      </div>
-    </header>
+    <template #aside>
+      <span class="calibration-workspace__command">verify_heater</span>
+    </template>
     <p class="calibration-workspace__description">
       {{ t('calibration.procedure.heaterCheck.detail') }}
     </p>
@@ -102,5 +96,5 @@ const heaters = computed(() =>
         </tbody>
       </table>
     </div>
-  </section>
+  </CalibrationCard>
 </template>

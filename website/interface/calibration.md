@@ -8,15 +8,16 @@ found next to the value the printer had before.
 
 The tabs under the page title list the calibration jobs, in the order the
 physical dependencies run. Each job lists the calibrations your printer can run
-there.
+there. Within a job, what checks that the hardware works comes first, and
+what adjusts it after.
 
 | Job              | Calibrations                                                                                                                           | Beside them           |
 | ---------------- | -------------------------------------------------------------------------------------------------------------------------------------- | --------------------- |
-| **Axes & frame** | Endstop check, stepper check, axis rotation distance, Z endstop position, endstop phase, TMC autotune, axis map                        | The Movement controls |
-| **Bed & probe**  | Bed mesh, quad gantry level or Z tilt, bed screws, delta calibration, probe Z offset, probe accuracy, bed tilt, eddy and plugin probes | The height map        |
-| **Heaters**      | Heater model (PID or MPC), heater limits                                                                                               | The temperature chart |
-| **Resonance**    | Input shaper calibration, Shake&Tune shaper, belts and vibrations, accelerometer check and noise                                       | The Shake&Tune graphs |
-| **Extrusion**    | Rotation distance, pressure advance or nonlinear pressure advance, filament sensors                                                    | The extruder controls |
+| **Axes & frame** | Endstop check, stepper check, axis rotation distance, Z endstop position, endstop phase, TMC autotune                                  | The Movement controls |
+| **Heaters**      | Heater limits, heater model (PID or MPC)                                                                                               | The temperature chart |
+| **Bed & probe**  | Probe accuracy, probe Z offset, bed screws, quad gantry level or Z tilt, bed tilt, delta calibration, bed mesh, eddy and plugin probes | The height map        |
+| **Resonance**    | Accelerometer check and noise, axis map, belts, input shaper calibration, Shake&Tune shaper, vibrations                                | The Shake&Tune graphs |
+| **Extrusion**    | Filament sensors, rotation distance, pressure advance or nonlinear pressure advance                                                    | The extruder controls |
 
 The card beside a job is the dashboard's own, showing the part a calibration
 reaches for: the Movement card's homing, jog and park controls on **Axes &
@@ -72,9 +73,11 @@ the result had, so an older shaper run can still be applied or saved; the
 five newest are shown, and **Show all** opens the whole record of twenty. The
 record is kept on the printer, so every browser sees the same dates. A
 calibration that is due, such as a mesh older than 30 days or heater models
-older than 90, is marked as due, and the job opens on it. Under a result, the
+older than 90, is marked as due. A job opens on its first calibration. Under a result, the
 panel names the next calibration on the job that is due or has never run
-here, with **Open** to go to it.
+here, with **Open** to go to it. Klipper's input shaper calibration and
+Shake&Tune's count as one: running either finishes the job, and neither is
+named next after the other.
 
 A few results are worth watching over time, and the earlier runs draw them:
 the probe accuracy test's range and standard deviation, a mesh's range, and a
@@ -223,10 +226,6 @@ on the dashboard keeps its **Level bed** button.
 
 **Stepper check** moves one motor 1 mm back and forth ten times, to confirm
 which motor it is and which way it turns.
-
-**Axis map** (Shake&Tune) finds how the accelerometer is mounted. When the
-detected `axes_map` differs from the one configured, one button writes it to
-the accelerometer's section in your configuration.
 
 ## Axis rotation distance
 
@@ -388,6 +387,10 @@ plugin. Its result shows the recommended shaper and frequency per axis next to
 the configured ones, with the suggested `max_accel`. The result is staged for
 `SAVE_CONFIG`. **Apply** puts both axes into effect right away, until Klipper
 restarts; **Save config** runs `SAVE_CONFIG`.
+
+**Axis map** (Shake&Tune) finds how the accelerometer is mounted. When the
+detected `axes_map` differs from the one configured, one button writes it to
+the accelerometer's section in your configuration.
 
 **Accelerometer check** reads the accelerometer once to see that it answers.
 **Accelerometer noise** reads background vibration for two seconds, so a fan

@@ -3,6 +3,7 @@ import { computed, provide, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import AppButton from '@/components/AppButton.vue'
+import CalibrationCard from '@/components/calibration/CalibrationCard.vue'
 import { dashboardModuleContextKey } from '@/dashboard/context'
 import type { DashboardModuleId } from '@/dashboard/layout'
 import { dashboardModulesById } from '@/dashboard/registry'
@@ -114,37 +115,31 @@ provide(dashboardModuleContextKey, {
 </script>
 
 <template>
-  <section class="page-card calibration-panel">
-    <header class="calibration-panel__header">
-      <div>
-        <h2 class="calibration-panel__title">{{ heading }}</h2>
-        <p v-if="hint" class="calibration-panel__hint">{{ hint }}</p>
-      </div>
-      <div class="calibration-panel__actions">
-        <slot name="actions"></slot>
-        <AppButton
-          v-if="hasSettings"
-          variant="quiet"
-          size="xs"
-          icon-only
-          icon="settings"
-          :aria-pressed="settingsOpen"
-          :aria-label="t('dashboard.layout.settings', { module: heading })"
-          :title="t('dashboard.layout.settingsTooltip', { module: heading })"
-          @click="settingsOpen = !settingsOpen"
-        />
-      </div>
-    </header>
+  <CalibrationCard :title="heading" :hint="hint">
+    <template #aside>
+      <slot name="actions"></slot>
+      <AppButton
+        v-if="hasSettings"
+        variant="quiet"
+        size="xs"
+        icon-only
+        icon="settings"
+        :aria-pressed="settingsOpen"
+        :aria-label="t('dashboard.layout.settings', { module: heading })"
+        :title="t('dashboard.layout.settingsTooltip', { module: heading })"
+        @click="settingsOpen = !settingsOpen"
+      />
+    </template>
 
     <!--
       The module's own body, unchanged. It renders its own `AppDashboardModule`
-      shell inside this slot, which is why the padding here is the page card's
+      shell inside this slot, which is why the padding here is the card body's
       and not a second one: the shell's `p-4` is what a dashboard card supplies,
-      and a hosted module sits in a `page-card` that already has padding of its
-      own. `calibration-panel--hosted` below cancels the inner one.
+      and the card body already has padding of its own.
+      `calibration-panel__module` cancels the inner one.
     -->
     <div class="calibration-panel__module">
       <slot></slot>
     </div>
-  </section>
+  </CalibrationCard>
 </template>

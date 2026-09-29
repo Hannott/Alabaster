@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import AppButton from '@/components/AppButton.vue'
+import CalibrationCard from '@/components/calibration/CalibrationCard.vue'
 import ImageLightbox from '@/components/ImageLightbox.vue'
 import { useAvailability } from '@/composables/useAvailability'
 import {
@@ -105,30 +106,24 @@ function displayName(result: ShakeTuneResult): string {
 </script>
 
 <template>
-  <section class="page-card calibration-panel" :aria-label="t('calibration.tuning.title')">
-    <header class="calibration-panel__header">
-      <div>
-        <h2 class="calibration-panel__title">{{ t('calibration.tuning.title') }}</h2>
-        <p class="calibration-panel__hint">{{ t('calibration.tuning.hint') }}</p>
-      </div>
-      <div class="calibration-panel__actions">
-        <AppButton
-          v-if="allResults.length > 1"
-          size="xs"
-          :label="t('calibration.tuning.compare')"
-          :aria-pressed="comparing"
-          @click="toggleComparing()"
-        />
-        <AppButton
-          size="xs"
-          :pending="shakeTune.isLoading"
-          icon="refresh"
-          :label="t('calibration.tuning.refresh')"
-          :disabled="!moonrakerAvailability.isAvailable || shakeTune.isLoading"
-          @click="shakeTune.refresh()"
-        />
-      </div>
-    </header>
+  <CalibrationCard :title="t('calibration.tuning.title')" :hint="t('calibration.tuning.hint')">
+    <template #aside>
+      <AppButton
+        v-if="allResults.length > 1"
+        size="xs"
+        :label="t('calibration.tuning.compare')"
+        :aria-pressed="comparing"
+        @click="toggleComparing()"
+      />
+      <AppButton
+        size="xs"
+        :pending="shakeTune.isLoading"
+        icon="refresh"
+        :label="t('calibration.tuning.refresh')"
+        :disabled="!moonrakerAvailability.isAvailable || shakeTune.isLoading"
+        @click="shakeTune.refresh()"
+      />
+    </template>
 
     <div class="calibration-tuning" :class="{ 'calibration-tuning--reading': primary !== null }">
       <!--
@@ -222,5 +217,5 @@ function displayName(result: ShakeTuneResult): string {
       :alt="viewingResult?.name ?? ''"
       @close="viewingResult = null"
     />
-  </section>
+  </CalibrationCard>
 </template>

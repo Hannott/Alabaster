@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 
 import AppButton from '@/components/AppButton.vue'
 import AppField from '@/components/AppField.vue'
+import CalibrationCard from '@/components/calibration/CalibrationCard.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import { useActionGuard } from '@/composables/useActionGuard'
 import { useAvailability } from '@/composables/useAvailability'
@@ -456,17 +457,10 @@ const writeDisabled = computed(
 </script>
 
 <template>
-  <section
-    class="page-card calibration-workspace"
-    :aria-label="t('calibration.procedure.nonlinearPressureAdvance.name')"
+  <CalibrationCard
+    class="calibration-workspace"
+    :title="t('calibration.procedure.nonlinearPressureAdvance.name')"
   >
-    <header class="calibration-workspace__header">
-      <div class="min-w-0">
-        <h2 class="calibration-workspace__title">
-          {{ t('calibration.procedure.nonlinearPressureAdvance.name') }}
-        </h2>
-      </div>
-    </header>
     <p class="calibration-workspace__description">
       {{ t('calibration.procedure.nonlinearPressureAdvance.detail') }}
     </p>
@@ -805,5 +799,5 @@ const writeDisabled = computed(
       @cancel="confirmingClear = false"
       @skip="confirmations.setSkip('clearPressureAdvanceReadings', true)"
     />
-  </section>
+  </CalibrationCard>
 </template>

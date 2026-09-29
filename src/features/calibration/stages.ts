@@ -5,8 +5,8 @@
  * The page used to be a wall of panels that each gated themselves, which made
  * every printer's page a different length and none of them a sequence. A stage
  * is the unit a calibration sitting is actually organized in — you square the
- * frame before you map the bed, and you map the bed before you chase a
- * resonance peak — so the rail that lists them is what tells a first-time
+ * frame before anything is heated, the heaters hold before the bed is mapped at
+ * a temperature, and the bed is mapped before you chase a resonance peak — so the rail that lists them is what tells a first-time
  * visitor what the destination is for, without a standing description under the
  * page heading that `interface-standards.md` does not allow anyway.
  *
@@ -15,7 +15,7 @@
  */
 
 /** In dependency order: this is the order the rail renders and the sitting runs. */
-export const calibrationStageIds = ['axes', 'bed', 'heaters', 'resonance', 'extrusion'] as const
+export const calibrationStageIds = ['axes', 'heaters', 'bed', 'resonance', 'extrusion'] as const
 
 export type CalibrationStageId = (typeof calibrationStageIds)[number]
 
@@ -49,10 +49,10 @@ export function availableCalibrationStages(
   capabilities: CalibrationCapabilities,
 ): CalibrationStageId[] {
   const stages: CalibrationStageId[] = ['axes']
+  if (capabilities.hasCalibratableHeater) stages.push('heaters')
   if (capabilities.hasBedMesh || capabilities.hasProbe || capabilities.hasLeveling) {
     stages.push('bed')
   }
-  if (capabilities.hasCalibratableHeater) stages.push('heaters')
   if (capabilities.hasResonance) stages.push('resonance')
   if (capabilities.hasExtruder || capabilities.hasRunoutSensors) stages.push('extrusion')
   return stages
