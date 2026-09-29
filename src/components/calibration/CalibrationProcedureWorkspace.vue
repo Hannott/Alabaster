@@ -8,6 +8,7 @@ import AppIcon from '@/components/AppIcon.vue'
 import AppSelect from '@/components/AppSelect.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import CalibrationScrewsGrid from '@/components/calibration/CalibrationScrewsGrid.vue'
+import CalibrationSparkline from '@/components/calibration/CalibrationSparkline.vue'
 import { useActionGuard } from '@/composables/useActionGuard'
 import { useAvailability } from '@/composables/useAvailability'
 import { useProcedureContext } from '@/composables/useProcedureContext'
@@ -19,10 +20,13 @@ import { useProcedureText } from '@/composables/useProcedureText'
 import {
   initialProcedureValues,
   missingProcedureValues,
+  nextProcedure,
   type CalibrationProcedure,
   type ProcedureAction,
+  type ProcedureId,
   type ProcedureParameter,
 } from '@/features/calibration/procedures'
+import { trendSeries } from '@/features/calibration/trends'
 import { useCalibrationStore, type PersistActionOutcome } from '@/stores/calibration'
 import { usePrinterStore } from '@/stores/printer'
 
@@ -36,19 +40,21 @@ import { usePrinterStore } from '@/stores/printer'
  */
 const props = defineProps<{
   procedure: CalibrationProcedure
+  /** The stage's procedures, for the next step the workspace names under its result. */
+  procedures: readonly CalibrationProcedure[]
   /** The heater model's confirmation is the Temperatures card's own switch; see HeatersStage. */
   skipConfirm?: boolean | undefined
 }>()
 
-/** Persisted by whichever host passes `skipConfirm`, into that host's own setting. */
-const emit = defineEmits<{ skip: [] }>()
+/** `skip` is persisted by whichever host passes `skipConfirm`; `select` opens the next step. */
+const emit = defineEmits<{ skip: []; select: [id: ProcedureId] }>()
 
 const { t } = useI18n({ useScope: 'global' })
 const calibration = useCalibrationStore()
 const printer = usePrinterStore()
 const context = useProcedureContext()
 const requirements = useProcedureRequirements()
-const { text, when } = useProcedureText()
+const { lastRun, text, when } = useProcedureText()
 const { availability: klipperAvailability } = useAvailability('klipper')
 
 /*
@@ -282,11 +288,40 @@ function recordAnswers(): void {
   calibration.answer(props.procedure.id, rows)
 }
 
+/*
+ * The same ordering the stage arrived on: the first due procedure other than
+ * this one, so the sentence never names a procedure the stage would not
+ * have opened on itself.
+ */
+const next = computed(() =>
+  nextProcedure(
+    props.procedures,
+    props.procedure.id,
+    (id) => calibration.lastRunAt(id),
+    Date.now(),
+  ),
+)
+const nextText = computed(() => {
+  if (next.value === null) return null
+  const name = t(`calibration.procedure.${next.value.id}.name`)
+  const at = calibration.lastRunAt(next.value.id)
+  return at === null
+    ? t('calibration.bench.next.never', { name })
+    : t('calibration.bench.next.stale', { name, when: lastRun(at) })
+})
+
+/** Every logged run, oldest first, including the one shown as the result. */
+const logged = computed(() => calibration.historyFor(props.procedure.id))
+const trends = computed(() => trendSeries(props.procedure.id, logged.value))
+
+/** Five recent runs read at a glance; the whole log is there for comparing them. */
+const recentHistory = 5
+const showAllHistory = ref(false)
+const earlier = computed(() =>
+  [...logged.value].filter((entry) => entry.at !== run.value?.startedAt).reverse(),
+)
 const history = computed(() =>
-  [...calibration.historyFor(props.procedure.id)]
-    .filter((entry) => entry.at !== run.value?.startedAt)
-    .reverse()
-    .slice(0, 5),
+  showAllHistory.value ? earlier.value : earlier.value.slice(0, recentHistory),
 )
 
 function entryActions(entry: (typeof history.value)[number]): readonly ProcedureAction[] {
@@ -309,6 +344,7 @@ watch(
   () => {
     confirmOpen.value = false
     showOutput.value = false
+    showAllHistory.value = false
     actionOutcomes.value = {}
   },
 )
@@ -552,8 +588,27 @@ const effects = computed(() =>
       </ol>
     </div>
 
+    <p v-if="nextText" class="calibration-next" role="status">
+      <span class="calibration-next__text">{{ nextText }}</span>
+      <AppButton
+        size="xs"
+        :label="t('calibration.bench.next.open')"
+        @click="next && emit('select', next.id)"
+      />
+    </p>
+
     <div v-if="history.length > 0" class="calibration-history">
       <h3 class="calibration-history__title">{{ t('calibration.bench.history') }}</h3>
+      <ul
+        v-if="trends.length > 0"
+        class="calibration-trends"
+        :aria-label="t('calibration.bench.trends')"
+      >
+        <li v-for="series in trends" :key="text(series.label)" class="calibration-trend">
+          <span class="calibration-trend__label">{{ text(series.label) }}</span>
+          <CalibrationSparkline :values="series.values" />
+        </li>
+      </ul>
       <ul class="calibration-history__list">
         <li v-for="entry in history" :key="entry.at" class="calibration-history__entry">
           <span class="calibration-history__when">{{ when(entry.at) }}</span>
@@ -584,6 +639,18 @@ const effects = computed(() =>
           </div>
         </li>
       </ul>
+      <AppButton
+        v-if="earlier.length > recentHistory"
+        variant="quiet"
+        size="xs"
+        :aria-expanded="showAllHistory"
+        :label="
+          showAllHistory
+            ? t('calibration.bench.fewerHistory')
+            : t('calibration.bench.allHistory', { count: earlier.length })
+        "
+        @click="showAllHistory = !showAllHistory"
+      />
     </div>
 
     <ConfirmDialog

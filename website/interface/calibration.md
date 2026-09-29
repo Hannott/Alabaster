@@ -68,10 +68,21 @@ Each calibration also shows when it last ran on this printer, and what the
 printer is set to: the values its last run found, or, for one that has never
 run here, the value in the config file, such as the probe's `z_offset` or the
 configured input shaper. Its earlier results are listed with the same buttons
-the result had, so an older shaper run can still be applied or saved. The
+the result had, so an older shaper run can still be applied or saved; the
+five newest are shown, and **Show all** opens the whole record of twenty. The
 record is kept on the printer, so every browser sees the same dates. A
 calibration that is due, such as a mesh older than 30 days or heater models
-older than 90, is marked as due, and the job opens on it.
+older than 90, is marked as due, and the job opens on it. Under a result, the
+panel names the next calibration on the job that is due or has never run
+here, with **Open** to go to it.
+
+A few results are worth watching over time, and the earlier runs draw them:
+the probe accuracy test's range and standard deviation, a mesh's range, and a
+heater's PID constants each get a small line above the earlier runs once
+three of them have reported it. A probe whose range creeps up between runs is
+wearing or loose; a mesh whose range grows across a season is a bed warping;
+PID constants that moved since the last tune say the re-tune was needed. The
+line is drawn from the runs listed under it and has no scale of its own.
 
 ## The console
 

@@ -308,7 +308,15 @@
         "heats": "Varmer",
         "probes": "Prober sengen"
       },
-      "current": "{value} (i filen)"
+      "current": "{value} (i filen)",
+      "next": {
+        "stale": "Neste: {name}, bør kjøres ({when})",
+        "never": "Neste: {name}, aldri kjørt på denne skriveren",
+        "open": "Åpne"
+      },
+      "trends": "Trender",
+      "allHistory": "Vis alle {count}",
+      "fewerHistory": "Vis færre"
     },
     "requirement": {
       "homed": {
@@ -522,37 +530,37 @@
     "procedure": {
       "endstops": {
         "name": "Endestoppsjekk",
-        "description": "Leser alle endestopper, så en bryter som aldri utløses vises før homing gjør det.",
+        "description": "Leser alle endestopper, direkte.",
         "detail": "Leser hver endestopp på nytt hvert par sekund mens skriveren står i ro. Trykk inn en bryter for hånd og se den endre seg."
       },
       "stepperBuzz": {
         "name": "Motorsjekk",
-        "description": "Beveger én motor frem og tilbake for å bekrefte kobling og retning.",
+        "description": "Beveger én motor for å bekrefte koblingen.",
         "detail": "Beveger valgt motor 1 mm frem og tilbake ti ganger. Se hvilken motor som beveger seg, og at den går riktig vei."
       },
       "axisRotation": {
         "name": "Rotasjonsdistanse for akser",
-        "description": "Regner ut rotation_distance fra reim og trinse eller gjengestang, eller fra en målt bevegelse.",
+        "description": "rotation_distance fra reim eller stang.",
         "detail": "Reimdeling × tenner på trinsa, eller stigning × gjengestarter. Utveksling og motorens stegvinkel er egne innstillinger, og stegvinkelen endrer steg per mm, ikke rotation_distance. En målt bevegelse sjekker en gjengestang og avslører en motor satt opp med feil stegvinkel."
       },
       "zEndstop": {
         "name": "Z-endestoppens posisjon",
-        "description": "Papirtest under dysen; setter position_endstop for Z.",
+        "description": "Papirtest; setter position_endstop for Z.",
         "detail": "Senker dysen ned mot et papirark i steg du velger, og legger den nye position_endstop klar for SAVE_CONFIG. En dialog viser vei."
       },
       "endstopPhase": {
         "name": "Endestoppfase",
-        "description": "Registrerer hver motors fase ved endestoppen, for mer gjentakbar homing.",
+        "description": "Motorfase ved hver endestopp, for homing.",
         "detail": "Rapporterer motorfasen hver endestopp utløses ved, og legger den klar for SAVE_CONFIG. Hom noen ganger først så det finnes målinger."
       },
       "tmcAutotune": {
         "name": "TMC-autojustering",
-        "description": "Justerer motordriverne ut fra motordata (klipper_tmc_autotune).",
+        "description": "Justerer TMC-driverne fra motordata.",
         "detail": "Setter TMC-driverens registre ut fra hver motors databladverdier. Ingenting beveger seg."
       },
       "axesMap": {
         "name": "Aksekart",
-        "description": "Finner hvordan akselerometerets akser ligger i forhold til skriverens (Shake&Tune).",
+        "description": "Kobler akselerometerets akser til skriverens.",
         "detail": "Beveger hver akse og måler hvilken akselerometerakse som svarer, og skriver ut axes_map som skal brukes."
       },
       "bedMesh": {
@@ -572,47 +580,47 @@
       },
       "screwsTilt": {
         "name": "Sengeskruer",
-        "description": "Prober ved hver skrue og sier hvor mye den skal skrus.",
+        "description": "Sier hvor mye hver sengeskrue skal skrus.",
         "detail": "Prober ved hver sengeskrue og rapporterer hvor mye den skal skrus for å stå i nivå med basisskruen. Skru, og kjør på nytt for å sjekke."
       },
       "bedScrews": {
         "name": "Sengeskruer for hånd",
-        "description": "Flytter til hver skrue for en papirtest der.",
+        "description": "Flytter til hver skrue for en papirtest.",
         "detail": "Flytter dysen over hver sengeskrue etter tur. Juster skruen med et papirark under dysen, og godta eller merk den som justert. En dialog viser vei."
       },
       "deltaCalibrate": {
         "name": "Delta-kalibrering",
-        "description": "Prober sengen og kalibrerer geometrien til en delta-skriver.",
+        "description": "Kalibrerer geometrien til en delta-skriver.",
         "detail": "Prober punkter over sengen og legger nye endestopposisjoner og radius klar for SAVE_CONFIG."
       },
       "probeZOffset": {
         "name": "Probens Z-forskyvning",
-        "description": "Papirtest under dysen; setter probens z_offset.",
+        "description": "Papirtest; setter probens z_offset.",
         "detail": "Prober sengen, senker så dysen ned mot et papirark i steg du velger, og legger ny z_offset klar for SAVE_CONFIG. En dialog viser vei."
       },
       "probeAccuracy": {
         "name": "Probenøyaktighet",
-        "description": "Prober ett punkt flere ganger og rapporterer spredningen.",
+        "description": "Gjentar ett punkt og rapporterer spredningen.",
         "detail": "Prober punktet under proben flere ganger uten å flytte seg, og rapporterer spredningen. Et standardavvik under omtrent 0,003 mm er typisk for en god probe."
       },
       "bedTilt": {
         "name": "Sengehelning",
-        "description": "Måler sengens helning for programvarekompensasjon.",
+        "description": "Måler sengens helning for kompensasjon.",
         "detail": "Prober de konfigurerte punktene og legger x_adjust og y_adjust klar for SAVE_CONFIG."
       },
       "eddyDriveCurrent": {
         "name": "Drivstrøm for virvelstrømsprobe",
-        "description": "Finner drivstrømmen for en virvelstrømsprobe.",
+        "description": "Drivstrøm for en virvelstrømsprobe.",
         "detail": "Sett dysen omtrent 20 mm over sengen først. Finner spolens drivstrøm og legger den klar for SAVE_CONFIG."
       },
       "eddyHeight": {
         "name": "Høydekart for virvelstrømsprobe",
-        "description": "Kobler frekvens til høyde for en virvelstrømsprobe.",
+        "description": "Frekvens til høyde for en virvelstrømsprobe.",
         "detail": "Starter med en papirtest og flytter så proben gjennom en rekke høyder for å koble frekvens til avstand. En dialog viser vei."
       },
       "probeDrift": {
         "name": "Temperaturdrift for probe",
-        "description": "Måler hvordan probens målinger driver når den blir varm.",
+        "description": "Probens drift mens den blir varm.",
         "detail": "Varmer mot målet mens den prober gjentatte ganger, og registrerer driften ved hver temperatur."
       },
       "beacon": {
@@ -627,42 +635,42 @@
       },
       "autoZ": {
         "name": "Automatisk Z-kalibrering",
-        "description": "Setter Z-forskyvningen fra Z-endestoppen, proben og sengen.",
+        "description": "Z-forskyvning fra endestopp, probe og seng.",
         "detail": "Kjører CALIBRATE_Z fra klipper_z_calibration, som måler dysen og proben mot Z-endestoppen og sengen, og bruker forskyvningen til neste omstart."
       },
       "heaterModel": {
         "name": "Varmermodell",
-        "description": "Justerer en varmers PID- eller MPC-modell ved temperaturen du skriver ut med.",
+        "description": "Justerer en varmers PID- eller MPC-modell.",
         "detail": "Varmer varmeren til målet og lar den svinge rundt det noen ganger, noe som tar flere minutter, og legger de nye konstantene klar for SAVE_CONFIG. Juster ved temperaturen du skriver ut med."
       },
       "heaterCheck": {
         "name": "Varmergrenser",
-        "description": "Hva hver varmer styres med, og hva Klipper slår den av for.",
+        "description": "Hver varmers modell og utkoblingsgrenser.",
         "detail": "Hver varmers nåværende reguleringskonstanter, og verify_heater-grensene som stopper skriveren når en varmer ikke varmer som forventet."
       },
       "shaperCalibrate": {
         "name": "Kalibrering av inngangsformer",
-        "description": "Rister hver akse og anbefaler en inngangsformer.",
+        "description": "Rister hver akse; anbefaler en former.",
         "detail": "Rister hver akse gjennom et frekvensområde med akselerometeret montert, anbefaler en former og frekvens per akse, og legger dem klar for SAVE_CONFIG."
       },
       "shakeTuneShaper": {
         "name": "Grafer for inngangsformer",
-        "description": "Shake&Tunes formerkjøring, med en graf per akse.",
+        "description": "Shake&Tunes formerkjøring, én graf per akse.",
         "detail": "Kjører Shake&Tunes AXES_SHAPER_CALIBRATION. Grafene vises ved siden av dette panelet når de er skrevet, og anbefalingen løftes inn i resultatet."
       },
       "shakeTuneBelts": {
         "name": "Remmesammenligning",
-        "description": "Sammenligner de to remmenes respons på en CoreXY-skriver.",
+        "description": "Sammenligner de to remmene på en CoreXY.",
         "detail": "Kjører Shake&Tunes COMPARE_BELTS_RESPONSES. To remmer med lik stramming tegner to kurver som ligger oppå hverandre."
       },
       "shakeTuneVibrations": {
         "name": "Vibrasjonsprofil",
-        "description": "Kartlegger maskinens vibrasjoner over hastigheter og retninger.",
+        "description": "Kartlegger vibrasjoner over fart og retning.",
         "detail": "Kjører Shake&Tunes CREATE_VIBRATIONS_PROFILE, som beveger verktøyhodet med ulike hastigheter og vinkler. Grafen viser hvilke hastigheter som bør unngås."
       },
       "accelerometerQuery": {
         "name": "Akselerometersjekk",
-        "description": "Leser akselerometeret én gang for å se at det svarer.",
+        "description": "Leser akselerometeret én gang.",
         "detail": "Leser én måling fra akselerometeret. I ro viser én akse omtrent 9800 mm/s², som er tyngdekraften."
       },
       "axesNoise": {
@@ -672,17 +680,17 @@
       },
       "rotationDistance": {
         "name": "Rotasjonsdistanse",
-        "description": "Regner ut hvor langt ekstruderen flytter filamentet, fra drivhjulet eller en målt ekstrudering.",
+        "description": "Hvor langt ekstruderen flytter filamentet.",
         "detail": "En ny ekstruder starter fra drivhjulet og utvekslingen. En målt ekstrudering korrigerer: merk filamentet over ekstruderen, ekstruder en kjent lengde sakte, og mål det som er igjen til merket."
       },
       "pressureAdvance": {
         "name": "Trykkforsprang",
-        "description": "Prøver en verdi for trykkforsprang direkte, og beholder den i filen.",
+        "description": "Prøver en verdi direkte; beholder den i filen.",
         "detail": "Setter trykkforsprang og utjevningstid på skriveren mens den kjører, til neste omstart. Behold en verdi som skriver godt i konfigurasjonsfilen fra resultatet."
       },
       "nonlinearPressureAdvance": {
         "name": "Ikke-lineært trykkforsprang",
-        "description": "Justerer Kalicos ikke-lineære trykkforsprang fra utskrevne testtårn.",
+        "description": "Kalicos ikke-lineære PA fra utskrevne tårn.",
         "detail": "Hvert tårn varierer én verdi med høyden. Skriv inn høydene der siden og fronten ser best ut, og behold verdien de gir. Alle tårn kan skrives ut på nytt."
       },
       "runoutSensors": {

@@ -1023,6 +1023,59 @@ describe('Calibration view', () => {
     )
   })
 
+  it('names the next step under a result, and draws what the log can show', async () => {
+    const printerConfig = await import('@/stores/printerConfig')
+    const config = printerConfig.usePrinterConfigStore(pinia)
+    vi.spyOn(config, 'hasProbe', 'get').mockReturnValue(true)
+    vi.spyOn(config, 'hasBedMesh', 'get').mockReturnValue(true)
+    config.settings = { probe: { z_offset: -0.85 }, bed_mesh: {} } as never
+    const ranges = ['0.010', '0.012', '0.011', '0.015', '0.014', '0.018']
+    const logged = {
+      version: 1,
+      procedures: {
+        probeAccuracy: ranges.map((range, index) => ({
+          at: Date.now() - (ranges.length - index) * 86_400_000,
+          values: {},
+          rows: [{ label: { key: 'calibration.probe.range' }, after: range }],
+          outcome: 'measured',
+        })),
+      },
+    }
+    vi.spyOn(useMoonrakerStore(pinia), 'rpcCall').mockImplementation(((method: string) =>
+      Promise.resolve(
+        method === 'server.database.get_item' ? { value: logged } : { x: 'TRIGGERED', y: 'open' },
+      )) as never)
+
+    const view = await mountView('bed')
+    // The stage arrived on the mesh, never run here; the accuracy test's workspace says the same.
+    expect(view.get('.calibration-workspace__title').text()).toBe(
+      i18n.global.t('calibration.procedure.bedMesh.name'),
+    )
+    await selectProcedure(view, 'probeAccuracy')
+    expect(view.get('.calibration-next').text()).toContain(
+      'Next: Bed mesh, never run on this printer',
+    )
+
+    // Six logged runs: a line with a dot per run, five rows, and the rest behind one button.
+    const sparklines = view.findAll('.calibration-sparkline')
+    expect(sparklines).toHaveLength(1)
+    expect(sparklines[0]!.findAll('circle')).toHaveLength(ranges.length)
+    expect(view.findAll('.calibration-history__entry')).toHaveLength(5)
+    const more = view
+      .findAll('.calibration-history button')
+      .find((button) => button.text() === 'Show all 6')!
+    await more.trigger('click')
+    expect(view.findAll('.calibration-history__entry')).toHaveLength(ranges.length)
+    expect(view.get('.calibration-history__entry').text()).toContain('0.018')
+
+    // Open goes to the procedure the line named.
+    await view.get('.calibration-next button').trigger('click')
+    await flushPromises()
+    expect(view.get('.calibration-workspace__title').text()).toBe(
+      i18n.global.t('calibration.procedure.bedMesh.name'),
+    )
+  })
+
   it('runs a probe accuracy test and reports its result', async () => {
     const printerConfig = await import('@/stores/printerConfig')
     vi.spyOn(printerConfig.usePrinterConfigStore(pinia), 'hasProbe', 'get').mockReturnValue(true)

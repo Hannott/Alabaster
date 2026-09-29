@@ -371,6 +371,8 @@ describe('interaction and iconography contract', () => {
       'components/dashboard/modules/MovementBedPlan.vue',
       // History's trend chart draws stacked bars, not an icon, for the same reason.
       'components/history/HistoryTrendChart.vue',
+      // Calibration's sparkline draws a logged series as a line, for the same reason.
+      'components/calibration/CalibrationSparkline.vue',
     ])
 
     for (const path of filesBelow(sourceRoot).filter((candidate) => candidate.endsWith('.vue'))) {

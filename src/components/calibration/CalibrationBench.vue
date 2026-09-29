@@ -88,8 +88,10 @@ const selected = computed(() => {
         <CalibrationProcedureWorkspace
           v-else
           :procedure="selected"
+          :procedures="procedures"
           :skip-confirm="skipConfirm"
           @skip="emit('skip')"
+          @select="selection.selectProcedure(stage, $event)"
         />
       </div>
 

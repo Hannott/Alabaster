@@ -13324,9 +13324,15 @@ body.machine-editor-fullscreen-open {
 }
 
 /* The procedure list. */
+/*
+ * A strip and the rows under it, flush to the card's edges: the list is
+ * twenty rem wide, and a card's own padding on each side took a fifth of
+ * that from every row before its sentence started. The rows are the card.
+ */
 .calibration-procedures {
   display: grid;
-  gap: 0.5rem;
+  overflow: hidden;
+  padding: 0;
 }
 
 .calibration-procedures__header {
@@ -13334,12 +13340,14 @@ body.machine-editor-fullscreen-open {
   align-items: baseline;
   justify-content: space-between;
   gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-block-end: 1px solid var(--border-subtle);
+  background-color: var(--surface-soft);
 }
 
 .calibration-procedures__title {
-  font-size: var(--text-dialog-title-size);
-  font-weight: var(--font-weight);
-  letter-spacing: var(--text-dialog-title-tracking);
+  font-size: var(--text-row-name-size);
+  font-weight: var(--font-weight-increased);
 }
 
 .calibration-procedures__count {
@@ -13350,25 +13358,31 @@ body.machine-editor-fullscreen-open {
 
 .calibration-procedures__list {
   display: grid;
-  gap: 0.2rem;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
+.calibration-procedures__list > li + li {
+  border-block-start: 1px solid var(--border-subtle);
+}
+
 .calibration-procedures__select {
   display: none;
+  padding: 0.75rem;
 }
 
 /*
  * A `file-select` composing `selection-row`: picking which procedure the
  * workspace shows is choosing content out of a list, like every other list.
  */
+/* Square, since the rows run edge to edge; the selected ring is the row's own border. */
 .calibration-procedure {
   display: grid;
   inline-size: 100%;
-  gap: 0.15rem;
-  padding: calc(0.5rem - var(--selection-row-border)) calc(0.65rem - var(--selection-row-border));
+  gap: 0.1rem;
+  padding: calc(0.5rem - var(--selection-row-border)) calc(0.7rem - var(--selection-row-border));
+  border-radius: 0;
 }
 
 .calibration-procedure:hover:not(:disabled) {
@@ -13390,10 +13404,12 @@ body.machine-editor-fullscreen-open {
   font-weight: var(--font-weight);
 }
 
+/* Smaller than the name it dates, and mono like the value line: a fact about the row, not a second title. */
 .calibration-procedure__last {
   flex: 0 0 auto;
   color: var(--text-muted);
-  font-size: var(--text-meta-size);
+  font-family: var(--font-mono);
+  font-size: var(--text-hint-size);
   font-variant-numeric: tabular-nums;
 }
 
@@ -13405,9 +13421,17 @@ body.machine-editor-fullscreen-open {
   color: var(--status-available);
 }
 
+/*
+ * One line, always: the sentence is a hint at what the row opens, and the
+ * workspace says the rest. A row that wraps makes the list a page to scroll.
+ */
 .calibration-procedure__description {
+  min-width: 0;
+  overflow: hidden;
   color: var(--text-muted);
   font-size: var(--text-hint-size);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /*
@@ -13469,7 +13493,7 @@ body.machine-editor-fullscreen-open {
   gap: 0.25rem 0.75rem;
   margin-block-start: 0.2rem;
   color: var(--text-muted);
-  font-size: var(--text-meta-size);
+  font-size: var(--text-hint-size);
 }
 
 .calibration-workspace__command {
@@ -13514,13 +13538,19 @@ body.machine-editor-fullscreen-open {
 }
 
 /* A short choice as rows takes the whole width of the fields above and below it. */
+/* The rows sit side by side and wrap: two heaters or three axes are one line, not a column. */
 .calibration-choice {
-  display: grid;
+  display: flex;
   grid-column: 1 / -1;
-  gap: 0.2rem;
+  flex-wrap: wrap;
+  gap: 0.2rem 1.25rem;
   margin: 0;
   padding: 0;
   border: 0;
+}
+
+.calibration-choice__legend {
+  inline-size: 100%;
 }
 
 .calibration-choice__legend {
@@ -13580,7 +13610,7 @@ body.machine-editor-fullscreen-open {
 
 .calibration-result__when {
   color: var(--text-muted);
-  font-size: var(--text-meta-size);
+  font-size: var(--text-hint-size);
 }
 
 .calibration-result__table {
@@ -13768,6 +13798,62 @@ body.machine-editor-fullscreen-open {
   font-family: var(--font-mono);
 }
 
+/* The stage's next step, named under a result the way the nonlinear PA panel names its next tower. */
+.calibration-next {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem 0.7rem;
+  border: 1px solid color-mix(in srgb, var(--action-primary) 35%, transparent);
+  border-radius: 0.5rem;
+  background-color: color-mix(in srgb, var(--action-primary) 10%, transparent);
+  font-size: var(--text-hint-size);
+}
+
+.calibration-next__text {
+  flex: 1;
+  min-width: 0;
+}
+
+/* One line per logged series, above the runs that are its axis. */
+.calibration-trends {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--text-hint-size);
+}
+
+.calibration-trend {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.calibration-trend__label {
+  color: var(--text-muted);
+}
+
+.calibration-sparkline {
+  display: inline-block;
+  inline-size: 5rem;
+  block-size: 1rem;
+  vertical-align: middle;
+  overflow: visible;
+}
+
+.calibration-sparkline polyline {
+  fill: none;
+  stroke: var(--action-primary);
+  stroke-width: 1.5;
+}
+
+.calibration-sparkline circle {
+  fill: var(--action-primary);
+}
+
 /* Rotation distance's steps, and the heater limits table. */
 .calibration-steps {
   display: grid;
@@ -13886,7 +13972,7 @@ body.machine-editor-fullscreen-open {
 .calibration-heater__default {
   color: var(--text-muted);
   font-family: var(--font-sans);
-  font-size: var(--text-meta-size);
+  font-size: var(--text-hint-size);
 }
 
 /*

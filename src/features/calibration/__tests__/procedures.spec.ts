@@ -6,6 +6,7 @@ import {
   initialProcedureValues,
   isProcedureStale,
   missingProcedureValues,
+  nextProcedure,
   parseAccelerometer,
   parseAxesMap,
   parseAxesNoise,
@@ -526,6 +527,23 @@ describe('what is due', () => {
   it('opens a stage on the first ageing procedure that is due, else the first', () => {
     const procedures = [procedureById('probeAccuracy')!, procedureById('bedMesh')!]
     expect(initialProcedure(procedures, () => null, now)?.id).toBe('bedMesh')
+    expect(initialProcedure(procedures, () => now, now)?.id).toBe('probeAccuracy')
+  })
+
+  it('names the next step by the ordering the stage opened on, skipping the open one', () => {
+    const procedures = [
+      procedureById('probeAccuracy')!,
+      procedureById('bedMesh')!,
+      procedureById('probeZOffset')!,
+    ]
+    const lastRun = (id: string) => (id === 'bedMesh' ? now - 40 * day : null)
+    // The stage arrives on the due mesh; a workspace on the accuracy test names it too.
+    expect(initialProcedure(procedures, lastRun, now)?.id).toBe('bedMesh')
+    expect(nextProcedure(procedures, 'probeAccuracy', lastRun, now)?.id).toBe('bedMesh')
+    // From the mesh itself, the next one due; never the procedure that is open.
+    expect(nextProcedure(procedures, 'bedMesh', lastRun, now)?.id).toBe('probeZOffset')
+    // A stage that is up to date has no next step, though it still opens on something.
+    expect(nextProcedure(procedures, 'probeAccuracy', () => now, now)).toBeNull()
     expect(initialProcedure(procedures, () => now, now)?.id).toBe('probeAccuracy')
   })
 })

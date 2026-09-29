@@ -1929,6 +1929,27 @@ export function isProcedureStale(
 }
 
 /**
+ * The stage's next step: the first ageing procedure, other than `current`,
+ * that has never run or has gone old; null when the stage is up to date. One
+ * ordering serves both the procedure a stage opens on and the "Next:" line a
+ * workspace shows, so the two can never name different procedures.
+ */
+export function nextProcedure(
+  procedures: readonly CalibrationProcedure[],
+  current: ProcedureId | null,
+  lastRunAt: (id: ProcedureId) => number | null,
+  now: number,
+): CalibrationProcedure | null {
+  return (
+    procedures.find((procedure) => {
+      if (procedure.staleAfterDays === null || procedure.id === current) return false
+      const last = lastRunAt(procedure.id)
+      return last === null || isProcedureStale(procedure, last, now)
+    }) ?? null
+  )
+}
+
+/**
  * The procedure a stage opens on: the first ageing one that has never run or
  * has gone old, so the stage shows what is due without a notification; else
  * the first in the list.
@@ -1938,10 +1959,5 @@ export function initialProcedure(
   lastRunAt: (id: ProcedureId) => number | null,
   now: number,
 ): CalibrationProcedure | null {
-  const due = procedures.find((procedure) => {
-    if (procedure.staleAfterDays === null) return false
-    const last = lastRunAt(procedure.id)
-    return last === null || isProcedureStale(procedure, last, now)
-  })
-  return due ?? procedures[0] ?? null
+  return nextProcedure(procedures, null, lastRunAt, now) ?? procedures[0] ?? null
 }
