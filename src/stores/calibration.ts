@@ -27,6 +27,8 @@ export interface CalibrationLogEntry {
   values: Record<string, string>
   rows: ProcedureResultRow[]
   outcome: ProcedureOutcome | 'failed'
+  /** What the result offered, so an earlier run can still be applied or saved. */
+  actions?: ProcedureAction[]
 }
 
 export type CalibrationLog = Partial<Record<ProcedureId, CalibrationLogEntry[]>>
@@ -48,7 +50,7 @@ export interface CalibrationRun {
   succeeded: boolean | null
 }
 
-export type PersistActionOutcome = 'saved' | 'buffered' | 'unchanged' | 'refused'
+export type PersistActionOutcome = 'saved' | 'buffered' | 'unchanged' | 'refused' | 'restarting'
 
 /*
  * The log is a record of the machine, not a preference of whoever is looking at
@@ -74,15 +76,78 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
+/** A command a stored action may send: one line of bare words and `KEY=value` pairs. */
+const storedCommandPattern = /^[A-Z0-9_]+(?: [A-Z0-9_]+=[A-Za-z0-9_.,+-]+)*$/
+const storedValuePattern = /^[A-Za-z0-9_.,+-]+$/
+
+function isText(value: unknown): value is string {
+  return typeof value === 'string'
+}
+
+/*
+ * The log is shared, so any client can write it, and an action read back from
+ * it runs on the printer. Only the two shapes a parser produces survive, with
+ * a command or value that could only ever be one line of G-code or one option
+ * value; anything else is dropped rather than offered as a button.
+ */
+function readStoredAction(value: unknown): ProcedureAction | null {
+  if (!isRecord(value) || !isText(value.id) || !isRecord(value.label)) return null
+  const label = value.label
+  const text = isText(label.literal)
+    ? { literal: label.literal }
+    : isText(label.key)
+      ? isRecord(label.params) && Object.values(label.params).every(isText)
+        ? { key: label.key, params: label.params as Record<string, string> }
+        : { key: label.key }
+      : null
+  if (text === null) return null
+  if (value.kind === 'gcode') {
+    if (!isText(value.command) || !storedCommandPattern.test(value.command)) return null
+    return { kind: 'gcode', id: value.id, label: text, command: value.command }
+  }
+  if (value.kind !== 'persist' || !isText(value.section) || !Array.isArray(value.changes)) {
+    return null
+  }
+  const changes = value.changes.filter(
+    (change): change is { option: string; value: string } =>
+      isRecord(change) &&
+      isText(change.option) &&
+      storedValuePattern.test(change.option) &&
+      isText(change.value) &&
+      storedValuePattern.test(change.value),
+  )
+  if (changes.length === 0 || changes.length !== value.changes.length) return null
+  const action: ProcedureAction = {
+    kind: 'persist',
+    id: value.id,
+    label: text,
+    section: value.section,
+    changes,
+  }
+  return value.restart === true ? { ...action, restart: true } : action
+}
+
+function readStoredEntry(entry: unknown): CalibrationLogEntry | null {
+  if (!isRecord(entry) || typeof entry.at !== 'number' || !Array.isArray(entry.rows)) return null
+  const { actions: storedActions, ...rest } = entry as unknown as CalibrationLogEntry & {
+    actions?: unknown
+  }
+  const actions = Array.isArray(storedActions)
+    ? storedActions
+        .map(readStoredAction)
+        .filter((action): action is ProcedureAction => action !== null)
+    : []
+  return actions.length > 0 ? { ...rest, actions } : rest
+}
+
 function readStoredLog(value: unknown): CalibrationLog {
   if (!isRecord(value) || value.version !== 1 || !isRecord(value.procedures)) return {}
   const log: CalibrationLog = {}
   for (const [id, entries] of Object.entries(value.procedures)) {
     if (procedureById(id) === undefined || !Array.isArray(entries)) continue
-    log[id as ProcedureId] = entries.filter(
-      (entry): entry is CalibrationLogEntry =>
-        isRecord(entry) && typeof entry.at === 'number' && Array.isArray(entry.rows),
-    )
+    log[id as ProcedureId] = entries
+      .map(readStoredEntry)
+      .filter((entry): entry is CalibrationLogEntry => entry !== null)
   }
   return log
 }
@@ -222,6 +287,7 @@ export const useCalibrationStore = defineStore('calibration', () => {
       rows: [...(result?.rows ?? [])],
       outcome: run.succeeded === false ? 'failed' : (result?.outcome ?? 'done'),
     }
+    if (run.succeeded !== false && result?.actions?.length) entry.actions = [...result.actions]
     const entries = (log.value[run.procedureId] ?? []).filter(
       (existing) => existing.at !== run.startedAt,
     )
@@ -328,8 +394,36 @@ export const useCalibrationStore = defineStore('calibration', () => {
 
   async function runAction(action: ProcedureAction): Promise<PersistActionOutcome | boolean> {
     if (action.kind === 'gcode') return printer.sendGcode(action.command, 'calibration')
-    const result = await quickConfig.persistOption(action.section, action.option, action.value)
-    return result.status
+    const restart = action.restart === true && !printer.hasActivePrint
+    const statuses: PersistActionOutcome[] = []
+    let wroteAutosave = false
+    for (const change of action.changes) {
+      const result = await quickConfig.persistOption(action.section, change.option, change.value, {
+        intoAutosave: restart,
+      })
+      // A staged value is what SAVE_CONFIG is for: it writes it, so the file is left alone.
+      if (restart && result.status === 'refused' && result.reason === 'pending') {
+        statuses.push('unchanged')
+        continue
+      }
+      statuses.push(result.status)
+      if ('autosave' in result && result.autosave) wroteAutosave = true
+      // Stopping at the first refusal leaves no half-written pair behind it.
+      if (result.status === 'refused') return 'refused'
+    }
+    if (statuses.includes('buffered')) return 'buffered'
+    const outcome = statuses.every((status) => status === 'unchanged') ? 'unchanged' : 'saved'
+    if (!restart) return outcome
+    /*
+     * SAVE_CONFIG, which writes whatever is staged and restarts, unless a
+     * value was just edited inside the `#*#` block: SAVE_CONFIG writes that
+     * block back from what Klipper loaded and would put the old value over
+     * it, so a firmware restart reads the edited file instead. persistOption
+     * only edits the block while nothing is staged, so that restart loses
+     * nothing.
+     */
+    const restarted = wroteAutosave ? await printer.firmwareRestart() : await printer.saveConfig()
+    return restarted ? 'restarting' : outcome
   }
 
   function printerChanged(): void {

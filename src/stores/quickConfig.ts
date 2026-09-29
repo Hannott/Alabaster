@@ -40,7 +40,7 @@ export type ConfigurationViewMode = 'files' | 'quickConfig'
  * rather than saving their edits along with it.
  */
 export type PersistResult =
-  | { status: 'saved' | 'buffered'; path: string }
+  | { status: 'saved' | 'buffered'; path: string; autosave?: true }
   | { status: 'unchanged' }
   | { status: 'refused'; reason: 'unavailable' | 'autosave' | 'pending' | OptionWriteFailure }
 
@@ -313,17 +313,27 @@ export const useQuickConfigStore = defineStore('quickConfig', () => {
    * silently undone: a line in the `SAVE_CONFIG` block, which the next
    * `SAVE_CONFIG` regenerates from memory, and an option among the pending
    * calibration results.
+   *
+   * `intoAutosave` is for a caller that restarts Klipper straight after, with
+   * a firmware restart rather than `SAVE_CONFIG`: the restart makes Klipper
+   * read the edited block from disk before anything could regenerate it. It
+   * still refuses while anything is staged, since that restart would discard
+   * the staged change.
    */
   async function persistOption(
     section: string,
     option: string,
     value: string,
+    options: { intoAutosave?: boolean } = {},
   ): Promise<PersistResult> {
     if (!availability.isMoonrakerConnected) return { status: 'refused', reason: 'unavailable' }
     if (!hasLoaded.value) await load()
     if (!hasLoaded.value) return { status: 'refused', reason: 'unavailable' }
     const existing = effectiveOption(currentIndex.value, section, option)
-    if (existing?.autosave) return { status: 'refused', reason: 'autosave' }
+    if (existing?.autosave && (options.intoAutosave !== true || printer.saveConfigPending)) {
+      return { status: 'refused', reason: 'autosave' }
+    }
+    const autosave = existing?.autosave === true ? ({ autosave: true } as const) : {}
     if (
       printer.saveConfigPendingItems[section.toLowerCase()]?.[option.toLowerCase()] !== undefined
     ) {
@@ -335,11 +345,11 @@ export const useQuickConfigStore = defineStore('quickConfig', () => {
     const hadOtherEdits = machineFiles.isPathDirty(result.path)
     machineFiles.setConfigBufferContent(result.path, result.content)
     touchedPaths.value = new Set([...touchedPaths.value, result.path])
-    if (hadOtherEdits) return { status: 'buffered', path: result.path }
+    if (hadOtherEdits) return { status: 'buffered', path: result.path, ...autosave }
     if (!(await machineFiles.saveConfigFiles([result.path]))) {
-      return { status: 'buffered', path: result.path }
+      return { status: 'buffered', path: result.path, ...autosave }
     }
-    return { status: 'saved', path: result.path }
+    return { status: 'saved', path: result.path, ...autosave }
   }
 
   async function save(restart: boolean): Promise<boolean> {

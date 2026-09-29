@@ -135,8 +135,11 @@ export interface ProcedureResultRow {
 
 /**
  * Something a result offers to do with what it found. `gcode` runs a command
- * (a shaper applied until restart); `persist` writes an option to the config
- * line Klipper uses, through the same locator Quick config writes with.
+ * (a shaper applied until restart); `persist` writes options to the config
+ * lines Klipper uses, through the same locator Quick config writes with. A
+ * persist carries every option that only makes sense together — a shaper's
+ * type without its frequency is a different shaper — so one press writes all
+ * of them.
  */
 export type ProcedureAction =
   | { kind: 'gcode'; id: string; label: ProcedureText; command: string }
@@ -145,8 +148,9 @@ export type ProcedureAction =
       id: string
       label: ProcedureText
       section: string
-      option: string
-      value: string
+      changes: readonly { option: string; value: string }[]
+      /** Restart Klipper once written, so the file's values are the ones running. */
+      restart?: boolean
     }
 
 /**
@@ -189,6 +193,11 @@ export interface CalibrationProcedure {
     before: ProcedureSnapshot,
     values: ProcedureValues,
   ) => ProcedureResult | null
+  /**
+   * The actions an earlier run's logged rows still support, for a run logged
+   * before the log kept its actions.
+   */
+  actionsFromRows?: (rows: readonly ProcedureResultRow[]) => ProcedureAction[]
   /**
    * Ask before running. The heater models heat for minutes and cannot be
    * stopped halfway without losing the run; everything else here is one the
@@ -348,6 +357,10 @@ const endstopPhasePattern = /^(\S+): trigger_phase=(\d+)\/(\d+)/
 /** `screws_tilt_adjust.py`. */
 const screwPattern = /^(.+?) \s*: x=.*?: adjust (CW|CCW) (\d+:\d+)$/
 const baseScrewPattern = /^(.+?) \(base\) : x=/
+/** Shake&Tune's `axes_map_calibration.py`: its verdict, and the map it set aside to measure. */
+const detectedAxesMapPattern =
+  /Detected axes_map:\s*([-+]?[xyz])\s*,\s*([-+]?[xyz])\s*,\s*([-+]?[xyz])/i
+const existingAxesMapPattern = /existing axes_map \(([^)]*)\)/i
 
 export function parseZOffset(
   lines: readonly string[],
@@ -437,7 +450,7 @@ export function parseShaperCalibrate(
   before: ProcedureSnapshot,
 ): ProcedureResult | null {
   const rows: ProcedureResultRow[] = []
-  const actions: ProcedureAction[] = []
+  const recommendations: ShaperRecommendation[] = []
   let lastAccel: Record<string, string> = {}
   for (const line of allLines(lines)) {
     const accel = maxAccelPattern.exec(line)
@@ -471,23 +484,76 @@ export function parseShaperCalibrate(
       })
     }
     lastAccel = {}
-    const command = setInputShaperCommand({
-      axis,
-      kind: 'best',
-      shaperType,
-      frequency: Number(frequency),
-    })
-    if (command) {
-      actions.push({
-        kind: 'gcode',
-        id: `apply-${axis}`,
-        label: key('calibration.result.applyShaper', { axis: axis.toUpperCase() }),
-        command,
-      })
-    }
+    recommendations.push({ axis, kind: 'best', shaperType, frequency: Number(frequency) })
   }
   if (rows.length === 0) return outcomeOnly(lines)
-  return { rows, outcome: 'staged', actions }
+  return { rows, outcome: 'staged', actions: shaperActions(recommendations) }
+}
+
+/**
+ * One Apply and one Save config for the whole run, never one per axis: the
+ * two axes are one tuning, and a printer left with X saved and Y only applied
+ * is a state nobody chose. The low-vibrations pick is shown but not offered,
+ * since the other recommendation on the same axis is the one the run chose.
+ */
+function shaperActions(recommendations: readonly ShaperRecommendation[]): ProcedureAction[] {
+  const chosen = new Map<ShaperRecommendation['axis'], ShaperRecommendation>()
+  for (const recommendation of recommendations) {
+    if (recommendation.kind === 'lowVibrations') continue
+    if (setInputShaperCommand(recommendation) === null) continue
+    chosen.set(recommendation.axis, recommendation)
+  }
+  const picks = [...chosen.values()].sort((left, right) => left.axis.localeCompare(right.axis))
+  if (picks.length === 0) return []
+  const words = picks.flatMap((pick) =>
+    setInputShaperCommand(pick)!
+      .replace(/^SET_INPUT_SHAPER /, '')
+      .split(' '),
+  )
+  return [
+    {
+      kind: 'gcode',
+      id: 'apply-shaper',
+      label: key('calibration.result.applyShapers'),
+      command: ['SET_INPUT_SHAPER', ...words].join(' '),
+    },
+    {
+      kind: 'persist',
+      id: 'save-shaper',
+      label: key('calibration.result.saveShapers'),
+      section: 'input_shaper',
+      changes: picks.flatMap((pick) => [
+        { option: `shaper_type_${pick.axis}`, value: pick.shaperType },
+        { option: `shaper_freq_${pick.axis}`, value: String(pick.frequency) },
+      ]),
+      restart: true,
+    },
+  ]
+}
+
+const shaperKindKey = /^calibration\.result\.shaperKind\.(performance|lowVibrations|best)$/
+const shaperRowValue = /^([a-z0-9_]+) @ ([\d.]+) Hz$/
+
+/** The recommendations a logged Shake&Tune run's rows spell out, read back from their labels. */
+export function shakeTuneShaperActionsFromRows(
+  rows: readonly ProcedureResultRow[],
+): ProcedureAction[] {
+  const recommendations: ShaperRecommendation[] = []
+  // The rows come back from the shared log, so nothing about their shape is assumed.
+  for (const row of rows) {
+    const label: unknown = row?.label
+    if (typeof label !== 'object' || label === null || !('key' in label)) continue
+    const { key: name, params } = label as { key: unknown; params?: unknown }
+    if (typeof name !== 'string' || typeof row.after !== 'string') continue
+    const kind = shaperKindKey.exec(name)?.[1] as ShaperRecommendation['kind'] | undefined
+    const axisParam =
+      typeof params === 'object' && params !== null ? (params as { axis?: unknown }).axis : null
+    const axis = typeof axisParam === 'string' ? axisParam.toLowerCase() : null
+    const value = shaperRowValue.exec(row.after)
+    if (!kind || (axis !== 'x' && axis !== 'y') || !value) continue
+    recommendations.push({ axis, kind, shaperType: value[1]!, frequency: Number(value[2]) })
+  }
+  return shaperActions(recommendations)
 }
 
 export function parseShakeTuneShaper(lines: readonly string[]): ProcedureResult | null {
@@ -506,23 +572,7 @@ export function parseShakeTuneShaper(lines: readonly string[]): ProcedureResult 
       after: `${recommendation.shaperType} @ ${recommendation.frequency} Hz`,
     })),
     outcome: 'measured',
-    actions: recommendations
-      .filter((recommendation) => recommendation.kind !== 'lowVibrations')
-      .flatMap((recommendation) => {
-        const command = setInputShaperCommand(recommendation)
-        return command
-          ? [
-              {
-                kind: 'gcode' as const,
-                id: `apply-${recommendation.axis}-${recommendation.kind}`,
-                label: key('calibration.result.applyShaper', {
-                  axis: recommendation.axis.toUpperCase(),
-                }),
-                command,
-              },
-            ]
-          : []
-      }),
+    actions: shaperActions(recommendations),
   }
 }
 
@@ -550,6 +600,60 @@ export function parseAxesNoise(lines: readonly string[]): ProcedureResult | null
   }
   if (rows.length === 0) return outcomeOnly(lines)
   return { rows, outcome: 'measured' }
+}
+
+function compactAxesMap(value: string): string {
+  return value.replace(/\s+/g, '').replace(/\+/g, '').toLowerCase()
+}
+
+/**
+ * The accelerometer section `AXES_MAP_CALIBRATION` measures with when no
+ * `ACCEL_CHIP` is given: the one `[resonance_tester]` names for X, else the
+ * only one there is. Null where that is ambiguous, so the result offers no
+ * write rather than guessing which chip's section the map belongs in.
+ */
+function axesMapChip(context: ProcedureContext): string | null {
+  const chips = accelerometers(context)
+  const tester = context.settings('resonance_tester')
+  for (const option of ['accel_chip', 'accel_chip_x']) {
+    const named = tester?.[option]
+    if (typeof named === 'string' && chips.includes(named.trim().toLowerCase())) {
+      return named.trim().toLowerCase()
+    }
+  }
+  return chips.length === 1 ? chips[0]! : null
+}
+
+export function parseAxesMap(
+  lines: readonly string[],
+  before: ProcedureSnapshot,
+): ProcedureResult | null {
+  const match = lastMatch(lines, detectedAxesMapPattern)
+  if (!match) return outcomeOnly(lines)
+  const detected = compactAxesMap(`${match[1]},${match[2]},${match[3]}`)
+  const existing = lastMatch(lines, existingAxesMapPattern)?.[1]
+  const previous = before.axes_map || existing
+  const current = previous ? compactAxesMap(previous) : null
+  const chip = before.accel_chip ?? ''
+  return {
+    rows: [{ label: literal('axes_map'), before: current, after: detected }],
+    outcome: 'measured',
+    actions:
+      chip !== '' && current !== detected
+        ? [
+            {
+              kind: 'persist',
+              id: 'persist-axes-map',
+              label: key('calibration.result.writeToSection', {
+                option: 'axes_map',
+                section: chip,
+              }),
+              section: chip,
+              changes: [{ option: 'axes_map', value: detected }],
+            },
+          ]
+        : [],
+  }
 }
 
 export function parseProbeAccuracy(lines: readonly string[]): ProcedureResult | null {
@@ -612,8 +716,7 @@ function parsePressureAdvance(
       id: 'persist-advance',
       label: key('calibration.result.keepInFile', { option: 'pressure_advance' }),
       section: 'extruder',
-      option: 'pressure_advance',
-      value: advance,
+      changes: [{ option: 'pressure_advance', value: advance }],
     })
   }
   if (smooth !== '') {
@@ -627,8 +730,7 @@ function parsePressureAdvance(
       id: 'persist-smooth',
       label: key('calibration.result.keepInFile', { option: 'pressure_advance_smooth_time' }),
       section: 'extruder',
-      option: 'pressure_advance_smooth_time',
-      value: smooth,
+      changes: [{ option: 'pressure_advance_smooth_time', value: smooth }],
     })
   }
   return { rows, outcome: 'applied', actions }
@@ -766,7 +868,14 @@ export const calibrationProcedures: readonly CalibrationProcedure[] = [
     duration: 'minute',
     staleAfterDays: null,
     build: () => 'AXES_MAP_CALIBRATION',
-    parse: (lines) => outcomeOnly(lines),
+    snapshot: (_values, context) => {
+      const chip = axesMapChip(context)
+      return {
+        accel_chip: chip ?? '',
+        axes_map: chip ? (settingText(context, chip, 'axes_map') ?? '') : '',
+      }
+    },
+    parse: parseAxesMap,
   },
 
   // Bed & probe
@@ -1147,6 +1256,7 @@ export const calibrationProcedures: readonly CalibrationProcedure[] = [
     staleAfterDays: 90,
     build: () => 'AXES_SHAPER_CALIBRATION',
     parse: (lines) => parseShakeTuneShaper(lines),
+    actionsFromRows: shakeTuneShaperActionsFromRows,
   },
   {
     id: 'shakeTuneBelts',

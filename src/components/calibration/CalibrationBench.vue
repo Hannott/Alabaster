@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 
 import AxisRotationPanel from '@/components/calibration/AxisRotationPanel.vue'
 import CalibrationProcedureList from '@/components/calibration/CalibrationProcedureList.vue'
@@ -9,12 +9,9 @@ import EndstopsPanel from '@/components/calibration/EndstopsPanel.vue'
 import HeaterCheckPanel from '@/components/calibration/HeaterCheckPanel.vue'
 import RotationDistancePanel from '@/components/calibration/RotationDistancePanel.vue'
 import RunoutSensorsPanel from '@/components/calibration/RunoutSensorsPanel.vue'
+import { useCalibrationSelection } from '@/composables/useCalibrationSelection'
 import { useProcedureContext } from '@/composables/useProcedureContext'
-import {
-  initialProcedure,
-  proceduresForStage,
-  type ProcedureId,
-} from '@/features/calibration/procedures'
+import { initialProcedure, proceduresForStage } from '@/features/calibration/procedures'
 import type { CalibrationStageId } from '@/features/calibration/stages'
 import { useCalibrationStore } from '@/stores/calibration'
 
@@ -47,15 +44,17 @@ const context = useProcedureContext()
 const procedures = computed(() => proceduresForStage(props.stage, context.value))
 
 /*
- * Component state, like the stage itself: a query would remount the page and
- * the docked console with it (see CalibrationView). Resolved against the live
+ * In-memory state, like the stage itself and kept per stage beside it: a
+ * query would remount the page and the docked console with it (see
+ * CalibrationView). Resolved against the live
  * list, so a procedure whose hardware disappears mid-sitting falls back rather
  * than leaving an empty workspace. Chosen on arrival as the first ageing
  * procedure that is due, which shows what needs doing without a notification.
  */
-const requested = ref<ProcedureId | null>(null)
+const selection = useCalibrationSelection()
 const selected = computed(() => {
-  const chosen = procedures.value.find((procedure) => procedure.id === requested.value)
+  const requested = selection.procedureFor(props.stage)
+  const chosen = procedures.value.find((procedure) => procedure.id === requested)
   if (chosen) return chosen
   return initialProcedure(procedures.value, (id) => calibration.lastRunAt(id), Date.now())
 })
@@ -70,7 +69,7 @@ const selected = computed(() => {
         <CalibrationProcedureList
           :procedures="procedures"
           :selected="selected?.id ?? null"
-          @select="requested = $event"
+          @select="selection.selectProcedure(stage, $event)"
         />
       </div>
 

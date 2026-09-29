@@ -190,18 +190,30 @@ const hasBefore = computed(
 const actionOutcomes = ref<Record<string, PersistActionOutcome | boolean>>({})
 const pendingAction = ref<string | null>(null)
 
-async function runAction(action: ProcedureAction): Promise<void> {
-  pendingAction.value = action.id
+/** The current run's actions keep their own ids; an earlier run's are scoped by when it ran. */
+function actionKey(action: ProcedureAction, at?: number): string {
+  return at === undefined ? action.id : `${at}:${action.id}`
+}
+
+async function runAction(action: ProcedureAction, at?: number): Promise<void> {
+  const id = actionKey(action, at)
+  pendingAction.value = id
   try {
     const outcome = await calibration.runAction(action)
-    actionOutcomes.value = { ...actionOutcomes.value, [action.id]: outcome }
+    actionOutcomes.value = { ...actionOutcomes.value, [id]: outcome }
   } finally {
     pendingAction.value = null
   }
 }
 
-function actionNote(action: ProcedureAction): string | null {
-  const outcome = actionOutcomes.value[action.id]
+/** A restart during a print would end it, so an action that restarts waits for the print. */
+function actionDisabled(action: ProcedureAction): boolean {
+  if (!klipperAvailability.value.isAvailable || pendingAction.value !== null) return true
+  return action.kind === 'persist' && action.restart === true && printer.hasActivePrint
+}
+
+function actionNote(action: ProcedureAction, at?: number): string | null {
+  const outcome = actionOutcomes.value[actionKey(action, at)]
   if (outcome === undefined) return null
   if (outcome === true) return t('calibration.result.actionApplied')
   if (outcome === false) return t('dashboard.commandFailed')
@@ -221,12 +233,18 @@ const history = computed(() =>
     .slice(0, 5),
 )
 
-function summary(entry: (typeof history.value)[number]): string {
-  if (entry.outcome === 'failed') return t('calibration.result.outcome.failed')
-  const first = entry.rows.find((row) => row.after !== '')
-  return first
-    ? `${text(first.label)} ${first.after}`
-    : t(`calibration.result.outcome.${entry.outcome}`)
+function entryActions(entry: (typeof history.value)[number]): readonly ProcedureAction[] {
+  if (entry.outcome === 'failed') return []
+  return entry.actions ?? props.procedure.actionsFromRows?.(entry.rows) ?? []
+}
+
+/** Every value an earlier run found, one per line — a shaper run has one per axis. */
+function summary(entry: (typeof history.value)[number]): string[] {
+  if (entry.outcome === 'failed') return [t('calibration.result.outcome.failed')]
+  const found = entry.rows.filter((row) => row.after !== '')
+  return found.length > 0
+    ? found.map((row) => `${text(row.label)} ${row.after}`)
+    : [t(`calibration.result.outcome.${entry.outcome}`)]
 }
 
 // What belongs to one procedure's view resets when another is chosen.
@@ -420,7 +438,7 @@ const effects = computed(() =>
             size="sm"
             :label="text(action.label)"
             :pending="pendingAction === action.id"
-            :disabled="!klipperAvailability.isAvailable || pendingAction !== null"
+            :disabled="actionDisabled(action)"
             @click="runAction(action)"
           />
           <span v-if="actionNote(action)" class="calibration-panel__hint">{{
@@ -453,7 +471,31 @@ const effects = computed(() =>
       <ul class="calibration-history__list">
         <li v-for="entry in history" :key="entry.at" class="calibration-history__entry">
           <span class="calibration-history__when">{{ when(entry.at) }}</span>
-          <span class="calibration-history__summary">{{ summary(entry) }}</span>
+          <div
+            class="calibration-history__body"
+            :class="{ 'calibration-history__body--actions': entryActions(entry).length }"
+          >
+            <span
+              v-for="(line, index) in summary(entry)"
+              :key="index"
+              class="calibration-history__summary"
+              >{{ line }}</span
+            >
+            <ul v-if="entryActions(entry).length" class="calibration-result__actions">
+              <li v-for="action in entryActions(entry)" :key="action.id">
+                <AppButton
+                  size="sm"
+                  :label="text(action.label)"
+                  :pending="pendingAction === actionKey(action, entry.at)"
+                  :disabled="actionDisabled(action)"
+                  @click="runAction(action, entry.at)"
+                />
+                <span v-if="actionNote(action, entry.at)" class="calibration-panel__hint">{{
+                  actionNote(action, entry.at)
+                }}</span>
+              </li>
+            </ul>
+          </div>
         </li>
       </ul>
     </div>

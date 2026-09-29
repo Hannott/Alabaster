@@ -6,6 +6,7 @@ import {
   isProcedureStale,
   missingProcedureValues,
   parseAccelerometer,
+  parseAxesMap,
   parseAxesNoise,
   parseBedTilt,
   parseEndstopPhase,
@@ -18,6 +19,7 @@ import {
   parseShaperCalibrate,
   parseZOffset,
   procedureById,
+  shakeTuneShaperActionsFromRows,
   proceduresForStage,
   type ProcedureContext,
 } from '@/features/calibration/procedures'
@@ -237,6 +239,39 @@ describe('reading results', () => {
       '//     -> Best shaper: ZV @ 39.6 Hz',
     ])
     expect(result?.rows[0]?.after).toBe('zv @ 39.6 Hz')
+    expect(result?.actions).toEqual([
+      expect.objectContaining({
+        kind: 'gcode',
+        command: 'SET_INPUT_SHAPER SHAPER_TYPE_Y=zv SHAPER_FREQ_Y=39.6',
+      }),
+      expect.objectContaining({
+        kind: 'persist',
+        section: 'input_shaper',
+        restart: true,
+        changes: [
+          { option: 'shaper_type_y', value: 'zv' },
+          { option: 'shaper_freq_y', value: '39.6' },
+        ],
+      }),
+    ])
+  })
+
+  it('rebuilds a logged Shake&Tune run’s actions from its rows', () => {
+    const actions = shakeTuneShaperActionsFromRows([
+      {
+        label: { key: 'calibration.result.shaperKind.best', params: { axis: 'X' } },
+        after: 'smooth_zv @ 68.2 Hz',
+      },
+      {
+        label: { key: 'calibration.result.shaperKind.lowVibrations', params: { axis: 'Y' } },
+        after: 'ei @ 40 Hz',
+      },
+      { label: { literal: 'noise' }, after: '12' },
+    ])
+    expect(actions.map((action) => action.id)).toEqual(['apply-shaper', 'save-shaper'])
+    expect(actions[0]).toMatchObject({
+      command: 'SET_INPUT_SHAPER SHAPER_TYPE_X=smooth_zv SHAPER_FREQ_X=68.2',
+    })
   })
 
   it('reads the accelerometer’s one sample', () => {
@@ -252,6 +287,53 @@ describe('reading results', () => {
       '// Axes noise for z-axis accelerometer: 12.0 (x), 11.1 (y), 13.2 (z)',
     ])
     expect(result?.rows).toHaveLength(2)
+  })
+
+  it('reads Shake&Tune’s detected axes_map and offers to write it to the chip’s section', () => {
+    const result = parseAxesMap(
+      [
+        '// Note: An existing axes_map (x, -y, -z) was detected and temporarily deactivated for analysis',
+        '// Machine axis X -> -x (angle error: 4.7 degrees)',
+        '// ==> Detected axes_map: -x, -z, -y',
+        "// Your current axes_map doesn't match! Please update your configuration to -x,-z,-y.",
+      ],
+      { accel_chip: 'adxl345', axes_map: '' },
+    )
+    expect(result?.rows).toEqual([
+      { label: { literal: 'axes_map' }, before: 'x,-y,-z', after: '-x,-z,-y' },
+    ])
+    expect(result?.actions).toEqual([
+      expect.objectContaining({
+        kind: 'persist',
+        section: 'adxl345',
+        changes: [{ option: 'axes_map', value: '-x,-z,-y' }],
+      }),
+    ])
+  })
+
+  it('offers no axes_map write when it already matches or the chip is unknown', () => {
+    const lines = ['// ==> Detected axes_map: -x, -z, -y']
+    expect(parseAxesMap(lines, { accel_chip: 'adxl345', axes_map: '-x, -z, -y' })?.actions).toEqual(
+      [],
+    )
+    expect(parseAxesMap(lines, { accel_chip: '', axes_map: '' })?.actions).toEqual([])
+  })
+
+  it('snapshots the accelerometer resonance_tester names and its current axes_map', () => {
+    const procedure = procedureById('axesMap')!
+    const ctx = context({
+      sections: ['adxl345', 'adxl345 bed', 'resonance_tester'],
+      settings: (section) =>
+        section === 'resonance_tester'
+          ? { accel_chip: 'adxl345 bed' }
+          : section === 'adxl345 bed'
+            ? { axes_map: ['x', '-y', '-z'] }
+            : {},
+    })
+    expect(procedure.snapshot!({}, ctx)).toEqual({
+      accel_chip: 'adxl345 bed',
+      axes_map: 'x, -y, -z',
+    })
   })
 
   it('reads probe accuracy statistics', () => {

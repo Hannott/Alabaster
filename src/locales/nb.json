@@ -341,20 +341,23 @@
         "saved": "Skrevet til konfigurasjonsfilen. Start på nytt for å laste den.",
         "buffered": "Skrevet inn i ulagrede endringer i den filen. Lagre den i Konfigurasjon.",
         "unchanged": "Filen sier allerede dette.",
-        "refused": "Ikke skrevet: linjen er i SAVE_CONFIG-blokken eller har en ventende endring."
+        "refused": "Ikke skrevet: linjen er i SAVE_CONFIG-blokken eller har en ventende endring.",
+        "restarting": "Skrevet til konfigurasjonsfilen. Klipper starter på nytt."
       },
       "retries": "Forsøk",
       "range": "Spenn",
       "tolerance": "Toleranse",
       "suggestedMaxAccel": "Foreslått max_accel ({axis})",
-      "applyShaper": "Bruk {axis} til omstart",
+      "applyShapers": "Bruk",
+      "saveShapers": "Lagre konfigurasjon",
       "shaperKind": {
         "performance": "{axis} · for ytelse",
         "lowVibrations": "{axis} · for lite vibrasjon",
         "best": "{axis} · anbefalt"
       },
       "noise": "Støy, {chip} (x · y · z)",
-      "keepInFile": "Behold {option} i filen"
+      "keepInFile": "Behold {option} i filen",
+      "writeToSection": "Skriv {option} til [{section}]"
     },
     "param": {
       "stepper": "Motor",

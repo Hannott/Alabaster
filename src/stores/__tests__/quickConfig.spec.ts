@@ -275,6 +275,17 @@ describe('keeping a running value', () => {
     expect(uploads).toHaveLength(0)
   })
 
+  it('edits a SAVE_CONFIG line for a caller that restarts straight after', async () => {
+    const quickConfig = await loadedStore()
+
+    const result = await quickConfig.persistOption('input_shaper', 'shaper_freq_x', '60', {
+      intoAutosave: true,
+    })
+
+    expect(result).toMatchObject({ status: 'saved', autosave: true })
+    expect(uploads).toHaveLength(1)
+  })
+
   it('refuses a SAVE_CONFIG line and an option among pending results', async () => {
     const quickConfig = await loadedStore()
 
@@ -282,6 +293,13 @@ describe('keeping a running value', () => {
       status: 'refused',
       reason: 'autosave',
     })
+
+    usePrinterStore().saveConfigPending = true
+    expect(
+      await quickConfig.persistOption('input_shaper', 'shaper_freq_x', '60', {
+        intoAutosave: true,
+      }),
+    ).toEqual({ status: 'refused', reason: 'autosave' })
 
     usePrinterStore().saveConfigPendingItems = { printer: { max_accel: '6000' } }
     expect(await quickConfig.persistOption('printer', 'max_accel', '6500')).toEqual({

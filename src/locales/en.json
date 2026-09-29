@@ -341,20 +341,23 @@
         "saved": "Written to the config file. Restart to load it.",
         "buffered": "Written into the unsaved edits of that file. Save it in Configuration.",
         "unchanged": "The file already says this.",
-        "refused": "Not written: the line is in the SAVE_CONFIG block or has a staged change."
+        "refused": "Not written: the line is in the SAVE_CONFIG block or has a staged change.",
+        "restarting": "Written to the config file. Klipper is restarting."
       },
       "retries": "Retries",
       "range": "Range",
       "tolerance": "Tolerance",
       "suggestedMaxAccel": "Suggested max_accel ({axis})",
-      "applyShaper": "Apply {axis} until restart",
+      "applyShapers": "Apply",
+      "saveShapers": "Save config",
       "shaperKind": {
         "performance": "{axis} · for performance",
         "lowVibrations": "{axis} · for low vibrations",
         "best": "{axis} · recommended"
       },
       "noise": "Noise, {chip} (x · y · z)",
-      "keepInFile": "Keep {option} in the file"
+      "keepInFile": "Keep {option} in the file",
+      "writeToSection": "Write {option} to [{section}]"
     },
     "param": {
       "stepper": "Stepper",

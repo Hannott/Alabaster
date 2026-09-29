@@ -3,6 +3,7 @@ import { enableAutoUnmount, flushPromises, mount, type VueWrapper } from '@vue/t
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMemoryHistory, createRouter, type Router } from 'vue-router'
 
+import { resetCalibrationSelection } from '@/composables/useCalibrationSelection'
 import { i18n } from '@/i18n'
 import { useAvailabilityStore } from '@/stores/availability'
 import { useBedMeshStore } from '@/stores/bedMesh'
@@ -37,6 +38,7 @@ beforeAll(() => {
 
 beforeEach(() => {
   vi.restoreAllMocks()
+  resetCalibrationSelection()
   // The hosted bed-mesh module observes its stage; jsdom has no ResizeObserver.
   vi.stubGlobal(
     'ResizeObserver',
@@ -823,6 +825,17 @@ describe('Calibration view', () => {
    * The run's actual product — a shaper and a frequency per axis — used to
    * exist only as console text somebody had to copy into a command by hand.
    */
+  it('reopens the stage and calibration that were open after leaving the page', async () => {
+    const first = await mountResonance()
+    await selectProcedure(first, 'shakeTuneShaper')
+    first.unmount()
+
+    const view = await mountView()
+    expect(view.get('.calibration-workspace').attributes('aria-label')).toBe(
+      i18n.global.t('calibration.procedure.shakeTuneShaper.name'),
+    )
+  })
+
   it('lifts the shaper recommendation out of the run and applies it', async () => {
     homed()
     const view = await mountResonance()
@@ -850,7 +863,7 @@ describe('Calibration view', () => {
 
     const apply = view
       .findAll('.calibration-result__actions button')
-      .find((button) => button.text().includes('Apply X'))
+      .find((button) => button.text() === 'Apply')
     await apply!.trigger('click')
     expect(rpcCall).toHaveBeenCalledWith('printer.gcode.script', {
       script: 'SET_INPUT_SHAPER SHAPER_TYPE_X=mzv SHAPER_FREQ_X=48.2',

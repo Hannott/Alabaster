@@ -13,6 +13,7 @@ import ExtrusionStage from '@/components/calibration/ExtrusionStage.vue'
 import HeatersStage from '@/components/calibration/HeatersStage.vue'
 import ResonanceStage from '@/components/calibration/ResonanceStage.vue'
 import ConsolePanel from '@/components/console/ConsolePanel.vue'
+import { useCalibrationSelection } from '@/composables/useCalibrationSelection'
 import {
   availableCalibrationStages,
   resolveCalibrationStage,
@@ -110,7 +111,7 @@ const stages = computed(() =>
 )
 
 /**
- * The selected stage is component state, deliberately not a route query.
+ * The selected stage is in-memory state, deliberately not a route query.
  *
  * A query would have made a stage a link somebody could keep, which is worth
  * something — but `App.vue` keys the routed component on `route.fullPath`
@@ -122,12 +123,15 @@ const stages = computed(() =>
  * could have been stepped in; a stage in local state avoids it without changing
  * how every other route behaves.
  *
+ * It outlives the page (see `useCalibrationSelection`), so coming back from
+ * another route opens the stage that was open.
+ *
  * Resolved rather than read straight back, because the stage list is live: a
  * printer that loses the component behind the selected stage mid-sitting — a
  * Shake&Tune uninstall, a config reload without `[bed_mesh]` — falls back to
  * the first available stage instead of rendering an empty canvas.
  */
-const requestedStage = ref<CalibrationStageId>('axes')
+const { stage: requestedStage } = useCalibrationSelection()
 const activeStage = computed(() => resolveCalibrationStage(requestedStage.value, stages.value))
 
 function selectStage(stage: CalibrationStageId): void {

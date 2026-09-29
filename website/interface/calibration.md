@@ -43,8 +43,9 @@ and whether it moves the toolhead, heats, or probes.
   printer answered with.
 
 Each calibration also shows when it last ran on this printer, and its earlier
-results. The record is kept on the printer, so every browser sees the same
-dates. A calibration that is due, such as a mesh older than 30 days or heater
+results, with the same buttons the result had, so an older shaper run can still
+be applied or saved. The record is kept on the printer, so every browser sees
+the same dates. A calibration that is due, such as a mesh older than 30 days or heater
 models older than 90, is marked as due, and the job opens on it.
 
 ## The console
@@ -176,6 +177,10 @@ on the dashboard keeps its **Level bed** button.
 **Stepper check** moves one motor 1 mm back and forth ten times, to confirm
 which motor it is and which way it turns.
 
+**Axis map** (Shake&Tune) finds how the accelerometer is mounted. When the
+detected `axes_map` differs from the one configured, one button writes it to
+the accelerometer's section in your configuration.
+
 ## Axis rotation distance
 
 Works out `rotation_distance` for any axis motor from the parts it drives:
@@ -283,16 +288,20 @@ mark distinguishes a genuine runout from a sensor that was never active.
 **Input shaper calibration** runs Klipper's own `SHAPER_CALIBRATE` and needs no
 plugin. Its result shows the recommended shaper and frequency per axis next to
 the configured ones, with the suggested `max_accel`. The result is staged for
-`SAVE_CONFIG`. **Apply** puts a recommendation into effect right away, until
-Klipper restarts.
+`SAVE_CONFIG`. **Apply** puts both axes into effect right away, until Klipper
+restarts; **Save config** runs `SAVE_CONFIG`.
 
 **Accelerometer check** reads the accelerometer once to see that it answers.
 **Accelerometer noise** reads background vibration for two seconds, so a fan
 touching the toolhead or a loose mount shows before a real test.
 
 With Shake&Tune installed, its shaper, belts, and vibrations tests are
-calibrations too. The shaper test's recommendations appear in its result, with
-**Apply**. The belts comparison is offered only on CoreXY and CoreXZ printers.
+calibrations too. The shaper test's recommendations appear in its result:
+**Apply** puts both axes into effect until the next restart, and **Save
+config** writes them to `[input_shaper]` in your configuration and restarts
+Klipper to load them. Where the shaper lines are in the `SAVE_CONFIG` block,
+they are updated there, which needs nothing else staged at the time. The belts
+comparison is offered only on CoreXY and CoreXZ printers.
 
 ## Tuning results
 
