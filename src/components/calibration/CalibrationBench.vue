@@ -7,6 +7,7 @@ import CalibrationProcedureWorkspace from '@/components/calibration/CalibrationP
 import CalibrationReadiness from '@/components/calibration/CalibrationReadiness.vue'
 import EndstopsPanel from '@/components/calibration/EndstopsPanel.vue'
 import HeaterCheckPanel from '@/components/calibration/HeaterCheckPanel.vue'
+import NonlinearPressureAdvancePanel from '@/components/calibration/NonlinearPressureAdvancePanel.vue'
 import RotationDistancePanel from '@/components/calibration/RotationDistancePanel.vue'
 import RunoutSensorsPanel from '@/components/calibration/RunoutSensorsPanel.vue'
 import { useCalibrationSelection } from '@/composables/useCalibrationSelection'
@@ -79,6 +80,7 @@ const selected = computed(() => {
         <RunoutSensorsPanel v-else-if="selected.panel === 'runoutSensors'" />
         <HeaterCheckPanel v-else-if="selected.panel === 'heaterCheck'" />
         <RotationDistancePanel v-else-if="selected.panel === 'rotationDistance'" />
+        <NonlinearPressureAdvancePanel v-else-if="selected.panel === 'nonlinearPressureAdvance'" />
         <!--
           One instance across procedures, not one per procedure: the values a
           reader typed are kept per procedure inside it while the page is open.

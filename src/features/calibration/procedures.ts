@@ -1,4 +1,5 @@
 import { axisSteppers } from '@/features/calibration/axisRotation'
+import { isNonlinearModel, readNpaConfig } from '@/features/calibration/nonlinearPressureAdvance'
 import type { CalibrationStageId } from '@/features/calibration/stages'
 import {
   latestShaperRecommendations,
@@ -53,6 +54,7 @@ export type ProcedureId =
   | 'axesNoise'
   | 'rotationDistance'
   | 'pressureAdvance'
+  | 'nonlinearPressureAdvance'
   | 'runoutSensors'
 
 /** What a procedure needs before Run is offered. Each has a word, and most have a fix. */
@@ -70,7 +72,12 @@ export type ProcedureDuration = 'seconds' | 'minute' | 'minutes' | 'interactive'
  * or a list that is its own result.
  */
 export type ProcedurePanel =
-  'endstops' | 'axisRotation' | 'rotationDistance' | 'heaterCheck' | 'runoutSensors'
+  | 'endstops'
+  | 'axisRotation'
+  | 'rotationDistance'
+  | 'heaterCheck'
+  | 'runoutSensors'
+  | 'nonlinearPressureAdvance'
 
 /** User-facing text as data: a message key, or a Klipper name shown as it is spelled. */
 export type ProcedureText = { key: string; params?: Record<string, string> } | { literal: string }
@@ -148,6 +155,8 @@ export type ProcedureAction =
       label: ProcedureText
       section: string
       changes: readonly { option: string; value: string }[]
+      /** Options the changes make invalid, taken out of the file in the same write. */
+      removes?: readonly string[]
       /** Restart Klipper once written, so the file's values are the ones running. */
       restart?: boolean
     }
@@ -1329,7 +1338,14 @@ export const calibrationProcedures: readonly CalibrationProcedure[] = [
     id: 'pressureAdvance',
     stage: 'extrusion',
     command: 'SET_PRESSURE_ADVANCE',
-    available: (context) => context.hasSection('extruder'),
+    /*
+     * Not under a nonlinear model: there `ADVANCE` sets `linear_advance`, and
+     * keeping it would write a `pressure_advance` line the model leaves
+     * unread, which Klipper refuses to start with.
+     */
+    available: (context) =>
+      context.hasSection('extruder') &&
+      !isNonlinearModel(readNpaConfig(context.settings('extruder')).model),
     requires: [],
     effects: [],
     duration: 'seconds',
@@ -1367,6 +1383,26 @@ export const calibrationProcedures: readonly CalibrationProcedure[] = [
         context.liveSmoothTime === null ? '' : String(context.liveSmoothTime),
     }),
     parse: parsePressureAdvance,
+  },
+  {
+    id: 'nonlinearPressureAdvance',
+    stage: 'extrusion',
+    command: 'RUN_PA_TEST',
+    /*
+     * Kalico's `[pa_test]` module prints the tower; `RUN_PA_TEST` is the macro
+     * its guide has the owner paste in, holding their own start G-code. Gated
+     * on both, like Shake&Tune's macros: without the macro there is nothing to
+     * run, and without the module the macro fails at its last line.
+     */
+    available: (context) =>
+      context.hasSection('extruder') &&
+      context.hasSection('pa_test') &&
+      context.hasMacro('RUN_PA_TEST'),
+    requires: ['notPrinting'],
+    effects: ['heats', 'moves'],
+    duration: 'interactive',
+    staleAfterDays: null,
+    panel: 'nonlinearPressureAdvance',
   },
   {
     id: 'runoutSensors',

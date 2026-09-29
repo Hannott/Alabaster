@@ -150,6 +150,21 @@ describe('building commands', () => {
       'SET_PRESSURE_ADVANCE ADVANCE=0.045',
     )
   })
+
+  it('offers nonlinear towers only with pa_test and RUN_PA_TEST, and hides linear PA under a model', () => {
+    const extruder = { pressure_advance_model: 'recipr', linear_advance: 0 }
+    const nonlinear = (hasMacro: boolean) =>
+      context({
+        sections: ['extruder', 'pa_test'],
+        hasMacro: (name) => hasMacro && name === 'RUN_PA_TEST',
+        settings: (section) =>
+          section === 'extruder' ? extruder : section === 'pa_test' ? {} : null,
+      })
+    expect(ids('extrusion', nonlinear(true))).toContain('nonlinearPressureAdvance')
+    expect(ids('extrusion', nonlinear(true))).not.toContain('pressureAdvance')
+    expect(ids('extrusion', nonlinear(false))).not.toContain('nonlinearPressureAdvance')
+    expect(ids('extrusion', context({ sections: ['extruder'] }))).toContain('pressureAdvance')
+  })
 })
 
 describe('reading results', () => {

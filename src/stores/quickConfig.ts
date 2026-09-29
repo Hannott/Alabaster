@@ -352,6 +352,37 @@ export const useQuickConfigStore = defineStore('quickConfig', () => {
     return { status: 'saved', path: result.path, ...autosave }
   }
 
+  /*
+   * The other half of `persistOption`, for a write that makes an option
+   * invalid rather than different: switching `[extruder]` to a nonlinear
+   * pressure-advance model leaves `pressure_advance` unread, and Klipper
+   * refuses to start on an option nothing reads. Refuses what `persistOption`
+   * refuses, for the same reasons, and a value spread over several lines.
+   */
+  async function unpersistOption(section: string, option: string): Promise<PersistResult> {
+    if (!availability.isMoonrakerConnected) return { status: 'refused', reason: 'unavailable' }
+    if (!hasLoaded.value) await load()
+    if (!hasLoaded.value) return { status: 'refused', reason: 'unavailable' }
+    const existing = effectiveOption(currentIndex.value, section, option)
+    if (!existing) return { status: 'unchanged' }
+    if (existing.autosave) return { status: 'refused', reason: 'autosave' }
+    if (
+      printer.saveConfigPendingItems[section.toLowerCase()]?.[option.toLowerCase()] !== undefined
+    ) {
+      return { status: 'refused', reason: 'pending' }
+    }
+    const removed = removeOption(currentIndex.value, currentFiles.value, section, option)
+    if (!removed) return { status: 'refused', reason: 'multiline' }
+    const hadOtherEdits = machineFiles.isPathDirty(removed.path)
+    machineFiles.setConfigBufferContent(removed.path, removed.content)
+    touchedPaths.value = new Set([...touchedPaths.value, removed.path])
+    if (hadOtherEdits) return { status: 'buffered', path: removed.path }
+    if (!(await machineFiles.saveConfigFiles([removed.path]))) {
+      return { status: 'buffered', path: removed.path }
+    }
+    return { status: 'saved', path: removed.path }
+  }
+
   async function save(restart: boolean): Promise<boolean> {
     if (restart && printer.hasActivePrint) return false
     if (!restart && requiresRestart.value) return false
@@ -510,6 +541,7 @@ export const useQuickConfigStore = defineStore('quickConfig', () => {
     discard,
     savedValue,
     persistOption,
+    unpersistOption,
     setSectionPins,
     storedColumns,
     columnsFor,

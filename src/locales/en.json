@@ -395,6 +395,88 @@
     "heaterCheck": {
       "default": "Klipper default"
     },
+    "npa": {
+      "path": "Extruder",
+      "pathDirect": "Direct drive",
+      "pathBowden": "Bowden or high speed",
+      "inFile": "In the file",
+      "calculated": "Calculated",
+      "saveRestart": "Save and restart",
+      "towers": "Towers",
+      "readings": "Readings",
+      "clear": "Clear",
+      "clearTitle": "Clear the readings?",
+      "clearConfirm": "Removes every nonlinear pressure advance reading on this printer, for every browser, and resets the tower fields. The values in the config file stay as they are.",
+      "sideAt": "side {height} mm",
+      "frontAt": "front {height} mm",
+      "open": "Open {tower}",
+      "writeRestart": "Write {option} = {value} and restart",
+      "tab": {
+        "start": "Start",
+        "offset": "Offset",
+        "advance": "Advance",
+        "timeOffset": "Time offset"
+      },
+      "towerPhrase": {
+        "offset": "the offset tower",
+        "advance": "the advance tower",
+        "timeOffset": "the time offset tower"
+      },
+      "next": {
+        "start": "Next: write the starting values.",
+        "tower": "Next: print {tower}.",
+        "again": "Next: print {tower} again.",
+        "done": "Every value is tuned.",
+        "open": "Open"
+      },
+      "start": {
+        "detail": "Writes the values the guide starts from to [extruder] and restarts Klipper.",
+        "accel": "Towers print at max_accel {accel} mm/s².",
+        "extruderSync": "Input shaping does not smooth the extruder. The guide sets enabled_extruders: extruder in [input_shaper].",
+        "reciprHint": "Tunes low and high speed more independently.",
+        "removes": "Removes pressure_advance, which a nonlinear model does not read.",
+        "write": "Write and restart",
+        "matches": "The file holds the starting values."
+      },
+      "tower": {
+        "read": {
+          "direct": {
+            "offset": "Read the left side. Slightly low reads better than high.",
+            "advance": "Read the left side and the front.",
+            "timeOffset": "Read the front, lit from the side. The difference is subtle."
+          },
+          "bowden": {
+            "offset": "Read the left side and the front.",
+            "advance": "Read the front.",
+            "timeOffset": "Read the front, lit from the side. The difference is subtle."
+          }
+        },
+        "from": "From",
+        "to": "To",
+        "nozzle": "Nozzle",
+        "targetTemp": "Nozzle temperature",
+        "bedTemp": "Bed temperature",
+        "print": "Print tower",
+        "printed": "Tower started.",
+        "side": "Side",
+        "front": "Front",
+        "heightHint": "Height where the tower looks best, 0 to {height} mm.",
+        "save": "Save reading",
+        "narrow": "Narrow around {value}"
+      },
+      "suggestion": {
+        "agree": "The side and the front agree within {tolerance} mm.",
+        "keep": "Keep {option} = {value}.",
+        "keepShare": "Best at {ideal}; keep 80%, {option} = {value}.",
+        "then": "Then print {tower}.",
+        "done": "Tuning is done.",
+        "sideBelow": "The side converges {gap} mm below the front.",
+        "sideAbove": "The side converges {gap} mm above the front.",
+        "nudgeDown": "{side} Lower {option} {percent}% to {value}, then print this tower again.",
+        "nudgeUp": "{side} Raise {option} {percent}% to {value}, then print this tower again.",
+        "unreadable": "The side and the front disagree, but {option} is 0. Print {tower} first."
+      }
+    },
     "procedure": {
       "endstops": {
         "name": "Endstop check",
@@ -555,6 +637,11 @@
         "name": "Pressure advance",
         "description": "Tries a pressure advance value live, then keeps it in the file.",
         "detail": "Sets pressure advance and its smoothing time on the running printer, until the next restart. Keep a value that prints well in the config file from the result."
+      },
+      "nonlinearPressureAdvance": {
+        "name": "Nonlinear pressure advance",
+        "description": "Tunes Kalico's nonlinear pressure advance from printed test towers.",
+        "detail": "Each tower sweeps one value with height. Enter the heights where the side and the front look best, and keep the value they work out. Any tower can be printed again."
       },
       "runoutSensors": {
         "name": "Filament sensors",
@@ -2797,6 +2884,7 @@
       "power": "Power",
       "printInterrupting": "Interrupting an active print",
       "bedMesh": "Bed mesh",
+      "calibration": "Calibration",
       "dashboard": "Dashboard",
       "console": "Console",
       "configuration": "Configuration",
@@ -2825,6 +2913,7 @@
       "regenerateApiKey": "Regenerate the API key",
       "openLargeGcodeFile": "Open a large file in the G-code viewer",
       "deleteMeshProfile": "Delete a mesh profile, from the Calibration page",
+      "clearPressureAdvanceReadings": "Clear the nonlinear pressure advance readings",
       "deleteSavedLayout": "Delete a saved dashboard layout",
       "clearConsole": "Clear the console transcript",
       "clearCommandHistory": "Clear the typed-command history",

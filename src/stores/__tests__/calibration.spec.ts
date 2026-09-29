@@ -335,3 +335,26 @@ describe('result actions', () => {
     expect(persist).toHaveBeenCalledTimes(1)
   })
 })
+
+describe('clearing a procedure log', () => {
+  it('removes it from the printer copy too, rather than merging it back', async () => {
+    const reading = { at: 1, values: { kind: 'reading' }, rows: [], outcome: 'measured' }
+    const database: Database = {
+      value: {
+        version: 1,
+        procedures: { nonlinearPressureAdvance: [reading], rotationDistance: [reading] },
+      },
+    }
+    const { calibration } = setup(database)
+    await calibration.loadLog()
+    expect(calibration.historyFor('nonlinearPressureAdvance')).toHaveLength(1)
+
+    calibration.clearLog('nonlinearPressureAdvance')
+    await flushPromises()
+
+    expect(calibration.historyFor('nonlinearPressureAdvance')).toHaveLength(0)
+    const stored = database.value as { procedures: Record<string, unknown> }
+    expect(stored.procedures.nonlinearPressureAdvance).toBeUndefined()
+    expect(stored.procedures.rotationDistance).toHaveLength(1)
+  })
+})

@@ -395,6 +395,88 @@
     "heaterCheck": {
       "default": "Klippers standard"
     },
+    "npa": {
+      "path": "Ekstruder",
+      "pathDirect": "Direktedrift",
+      "pathBowden": "Bowden eller høy hastighet",
+      "inFile": "I filen",
+      "calculated": "Beregnet",
+      "saveRestart": "Lagre og start på nytt",
+      "towers": "Tårn",
+      "readings": "Avlesninger",
+      "clear": "Tøm",
+      "clearTitle": "Tømme avlesningene?",
+      "clearConfirm": "Fjerner alle avlesninger av ikke-lineært trykkforsprang på denne skriveren, for alle nettlesere, og tilbakestiller tårnfeltene. Verdiene i konfigurasjonsfilen blir stående.",
+      "sideAt": "side {height} mm",
+      "frontAt": "front {height} mm",
+      "open": "Åpne {tower}",
+      "writeRestart": "Skriv {option} = {value} og start på nytt",
+      "tab": {
+        "start": "Start",
+        "offset": "Offset",
+        "advance": "Advance",
+        "timeOffset": "Tidsforskyvning"
+      },
+      "towerPhrase": {
+        "offset": "offset-tårnet",
+        "advance": "advance-tårnet",
+        "timeOffset": "tidsforskyvningstårnet"
+      },
+      "next": {
+        "start": "Neste: skriv startverdiene.",
+        "tower": "Neste: skriv ut {tower}.",
+        "again": "Neste: skriv ut {tower} på nytt.",
+        "done": "Alle verdiene er justert.",
+        "open": "Åpne"
+      },
+      "start": {
+        "detail": "Skriver verdiene veiledningen starter fra til [extruder] og starter Klipper på nytt.",
+        "accel": "Tårnene skrives ut med max_accel {accel} mm/s².",
+        "extruderSync": "Inputforming glatter ikke ekstruderen. Veiledningen setter enabled_extruders: extruder i [input_shaper].",
+        "reciprHint": "Justerer lav og høy hastighet mer uavhengig av hverandre.",
+        "removes": "Fjerner pressure_advance, som en ikke-lineær modell ikke leser.",
+        "write": "Skriv og start på nytt",
+        "matches": "Filen har startverdiene."
+      },
+      "tower": {
+        "read": {
+          "direct": {
+            "offset": "Les av venstre side. Litt lavt blir bedre enn høyt.",
+            "advance": "Les av venstre side og fronten.",
+            "timeOffset": "Les av fronten, belyst fra siden. Forskjellen er liten."
+          },
+          "bowden": {
+            "offset": "Les av venstre side og fronten.",
+            "advance": "Les av fronten.",
+            "timeOffset": "Les av fronten, belyst fra siden. Forskjellen er liten."
+          }
+        },
+        "from": "Fra",
+        "to": "Til",
+        "nozzle": "Dyse",
+        "targetTemp": "Dysetemperatur",
+        "bedTemp": "Sengtemperatur",
+        "print": "Skriv ut tårn",
+        "printed": "Tårnet er startet.",
+        "side": "Side",
+        "front": "Front",
+        "heightHint": "Høyden der tårnet ser best ut, 0 til {height} mm.",
+        "save": "Lagre avlesning",
+        "narrow": "Snevre inn rundt {value}"
+      },
+      "suggestion": {
+        "agree": "Siden og fronten stemmer overens innenfor {tolerance} mm.",
+        "keep": "Behold {option} = {value}.",
+        "keepShare": "Best ved {ideal}; behold 80 %, {option} = {value}.",
+        "then": "Skriv deretter ut {tower}.",
+        "done": "Justeringen er ferdig.",
+        "sideBelow": "Siden møtes {gap} mm under fronten.",
+        "sideAbove": "Siden møtes {gap} mm over fronten.",
+        "nudgeDown": "{side} Senk {option} {percent} % til {value}, og skriv ut dette tårnet på nytt.",
+        "nudgeUp": "{side} Øk {option} {percent} % til {value}, og skriv ut dette tårnet på nytt.",
+        "unreadable": "Siden og fronten er uenige, men {option} er 0. Skriv ut {tower} først."
+      }
+    },
     "procedure": {
       "endstops": {
         "name": "Endestoppsjekk",
@@ -555,6 +637,11 @@
         "name": "Trykkforsprang",
         "description": "Prøver en verdi for trykkforsprang direkte, og beholder den i filen.",
         "detail": "Setter trykkforsprang og utjevningstid på skriveren mens den kjører, til neste omstart. Behold en verdi som skriver godt i konfigurasjonsfilen fra resultatet."
+      },
+      "nonlinearPressureAdvance": {
+        "name": "Ikke-lineært trykkforsprang",
+        "description": "Justerer Kalicos ikke-lineære trykkforsprang fra utskrevne testtårn.",
+        "detail": "Hvert tårn varierer én verdi med høyden. Skriv inn høydene der siden og fronten ser best ut, og behold verdien de gir. Alle tårn kan skrives ut på nytt."
       },
       "runoutSensors": {
         "name": "Filamentsensorer",
@@ -2797,6 +2884,7 @@
       "power": "Strøm",
       "printInterrupting": "Avbryter en aktiv utskrift",
       "bedMesh": "Bednett",
+      "calibration": "Kalibrering",
       "dashboard": "Dashbord",
       "console": "Konsoll",
       "configuration": "Konfigurasjon",
@@ -2825,6 +2913,7 @@
       "regenerateApiKey": "Generer API-nøkkelen på nytt",
       "openLargeGcodeFile": "Åpne en stor fil i G-kode-viseren",
       "deleteMeshProfile": "Slett en bednettprofil, fra Kalibrering-siden",
+      "clearPressureAdvanceReadings": "Tømme avlesningene for ikke-lineært trykkforsprang",
       "deleteSavedLayout": "Slett et lagret dashbordoppsett",
       "clearConsole": "Tøm konsolltranskriptet",
       "clearCommandHistory": "Tøm historikken over skrevne kommandoer",

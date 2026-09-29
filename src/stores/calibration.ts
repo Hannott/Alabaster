@@ -240,9 +240,11 @@ export const useCalibrationStore = defineStore('calibration', () => {
    * Read, merge, write: another browser may have logged a run since this one
    * last read, and writing the local copy over it would lose that run. A
    * failed write is not retried — the next run's write carries this one too,
-   * because it merges the local log in.
+   * because it merges the local log in. A procedure named in `cleared` is
+   * the one exception: merging would bring its deleted entries straight back
+   * from the printer's copy, so it is taken out of both.
    */
-  async function writeLog(): Promise<void> {
+  async function writeLog(cleared: readonly ProcedureId[] = []): Promise<void> {
     if (!availability.isMoonrakerConnected) return
     let remote: CalibrationLog
     try {
@@ -255,6 +257,7 @@ export const useCalibrationStore = defineStore('calibration', () => {
       remote = {}
     }
     const merged: CalibrationLog = { ...remote }
+    for (const id of cleared) delete merged[id]
     for (const [id, entries] of Object.entries(log.value) as Array<
       [ProcedureId, CalibrationLogEntry[]]
     >) {
@@ -392,6 +395,18 @@ export const useCalibrationStore = defineStore('calibration', () => {
     void writeLog()
   }
 
+  /**
+   * Forgets every logged run of one procedure, on every browser: the log is
+   * the printer's, so this is the only copy.
+   */
+  function clearLog(id: ProcedureId): void {
+    runs.delete(id)
+    const rest = { ...log.value }
+    delete rest[id]
+    log.value = rest
+    void writeLog([id])
+  }
+
   async function runAction(action: ProcedureAction): Promise<PersistActionOutcome | boolean> {
     if (action.kind === 'gcode') return printer.sendGcode(action.command, 'calibration')
     const restart = action.restart === true && !printer.hasActivePrint
@@ -409,6 +424,11 @@ export const useCalibrationStore = defineStore('calibration', () => {
       statuses.push(result.status)
       if ('autosave' in result && result.autosave) wroteAutosave = true
       // Stopping at the first refusal leaves no half-written pair behind it.
+      if (result.status === 'refused') return 'refused'
+    }
+    for (const option of action.removes ?? []) {
+      const result = await quickConfig.unpersistOption(action.section, option)
+      statuses.push(result.status)
       if (result.status === 'refused') return 'refused'
     }
     if (statuses.includes('buffered')) return 'buffered'
@@ -470,6 +490,7 @@ export const useCalibrationStore = defineStore('calibration', () => {
     run,
     runAction,
     recordManual,
+    clearLog,
     loadLog,
     start,
     stop,

@@ -16,7 +16,7 @@ there.
 | **Bed & probe**  | Bed mesh, quad gantry level or Z tilt, bed screws, delta calibration, probe Z offset, probe accuracy, bed tilt, eddy and plugin probes | The height map        |
 | **Heaters**      | Heater model (PID or MPC), heater limits                                                                                               | The temperature chart |
 | **Resonance**    | Input shaper calibration, Shake&Tune shaper, belts and vibrations, accelerometer check and noise                                       | The Shake&Tune graphs |
-| **Extrusion**    | Rotation distance, pressure advance, filament sensors                                                                                  | The extruder controls |
+| **Extrusion**    | Rotation distance, pressure advance or nonlinear pressure advance, filament sensors                                                    | The extruder controls |
 
 A calibration your printer cannot run is not listed. A machine with no probe
 has no **Bed & probe** entry; a machine whose only heater is bang-bang has no
@@ -271,6 +271,57 @@ well into your configuration.
 
 The extruder controls sit beside them, the same as the
 [Extruder dashboard module](/interface/modules#extruder).
+
+## Nonlinear pressure advance
+
+Tunes Kalico's
+[nonlinear pressure advance](https://docs.kalico.gg/Nonlinear_Pressure_Advance.html)
+from printed towers. You enter the heights you measure, and the page works out
+each value, says which tower to print next, and writes the result to
+`[extruder]`.
+
+It appears on printers running Kalico's `bleeding-edge-v2` branch that have the
+`[pa_test]` section and the `RUN_PA_TEST` macro from
+[Kalico's setup instructions](https://docs.kalico.gg/Nonlinear_Pressure_Advance.html#setup).
+Your own start G-code goes in that macro, so each tower heats, homes, and
+purges the same way your prints do. On these printers the plain **Pressure
+advance** calibration is not offered: its value would be written to an option
+the nonlinear model does not read.
+
+1. **Start** writes the values the guide starts from (a nonlinear model,
+   `linear_advance` and `nonlinear_offset` at 0, and a `linearization_velocity`
+   of 1 for direct drive or 2 for Bowden) and restarts Klipper. A leftover
+   `pressure_advance` line is removed, because Klipper will not start with it.
+2. **Print tower** runs `RUN_PA_TEST` for the tower that is open. **From** and
+   **To** set the range the tower sweeps, so the range you see is the range
+   printed.
+3. Enter the height where the tower looks best, on the left side, the front, or
+   both, depending on the tower. The value at that height appears straight
+   away.
+4. The page then does one of two things:
+   - It suggests keeping the value, then names the next tower.
+   - If the side and the front disagree by more than 1 mm, it suggests a 10%
+     change to the other coefficient and a reprint of the same tower.
+     A change that reverses direction halves the step, so repeated towers close
+     in on a value instead of swinging past it.
+
+**Direct drive** and **Bowden or high speed** follow the two orders in Kalico's
+guide. The Bowden order keeps 80% of the first advance reading and returns to
+the offset tower after the time offset.
+
+Every tower stays available, so you can print one again at any point.
+**Narrow around** re-centres a tower's range on the value just read, for a
+closer second tower. Readings are kept on the printer, next to the value each
+one worked out. **Save and restart** writes any of them to the config and
+restarts Klipper, including one from an earlier tower. The table at the top
+compares what the file holds with the latest calculated values. **Clear**
+removes every reading and resets the tower fields; the config file is left as
+it is.
+
+::: info Towers print at your configured acceleration
+`RUN_PA_TEST` prints at `max_accel` from `[printer]`, which the panel shows.
+Set it to the highest acceleration you extrude at before printing towers.
+:::
 
 ## Runout sensors
 

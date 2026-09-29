@@ -13722,6 +13722,76 @@ body.machine-editor-fullscreen-open {
   inline-size: 13rem;
 }
 
+/* Nonlinear pressure advance: the tower strip, and what a reading says to do. */
+.calibration-npa__tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  block-size: 2rem;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+/* `pressure_advance_time_offset` is wider than a phone column; it wraps rather than widening the grid. */
+.calibration-npa__option {
+  overflow-wrap: anywhere;
+}
+
+.calibration-npa__next {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: var(--text-hint-size);
+}
+
+.calibration-npa__open {
+  display: inline-flex;
+  transition-duration: var(--motion-duration-fast);
+  transition-property: opacity, visibility;
+  transition-timing-function: var(--motion-ease-standard);
+}
+
+/* Hidden, not unmounted: its slot keeps the row's height when there is nothing to open. */
+.calibration-npa__open--idle {
+  visibility: hidden;
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .calibration-npa__open {
+    transition: none;
+  }
+}
+
+.calibration-npa__readings-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+/* A reading keeps its button at the row's end instead of wrapping it under the date. */
+.calibration-npa__reading {
+  flex-wrap: nowrap;
+  align-items: flex-start;
+}
+
+.calibration-npa__reading-action {
+  flex-shrink: 0;
+  margin-inline-start: auto;
+}
+
+.calibration-npa__value {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+}
+
+.calibration-npa__suggestion {
+  max-inline-size: 60ch;
+  font-size: var(--text-hint-size);
+}
+
 .calibration-heater {
   display: grid;
   gap: 0.35rem;
