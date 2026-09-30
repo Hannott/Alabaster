@@ -15,8 +15,10 @@ import { onBeforeUnmount, onMounted } from 'vue'
  * somebody remembered.
  *
  * What it does not touch is everything with a real menu behind it — a text
- * field, a surface marked `.selectable`, and a link, whose Open in new tab is
- * the one browser entry this application genuinely relies on. A component with
+ * field, a surface marked `.selectable`, a link, whose Open in new tab is the
+ * one browser entry this application genuinely relies on, and an image or
+ * video, whose Save, Copy and Open in new tab are the only way to take a
+ * Shake&Tune graph or a camera frame off the page. A component with
  * a context menu of its own (the File Explorer's rows) prevents the default
  * itself and opens Alabaster's chrome instead; this guard reaching the same
  * event afterwards changes nothing.
@@ -28,6 +30,8 @@ const NATIVE_MENU_SURFACES = [
   'textarea',
   '[contenteditable]:not([contenteditable="false"])',
   'a[href]',
+  'img',
+  'video',
   '.selectable',
 ].join(', ')
 

@@ -23,15 +23,18 @@ describe('context menu guard', () => {
   })
 
   it('leaves the menu alone where it has real entries', () => {
-    // Paste in a field, Copy inside a transcript, Open in new tab on a link —
-    // the three reasons the guard is a predicate rather than a blanket prevent.
+    // Paste in a field, Copy inside a transcript, Open in new tab on a link,
+    // Save and Copy on an image — the reasons the guard is a predicate rather
+    // than a blanket prevent.
     const host = render(`
       <textarea></textarea>
       <ol class="gcode-console selectable"><li><span>ok</span></li></ol>
       <a href="#/machine"><span>Machine</span></a>
+      <button type="button"><img alt="" src="graph.png" /></button>
+      <video></video>
     `)
 
-    for (const selector of ['textarea', '.gcode-console span', 'a span']) {
+    for (const selector of ['textarea', '.gcode-console span', 'a span', 'img', 'video']) {
       expect(suppressesContextMenu(host.querySelector(selector)), selector).toBe(false)
     }
   })
