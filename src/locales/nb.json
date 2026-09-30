@@ -219,6 +219,55 @@
         "missing": "Probeseksjonen setter ingen z_offset.",
         "summary": "Proben sitter {x} mm i X og {y} mm i Y fra dysen. Dysen er {z} mm over sengen når proben utløses."
       },
+      "fits": {
+        "title": "Sammenligning av shapere",
+        "axis": "{axis}-aksen",
+        "verdict": "{shaper} på {frequency} Hz anbefalt",
+        "shaper": "Shaper",
+        "frequency": "Frekvens",
+        "vibrations": "Vibrasjoner",
+        "smoothing": "Utjevning",
+        "maxAccel": "Maks akselerasjon",
+        "recommended": "Anbefalt",
+        "inFile": "I filen",
+        "hertz": "{value} Hz",
+        "percent": "{value} %",
+        "accel": "{value} mm/s²",
+        "none": "—",
+        "empty": "Alle shaperne Klipper tilpasser sammenlignes her når en kalibrering har kjørt.",
+        "waiting": "Venter på at første akse blir ferdig."
+      },
+      "axesMap": {
+        "title": "Akselerometerets retning",
+        "printer": "Skriver",
+        "file": "I filen",
+        "detected": "Funnet",
+        "matches": "Kartet som ble funnet stemmer med filen.",
+        "noChip": "Ingen entydig akselerometer å lese axes_map fra."
+      },
+      "motion": {
+        "title": "Forventet bevegelse",
+        "edgeBack": "Bak",
+        "edgeFront": "Foran",
+        "plan": "Verktøyhodet beveger seg {direction}.",
+        "cartesianY": "Verktøyhodet beveger seg bakover, eller sengen forover.",
+        "frontAway": "Verktøyhodet beveger seg til høyre og bort fra sengen.",
+        "frontToward": "Verktøyhodet beveger seg til høyre og mot sengen.",
+        "z": "Dysen og sengen beveger seg fra hverandre.",
+        "zAt": "Dysen og sengen beveger seg fra hverandre ved denne stepperen.",
+        "tower": "Vognen på tårn {tower} beveger seg opp.",
+        "extruder": "Filamentet beveger seg mot dysen.",
+        "direction": {
+          "right": "til høyre",
+          "left": "til venstre",
+          "back": "bakover",
+          "front": "forover",
+          "backRight": "bakover mot høyre",
+          "backLeft": "bakover mot venstre",
+          "frontRight": "forover mot høyre",
+          "frontLeft": "forover mot venstre"
+        }
+      },
       "layout": {
         "screwsTitle": "Skruer på sengen",
         "levelingTitle": "Steppere og probepunkter",

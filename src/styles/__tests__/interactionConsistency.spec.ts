@@ -378,6 +378,9 @@ describe('interaction and iconography contract', () => {
       'components/calibration/ProbeSamplesCard.vue',
       'components/calibration/ProbeOffsetCard.vue',
       'components/calibration/BedLayoutCard.vue',
+      // So do the accelerometer's axes and a stepper's expected movement.
+      'components/calibration/AxesMapCard.vue',
+      'components/calibration/StepperMotionCard.vue',
     ])
 
     for (const path of filesBelow(sourceRoot).filter((candidate) => candidate.endsWith('.vue'))) {

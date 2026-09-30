@@ -219,6 +219,55 @@
         "missing": "The probe section sets no z_offset.",
         "summary": "The probe sits {x} mm in X and {y} mm in Y from the nozzle. The nozzle is {z} mm above the bed when the probe triggers."
       },
+      "fits": {
+        "title": "Shaper comparison",
+        "axis": "{axis} axis",
+        "verdict": "{shaper} at {frequency} Hz recommended",
+        "shaper": "Shaper",
+        "frequency": "Frequency",
+        "vibrations": "Vibrations",
+        "smoothing": "Smoothing",
+        "maxAccel": "Max accel",
+        "recommended": "Recommended",
+        "inFile": "In the file",
+        "hertz": "{value} Hz",
+        "percent": "{value} %",
+        "accel": "{value} mm/s²",
+        "none": "—",
+        "empty": "Every shaper Klipper fits is compared here once a calibration has run.",
+        "waiting": "Waiting for the first axis to finish."
+      },
+      "axesMap": {
+        "title": "Accelerometer orientation",
+        "printer": "Printer",
+        "file": "In the file",
+        "detected": "Detected",
+        "matches": "The detected map matches the file.",
+        "noChip": "No single accelerometer to read axes_map from."
+      },
+      "motion": {
+        "title": "Expected movement",
+        "edgeBack": "Back",
+        "edgeFront": "Front",
+        "plan": "The toolhead moves {direction}.",
+        "cartesianY": "The toolhead moves toward the back, or the bed toward the front.",
+        "frontAway": "The toolhead moves right and away from the bed.",
+        "frontToward": "The toolhead moves right and toward the bed.",
+        "z": "The nozzle and the bed move apart.",
+        "zAt": "The nozzle and the bed move apart at this stepper.",
+        "tower": "Tower {tower}'s carriage moves up.",
+        "extruder": "Filament moves toward the nozzle.",
+        "direction": {
+          "right": "to the right",
+          "left": "to the left",
+          "back": "toward the back",
+          "front": "toward the front",
+          "backRight": "toward the back right",
+          "backLeft": "toward the back left",
+          "frontRight": "toward the front right",
+          "frontLeft": "toward the front left"
+        }
+      },
       "layout": {
         "screwsTitle": "Screws on the bed",
         "levelingTitle": "Steppers and probe points",

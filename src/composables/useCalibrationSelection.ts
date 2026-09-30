@@ -15,11 +15,18 @@ import type { CalibrationStageId } from '@/features/calibration/stages'
  */
 const stage = ref<CalibrationStageId>('axes')
 const procedures = ref<Partial<Record<CalibrationStageId, ProcedureId>>>({})
+/**
+ * What the open workspace's values are about, per procedure — the stepper a
+ * buzz test moves — so the live column can draw that one. Written by the
+ * workspace, which owns the values.
+ */
+const subjects = ref<Partial<Record<ProcedureId, string>>>({})
 
 /** Back to a first visit's selection; for tests, which share this module's state. */
 export function resetCalibrationSelection(): void {
   stage.value = 'axes'
   procedures.value = {}
+  subjects.value = {}
 }
 
 export function useCalibrationSelection() {
@@ -31,5 +38,14 @@ export function useCalibrationSelection() {
     procedures.value = { ...procedures.value, [id]: procedure }
   }
 
-  return { stage, procedureFor, selectProcedure }
+  function subjectFor(id: ProcedureId): string {
+    return subjects.value[id] ?? ''
+  }
+
+  function setSubject(id: ProcedureId, subject: string): void {
+    if (subjects.value[id] === subject) return
+    subjects.value = { ...subjects.value, [id]: subject }
+  }
+
+  return { stage, procedureFor, selectProcedure, subjectFor, setSubject }
 }

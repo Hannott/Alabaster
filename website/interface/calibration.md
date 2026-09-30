@@ -13,10 +13,10 @@ what adjusts it after.
 
 | Job              | Calibrations                                                                                                                           | Beside them                                      |
 | ---------------- | -------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------ |
-| **Axes & frame** | Endstop check, stepper check, axis rotation distance, Z endstop position, endstop phase, TMC autotune                                  | The Movement controls                            |
+| **Axes & frame** | Endstop check, stepper check, axis rotation distance, Z endstop position, endstop phase, TMC autotune                                  | The Movement controls, and a stepper's direction |
 | **Heaters**      | Heater limits, heater model (PID or MPC)                                                                                               | The temperature chart                            |
 | **Bed & probe**  | Probe accuracy, probe Z offset, bed screws, quad gantry level or Z tilt, bed tilt, delta calibration, bed mesh, eddy and plugin probes | What the calibration measures, or the height map |
-| **Resonance**    | Accelerometer check and noise, axis map, belts, input shaper calibration, Shake&Tune shaper, vibrations                                | The Shake&Tune graphs                            |
+| **Resonance**    | Accelerometer check and noise, axis map, belts, input shaper calibration, Shake&Tune shaper, vibrations                                | The Shake&Tune graphs, or the shaper comparison  |
 | **Extrusion**    | Filament sensors, rotation distance, pressure advance or nonlinear pressure advance                                                    | The extruder controls                            |
 
 The card beside a job is the dashboard's own, showing the part a calibration
@@ -128,6 +128,22 @@ calibration is about:
 
 Once X and Y are homed, the nozzle is marked on the bed. Every other bed
 calibration shows the height map.
+
+## Seeing what the other calibrations measure
+
+- **Stepper check** shows which way the chosen stepper should move the
+  machine, so you can answer whether it moved the right way. On CoreXY a
+  single motor moves the toolhead diagonally; a Z stepper on a printer with
+  Z tilt or quad gantry level is marked at the corner it lifts.
+- **Axis map** draws the accelerometer's own axes beside the printer's, as
+  the `axes_map` in the config file places them and, where a run found a
+  different one, as it found them. Compare the arrows with the markings on
+  the board.
+- **Input shaper calibration** compares every shaper Klipper fitted for each
+  axis: its frequency, the vibration it leaves, its smoothing and the
+  acceleration it allows, with the recommended one and the one in the config
+  file marked. A shaper with slightly more vibration and a much higher
+  acceleration may suit a fast printer better than the recommendation.
 
 ## Watching a mesh being probed
 

@@ -13998,6 +13998,225 @@ body.machine-editor-fullscreen-open {
   stroke-width: 1.5;
 }
 
+/*
+ * Klipper's shaper fits as a table with two bars a row: the vibration a shaper
+ * leaves and the acceleration it allows, each against the axis's largest, so
+ * the trade between them reads down the column. Recommended and "in the file"
+ * are words beside the name, the row wash only repeats the first. The table
+ * scrolls inside its card at phone width rather than widening the page.
+ */
+.calibration-fits {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.calibration-fits__axis {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.75rem;
+  align-items: baseline;
+  margin: 0;
+  font-size: var(--text-row-name-size);
+  font-weight: var(--font-weight-increased);
+}
+
+.calibration-fits__verdict {
+  color: var(--text-muted);
+  font-size: var(--text-hint-size);
+  font-weight: var(--font-weight);
+}
+
+.calibration-fits__scroll {
+  overflow-x: auto;
+}
+
+.calibration-fits__table {
+  inline-size: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-hint-size);
+}
+
+.calibration-fits__table th,
+.calibration-fits__table td {
+  padding: 0.3rem 0.5rem;
+  border-block-end: 1px solid var(--border-subtle);
+  text-align: start;
+  white-space: nowrap;
+}
+
+.calibration-fits__table thead th {
+  color: var(--text-muted);
+  font-weight: var(--font-weight);
+}
+
+.calibration-fits__table tbody th {
+  font-weight: var(--font-weight);
+}
+
+.calibration-fits__table td {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.calibration-fits__row--recommended {
+  background: color-mix(in srgb, var(--action-primary) 10%, transparent);
+}
+
+.calibration-fits__name {
+  font-family: var(--font-mono);
+}
+
+.calibration-fits__mark {
+  margin-inline-start: 0.5rem;
+  color: var(--text-muted);
+}
+
+.calibration-fits__mark--recommended {
+  color: var(--action-primary);
+  font-weight: var(--font-weight-increased);
+}
+
+.calibration-fits__meter {
+  display: grid;
+  grid-template-columns: 5rem auto;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.calibration-fits__bar {
+  display: block;
+  block-size: 0.45rem;
+  border-radius: 0.2rem;
+  background: var(--action-primary);
+}
+
+.calibration-fits__bar--vibrations {
+  background: var(--text-muted);
+}
+
+/*
+ * The accelerometer's axes beside the printer's: one small drawing each,
+ * wrapping onto a second line on a narrow column rather than shrinking.
+ */
+.calibration-tripods {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.5rem;
+}
+
+.calibration-tripod {
+  display: grid;
+  align-content: start;
+  justify-items: center;
+  gap: 0.25rem;
+  margin: 0;
+}
+
+.calibration-tripod__figure {
+  inline-size: 9rem;
+  block-size: 9rem;
+  overflow: visible;
+}
+
+.calibration-tripod__arrow line,
+.calibration-tripod__arrow polyline {
+  fill: none;
+  stroke: var(--text-primary);
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.calibration-tripod__arrow text {
+  fill: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: var(--font-weight-increased);
+}
+
+.calibration-tripod__arrow--chip line,
+.calibration-tripod__arrow--chip polyline {
+  stroke: var(--action-primary);
+}
+
+.calibration-tripod__arrow--chip text {
+  fill: var(--action-primary);
+}
+
+.calibration-tripod__caption {
+  display: grid;
+  justify-items: center;
+  gap: 0.1rem;
+}
+
+.calibration-tripod__title {
+  font-size: var(--text-row-name-size);
+}
+
+.calibration-tripod__map {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-hint-size);
+}
+
+/* Which way a stepper moves the machine. */
+.calibration-motion {
+  max-block-size: 16rem;
+}
+
+.calibration-motion__bed {
+  fill: var(--surface-soft);
+  stroke: var(--border-subtle);
+  stroke-width: 1;
+}
+
+.calibration-motion__head,
+.calibration-motion__part {
+  fill: var(--surface-raised);
+  stroke: var(--text-primary);
+  stroke-width: 1.5;
+}
+
+.calibration-motion__filament {
+  stroke: var(--text-muted);
+  stroke-width: 3;
+}
+
+.calibration-motion__arrow {
+  fill: none;
+  stroke: var(--action-primary);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.calibration-motion__stepper rect {
+  fill: var(--surface-raised);
+  stroke: var(--text-muted);
+  stroke-width: 1.5;
+}
+
+.calibration-motion__stepper text {
+  fill: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.calibration-motion__stepper--active rect {
+  fill: var(--action-primary);
+  stroke: var(--action-primary);
+}
+
+.calibration-motion__stepper--active text {
+  fill: var(--action-on-primary);
+  font-weight: var(--font-weight-increased);
+}
+
+.calibration-motion__sentence {
+  margin: 0;
+  font-size: var(--text-row-name-size);
+}
+
 .calibration-result__outcome {
   font-size: var(--text-hint-size);
 }

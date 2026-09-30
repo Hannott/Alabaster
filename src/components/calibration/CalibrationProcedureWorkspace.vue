@@ -12,6 +12,7 @@ import CalibrationScrewsGrid from '@/components/calibration/CalibrationScrewsGri
 import CalibrationSparkline from '@/components/calibration/CalibrationSparkline.vue'
 import { useActionGuard } from '@/composables/useActionGuard'
 import { useAvailability } from '@/composables/useAvailability'
+import { useCalibrationSelection } from '@/composables/useCalibrationSelection'
 import { useProcedureContext } from '@/composables/useProcedureContext'
 import {
   useProcedureRequirements,
@@ -163,6 +164,10 @@ const missing = computed(() => missingProcedureValues(props.procedure, values.va
  * that one found and not the last run's card.
  */
 const subject = computed(() => procedureSubject(props.procedure, values.value))
+const selection = useCalibrationSelection()
+watch([() => props.procedure.id, subject], ([id, value]) => selection.setSubject(id, value), {
+  immediate: true,
+})
 const run = computed(() => calibration.runFor(props.procedure.id, subject.value))
 const isRunning = computed(() => run.value?.running === true)
 const otherRunning = computed(() => calibration.activeRun !== null && !isRunning.value)

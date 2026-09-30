@@ -2,8 +2,10 @@
 import { useI18n } from 'vue-i18n'
 
 import CalibrationBench from '@/components/calibration/CalibrationBench.vue'
+import StepperMotionCard from '@/components/calibration/StepperMotionCard.vue'
 import HostedDashboardModule from '@/components/dashboard/HostedDashboardModule.vue'
 import MovementModule from '@/components/dashboard/modules/MovementModule.vue'
+import { useCalibrationSelection } from '@/composables/useCalibrationSelection'
 
 /**
  * Squaring the machine: endstops, steppers, the Z endstop's position, the
@@ -13,13 +15,21 @@ import MovementModule from '@/components/dashboard/modules/MovementModule.vue'
  * one place homing, jogging and parking live, and those are what a procedure
  * here keeps reaching for: a stepper check wants the axis somewhere clear, and
  * the Z endstop's paper test wants the toolhead over the bed first.
+ *
+ * The stepper check puts which way the chosen stepper should move above it:
+ * the card stays, because the check is where somebody homes and parks next.
  */
 const { t } = useI18n({ useScope: 'global' })
+const selection = useCalibrationSelection()
 </script>
 
 <template>
   <CalibrationBench stage="axes">
-    <template #live>
+    <template #live="{ procedure }">
+      <StepperMotionCard
+        v-if="procedure?.id === 'stepperBuzz' && selection.subjectFor('stepperBuzz') !== ''"
+        :stepper="selection.subjectFor('stepperBuzz')"
+      />
       <!--
         Where the toolhead is and how to move it, which is what a procedure here
         reaches for. Z-offset steps and the speed factor are print tuning, and
