@@ -346,6 +346,34 @@ describe('the calibration log', () => {
     expect(stored.procedures.probeZOffset[0]!.outcome).toBe('failed')
   })
 
+  /*
+   * Axis twist opens one paper test per point: the run lasts until the module
+   * says the last point was taken, not until the first test closes.
+   */
+  it('keeps a run open between the paper tests of one sequence', async () => {
+    const { calibration, finish } = setup({ value: undefined })
+    // A connection that goes while it waits ends the run, so this one has to be fully up.
+    useAvailabilityStore().printerSnapshotSynchronized()
+    const manualProbe = useManualProbeStore()
+    const run = calibration.run(procedureById('axisTwist')!, {}, context)
+    await flushPromises()
+    manualProbe.isActive = true
+    await finish()
+    await flushPromises()
+    manualProbe.isActive = false
+    await flushPromises()
+    expect(calibration.activeRun?.procedureId).toBe('axisTwist')
+
+    manualProbe.isActive = true
+    await flushPromises()
+    say('// The SAVE_CONFIG command will update the printer config file and restart the printer.')
+    say('// AXIS_TWIST_COMPENSATION_CALIBRATE: Calibration complete, offsets: [0.01, -0.01]')
+    manualProbe.isActive = false
+
+    expect(await run).toBe(true)
+    expect(calibration.activeRun).toBeNull()
+  })
+
   it('stops a finished run’s output at the next command sent', async () => {
     const { calibration, finish } = setup({ value: undefined })
     const run = calibration.run(procedureById('probeAccuracy')!, {}, context)

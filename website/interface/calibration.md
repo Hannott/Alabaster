@@ -11,13 +11,13 @@ physical dependencies run. Each job lists the calibrations your printer can run
 there. Within a job, what checks that the hardware works comes first, and
 what adjusts it after.
 
-| Job              | Calibrations                                                                                                                           | Beside them                                      |
-| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------ |
-| **Axes & frame** | Endstop check, stepper check, axis rotation distance, Z endstop position, endstop phase, TMC autotune                                  | The Movement controls, and a stepper's direction |
-| **Heaters**      | Heater limits, heater model (PID or MPC)                                                                                               | The temperature chart                            |
-| **Bed & probe**  | Probe accuracy, probe Z offset, bed screws, quad gantry level or Z tilt, bed tilt, delta calibration, bed mesh, eddy and plugin probes | What the calibration measures, or the height map |
-| **Resonance**    | Accelerometer check and noise, axis map, belts, input shaper calibration, Shake&Tune shaper, vibrations                                | The Shake&Tune graphs, or the shaper comparison  |
-| **Extrusion**    | Filament sensors, rotation distance, pressure advance or nonlinear pressure advance                                                    | The extruder controls                            |
+| Job              | Calibrations                                                                                                                                                                                                  | Beside them                                      |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------ |
+| **Axes & frame** | Endstop check, stepper check, sensorless homing, axis rotation distance, Z endstop position, endstop phase, TMC autotune, skew correction                                                                     | The Movement controls, and a stepper's direction |
+| **Heaters**      | Heater limits, heater model (PID or MPC)                                                                                                                                                                      | The temperature chart                            |
+| **Bed & probe**  | Load cell, probe accuracy, probe X/Y offset, probe Z offset, axis twist compensation, screw positions, bed screws, quad gantry level or Z tilt, bed tilt, delta calibration, bed mesh, eddy and plugin probes | What the calibration measures, or the height map |
+| **Resonance**    | Accelerometer check and noise, axis map, belts, input shaper calibration, Shake&Tune shaper, vibrations                                                                                                       | The Shake&Tune graphs, or the shaper comparison  |
+| **Extrusion**    | Filament sensors, rotation distance, pressure advance, tuning tower, nonlinear pressure advance                                                                                                               | The extruder controls                            |
 
 The card beside a job is the dashboard's own, showing the part a calibration
 reaches for: the Movement card's homing, jog and park controls on **Axes &
@@ -119,15 +119,20 @@ calibration is about:
 - **Probe Z offset** shows the probe and the nozzle over the bed at the moment
   the probe triggers, with the saved `x_offset`, `y_offset` and `z_offset`, and
   a new `z_offset` that is waiting for `SAVE_CONFIG`.
-- **Bed screws** draws the bed to scale with each screw where the
-  configuration puts it, and the turn and height the last check found at each.
-  **Bed screws by hand** draws its screws the same way and marks the one the
-  nozzle is standing at.
+- **Bed screws** draws the bed to scale with each screw where the probe
+  measures it, and the turn and height the last check found at each. The
+  configuration holds where the nozzle goes for that, one probe offset away,
+  and the drawing says by how much. **Bed screws by hand** is a paper test
+  under the nozzle, so its screws are drawn as configured, with the one the
+  nozzle is standing at marked.
 - **Quad gantry level** and **Z tilt** draw the Z steppers and the probe points
-  in the order they are probed, with the range of the last run.
+  in the order they are probed, where the probe lands, with the range of the
+  last run.
+- **Probe X/Y offset** and **Screw positions** show the probe over the bed or
+  the screws, with the Movement controls to jog with.
 
-Once X and Y are homed, the nozzle is marked on the bed. Every other bed
-calibration shows the height map.
+Once X and Y are homed, the nozzle is marked on the bed, and the probe beside
+it with a dashed ring. Every other bed calibration shows the height map.
 
 ## Seeing what the other calibrations measure
 
@@ -254,6 +259,46 @@ direction can be fixed for every screw, clockwise or counter-clockwise, so
 you never turn one back. A run past the deviation limit set in the config
 says so and asks for another run after the adjustment.
 
+## Screw positions
+
+Records the bed screws' coordinates by standing over them, instead of
+measuring the bed with a ruler. Choose whether you line up the nozzle or the
+probe over each screw, jog there with the Movement controls, and record the
+screw; screw 1 is the base screw the others are measured against. The panel
+works out what the section needs: `[screws_tilt_adjust]` wants where to send
+the nozzle so the probe lands on the screw, `[bed_screws]` wants the nozzle
+over it. A coordinate the nozzle cannot reach is moved to the nearest one it
+can, and says so. **Save and restart** writes every screw at once, with the
+names you gave them, and removes any screws the section had beyond the new
+count, since Klipper refuses to start on them.
+
+## Probe X/Y offset
+
+Finds where the probe sits beside the nozzle, the way Klipper's probe guide
+measures it: stand the nozzle on a mark near the middle of the bed and record
+it, then stand the probe's sensing point on the same mark and record that. The
+difference is `x_offset` and `y_offset`, shown next to the configured values,
+and **Save and restart** writes both. Screw, mesh and tilt coordinates are
+placed with the offset, so check them after it changes.
+
+## Axis twist compensation
+
+Corrects a probe that reads the bed differently along a twisted X (or Y) rail.
+At each point along the axis the printer probes, then lowers the nozzle onto
+paper at the same spot with the same dialog as the Z offset's paper test. The
+calibration waits through every point and stages the compensation for
+`SAVE_CONFIG`. Y is offered where `[axis_twist_compensation]` has a Y line to
+calibrate on. Calibrate the probe Z offset again afterwards.
+
+## Load cell
+
+Scales a load cell, or a load cell probe, with a weight of known mass: start,
+tare with nothing on the cell, place the weight and enter its mass, then
+**Accept**. The panel shows the tare, the counts per gram and the capacity as
+Klipper reports them, and any warning it gives about the tare or the sensor's
+range. **Accept** stages `counts_per_gram` and `reference_tare_counts` for
+`SAVE_CONFIG`; **Abort** leaves the saved calibration as it was.
+
 ## Homing and levelling
 
 **Axes & frame** keeps the movement controls beside its calibrations: home one
@@ -272,6 +317,29 @@ on the dashboard keeps its **Level bed** button.
 which motor it is and which way it turns. Each stepper keeps its own result,
 answers and earlier runs, so choosing another stepper shows what that one
 found.
+
+## Sensorless homing
+
+Tunes the stall sensitivity of a TMC driver that homes without a switch,
+following Klipper's TMC guide. With the carriage near the middle of its rail
+(**Motors off** lets you push it there), set a sensitivity and home that one
+axis, then say what it did: stopped short, homed with one touch, or homed and
+banged. The panel keeps the list, finds the most sensitive value that still
+homed and the least sensitive one that stopped with one touch, and proposes
+the value a third of the way between them, from the second. **Save and
+restart** writes it as `driver_SGTHRS` or `driver_SGT`. The panel says when
+`homing_retract_dist` is not 0 or `hold_current` is set, which both spoil the
+search, and when the range is too narrow to home reliably.
+
+## Skew correction
+
+Squares the frame in software from a printed calibration object. **Clear
+skew** first, print the object, and measure AC, BD and AD in each plane you
+printed. The skew each set of lengths works out to shows as you type, so a
+transposed digit is obvious before anything is sent. **Set and save profile**
+sets the measured planes and stages the profile for `SAVE_CONFIG`; the saved
+profiles are listed with their skew per plane. Klipper loads no profile on its
+own, and the panel says so when no macro contains `SKEW_PROFILE LOAD`.
 
 ## Axis rotation distance
 
@@ -361,6 +429,15 @@ drive gear bites deeper or shallower than its stated size.
 printer until the next restart. **Keep in the file** writes one that prints
 well into your configuration.
 
+**Tuning tower** reads pressure advance, or firmware retraction's length, off
+one printed tower, following Klipper's pressure advance guide. Choose direct
+drive or Bowden for the guide's range, **Send tower**, and start the sliced
+tower from Files; the value then changes with the print's height. Measure the
+height that printed best, and the panel shows the value it was printed at next
+to the one in the file. **Apply** runs it until the next restart, and **Save
+and restart** writes it, which also puts back the slowed cornering the
+pressure advance tower uses.
+
 The extruder controls sit beside them, the same as the
 [Extruder dashboard module](/interface/modules#extruder).
 
@@ -432,7 +509,9 @@ mark distinguishes a genuine runout from a sensor that was never active.
 plugin. Its result shows the recommended shaper and frequency per axis next to
 the configured ones, with the suggested `max_accel`. The result is staged for
 `SAVE_CONFIG`. **Apply** puts both axes into effect right away, until Klipper
-restarts; **Save config** runs `SAVE_CONFIG`.
+restarts; **Save config** runs `SAVE_CONFIG`. **Save max_accel** writes the
+lowest acceleration the chosen shapers allow to `[printer]`, so corners are not
+smoothed past the cap the calibration was run with.
 
 **Axis map** (Shake&Tune) finds how the accelerometer is mounted. When the
 detected `axes_map` differs from the one configured, one button writes it to

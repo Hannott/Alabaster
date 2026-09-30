@@ -27,6 +27,7 @@ import {
   procedureById,
   shakeTuneShaperActionsFromRows,
   proceduresForStage,
+  shaperActionsFor,
   type ProcedureContext,
 } from '@/features/calibration/procedures'
 
@@ -93,11 +94,83 @@ describe('the procedure registry', () => {
     })
     expect(ids('bed', printer)).toEqual([
       'probeAccuracy',
+      'probeXyOffset',
       'probeZOffset',
+      'screwPositions',
       'screwsTilt',
       'quadGantryLevel',
       'bedMesh',
     ])
+  })
+
+  it('offers the manual calibrations only where their sections are', () => {
+    const everything = context({
+      sections: [
+        'extruder',
+        'firmware_retraction',
+        'skew_correction',
+        'load_cell_probe',
+        'axis_twist_compensation',
+        'tmc2209 stepper_x',
+        'stepper_x',
+      ],
+      hasProbe: true,
+      settings: (section) =>
+        section === 'stepper_x' ? { endstop_pin: 'tmc2209_stepper_x:virtual_endstop' } : {},
+    })
+    expect(ids('axes', everything)).toEqual([
+      'endstops',
+      'stepperBuzz',
+      'sensorlessHoming',
+      'axisRotation',
+      'skewCorrection',
+    ])
+    expect(ids('bed', everything)).toEqual([
+      'loadCell',
+      'probeAccuracy',
+      'probeXyOffset',
+      'axisTwist',
+    ])
+    expect(ids('extrusion', everything)).toContain('tuningTower')
+    expect(ids('axes', context())).not.toContain('skewCorrection')
+  })
+
+  it('keeps the tuning tower for retraction under a nonlinear pressure advance model', () => {
+    const nonlinear = (sections: string[]) =>
+      context({
+        sections,
+        settings: (section) => (section === 'extruder' ? { pressure_advance_model: 'recipr' } : {}),
+      })
+    expect(ids('extrusion', nonlinear(['extruder']))).not.toContain('tuningTower')
+    expect(ids('extrusion', nonlinear(['extruder', 'firmware_retraction']))).toContain(
+      'tuningTower',
+    )
+  })
+
+  it('offers axis twist on Y only where the section has a Y line to calibrate on', () => {
+    const twist = procedureById('axisTwist')!
+    const axis = twist.params!.find((parameter) => parameter.key === 'AXIS')!
+    const xOnly = context({ sections: ['axis_twist_compensation'] })
+    const both = context({
+      sections: ['axis_twist_compensation'],
+      settings: () => ({ calibrate_start_y: 20 }),
+    })
+    expect(axis.options!(xOnly).map((option) => option.value)).toEqual([''])
+    expect(axis.options!(both).map((option) => option.value)).toEqual(['', 'Y'])
+    expect(twist.build!({ AXIS: 'Y', SAMPLE_COUNT: '5' }, both)).toBe(
+      'AXIS_TWIST_COMPENSATION_CALIBRATE AXIS=Y SAMPLE_COUNT=5',
+    )
+  })
+
+  it('waits for the last axis twist point, or its abort, before the run ends', () => {
+    const done = procedureById('axisTwist')!.helperDone!
+    expect(done(['// AXIS_TWIST_COMPENSATION_CALIBRATE: Probing point 2 of 3'])).toBe(false)
+    expect(
+      done(['// AXIS_TWIST_COMPENSATION_CALIBRATE: Calibration complete, offsets: [0.01]']),
+    ).toBe(true)
+    expect(
+      done(['// AXIS_TWIST_COMPENSATION_CALIBRATE: Probe cancelled, calibration aborted']),
+    ).toBe(true)
   })
 
   it('lists the axis map with the resonance procedures, where its graph and accelerometer are', () => {
@@ -276,6 +349,28 @@ describe('reading results', () => {
       kind: 'gcode',
       command: 'SET_INPUT_SHAPER SHAPER_TYPE_X=mzv SHAPER_FREQ_X=53.8',
     })
+    expect(result?.actions?.[2]).toMatchObject({
+      kind: 'persist',
+      id: 'save-max-accel',
+      section: 'printer',
+      changes: [{ option: 'max_accel', value: '7000' }],
+      restart: true,
+    })
+  })
+
+  it('offers the lowest max_accel the chosen shapers allow, and none where one is unknown', () => {
+    const both = shaperActionsFor([
+      { axis: 'x', shaperType: 'mzv', frequency: 53.8, maxAccel: 7000 },
+      { axis: 'y', shaperType: 'ei', frequency: 40, maxAccel: 4800 },
+    ])
+    expect(both.find((action) => action.id === 'save-max-accel')).toMatchObject({
+      changes: [{ option: 'max_accel', value: '4800' }],
+    })
+    const unknown = shaperActionsFor([
+      { axis: 'x', shaperType: 'mzv', frequency: 53.8, maxAccel: 7000 },
+      { axis: 'y', shaperType: 'ei', frequency: 40 },
+    ])
+    expect(unknown.map((action) => action.id)).toEqual(['apply-shaper', 'save-shaper'])
   })
 
   it('reads Shake&Tune’s recommendation from the run’s own output', () => {

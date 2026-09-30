@@ -269,7 +269,9 @@
         "screw": "Screw",
         "stepper": "Z stepper",
         "point": "Probe point, in order",
-        "nozzle": "Nozzle"
+        "nozzle": "Nozzle",
+        "atProbe": "Drawn where the probe measures. The config stores the nozzle position, offset by X {x}, Y {y} mm.",
+        "probe": "Probe"
       }
     },
     "endstops": {
@@ -520,7 +522,8 @@
       "similarity": "Belt similarity",
       "health": "Mechanical health",
       "symmetry": "Vibration symmetry",
-      "maxDeviation": "Deviation limit"
+      "maxDeviation": "Deviation limit",
+      "saveMaxAccel": "Save max_accel {value}"
     },
     "param": {
       "stepper": "Stepper",
@@ -831,6 +834,41 @@
         "name": "Filament sensors",
         "description": "Each runout sensor's state, live.",
         "detail": "Pull the filament back past a sensor and watch it change. A sensor that reads no filament while filament is loaded is a fault, not an empty spool."
+      },
+      "axisTwist": {
+        "name": "Axis twist compensation",
+        "description": "Paper test along X; corrects probe twist.",
+        "detail": "Probes each point along the axis, then lowers the nozzle onto paper at the same point, and stages the difference for SAVE_CONFIG. Calibrate the probe Z offset again afterwards."
+      },
+      "sensorlessHoming": {
+        "name": "Sensorless homing",
+        "description": "Stall sensitivity for switchless homing.",
+        "detail": "Home the axis at one sensitivity after another and say what it did. The value kept sits a third of the way from the least sensitive single touch to the most sensitive full home."
+      },
+      "skewCorrection": {
+        "name": "Skew correction",
+        "description": "Squares the frame from a measured print.",
+        "detail": "Print the skew calibration object with no correction, corner A toward the origin. Measure AC, BD and AD in each plane with calipers, leaving out any flats on the corners."
+      },
+      "probeXyOffset": {
+        "name": "Probe X/Y offset",
+        "description": "Where the probe sits beside the nozzle.",
+        "detail": "Stand the nozzle on a mark near the middle of the bed and record it, then stand the probe's sensing point on the same mark and record that. The difference is x_offset and y_offset."
+      },
+      "screwPositions": {
+        "name": "Screw positions",
+        "description": "Records bed screws by standing over them.",
+        "detail": "Jog the nozzle or the probe over each bed screw and record it. The coordinates the section needs are worked out from the probe offset and written together."
+      },
+      "loadCell": {
+        "name": "Load cell",
+        "description": "Scales a load cell with a known weight.",
+        "detail": "Tare the cell with nothing on it, place a weight of known mass, and enter it. ACCEPT stages counts_per_gram and reference_tare_counts for SAVE_CONFIG."
+      },
+      "tuningTower": {
+        "name": "Tuning tower",
+        "description": "Pressure advance or retraction, by tower.",
+        "detail": "The tower prints a range of values, one per height. Measure the height that prints best and keep the value it was printed at."
       }
     },
     "drive": {
@@ -908,6 +946,105 @@
       "goTo": "Go to",
       "z": "z {value}",
       "overLimit": "Past the deviation limit: adjust the screws and run it again."
+    },
+    "skew": {
+      "impossible": "These lengths do not form a parallelogram.",
+      "degrees": "Skew {value}°",
+      "clear": "Clear any skew correction, then print the calibration object.",
+      "clearAction": "Clear skew",
+      "cleared": "Skew correction cleared until the next profile loads.",
+      "measure": "Measure each plane you printed. A plane left empty is not changed.",
+      "plane": "{plane} plane",
+      "profile": "Profile",
+      "profileInvalid": "Letters, digits, - and _ only.",
+      "save": "Set and save profile",
+      "loadLine": "No macro loads a skew profile. SKEW_PROFILE LOAD={name} belongs in the start G-code, after homing.",
+      "savedProfile": "Saved profile"
+    },
+    "tower": {
+      "atHeight": "at {height} mm",
+      "target": "Tune",
+      "targets": {
+        "pressureAdvance": "Pressure advance",
+        "retractLength": "Retraction length"
+      },
+      "setup": "Extruder",
+      "direct": "Direct drive",
+      "bowden": "Bowden",
+      "slice": {
+        "pressureAdvance": "Slice Klipper's square_tower.stl at high speed, no infill, layer height about 75 % of the nozzle, dynamic acceleration and scarf seams off.",
+        "retractLength": "Slice a stringing test with firmware retraction (G10/G11) turned on in the slicer."
+      },
+      "prepare": "Send the tower, then start the print from Files.",
+      "start": "Start",
+      "factor": "Factor",
+      "perMillimetre": "/mm",
+      "band": "Band",
+      "prepareAction": "Send tower",
+      "prepared": "Tower armed. It follows the next print's height.",
+      "measure": {
+        "pressureAdvance": "Measure the height with the best corners. When in doubt, the lower one.",
+        "retractLength": "Measure the height of the lowest band without strings."
+      },
+      "height": "Height"
+    },
+    "probeOffset": {
+      "nozzle": "Jog the nozzle down onto a mark near the middle of the bed.",
+      "recordNozzle": "Record nozzle",
+      "probe": "Raise it, and jog until the probe's sensing point is over the same mark.",
+      "recordProbe": "Record probe",
+      "dependents": "Screw, mesh and tilt coordinates are placed with this offset; check they are still over the bed."
+    },
+    "screwPositions": {
+      "count": "Screws: {count}",
+      "section": "Section",
+      "reference": "Stand over the screw with",
+      "nozzle": "The nozzle",
+      "probe": "The probe",
+      "stand": {
+        "nozzle": "Jog the nozzle over screw {index}.",
+        "probe": "Jog the probe's sensing point over screw {index}."
+      },
+      "record": "Record screw {index}",
+      "base": "Screw 1 is the base screw the others are measured against.",
+      "name": "Name",
+      "remove": "Remove screw {index}",
+      "clamped": "moved inside the travel",
+      "tooFew": "Klipper needs at least {count} screws."
+    },
+    "sensorless": {
+      "retract": "{stepper} has homing_retract_dist {value}. Sensorless homing needs 0.",
+      "holdCurrent": "[{section}] sets hold_current, which moves the carriage after it stalls.",
+      "centre": "Put the carriage near the middle of its rail. Motors off lets it be pushed there.",
+      "motorsOff": "Motors off",
+      "attempt": "Set a sensitivity and home. {most} is the most sensitive, {least} the least.",
+      "home": "Set and home {axis}",
+      "what": "What did it do at {value}?",
+      "outcome": {
+        "stoppedEarly": "Stopped short",
+        "singleTouch": "Homed, one touch",
+        "banged": "Homed, banged"
+      },
+      "stop": "An axis that does not stop is halted with the emergency stop.",
+      "result": "Result",
+      "range": "Most sensitive full home: {maximum} · Least sensitive single touch: {minimum}",
+      "narrow": "The range is under {count} steps, which can home unreliably. A faster homing_speed widens it."
+    },
+    "loadCell": {
+      "cell": "Load cell",
+      "start": "Start the calibration.",
+      "startAction": "Start",
+      "tare": "Remove every load from the cell, then tare.",
+      "tareAction": "Tare",
+      "tareValue": "Tare {value} %",
+      "weigh": "Apply a known weight and enter its mass.",
+      "grams": "Mass",
+      "calibrateAction": "Calibrate",
+      "capacity": "Capacity",
+      "kilograms": "± {value} kg",
+      "accept": "Accept",
+      "abort": "Abort",
+      "aborted": "Calibration aborted. Nothing was staged."
     }
   },
   "history": {

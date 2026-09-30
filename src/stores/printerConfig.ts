@@ -40,6 +40,7 @@ export const probeSections = [
   'cartographer',
   'scanner',
   'probe_eddy_current',
+  'load_cell_probe',
 ] as const
 
 /** One screw from `[bed_screws]`, in the order `BED_SCREWS_ADJUST` visits them. */

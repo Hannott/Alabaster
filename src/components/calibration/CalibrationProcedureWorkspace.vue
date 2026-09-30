@@ -4,10 +4,10 @@ import { useI18n } from 'vue-i18n'
 
 import AppButton from '@/components/AppButton.vue'
 import AppField from '@/components/AppField.vue'
-import AppIcon from '@/components/AppIcon.vue'
 import AppSelect from '@/components/AppSelect.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import CalibrationCard from '@/components/calibration/CalibrationCard.vue'
+import CalibrationRequirements from '@/components/calibration/CalibrationRequirements.vue'
 import CalibrationScrewsGrid from '@/components/calibration/CalibrationScrewsGrid.vue'
 import CalibrationSparkline from '@/components/calibration/CalibrationSparkline.vue'
 import { useActionGuard } from '@/composables/useActionGuard'
@@ -15,10 +15,7 @@ import { useAvailability } from '@/composables/useAvailability'
 import { useCalibrationSelection } from '@/composables/useCalibrationSelection'
 import { useFollowingLog } from '@/composables/useFollowingLog'
 import { useProcedureContext } from '@/composables/useProcedureContext'
-import {
-  useProcedureRequirements,
-  type RequirementFixId,
-} from '@/composables/useProcedureRequirements'
+import { useProcedureRequirements } from '@/composables/useProcedureRequirements'
 import { useProcedureText } from '@/composables/useProcedureText'
 import {
   defaultShaperPicks,
@@ -141,23 +138,6 @@ const unmet = computed(() =>
     .map((requirement) => requirements.value[requirement])
     .filter((state) => !state.met),
 )
-
-/*
- * A fix moves or reads the machine, so it waits for the same things a run
- * does: Klipper there, no print, and no procedure under way — a fix pressed
- * mid-run would move the toolhead out from under a probe.
- */
-const canFix = computed(
-  () =>
-    klipperAvailability.value.isAvailable &&
-    !printer.hasActivePrint &&
-    calibration.activeRun === null,
-)
-
-const fixIcons: Partial<Record<RequirementFixId, 'home' | 'move'>> = {
-  home: 'home',
-  moveOverBed: 'move',
-}
 
 const script = computed(() => props.procedure.build?.(values.value, context.value) ?? null)
 const missing = computed(() => missingProcedureValues(props.procedure, values.value))
@@ -479,34 +459,7 @@ const effects = computed(() =>
       {{ t(`calibration.procedure.${procedure.id}.detail`) }}
     </p>
 
-    <ul v-if="procedure.requires.length > 0" class="calibration-checks">
-      <li
-        v-for="requirement in procedure.requires"
-        :key="requirement"
-        class="calibration-check"
-        :class="{ 'calibration-check--unmet': !requirements[requirement].met }"
-      >
-        <AppIcon
-          :name="requirements[requirement].met ? 'check' : 'warning'"
-          class="size-4 shrink-0"
-          aria-hidden="true"
-        />
-        <span class="calibration-check__text">{{
-          t(
-            `calibration.requirement.${requirement}.${requirements[requirement].met ? 'met' : 'unmet'}`,
-          )
-        }}</span>
-        <AppButton
-          v-if="!requirements[requirement].met && requirements[requirement].fix"
-          size="xs"
-          :icon="fixIcons[requirements[requirement].fix!.id]"
-          :label="t(`calibration.requirement.fix.${requirements[requirement].fix!.id}`)"
-          :pending="requirements[requirement].fix!.pending"
-          :disabled="!canFix"
-          @click="requirements[requirement].fix!.run()"
-        />
-      </li>
-    </ul>
+    <CalibrationRequirements :requires="procedure.requires" />
 
     <div v-if="procedure.params?.length" class="calibration-params">
       <template v-for="parameter in procedure.params" :key="parameter.key">

@@ -7,9 +7,15 @@ import CalibrationProcedureWorkspace from '@/components/calibration/CalibrationP
 import CalibrationReadiness from '@/components/calibration/CalibrationReadiness.vue'
 import EndstopsPanel from '@/components/calibration/EndstopsPanel.vue'
 import HeaterCheckPanel from '@/components/calibration/HeaterCheckPanel.vue'
+import LoadCellPanel from '@/components/calibration/LoadCellPanel.vue'
 import NonlinearPressureAdvancePanel from '@/components/calibration/NonlinearPressureAdvancePanel.vue'
+import ProbeXyOffsetPanel from '@/components/calibration/ProbeXyOffsetPanel.vue'
 import RotationDistancePanel from '@/components/calibration/RotationDistancePanel.vue'
 import RunoutSensorsPanel from '@/components/calibration/RunoutSensorsPanel.vue'
+import ScrewPositionsPanel from '@/components/calibration/ScrewPositionsPanel.vue'
+import SensorlessHomingPanel from '@/components/calibration/SensorlessHomingPanel.vue'
+import SkewCorrectionPanel from '@/components/calibration/SkewCorrectionPanel.vue'
+import TuningTowerPanel from '@/components/calibration/TuningTowerPanel.vue'
 import { useCalibrationSelection } from '@/composables/useCalibrationSelection'
 import { useProcedureContext } from '@/composables/useProcedureContext'
 import { proceduresForStage, type CalibrationProcedure } from '@/features/calibration/procedures'
@@ -86,6 +92,12 @@ const selected = computed(() => {
         <HeaterCheckPanel v-else-if="selected.panel === 'heaterCheck'" />
         <RotationDistancePanel v-else-if="selected.panel === 'rotationDistance'" />
         <NonlinearPressureAdvancePanel v-else-if="selected.panel === 'nonlinearPressureAdvance'" />
+        <SensorlessHomingPanel v-else-if="selected.panel === 'sensorlessHoming'" />
+        <SkewCorrectionPanel v-else-if="selected.panel === 'skewCorrection'" />
+        <ProbeXyOffsetPanel v-else-if="selected.panel === 'probeXyOffset'" />
+        <ScrewPositionsPanel v-else-if="selected.panel === 'screwPositions'" />
+        <LoadCellPanel v-else-if="selected.panel === 'loadCell'" />
+        <TuningTowerPanel v-else-if="selected.panel === 'tuningTower'" />
         <!--
           One instance across procedures, not one per procedure: the values a
           reader typed are kept per procedure inside it while the page is open.

@@ -10,8 +10,10 @@ import ProbeOffsetCard from '@/components/calibration/ProbeOffsetCard.vue'
 import ProbeSamplesCard from '@/components/calibration/ProbeSamplesCard.vue'
 import HostedDashboardModule from '@/components/dashboard/HostedDashboardModule.vue'
 import BedMeshModule from '@/components/dashboard/modules/BedMeshModule.vue'
+import MovementModule from '@/components/dashboard/modules/MovementModule.vue'
+import { useCalibrationSelection } from '@/composables/useCalibrationSelection'
 import { layoutProcedures, type LayoutProcedure } from '@/features/calibration/bedContext'
-import type { CalibrationProcedure } from '@/features/calibration/procedures'
+import type { CalibrationProcedure, ProcedureId } from '@/features/calibration/procedures'
 import { useMeshProbeRunStore } from '@/stores/meshProbeRun'
 import { usePrinterConfigStore } from '@/stores/printerConfig'
 
@@ -23,27 +25,49 @@ import { usePrinterConfigStore } from '@/stores/printerConfig'
  * procedure whose subject is something other than the surface gets a picture
  * of that subject: the probe's samples side on, the probe and the nozzle over
  * the bed, the bed from above with its screws or its steppers and probe
- * points. Every other procedure — the mesh itself, and the probe calibrations
- * whose result is the surface they map — gets the height map and the saved
- * profiles, the thing they change or depend on, which a mesh being probed
- * fills in point by point while the run is going.
+ * points. The two recorded by standing the toolhead somewhere — the probe's
+ * X/Y offset and the screw positions — also get the Movement card under that
+ * picture, to jog with. Every other procedure — the mesh itself, and the
+ * probe calibrations whose result is the surface they map — gets the height
+ * map and the saved profiles, the thing they change or depend on, which a
+ * mesh being probed fills in point by point while the run is going.
  */
 const { t } = useI18n({ useScope: 'global' })
 const printerConfig = usePrinterConfigStore()
 const probeRun = useMeshProbeRunStore()
+const selection = useCalibrationSelection()
 
 const hasBedMesh = computed(() => printerConfig.hasBedMesh)
 
-/** The open procedure, where it is drawn as the bed from above. */
+/**
+ * The open procedure, where it is drawn as the bed from above. Recording
+ * screw positions draws the section being recorded, which its panel names.
+ */
 function layoutFor(procedure: CalibrationProcedure | null): LayoutProcedure | null {
   const id = procedure?.id
+  if (id === 'screwPositions') {
+    const subject = selection.subjectFor('screwPositions')
+    if (subject === 'bedScrews' || subject === 'screwsTilt') return subject
+    return printerConfig.hasSection('screws_tilt_adjust') ? 'screwsTilt' : 'bedScrews'
+  }
   return layoutProcedures.find((candidate) => candidate === id) ?? null
 }
+
+/*
+ * The procedures recorded by standing the toolhead somewhere, which put the
+ * jog controls beside what they record.
+ */
+const jogProcedures = new Set<ProcedureId>(['probeXyOffset', 'screwPositions'])
 
 /** Whether the open procedure is about the surface, and so gets the map. */
 function showsMap(procedure: CalibrationProcedure | null): boolean {
   const id = procedure?.id
-  return id !== 'probeAccuracy' && id !== 'probeZOffset' && layoutFor(procedure) === null
+  return (
+    id !== 'probeAccuracy' &&
+    id !== 'probeZOffset' &&
+    !(id !== undefined && jogProcedures.has(id)) &&
+    layoutFor(procedure) === null
+  )
 }
 </script>
 
@@ -51,8 +75,19 @@ function showsMap(procedure: CalibrationProcedure | null): boolean {
   <CalibrationBench stage="bed" live-wide>
     <template #live="{ procedure }">
       <ProbeSamplesCard v-if="procedure?.id === 'probeAccuracy'" />
-      <ProbeOffsetCard v-else-if="procedure?.id === 'probeZOffset'" />
+      <ProbeOffsetCard
+        v-else-if="procedure?.id === 'probeZOffset' || procedure?.id === 'probeXyOffset'"
+      />
       <BedLayoutCard v-else-if="layoutFor(procedure)" :procedure="layoutFor(procedure)!" />
+
+      <HostedDashboardModule
+        v-if="procedure && jogProcedures.has(procedure.id)"
+        module-id="movement"
+        :title="t('calibration.axes.movementTitle')"
+        :sections="['motion', 'plan']"
+      >
+        <MovementModule />
+      </HostedDashboardModule>
 
       <HostedDashboardModule
         v-if="hasBedMesh && showsMap(procedure)"

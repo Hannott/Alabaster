@@ -472,7 +472,11 @@ export const useCalibrationStore = defineStore('calibration', () => {
     let succeeded = await dispatch(procedure, script, values)
     if (watchesGraphs) setTimeout(() => shakeTune.stop(), graphLandingMs)
     if (succeeded && procedure.helper) {
-      succeeded = await helperFinished(procedure.helper)
+      const helperDone = procedure.helperDone
+      succeeded = await helperFinished(
+        procedure.helper,
+        helperDone ? () => helperDone(outputFor(record)) : null,
+      )
     }
     const current = runs.get(key)
     if (current && current.startedAt === record.startedAt) {
@@ -502,6 +506,12 @@ export const useCalibrationStore = defineStore('calibration', () => {
 
   /** How long a helper may take to open after its command returned, before it is taken as never opening. */
   const helperOpenMs = 3000
+  /**
+   * How long a helper that opens once per point may stay closed between two
+   * points: the toolhead lifts, travels and probes in between. Past it, a
+   * sequence that never printed its last line — a probe error mid-way — ends.
+   */
+  const helperReopenMs = 120_000
 
   /**
    * Resolves once the interactive helper a run opened has closed — the paper
@@ -511,25 +521,36 @@ export const useCalibrationStore = defineStore('calibration', () => {
    * let a second procedure start in the middle of the first. False when the
    * connection went while it waited.
    */
-  function helperFinished(helper: 'manualProbe' | 'bedScrews'): Promise<boolean> {
+  function helperFinished(
+    helper: 'manualProbe' | 'bedScrews',
+    done: (() => boolean) | null,
+  ): Promise<boolean> {
     const isActive = () => (helper === 'manualProbe' ? manualProbe.isActive : bedScrews.isActive)
     return new Promise((resolve) => {
       let opened = isActive()
       let stop: (() => void) | null = null
+      let reopenTimer: ReturnType<typeof setTimeout> | null = null
       const timer = setTimeout(() => {
         if (!opened) finish(true)
       }, helperOpenMs)
       function finish(value: boolean): void {
         clearTimeout(timer)
+        if (reopenTimer !== null) clearTimeout(reopenTimer)
         stop?.()
         resolve(value)
       }
       stop = watch(
-        () => [isActive(), availability.isKlipperReady] as const,
-        ([active, available]) => {
+        () => [isActive(), availability.isKlipperReady, done?.() ?? true] as const,
+        ([active, available, finished]) => {
           if (!available) return finish(false)
-          if (active) opened = true
-          else if (opened) finish(true)
+          if (active) {
+            opened = true
+            if (reopenTimer !== null) clearTimeout(reopenTimer)
+            reopenTimer = null
+          } else if (opened) {
+            if (finished) return finish(true)
+            reopenTimer ??= setTimeout(() => finish(true), helperReopenMs)
+          }
         },
       )
     })

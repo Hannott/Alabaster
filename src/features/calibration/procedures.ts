@@ -1,10 +1,12 @@
 import { axisSteppers } from '@/features/calibration/axisRotation'
+import { loadCells } from '@/features/calibration/loadCell'
 import { isNonlinearModel, readNpaConfig } from '@/features/calibration/nonlinearPressureAdvance'
 import {
   screwReadings,
   type ScrewReading,
   type ScrewsTiltStatus,
 } from '@/features/calibration/screws'
+import { stallDriversFor } from '@/features/calibration/sensorless'
 import { shaperFits } from '@/features/calibration/shaperFits'
 import type { CalibrationStageId } from '@/features/calibration/stages'
 import {
@@ -50,6 +52,7 @@ export type ProcedureId =
   | 'eddyDriveCurrent'
   | 'eddyHeight'
   | 'probeDrift'
+  | 'axisTwist'
   | 'beacon'
   | 'cartographer'
   | 'autoZ'
@@ -65,6 +68,12 @@ export type ProcedureId =
   | 'pressureAdvance'
   | 'nonlinearPressureAdvance'
   | 'runoutSensors'
+  | 'sensorlessHoming'
+  | 'skewCorrection'
+  | 'probeXyOffset'
+  | 'screwPositions'
+  | 'loadCell'
+  | 'tuningTower'
 
 /**
  * What a procedure needs before Run is offered. Each has a word, and most
@@ -93,6 +102,12 @@ export type ProcedurePanel =
   | 'heaterCheck'
   | 'runoutSensors'
   | 'nonlinearPressureAdvance'
+  | 'sensorlessHoming'
+  | 'skewCorrection'
+  | 'probeXyOffset'
+  | 'screwPositions'
+  | 'loadCell'
+  | 'tuningTower'
 
 /** User-facing text as data: a message key, or a Klipper name shown as it is spelled. */
 export type ProcedureText = { key: string; params?: Record<string, string> } | { literal: string }
@@ -319,6 +334,14 @@ export interface CalibrationProcedure {
    * until the helper closes rather than until the command returns.
    */
   helper?: 'manualProbe' | 'bedScrews'
+  /**
+   * For a command that opens its helper more than once — axis twist
+   * compensation's paper test at every point — whether the lines say the last
+   * one has closed. Without it the run would end when the first point is
+   * accepted and let another procedure start while the toolhead moves on to
+   * the second.
+   */
+  helperDone?: (lines: readonly string[]) => boolean
   /**
    * Ask before running. The heater models heat for minutes and cannot be
    * stopped halfway without losing the run; everything else here is one the
@@ -738,7 +761,7 @@ export function parseShaperCalibrate(
   before: ProcedureSnapshot,
 ): ProcedureResult | null {
   const rows: ProcedureResultRow[] = []
-  const recommendations: ShaperRecommendation[] = []
+  const recommendations: ShaperPick[] = []
   let lastAccel: Record<string, string> = {}
   for (const line of allLines(lines)) {
     const accel = maxAccelPattern.exec(line)
@@ -772,7 +795,13 @@ export function parseShaperCalibrate(
       })
     }
     lastAccel = {}
-    recommendations.push({ axis, kind: 'best', shaperType, frequency: Number(frequency) })
+    recommendations.push({
+      axis,
+      kind: 'best',
+      shaperType,
+      frequency: Number(frequency),
+      ...(suggested === undefined ? {} : { maxAccel: Number(suggested) }),
+    })
   }
   if (rows.length === 0) return outcomeOnly(lines)
   const candidates: ShaperCandidate[] = shaperFits(lines).flatMap((axis) =>
@@ -794,11 +823,17 @@ export function parseShaperCalibrate(
   }
 }
 
+/** A shaper chosen for an axis, with the acceleration Klipper suggests it allows where it said. */
+type ShaperPick = Pick<ShaperRecommendation, 'axis' | 'shaperType' | 'frequency'> & {
+  kind?: ShaperRecommendation['kind'] | null
+  maxAccel?: number
+}
+
 /**
  * The low-vibrations pick is not the default: the other recommendation on
  * the same axis is the one the run chose. The reader can still choose it.
  */
-function shaperActions(recommendations: readonly ShaperRecommendation[]): ProcedureAction[] {
+function shaperActions(recommendations: readonly ShaperPick[]): ProcedureAction[] {
   return shaperActionsFor(
     recommendations.filter((recommendation) => recommendation.kind !== 'lowVibrations'),
   )
@@ -822,20 +857,25 @@ export function defaultShaperPicks(
  * One Apply and one Save config for the whole run, never one per axis: the
  * two axes are one tuning, and a printer left with X saved and Y only applied
  * is a state nobody chose. The last pick for an axis wins.
+ *
+ * Where Klipper suggested an acceleration for every chosen shaper, the lowest
+ * of them is offered as `max_accel` too. It is a separate write, because it
+ * is the reader's call rather than part of the tuning: a shaper saved with
+ * `max_accel` left above what it allows smooths every corner past what
+ * `MAX_SMOOTHING` asked for, and one left below it gives away speed the
+ * shaper made safe, so both are worth one press and neither is forced.
  */
-export function shaperActionsFor(
-  picks: readonly Pick<ShaperRecommendation, 'axis' | 'shaperType' | 'frequency'>[],
-): ProcedureAction[] {
-  const chosen = new Map<ShaperRecommendation['axis'], ShaperRecommendation>()
+export function shaperActionsFor(picks: readonly ShaperPick[]): ProcedureAction[] {
+  const chosen = new Map<ShaperRecommendation['axis'], ShaperPick>()
   for (const pick of picks) {
     const recommendation: ShaperRecommendation = { ...pick, kind: 'best' }
     if (setInputShaperCommand(recommendation) === null) continue
-    chosen.set(pick.axis, recommendation)
+    chosen.set(pick.axis, pick)
   }
   const picked = [...chosen.values()].sort((left, right) => left.axis.localeCompare(right.axis))
   if (picked.length === 0) return []
   const words = picked.flatMap((pick) =>
-    setInputShaperCommand(pick)!
+    setInputShaperCommand({ ...pick, kind: 'best' })!
       .replace(/^SET_INPUT_SHAPER /, '')
       .split(' '),
   )
@@ -855,6 +895,25 @@ export function shaperActionsFor(
         { option: `shaper_type_${pick.axis}`, value: pick.shaperType },
         { option: `shaper_freq_${pick.axis}`, value: String(pick.frequency) },
       ]),
+      restart: true,
+    },
+    ...maxAccelAction(picked),
+  ]
+}
+
+function maxAccelAction(picked: readonly ShaperPick[]): ProcedureAction[] {
+  const accelerations = picked.map((pick) => pick.maxAccel)
+  if (accelerations.some((accel) => accel === undefined || !Number.isFinite(accel))) return []
+  const lowest = Math.min(...(accelerations as number[]))
+  if (!(lowest > 0)) return []
+  const value = String(Math.floor(lowest))
+  return [
+    {
+      kind: 'persist',
+      id: 'save-max-accel',
+      label: key('calibration.result.saveMaxAccel', { value }),
+      section: 'printer',
+      changes: [{ option: 'max_accel', value }],
       restart: true,
     },
   ]
@@ -1150,6 +1209,17 @@ export const calibrationProcedures: readonly CalibrationProcedure[] = [
     ],
   },
   {
+    id: 'sensorlessHoming',
+    stage: 'axes',
+    command: 'SET_TMC_FIELD',
+    available: (context) => stallDriversFor(context.sections, context.settings).length > 0,
+    requires: ['notPrinting'],
+    effects: ['moves'],
+    duration: 'interactive',
+    staleAfterDays: null,
+    panel: 'sensorlessHoming',
+  },
+  {
     id: 'axisRotation',
     stage: 'axes',
     command: 'rotation_distance',
@@ -1209,6 +1279,21 @@ export const calibrationProcedures: readonly CalibrationProcedure[] = [
     build: (values) => buildWithWords('AUTOTUNE_TMC', values, ['STEPPER']),
     parse: (lines) => outcomeOnly(lines),
   },
+  {
+    id: 'skewCorrection',
+    stage: 'axes',
+    command: 'SET_SKEW',
+    available: (context) => context.hasSection('skew_correction'),
+    requires: [],
+    effects: [],
+    duration: 'interactive',
+    staleAfterDays: null,
+    panel: 'skewCorrection',
+    current: (context) => {
+      const names = namesWithPrefix(context, 'skew_correction')
+      return names.length === 0 ? null : names.join(' · ')
+    },
+  },
 
   // Bed & probe
   {
@@ -1265,6 +1350,22 @@ export const calibrationProcedures: readonly CalibrationProcedure[] = [
     parse: (lines) => outcomeOnly(lines),
   },
   {
+    id: 'loadCell',
+    stage: 'bed',
+    command: 'LOAD_CELL_CALIBRATE',
+    available: (context) => loadCells(context.sections).length > 0,
+    requires: ['notPrinting'],
+    effects: [],
+    duration: 'interactive',
+    staleAfterDays: null,
+    panel: 'loadCell',
+    current: (context) => {
+      const [cell] = loadCells(context.sections)
+      const value = cell === undefined ? null : settingText(context, cell, 'counts_per_gram')
+      return value === null ? null : `counts_per_gram ${value}`
+    },
+  },
+  {
     id: 'probeAccuracy',
     stage: 'bed',
     listRows: ['calibration.probe.range', 'calibration.probe.standardDeviation'],
@@ -1315,6 +1416,25 @@ export const calibrationProcedures: readonly CalibrationProcedure[] = [
     parse: (lines) => parseProbeAccuracy(lines),
   },
   {
+    id: 'probeXyOffset',
+    stage: 'bed',
+    command: 'x_offset · y_offset',
+    available: (context) => context.hasProbe,
+    requires: ['homed', 'notPrinting'],
+    effects: ['moves'],
+    duration: 'interactive',
+    staleAfterDays: null,
+    panel: 'probeXyOffset',
+    current: (context) => {
+      const section = context.sections.find(
+        (name) => settingText(context, name, 'x_offset') !== null,
+      )
+      if (section === undefined) return null
+      const y = settingText(context, section, 'y_offset') ?? '0'
+      return `x_offset ${settingText(context, section, 'x_offset')} · y_offset ${y}`
+    },
+  },
+  {
     id: 'probeZOffset',
     stage: 'bed',
     command: 'PROBE_CALIBRATE',
@@ -1337,6 +1457,50 @@ export const calibrationProcedures: readonly CalibrationProcedure[] = [
         settingText(context, 'probe', 'z_offset') ?? settingText(context, 'bltouch', 'z_offset')
       return offset === null ? null : `z_offset ${offset}`
     },
+  },
+  {
+    id: 'axisTwist',
+    stage: 'bed',
+    command: 'AXIS_TWIST_COMPENSATION_CALIBRATE',
+    available: (context) => context.hasSection('axis_twist_compensation') && context.hasProbe,
+    requires: ['homed', 'notPrinting'],
+    effects: ['moves', 'probes'],
+    duration: 'interactive',
+    helper: 'manualProbe',
+    /*
+     * One paper test per point, each opened by the last one's ACCEPT; the
+     * module says when the last has been taken, or that an ABORT ended it.
+     */
+    helperDone: (lines) =>
+      allLines(lines).some((line) => /Calibration complete|calibration aborted/i.test(line)),
+    staleAfterDays: null,
+    params: [
+      {
+        key: 'AXIS',
+        kind: 'select',
+        label: 'calibration.param.axis',
+        initial: () => '',
+        options: (context) => [
+          { value: '', label: literal('X') },
+          // Y needs its own start, end and crossing coordinate, which only some configs carry.
+          ...(settingText(context, 'axis_twist_compensation', 'calibrate_start_y') === null
+            ? []
+            : [{ value: 'Y', label: literal('Y') }]),
+        ],
+      },
+      {
+        key: 'SAMPLE_COUNT',
+        kind: 'number',
+        label: 'calibration.param.samples',
+        initial: () => '',
+        placeholder: () => '3',
+        min: 2,
+        max: 20,
+      },
+    ],
+    build: (values) =>
+      buildWithWords('AXIS_TWIST_COMPENSATION_CALIBRATE', values, ['AXIS', 'SAMPLE_COUNT']),
+    parse: (lines) => outcomeOnly(lines),
   },
   {
     id: 'autoZ',
@@ -1396,6 +1560,18 @@ export const calibrationProcedures: readonly CalibrationProcedure[] = [
     build: (values) =>
       buildWithWords('TEMPERATURE_PROBE_CALIBRATE', values, ['PROBE', 'TARGET', 'STEP']),
     parse: (lines) => outcomeOnly(lines),
+  },
+  {
+    id: 'screwPositions',
+    stage: 'bed',
+    command: 'screw1 · screw2 · …',
+    available: (context) =>
+      context.hasSection('screws_tilt_adjust') || context.hasSection('bed_screws'),
+    requires: ['homed', 'notPrinting'],
+    effects: ['moves'],
+    duration: 'interactive',
+    staleAfterDays: null,
+    panel: 'screwPositions',
   },
   {
     id: 'screwsTilt',
@@ -1970,6 +2146,28 @@ export const calibrationProcedures: readonly CalibrationProcedure[] = [
         : `pressure_advance ${context.livePressureAdvance}`,
   },
   {
+    id: 'tuningTower',
+    stage: 'extrusion',
+    command: 'TUNING_TOWER',
+    /*
+     * Pressure advance under a nonlinear model is Kalico's own tower; what is
+     * left to tune with a tower there is firmware retraction, if configured.
+     */
+    available: (context) =>
+      context.hasSection('extruder') &&
+      (context.hasSection('firmware_retraction') ||
+        !isNonlinearModel(readNpaConfig(context.settings('extruder')).model)),
+    requires: ['notPrinting'],
+    effects: ['heats', 'moves'],
+    duration: 'interactive',
+    staleAfterDays: null,
+    panel: 'tuningTower',
+    current: (context) =>
+      context.livePressureAdvance === null
+        ? null
+        : `pressure_advance ${context.livePressureAdvance}`,
+  },
+  {
     id: 'nonlinearPressureAdvance',
     stage: 'extrusion',
     command: 'RUN_PA_TEST',
@@ -2000,6 +2198,8 @@ export function proceduresForStage(
   )
 }
 
+const readoutPanels = new Set<ProcedurePanel>(['endstops', 'heaterCheck', 'runoutSensors'])
+
 /**
  * Whether a procedure ever has a "last run" to say: one with a command runs,
  * and the guided panels that measure by hand log their own results. The
@@ -2007,12 +2207,7 @@ export function proceduresForStage(
  * "never run" would name something the reader has no way to do.
  */
 export function hasRunRecord(procedure: CalibrationProcedure): boolean {
-  return (
-    procedure.panel === undefined ||
-    procedure.panel === 'axisRotation' ||
-    procedure.panel === 'rotationDistance' ||
-    procedure.panel === 'nonlinearPressureAdvance'
-  )
+  return procedure.panel === undefined || !readoutPanels.has(procedure.panel)
 }
 
 /** What a run of `procedure` with `values` is about; '' for a procedure with no subject. */

@@ -269,7 +269,9 @@
         "screw": "Skrue",
         "stepper": "Z-stepper",
         "point": "Probepunkt, i rekkefølge",
-        "nozzle": "Dyse"
+        "nozzle": "Dyse",
+        "atProbe": "Tegnet der proben måler. Konfigen lagrer dyseposisjonen, forskjøvet X {x}, Y {y} mm.",
+        "probe": "Probe"
       }
     },
     "endstops": {
@@ -520,7 +522,8 @@
       "similarity": "Remmelikhet",
       "health": "Mekanisk helse",
       "symmetry": "Vibrasjonssymmetri",
-      "maxDeviation": "Avviksgrense"
+      "maxDeviation": "Avviksgrense",
+      "saveMaxAccel": "Lagre max_accel {value}"
     },
     "param": {
       "stepper": "Motor",
@@ -831,6 +834,41 @@
         "name": "Filamentsensorer",
         "description": "Hver filamentsensors tilstand, direkte.",
         "detail": "Trekk filamentet tilbake forbi en sensor og se den endre seg. En sensor som viser tomt mens filament er lastet er en feil, ikke en tom spole."
+      },
+      "axisTwist": {
+        "name": "Aksevridningskompensasjon",
+        "description": "Papirtest langs X; retter probevridning.",
+        "detail": "Prober hvert punkt langs aksen, senker så dysen mot papir på samme punkt, og legger differansen klar for SAVE_CONFIG. Kalibrer probens Z-offset på nytt etterpå."
+      },
+      "sensorlessHoming": {
+        "name": "Sensorløs homing",
+        "description": "Stallfølsomhet for homing uten brytere.",
+        "detail": "Hom aksen med én følsomhet etter en annen og si hva den gjorde. Verdien som lagres ligger en tredjedel av veien fra minst følsomme enkeltberøring til mest følsomme fulle homing."
+      },
+      "skewCorrection": {
+        "name": "Skjevhetskorreksjon",
+        "description": "Retter opp rammen fra en målt utskrift.",
+        "detail": "Skriv ut kalibreringsobjektet uten korreksjon, med hjørne A mot origo. Mål AC, BD og AD i hvert plan med skyvelære, uten eventuelle flater på hjørnene."
+      },
+      "probeXyOffset": {
+        "name": "Probe X/Y-offset",
+        "description": "Hvor proben sitter ved siden av dysen.",
+        "detail": "Sett dysen på et merke midt på sengen og registrer, sett så probens målepunkt på samme merke og registrer. Differansen er x_offset og y_offset."
+      },
+      "screwPositions": {
+        "name": "Skrueposisjoner",
+        "description": "Registrerer sengeskruer ved å stå over dem.",
+        "detail": "Jogg dysen eller proben over hver sengeskrue og registrer den. Koordinatene seksjonen trenger regnes ut fra probe-offseten og skrives samlet."
+      },
+      "loadCell": {
+        "name": "Veiecelle",
+        "description": "Skalerer en veiecelle med kjent vekt.",
+        "detail": "Tarer cellen uten last, legg på en vekt med kjent masse og skriv den inn. ACCEPT legger counts_per_gram og reference_tare_counts klar for SAVE_CONFIG."
+      },
+      "tuningTower": {
+        "name": "Tuning-tårn",
+        "description": "PA eller retraksjon fra et utskrevet tårn.",
+        "detail": "Tårnet skriver ut en rekke verdier, én per høyde. Mål høyden som blir best, og behold verdien den ble skrevet ut med."
       }
     },
     "drive": {
@@ -908,6 +946,105 @@
       "goTo": "Gå til",
       "z": "z {value}",
       "overLimit": "Over avviksgrensen: juster skruene og kjør på nytt."
+    },
+    "skew": {
+      "impossible": "Disse lengdene danner ikke et parallellogram.",
+      "degrees": "Skjevhet {value}°",
+      "clear": "Fjern eventuell skjevhetskorreksjon, og skriv så ut kalibreringsobjektet.",
+      "clearAction": "Fjern skjevhet",
+      "cleared": "Skjevhetskorreksjon fjernet til neste profil lastes.",
+      "measure": "Mål hvert plan du skrev ut. Et tomt plan endres ikke.",
+      "plane": "{plane}-planet",
+      "profile": "Profil",
+      "profileInvalid": "Bare bokstaver, sifre, - og _.",
+      "save": "Sett og lagre profil",
+      "loadLine": "Ingen makro laster en skjevhetsprofil. SKEW_PROFILE LOAD={name} hører hjemme i start-G-koden, etter homing.",
+      "savedProfile": "Lagret profil"
+    },
+    "tower": {
+      "atHeight": "ved {height} mm",
+      "target": "Juster",
+      "targets": {
+        "pressureAdvance": "Pressure advance",
+        "retractLength": "Retraksjonslengde"
+      },
+      "setup": "Ekstruder",
+      "direct": "Direkte drift",
+      "bowden": "Bowden",
+      "slice": {
+        "pressureAdvance": "Slice Klippers square_tower.stl med høy hastighet, uten fyll, lagtykkelse rundt 75 % av dysen, og dynamisk akselerasjon og scarf-sømmer av.",
+        "retractLength": "Slice en strengtest med firmware-retraksjon (G10/G11) slått på i sliceren."
+      },
+      "prepare": "Send tårnet, og start utskriften fra Filer.",
+      "start": "Start",
+      "factor": "Faktor",
+      "perMillimetre": "/mm",
+      "band": "Bånd",
+      "prepareAction": "Send tårn",
+      "prepared": "Tårnet er aktivert. Det følger høyden i neste utskrift.",
+      "measure": {
+        "pressureAdvance": "Mål høyden med de beste hjørnene. Velg den laveste ved tvil.",
+        "retractLength": "Mål høyden på det laveste båndet uten strenger."
+      },
+      "height": "Høyde"
+    },
+    "probeOffset": {
+      "nozzle": "Jogg dysen ned på et merke midt på sengen.",
+      "recordNozzle": "Registrer dyse",
+      "probe": "Løft, og jogg til probens målepunkt står over samme merke.",
+      "recordProbe": "Registrer probe",
+      "dependents": "Skrue-, mesh- og tiltkoordinater plasseres med denne offseten; sjekk at de fortsatt er over sengen."
+    },
+    "screwPositions": {
+      "count": "Skruer: {count}",
+      "section": "Seksjon",
+      "reference": "Stå over skruen med",
+      "nozzle": "Dysen",
+      "probe": "Proben",
+      "stand": {
+        "nozzle": "Jogg dysen over skrue {index}.",
+        "probe": "Jogg probens målepunkt over skrue {index}."
+      },
+      "record": "Registrer skrue {index}",
+      "base": "Skrue 1 er basisskruen de andre måles mot.",
+      "name": "Navn",
+      "remove": "Fjern skrue {index}",
+      "clamped": "flyttet innenfor rekkevidden",
+      "tooFew": "Klipper trenger minst {count} skruer."
+    },
+    "sensorless": {
+      "retract": "{stepper} har homing_retract_dist {value}. Sensorløs homing trenger 0.",
+      "holdCurrent": "[{section}] setter hold_current, som flytter vognen etter at den stopper.",
+      "centre": "Sett vognen nær midten av skinnen. Motorer av lar den skyves dit.",
+      "motorsOff": "Motorer av",
+      "attempt": "Sett en følsomhet og hom. {most} er mest følsom, {least} minst.",
+      "home": "Sett og hom {axis}",
+      "what": "Hva gjorde den ved {value}?",
+      "outcome": {
+        "stoppedEarly": "Stoppet for tidlig",
+        "singleTouch": "Homet, én berøring",
+        "banged": "Homet, dunket"
+      },
+      "stop": "En akse som ikke stopper, stanses med nødstopp.",
+      "result": "Resultat",
+      "range": "Mest følsomme fulle homing: {maximum} · Minst følsomme enkeltberøring: {minimum}",
+      "narrow": "Spennet er under {count} steg, som kan gi ustabil homing. Høyere homing_speed gjør det bredere."
+    },
+    "loadCell": {
+      "cell": "Veiecelle",
+      "start": "Start kalibreringen.",
+      "startAction": "Start",
+      "tare": "Fjern all last fra cellen, og tarer.",
+      "tareAction": "Tarer",
+      "tareValue": "Tara {value} %",
+      "weigh": "Legg på en kjent vekt og skriv inn massen.",
+      "grams": "Masse",
+      "calibrateAction": "Kalibrer",
+      "capacity": "Kapasitet",
+      "kilograms": "± {value} kg",
+      "accept": "Godta",
+      "abort": "Avbryt",
+      "aborted": "Kalibreringen ble avbrutt. Ingenting ble lagt klar."
     }
   },
   "history": {

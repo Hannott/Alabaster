@@ -127,6 +127,17 @@ function readPoint(value: unknown): BedPoint | null {
   return null
 }
 
+/**
+ * Where the probe is while the nozzle stands at `nozzle`. `screws_tilt_adjust`
+ * screws and `z_tilt` and `quad_gantry_level` points are nozzle coordinates,
+ * chosen so the probe lands on the thing measured, so a picture of what is
+ * measured draws them here. Drawn at the coordinate itself, a screw sits one
+ * probe offset away from the screw on the bed.
+ */
+export function atProbe(nozzle: BedPoint, offset: BedPoint): BedPoint {
+  return { x: nozzle.x + offset.x, y: nozzle.y + offset.y }
+}
+
 /** A multi-line list of X, Y pairs as Klipper's config parses it, or as the raw text. */
 export function readPoints(value: unknown): BedPoint[] {
   if (Array.isArray(value)) {

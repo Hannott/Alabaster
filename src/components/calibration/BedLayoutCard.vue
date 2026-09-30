@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 
 import CalibrationCard from '@/components/calibration/CalibrationCard.vue'
 import {
+  atProbe,
   levelingLayout,
   onPlan,
   planBox,
@@ -27,8 +28,16 @@ import { useScrewsTiltStore } from '@/stores/screwsTilt'
  * drawn where the configuration puts it: the screws and what the last
  * `SCREWS_TILT_CALCULATE` found at each, the screws `BED_SCREWS_ADJUST` walks
  * with the one it is standing at marked, or the Z steppers and the points
- * `Z_TILT_ADJUST` and `QUAD_GANTRY_LEVEL` probe. The nozzle is drawn on it
- * once X and Y are homed, so the reader can see which screw it is over.
+ * `Z_TILT_ADJUST` and `QUAD_GANTRY_LEVEL` probe. The nozzle, and the probe
+ * beside it, are drawn on it once X and Y are homed, so the reader can see
+ * which screw it is over.
+ *
+ * What the probe measures is drawn where the probe measures it. Those
+ * coordinates are the nozzle's in the file — where to send the nozzle so the
+ * probe lands on the screw — and drawn as they are written, every screw sat
+ * one probe offset away from the screw on the bed, which reads as a
+ * configuration that is wrong when it is right. `BED_SCREWS_ADJUST` is a paper
+ * test under the nozzle, so its screws are drawn as written.
  *
  * The workspace's screw grid is the result to act on and keeps its "Go to"
  * buttons; this is the same bed at its real proportions, and it is drawn
@@ -52,6 +61,11 @@ interface ScrewMarker {
   current: boolean
 }
 
+/** Whether the open procedure measures with the probe, and so where the probe goes is what it measures. */
+const measuresWithProbe = computed(() => props.procedure !== 'bedScrews')
+const offset = computed(() => (printerConfig.hasProbe ? printerConfig.probeOffset : { x: 0, y: 0 }))
+const hasOffset = computed(() => offset.value.x !== 0 || offset.value.y !== 0)
+
 const screws = computed<ScrewMarker[]>(() => {
   if (props.procedure === 'screwsTilt') {
     const settings = printerConfig.section('screws_tilt_adjust')
@@ -59,7 +73,7 @@ const screws = computed<ScrewMarker[]>(() => {
     return configuredScrews(settings).map((screw) => ({
       key: screw.key,
       name: screw.name,
-      point: { x: screw.x, y: screw.y },
+      point: atProbe({ x: screw.x, y: screw.y }, offset.value),
       reading: readings.find((reading) => reading.key === screw.key) ?? null,
       current: false,
     }))
@@ -81,13 +95,16 @@ const screws = computed<ScrewMarker[]>(() => {
   return []
 })
 
-const leveling = computed(() =>
-  props.procedure === 'zTilt'
-    ? levelingLayout('zTilt', printerConfig.section('z_tilt'))
-    : props.procedure === 'quadGantryLevel'
-      ? levelingLayout('quadGantryLevel', printerConfig.section('quad_gantry_level'))
-      : null,
-)
+const leveling = computed(() => {
+  const layout =
+    props.procedure === 'zTilt'
+      ? levelingLayout('zTilt', printerConfig.section('z_tilt'))
+      : props.procedure === 'quadGantryLevel'
+        ? levelingLayout('quadGantryLevel', printerConfig.section('quad_gantry_level'))
+        : null
+  if (!layout) return null
+  return { ...layout, points: layout.points.map((point) => atProbe(point, offset.value)) }
+})
 
 const box = computed(() =>
   planBox(printer.buildVolume, [
@@ -116,14 +133,26 @@ const bed = computed(() => {
   }
 })
 
-const nozzle = computed(() => {
-  const plan = box.value
+const toolhead = computed<BedPoint | null>(() => {
   const homed = printer.motion.homedAxes.toLowerCase()
-  if (!plan || !homed.includes('x') || !homed.includes('y')) return null
+  if (!homed.includes('x') || !homed.includes('y')) return null
   const [x, y] = printer.toolheadPosition
-  if (x === null || y === null) return null
-  return onPlan({ x, y }, plan)
+  return x === null || y === null ? null : { x, y }
 })
+
+const nozzle = computed(() =>
+  box.value && toolhead.value ? onPlan(toolhead.value, box.value) : null,
+)
+
+const probe = computed(() =>
+  box.value && toolhead.value && hasOffset.value
+    ? onPlan(atProbe(toolhead.value, offset.value), box.value)
+    : null,
+)
+
+const offsetFormatter = computed(
+  () => new Intl.NumberFormat(locale.value, { maximumFractionDigits: 1 }),
+)
 
 function place(point: BedPoint): BedPoint {
   return box.value ? onPlan(point, box.value) : point
@@ -303,12 +332,25 @@ const isEmpty = computed(
         </text>
       </g>
 
+      <g v-if="nozzle && probe" class="calibration-layout__probe">
+        <line :x1="nozzle.x" :x2="probe.x" :y1="nozzle.y" :y2="probe.y" />
+        <circle :cx="probe.x" :cy="probe.y" :r="unit * 2.2" />
+      </g>
       <g v-if="nozzle" class="calibration-layout__nozzle">
         <circle :cx="nozzle.x" :cy="nozzle.y" :r="unit * 1.6" />
         <line :x1="nozzle.x - unit * 3" :x2="nozzle.x + unit * 3" :y1="nozzle.y" :y2="nozzle.y" />
         <line :x1="nozzle.x" :x2="nozzle.x" :y1="nozzle.y - unit * 3" :y2="nozzle.y + unit * 3" />
       </g>
     </svg>
+
+    <p v-if="box && !isEmpty && measuresWithProbe && hasOffset" class="calibration-panel__hint">
+      {{
+        t('calibration.context.layout.atProbe', {
+          x: offsetFormatter.format(offset.x),
+          y: offsetFormatter.format(offset.y),
+        })
+      }}
+    </p>
 
     <ul v-if="box && !isEmpty" class="calibration-context__legend">
       <li v-if="screws.length > 0">
@@ -338,6 +380,13 @@ const isEmpty = computed(
           aria-hidden="true"
         ></span>
         {{ t('calibration.context.layout.nozzle') }}
+      </li>
+      <li v-if="probe">
+        <span
+          class="calibration-context__key calibration-context__key--probe"
+          aria-hidden="true"
+        ></span>
+        {{ t('calibration.context.layout.probe') }}
       </li>
     </ul>
   </CalibrationCard>
