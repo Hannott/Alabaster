@@ -343,6 +343,33 @@ describe('Calibration view', () => {
     expect(view.get('.calibration-run__script').text()).toBe('STEPPER_BUZZ STEPPER=stepper_y')
   })
 
+  it('shows the stepper check result for the stepper chosen, not for the last one run', async () => {
+    const printerConfig = await import('@/stores/printerConfig')
+    vi.spyOn(printerConfig.usePrinterConfigStore(pinia), 'settings', 'get').mockReturnValue({
+      stepper_x: {},
+      stepper_y: {},
+    })
+    const calibration = (await import('@/stores/calibration')).useCalibrationStore(pinia)
+    const view = await mountView()
+    await selectProcedure(view, 'stepperBuzz')
+    const rows = view.findAll('.calibration-choice__row')
+
+    // Nothing has run yet.
+    expect(view.find('.calibration-result').exists()).toBe(false)
+
+    vi.spyOn(useMoonrakerStore(pinia), 'rpcCall').mockResolvedValue('ok' as never)
+    await runButton(view).trigger('click')
+    await flushPromises()
+    expect(view.find('.calibration-result').text()).toContain('stepper_x')
+
+    await rows[1]!.get('input').setValue(true)
+    expect(view.find('.calibration-result').exists()).toBe(false)
+    expect(calibration.runFor('stepperBuzz', 'stepper_x')).not.toBeNull()
+
+    await rows[0]!.get('input').setValue(true)
+    expect(view.find('.calibration-result').text()).toContain('stepper_x')
+  })
+
   /**
    * The step angle is the part a Marlin habit gets wrong: it lives in its own
    * option and changes steps per mm, never rotation_distance, and a CoreXY's
@@ -990,8 +1017,11 @@ describe('Calibration view', () => {
             at: Date.now() - 3_600_000,
             values: {},
             rows: [
-              { label: { key: 'calibration.result.range' }, after: '0.012' },
-              { label: { literal: 'standard deviation' }, after: '0.004' },
+              { label: { key: 'calibration.probe.maximum' }, after: '1.234' },
+              { label: { key: 'calibration.probe.minimum' }, after: '1.222' },
+              { label: { key: 'calibration.probe.range' }, after: '0.012' },
+              { label: { key: 'calibration.probe.average' }, after: '1.228' },
+              { label: { key: 'calibration.probe.standardDeviation' }, after: '0.004' },
             ],
             outcome: 'measured',
           },
@@ -1009,9 +1039,9 @@ describe('Calibration view', () => {
     const rowFor = (id: string) =>
       rows.find((row) => row.text().includes(i18n.global.t(`calibration.procedure.${id}.name`)))!
 
-    // A logged run's values, in the order the result showed them.
+    // A probe test says its spread, not its extremes.
     expect(rowFor('probeAccuracy').get('.calibration-procedure__value').text()).toBe(
-      'Range 0.012 · standard deviation 0.004',
+      'Range 0.012 · Standard deviation 0.004',
     )
     // Never run here, so the file's value, said to be the file's.
     expect(rowFor('probeZOffset').get('.calibration-procedure__value').text()).toBe(

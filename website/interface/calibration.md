@@ -248,7 +248,9 @@ retries and the final range, or the turn for each screw. The Movement module
 on the dashboard keeps its **Level bed** button.
 
 **Stepper check** moves one motor 1 mm back and forth ten times, to confirm
-which motor it is and which way it turns.
+which motor it is and which way it turns. Each stepper keeps its own result,
+answers and earlier runs, so choosing another stepper shows what that one
+found.
 
 ## Axis rotation distance
 

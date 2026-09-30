@@ -533,6 +533,15 @@ describe('what the printer is set to', () => {
   })
 })
 
+describe('what a list row shows', () => {
+  it('names the spread for the probe test, not its extremes', () => {
+    expect(procedureById('probeAccuracy')!.listRows).toEqual([
+      'calibration.probe.range',
+      'calibration.probe.standardDeviation',
+    ])
+  })
+})
+
 describe('what is due', () => {
   const day = 86_400_000
   const now = 1_000 * day

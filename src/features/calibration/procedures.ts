@@ -241,6 +241,19 @@ export interface CalibrationProcedure {
   /** Days after which the last run reads as old; null for a procedure that does not age. */
   staleAfterDays: number | null
   /**
+   * The parameter whose value a run is about, when one procedure is run once
+   * per thing and each has its own answer: the stepper a buzz test moved. A
+   * run, its answers and its history are kept per value, so choosing another
+   * stepper shows what that one found rather than the last run's result.
+   */
+  subject?: string
+  /**
+   * The message keys of the result rows the list line shows, in this order,
+   * where the first few rows are not the ones that say how it went: a probe
+   * test's spread, not its maximum and minimum.
+   */
+  listRows?: readonly string[]
+  /**
    * Procedures that do the same job by another route, of which running any one
    * is enough: Klipper's own shaper calibration and Shake&Tune's. A run of an
    * alternative keeps this one from being named next, and neither is named
@@ -1040,6 +1053,7 @@ export const calibrationProcedures: readonly CalibrationProcedure[] = [
   {
     id: 'stepperBuzz',
     stage: 'axes',
+    subject: 'STEPPER',
     command: 'STEPPER_BUZZ',
     available: (context) => steppers(context).length > 0,
     requires: ['notPrinting'],
@@ -1173,6 +1187,7 @@ export const calibrationProcedures: readonly CalibrationProcedure[] = [
   {
     id: 'probeAccuracy',
     stage: 'bed',
+    listRows: ['calibration.probe.range', 'calibration.probe.standardDeviation'],
     command: 'PROBE_ACCURACY',
     available: (context) => context.hasProbe,
     // It probes wherever the toolhead stands, and the probe is not the nozzle.
@@ -1901,6 +1916,29 @@ export function proceduresForStage(
   return calibrationProcedures.filter(
     (procedure) => procedure.stage === stage && procedure.available(context),
   )
+}
+
+/**
+ * Whether a procedure ever has a "last run" to say: one with a command runs,
+ * and the guided panels that measure by hand log their own results. The
+ * readouts (endstops, heater limits, runout sensors) neither run nor log, so
+ * "never run" would name something the reader has no way to do.
+ */
+export function hasRunRecord(procedure: CalibrationProcedure): boolean {
+  return (
+    procedure.panel === undefined ||
+    procedure.panel === 'axisRotation' ||
+    procedure.panel === 'rotationDistance' ||
+    procedure.panel === 'nonlinearPressureAdvance'
+  )
+}
+
+/** What a run of `procedure` with `values` is about; '' for a procedure with no subject. */
+export function procedureSubject(
+  procedure: CalibrationProcedure | undefined,
+  values: Readonly<Record<string, string | undefined>>,
+): string {
+  return procedure?.subject ? (values[procedure.subject]?.trim() ?? '') : ''
 }
 
 export function procedureById(id: string): CalibrationProcedure | undefined {

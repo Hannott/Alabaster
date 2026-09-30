@@ -3,6 +3,7 @@ import { computed, reactive, ref, watch } from 'vue'
 
 import {
   procedureById,
+  procedureSubject,
   rowsFromPendingItems,
   type CalibrationProcedure,
   type PendingItems,
@@ -42,6 +43,8 @@ interface StoredLog {
 
 export interface CalibrationRun {
   procedureId: ProcedureId
+  /** What the run was about, for a procedure that keeps results per thing; otherwise ''. */
+  subject: string
   script: string
   values: Record<string, string>
   before: ProcedureSnapshot
@@ -78,12 +81,41 @@ const logKey = 'log'
 /** Enough history to see a drift over a season, small enough to stay one read. */
 const entriesPerProcedure = 20
 
+/** One run is remembered per procedure, and per subject where a procedure has one. */
+function runKey(id: ProcedureId, subject: string): string {
+  return subject === '' ? id : `${id}:${subject}`
+}
+
 const levelingProcedures: Partial<Record<ProcedureId, LevelingMethod>> = {
   quadGantryLevel: 'quadGantryLevel',
   zTilt: 'zTilt',
   screwsTilt: 'screwsTiltAdjust',
   bedScrews: 'bedScrews',
   deltaCalibrate: 'deltaCalibrate',
+}
+
+/**
+ * Two copies of the log as one: every run either has, oldest first, capped per
+ * procedure. A procedure named in `cleared` is taken out of the remote copy
+ * first, since merging would bring its deleted entries straight back.
+ */
+function mergeLogs(
+  remote: CalibrationLog,
+  local: CalibrationLog,
+  cleared: readonly ProcedureId[] = [],
+): CalibrationLog {
+  const merged: CalibrationLog = { ...remote }
+  for (const id of cleared) delete merged[id]
+  for (const [id, entries] of Object.entries(local) as Array<
+    [ProcedureId, CalibrationLogEntry[]]
+  >) {
+    const byAt = new Map((merged[id] ?? []).map((entry) => [entry.at, entry]))
+    for (const entry of entries) byAt.set(entry.at, entry)
+    merged[id] = [...byAt.values()]
+      .sort((left, right) => left.at - right.at)
+      .slice(-entriesPerProcedure)
+  }
+  return merged
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -182,7 +214,7 @@ export const useCalibrationStore = defineStore('calibration', () => {
   const printer = usePrinterStore()
   const quickConfig = useQuickConfigStore()
 
-  const runs = reactive(new Map<ProcedureId, CalibrationRun>())
+  const runs = reactive(new Map<string, CalibrationRun>())
   const log = ref<CalibrationLog>({})
   const logLoaded = ref(false)
   const logFailed = ref(false)
@@ -204,12 +236,12 @@ export const useCalibrationStore = defineStore('calibration', () => {
       .map((entry) => entry.raw)
   }
 
-  function runFor(id: ProcedureId): CalibrationRun | null {
-    return runs.get(id) ?? null
+  function runFor(id: ProcedureId, subject = ''): CalibrationRun | null {
+    return runs.get(runKey(id, subject)) ?? null
   }
 
-  function linesFor(id: ProcedureId): string[] {
-    const run = runs.get(id)
+  function linesFor(id: ProcedureId, subject = ''): string[] {
+    const run = runs.get(runKey(id, subject))
     return run ? outputFor(run) : []
   }
 
@@ -220,10 +252,14 @@ export const useCalibrationStore = defineStore('calibration', () => {
    * fallback exists for; a parser that found rows already said more than the
    * staged list would, and keeps them.
    */
-  function resultFor(id: ProcedureId): ProcedureResult | null {
-    const run = runs.get(id)
-    const procedure = procedureById(id)
-    if (!run || !procedure?.parse) return null
+  function resultFor(id: ProcedureId, subject = ''): ProcedureResult | null {
+    const run = runs.get(runKey(id, subject))
+    return run ? resultOfRun(run) : null
+  }
+
+  function resultOfRun(run: CalibrationRun): ProcedureResult | null {
+    const procedure = procedureById(run.procedureId)
+    if (!procedure?.parse) return null
     const parsed = procedure.parse(outputFor(run), run.before, run.values, run.context)
     const staged = run.stagedRows
     let result = parsed
@@ -248,8 +284,12 @@ export const useCalibrationStore = defineStore('calibration', () => {
     return rows.length > run.stagedRows.length ? rows : run.stagedRows
   }
 
-  function historyFor(id: ProcedureId): readonly CalibrationLogEntry[] {
-    return log.value[id] ?? []
+  /** The runs of a procedure, or of one subject of it, oldest first. */
+  function historyFor(id: ProcedureId, subject = ''): readonly CalibrationLogEntry[] {
+    const entries = log.value[id] ?? []
+    if (subject === '') return entries
+    const procedure = procedureById(id)
+    return entries.filter((entry) => procedureSubject(procedure, entry.values) === subject)
   }
 
   function lastRunAt(id: ProcedureId): number | null {
@@ -267,12 +307,16 @@ export const useCalibrationStore = defineStore('calibration', () => {
         key: logKey,
       })
       if (generation !== loadGeneration) return
-      log.value = readStoredLog(response.value)
+      /*
+       * Merged, not replaced: a run can finish while this read is in flight
+       * (a reconnect reloads the log mid-sitting), and the printer's copy may
+       * not have that run yet. Replacing would send its row back to "never run".
+       */
+      log.value = mergeLogs(readStoredLog(response.value), log.value)
       logFailed.value = false
     } catch {
-      // Moonraker answers an error for a key never written: no runs logged yet.
+      // Moonraker answers an error for a key never written: nothing remote to add.
       if (generation !== loadGeneration) return
-      log.value = {}
     } finally {
       if (generation === loadGeneration) logLoaded.value = true
     }
@@ -298,17 +342,7 @@ export const useCalibrationStore = defineStore('calibration', () => {
     } catch {
       remote = {}
     }
-    const merged: CalibrationLog = { ...remote }
-    for (const id of cleared) delete merged[id]
-    for (const [id, entries] of Object.entries(log.value) as Array<
-      [ProcedureId, CalibrationLogEntry[]]
-    >) {
-      const byAt = new Map((merged[id] ?? []).map((entry) => [entry.at, entry]))
-      for (const entry of entries) byAt.set(entry.at, entry)
-      merged[id] = [...byAt.values()]
-        .sort((left, right) => left.at - right.at)
-        .slice(-entriesPerProcedure)
-    }
+    const merged = mergeLogs(remote, log.value, cleared)
     log.value = merged
     try {
       const value: StoredLog = { version: 1, procedures: merged }
@@ -325,7 +359,7 @@ export const useCalibrationStore = defineStore('calibration', () => {
 
   /** Records, or updates, the log entry for a run from what it has printed so far. */
   function recordRun(run: CalibrationRun): void {
-    const result = resultFor(run.procedureId)
+    const result = resultOfRun(run)
     const entry: CalibrationLogEntry = {
       at: run.startedAt,
       values: run.values,
@@ -378,8 +412,10 @@ export const useCalibrationStore = defineStore('calibration', () => {
     if (activeRun.value !== null || !procedure.build) return false
     const script = procedure.build(values, context)
     if (script === null) return false
+    const subject = procedureSubject(procedure, values)
     const record: CalibrationRun = {
       procedureId: procedure.id,
+      subject,
       script,
       values: { ...values },
       before: procedure.snapshot?.(values, context) ?? {},
@@ -392,9 +428,10 @@ export const useCalibrationStore = defineStore('calibration', () => {
       stagedRows: [],
       answers: [],
     }
-    runs.set(procedure.id, record)
+    const key = runKey(procedure.id, subject)
+    runs.set(key, record)
     const succeeded = await dispatch(procedure, script, values)
-    const current = runs.get(procedure.id)
+    const current = runs.get(key)
     if (current && current.startedAt === record.startedAt) {
       current.running = false
       current.succeeded = succeeded
@@ -435,7 +472,7 @@ export const useCalibrationStore = defineStore('calibration', () => {
       [...runs.values()].map((current) =>
         current.running || current.succeeded !== true
           ? -1
-          : (resultFor(current.procedureId)?.rows.length ?? 0),
+          : (resultOfRun(current)?.rows.length ?? 0),
       ),
     () => {
       for (const current of runs.values()) {
@@ -443,7 +480,7 @@ export const useCalibrationStore = defineStore('calibration', () => {
         const logged = log.value[current.procedureId]?.find(
           (entry) => entry.at === current.startedAt,
         )
-        const rows = resultFor(current.procedureId)?.rows.length ?? 0
+        const rows = resultOfRun(current)?.rows.length ?? 0
         if (logged && rows > logged.rows.length) recordRun(current)
       }
     },
@@ -454,8 +491,8 @@ export const useCalibrationStore = defineStore('calibration', () => {
    * right way — as the run's result, one row per question. Answered once per
    * run: a second set of answers replaces the first rather than adding to it.
    */
-  function answer(id: ProcedureId, rows: ProcedureResultRow[]): void {
-    const current = runs.get(id)
+  function answer(id: ProcedureId, rows: ProcedureResultRow[], subject = ''): void {
+    const current = runs.get(runKey(id, subject))
     if (!current || current.running || current.succeeded !== true) return
     current.answers = [...rows]
     recordRun(current)
@@ -484,7 +521,7 @@ export const useCalibrationStore = defineStore('calibration', () => {
    * the printer's, so this is the only copy.
    */
   function clearLog(id: ProcedureId): void {
-    runs.delete(id)
+    for (const [key, current] of runs) if (current.procedureId === id) runs.delete(key)
     const rest = { ...log.value }
     delete rest[id]
     log.value = rest

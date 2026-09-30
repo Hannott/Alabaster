@@ -7,6 +7,7 @@ import CalibrationCard from '@/components/calibration/CalibrationCard.vue'
 import { useProcedureContext } from '@/composables/useProcedureContext'
 import { useProcedureText } from '@/composables/useProcedureText'
 import {
+  hasRunRecord,
   isProcedureStale,
   type CalibrationProcedure,
   type ProcedureId,
@@ -47,7 +48,12 @@ function valueFor(procedure: CalibrationProcedure): string | null {
   const latest = calibration.historyFor(procedure.id).at(-1)
   const found = latest?.rows.filter((row) => row.after !== '') ?? []
   if (latest && latest.outcome !== 'failed' && found.length > 0) {
-    return found
+    const shown = procedure.listRows
+      ? procedure.listRows.flatMap((name) =>
+          found.filter((row) => 'key' in row.label && row.label.key === name),
+        )
+      : found
+    return (shown.length > 0 ? shown : found)
       .slice(0, valueLimit)
       .map((row) => `${text(row.label)} ${row.after}`)
       .join(' · ')
@@ -64,6 +70,7 @@ const rows = computed(() =>
       last: lastRun(at, now),
       stale: at === null ? false : isProcedureStale(procedure, at, now),
       running: calibration.activeRun?.procedureId === procedure.id,
+      recorded: hasRunRecord(procedure),
       value: valueFor(procedure),
     }
   }),
@@ -99,7 +106,7 @@ const options = computed(() =>
               >{{ t('calibration.bench.running') }}</span
             >
             <span
-              v-else
+              v-else-if="row.recorded"
               class="calibration-procedure__last"
               :class="{ 'calibration-procedure__last--stale': row.stale }"
               >{{ row.stale ? t('calibration.bench.stale', { when: row.last }) : row.last }}</span

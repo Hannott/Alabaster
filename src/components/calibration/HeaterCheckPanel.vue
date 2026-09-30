@@ -66,9 +66,6 @@ const heaters = computed(() =>
     class="calibration-workspace"
     :title="t('calibration.procedure.heaterCheck.name')"
   >
-    <template #aside>
-      <span class="calibration-workspace__command">verify_heater</span>
-    </template>
     <p class="calibration-workspace__description">
       {{ t('calibration.procedure.heaterCheck.detail') }}
     </p>
@@ -78,16 +75,21 @@ const heaters = computed(() =>
         {{ heater.label }}
         <span class="calibration-heater__kind">{{ heater.kind.toUpperCase() }}</span>
       </h3>
-      <table class="calibration-result__table">
+      <table class="calibration-result__table calibration-heater__table">
         <tbody>
           <tr v-for="entry in heater.model" :key="entry.option">
             <th scope="row">{{ entry.option }}</th>
-            <td class="calibration-result__number">{{ entry.value ?? '—' }}</td>
+            <td class="calibration-result__number calibration-heater__value">
+              {{ entry.value ?? '—' }}
+            </td>
+            <td></td>
           </tr>
           <tr v-for="entry in heater.verify" :key="entry.option">
             <th scope="row">{{ entry.option }}</th>
-            <td class="calibration-result__number">
+            <td class="calibration-result__number calibration-heater__value">
               {{ entry.value }}
+            </td>
+            <td>
               <span v-if="entry.isDefault" class="calibration-heater__default">{{
                 t('calibration.heaterCheck.default')
               }}</span>

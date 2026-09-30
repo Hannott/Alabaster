@@ -22,6 +22,7 @@ import {
   initialProcedureValues,
   missingProcedureValues,
   nextProcedure,
+  procedureSubject,
   type CalibrationProcedure,
   type ProcedureAction,
   type ProcedureId,
@@ -156,11 +157,15 @@ const fixIcons: Partial<Record<RequirementFixId, 'home' | 'move'>> = {
 const script = computed(() => props.procedure.build?.(values.value, context.value) ?? null)
 const missing = computed(() => missingProcedureValues(props.procedure, values.value))
 
-const run = computed(() => calibration.runFor(props.procedure.id))
+/*
+ * What the chosen values are about — the stepper a buzz test moves. A run, its
+ * answers and its history belong to it, so choosing another stepper shows what
+ * that one found and not the last run's card.
+ */
+const subject = computed(() => procedureSubject(props.procedure, values.value))
+const run = computed(() => calibration.runFor(props.procedure.id, subject.value))
 const isRunning = computed(() => run.value?.running === true)
-const otherRunning = computed(
-  () => calibration.activeRun !== null && calibration.activeRun.procedureId !== props.procedure.id,
-)
+const otherRunning = computed(() => calibration.activeRun !== null && !isRunning.value)
 
 const canRun = computed(
   () =>
@@ -204,13 +209,13 @@ async function startRun(): Promise<void> {
 
 const output = computed(() =>
   calibration
-    .linesFor(props.procedure.id)
+    .linesFor(props.procedure.id, subject.value)
     .flatMap((line) => line.split('\n'))
     .map((line) => line.replace(/^\s*\/\/\s?/, ''))
     .slice(-12),
 )
 const showOutput = ref(false)
-const result = computed(() => calibration.resultFor(props.procedure.id))
+const result = computed(() => calibration.resultFor(props.procedure.id, subject.value))
 const hasBefore = computed(
   () => result.value?.rows.some((row) => row.before !== undefined) ?? false,
 )
@@ -261,9 +266,12 @@ const outcomeText = computed(() => {
 /*
  * A procedure's questions, asked once its run has finished: the check rows
  * are the reader's answers, recorded into the run's result and its log entry
- * together. Kept per procedure while the page is open, like the values.
+ * together. Kept per procedure and subject while the page is open, like the values.
  */
 const answersById = ref<Record<string, Record<string, boolean>>>({})
+const answerScope = computed(() =>
+  subject.value === '' ? props.procedure.id : `${props.procedure.id}:${subject.value}`,
+)
 const askAnswers = computed(
   () =>
     run.value?.succeeded === true && !isRunning.value && (props.procedure.answers?.length ?? 0) > 0,
@@ -271,13 +279,13 @@ const askAnswers = computed(
 const answersRecorded = computed(() => (run.value?.answers.length ?? 0) > 0)
 
 function answerChecked(key: string): boolean {
-  return answersById.value[props.procedure.id]?.[key] ?? false
+  return answersById.value[answerScope.value]?.[key] ?? false
 }
 
 function setAnswer(key: string, checked: boolean): void {
   answersById.value = {
     ...answersById.value,
-    [props.procedure.id]: { ...answersById.value[props.procedure.id], [key]: checked },
+    [answerScope.value]: { ...answersById.value[answerScope.value], [key]: checked },
   }
 }
 
@@ -286,7 +294,7 @@ function recordAnswers(): void {
     label: { key: question.label },
     after: t(answerChecked(question.key) ? 'calibration.answer.yes' : 'calibration.answer.no'),
   }))
-  calibration.answer(props.procedure.id, rows)
+  calibration.answer(props.procedure.id, rows, subject.value)
 }
 
 /*
@@ -312,7 +320,7 @@ const nextText = computed(() => {
 })
 
 /** Every logged run, oldest first, including the one shown as the result. */
-const logged = computed(() => calibration.historyFor(props.procedure.id))
+const logged = computed(() => calibration.historyFor(props.procedure.id, subject.value))
 const trends = computed(() => trendSeries(props.procedure.id, logged.value))
 
 /** Five recent runs read at a glance; the whole log is there for comparing them. */
@@ -339,9 +347,9 @@ function summary(entry: (typeof history.value)[number]): string[] {
     : [t(`calibration.result.outcome.${entry.outcome}`)]
 }
 
-// What belongs to one procedure's view resets when another is chosen.
+// What belongs to one procedure's view resets when another is chosen, or another subject of it.
 watch(
-  () => props.procedure.id,
+  () => [props.procedure.id, subject.value],
   () => {
     confirmOpen.value = false
     showOutput.value = false
@@ -480,7 +488,9 @@ const effects = computed(() =>
         <h3 class="calibration-result__title">
           {{ isRunning ? t('calibration.bench.running') : t('calibration.result.title') }}
         </h3>
-        <span class="calibration-result__when">{{ when(run.startedAt) }}</span>
+        <span class="calibration-result__when">{{
+          [run.subject, when(run.startedAt)].filter(Boolean).join(' · ')
+        }}</span>
       </div>
 
       <CalibrationScrewsGrid v-if="result?.screws?.length" :screws="result.screws" />

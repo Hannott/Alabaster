@@ -194,13 +194,17 @@ describe('what the reader answered', () => {
     await run
     await flushPromises()
 
-    calibration.answer('stepperBuzz', [
-      { label: { key: 'calibration.answer.moved' }, after: 'yes' },
-      { label: { key: 'calibration.answer.direction' }, after: 'no' },
-    ])
+    calibration.answer(
+      'stepperBuzz',
+      [
+        { label: { key: 'calibration.answer.moved' }, after: 'yes' },
+        { label: { key: 'calibration.answer.direction' }, after: 'no' },
+      ],
+      'stepper_x',
+    )
     await flushPromises()
 
-    expect(calibration.resultFor('stepperBuzz')).toMatchObject({
+    expect(calibration.resultFor('stepperBuzz', 'stepper_x')).toMatchObject({
       outcome: 'measured',
       rows: [{ after: 'yes' }, { after: 'no' }],
     })
@@ -213,16 +217,75 @@ describe('what the reader answered', () => {
     const { calibration, finish } = setup()
     const run = calibration.run(procedureById('stepperBuzz')!, { STEPPER: 'stepper_x' }, context)
     await flushPromises()
-    calibration.answer('stepperBuzz', [
-      { label: { key: 'calibration.answer.moved' }, after: 'yes' },
-    ])
-    expect(calibration.resultFor('stepperBuzz')).toBeNull()
+    calibration.answer(
+      'stepperBuzz',
+      [{ label: { key: 'calibration.answer.moved' }, after: 'yes' }],
+      'stepper_x',
+    )
+    expect(calibration.resultFor('stepperBuzz', 'stepper_x')).toBeNull()
     await finish()
     await run
   })
 })
 
+describe('a procedure run once per stepper', () => {
+  it('keeps a result and a history per stepper, so one is never shown for another', async () => {
+    const { calibration, finish } = setup()
+    const buzz = procedureById('stepperBuzz')!
+    // A run's identity is when it started, so two runs need two different instants.
+    let now = 1_000_000
+    const runOn = async (stepper: string, line: string) => {
+      vi.spyOn(Date, 'now').mockReturnValue((now += 1000))
+      const started = calibration.run(buzz, { STEPPER: stepper }, context)
+      await flushPromises()
+      say(line)
+      await finish()
+      await started
+      await flushPromises()
+    }
+    await runOn('stepper_x', '// x buzzed')
+    calibration.answer(
+      'stepperBuzz',
+      [{ label: { key: 'calibration.answer.moved' }, after: 'yes' }],
+      'stepper_x',
+    )
+    await runOn('stepper_y', '// y buzzed')
+
+    expect(calibration.resultFor('stepperBuzz', 'stepper_x')?.rows).toEqual([
+      { label: { key: 'calibration.answer.moved' }, after: 'yes' },
+    ])
+    // The second stepper has its own run, with no answers given yet.
+    expect(calibration.runFor('stepperBuzz', 'stepper_y')?.answers).toEqual([])
+    expect(calibration.resultFor('stepperBuzz', 'stepper_y')?.rows).toEqual([])
+    // A stepper never run has nothing to show, whatever ran on the others.
+    expect(calibration.runFor('stepperBuzz', 'extruder')).toBeNull()
+    expect(calibration.historyFor('stepperBuzz', 'stepper_x')).toHaveLength(1)
+    expect(calibration.historyFor('stepperBuzz', 'stepper_y')).toHaveLength(1)
+    expect(calibration.historyFor('stepperBuzz', 'extruder')).toHaveLength(0)
+    expect(calibration.historyFor('stepperBuzz')).toHaveLength(2)
+  })
+})
+
 describe('the calibration log', () => {
+  it('keeps a run that finished while the log was being read again', async () => {
+    const database: Database = { value: undefined }
+    const { calibration, finish } = setup(database)
+    const run = calibration.run(procedureById('probeAccuracy')!, {}, context)
+    await flushPromises()
+    await finish()
+    await run
+    await flushPromises()
+    expect(calibration.lastRunAt('probeAccuracy')).not.toBeNull()
+
+    // The printer's copy has nothing yet, or has not been written at all.
+    database.value = { version: 1, procedures: {} }
+    await calibration.loadLog()
+    expect(calibration.lastRunAt('probeAccuracy')).not.toBeNull()
+    database.value = undefined
+    await calibration.loadLog()
+    expect(calibration.lastRunAt('probeAccuracy')).not.toBeNull()
+  })
+
   it('records a finished run in the printer’s database', async () => {
     const database: Database = { value: undefined }
     const { calibration, finish } = setup(database)

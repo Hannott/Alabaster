@@ -14252,6 +14252,31 @@ body.machine-editor-fullscreen-open {
   font-weight: var(--font-weight-increased);
 }
 
+/*
+ * The same three columns in every heater's table — name, value, note — at
+ * fixed widths, so a value sits in the same place under every heater however
+ * long its names run. Auto layout sized each table to its own longest name (a
+ * Kalico heater's `fan_ambient_transfer` against a bed's `pid_kd`), and the
+ * values, left-aligned after that name, stepped from one table to the next.
+ * Values are set against the end of their column so digits line up, and the
+ * "default" mark has a column of its own rather than pushing its value along.
+ */
+.calibration-heater__table {
+  table-layout: fixed;
+}
+
+.calibration-heater__table th {
+  inline-size: 55%;
+}
+
+.calibration-heater__table td:nth-child(2) {
+  inline-size: 20%;
+}
+
+.calibration-heater__table .calibration-heater__value {
+  text-align: end;
+}
+
 .calibration-heater__kind,
 .calibration-heater__default {
   color: var(--text-muted);
