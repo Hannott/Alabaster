@@ -373,6 +373,11 @@ describe('interaction and iconography contract', () => {
       'components/history/HistoryTrendChart.vue',
       // Calibration's sparkline draws a logged series as a line, for the same reason.
       'components/calibration/CalibrationSparkline.vue',
+      // The bed stage's live column draws the probe's samples, the probe against
+      // the nozzle, and the bed from above, for the same reason.
+      'components/calibration/ProbeSamplesCard.vue',
+      'components/calibration/ProbeOffsetCard.vue',
+      'components/calibration/BedLayoutCard.vue',
     ])
 
     for (const path of filesBelow(sourceRoot).filter((candidate) => candidate.endsWith('.vue'))) {

@@ -3,10 +3,15 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import AppIcon from '@/components/AppIcon.vue'
+import BedLayoutCard from '@/components/calibration/BedLayoutCard.vue'
 import CalibrationBench from '@/components/calibration/CalibrationBench.vue'
 import MeshProfilesPanel from '@/components/calibration/MeshProfilesPanel.vue'
+import ProbeOffsetCard from '@/components/calibration/ProbeOffsetCard.vue'
+import ProbeSamplesCard from '@/components/calibration/ProbeSamplesCard.vue'
 import HostedDashboardModule from '@/components/dashboard/HostedDashboardModule.vue'
 import BedMeshModule from '@/components/dashboard/modules/BedMeshModule.vue'
+import { layoutProcedures, type LayoutProcedure } from '@/features/calibration/bedContext'
+import type { CalibrationProcedure } from '@/features/calibration/procedures'
 import { useMeshProbeRunStore } from '@/stores/meshProbeRun'
 import { usePrinterConfigStore } from '@/stores/printerConfig'
 
@@ -14,22 +19,43 @@ import { usePrinterConfigStore } from '@/stores/printerConfig'
  * The bed as a surface: levelling, the mesh, the probe's offset and
  * repeatability, and whatever probe calibrations this printer's probe offers.
  *
- * The height map and the saved profiles are the live column, and it takes the
- * width: the map is what every procedure here changes or depends on, and a
- * mesh being probed fills in on it point by point while the run is going.
+ * The live column follows the open procedure, and it takes the width. A
+ * procedure whose subject is something other than the surface gets a picture
+ * of that subject: the probe's samples side on, the probe and the nozzle over
+ * the bed, the bed from above with its screws or its steppers and probe
+ * points. Every other procedure — the mesh itself, and the probe calibrations
+ * whose result is the surface they map — gets the height map and the saved
+ * profiles, the thing they change or depend on, which a mesh being probed
+ * fills in point by point while the run is going.
  */
 const { t } = useI18n({ useScope: 'global' })
 const printerConfig = usePrinterConfigStore()
 const probeRun = useMeshProbeRunStore()
 
 const hasBedMesh = computed(() => printerConfig.hasBedMesh)
+
+/** The open procedure, where it is drawn as the bed from above. */
+function layoutFor(procedure: CalibrationProcedure | null): LayoutProcedure | null {
+  const id = procedure?.id
+  return layoutProcedures.find((candidate) => candidate === id) ?? null
+}
+
+/** Whether the open procedure is about the surface, and so gets the map. */
+function showsMap(procedure: CalibrationProcedure | null): boolean {
+  const id = procedure?.id
+  return id !== 'probeAccuracy' && id !== 'probeZOffset' && layoutFor(procedure) === null
+}
 </script>
 
 <template>
   <CalibrationBench stage="bed" live-wide>
-    <template #live>
+    <template #live="{ procedure }">
+      <ProbeSamplesCard v-if="procedure?.id === 'probeAccuracy'" />
+      <ProbeOffsetCard v-else-if="procedure?.id === 'probeZOffset'" />
+      <BedLayoutCard v-else-if="layoutFor(procedure)" :procedure="layoutFor(procedure)!" />
+
       <HostedDashboardModule
-        v-if="hasBedMesh"
+        v-if="hasBedMesh && showsMap(procedure)"
         module-id="bedMesh"
         :title="t('calibration.map.title')"
         class="calibration-stage__map"
@@ -65,7 +91,10 @@ const hasBedMesh = computed(() => printerConfig.hasBedMesh)
         <BedMeshModule live-probing force-probe-labels />
       </HostedDashboardModule>
 
-      <MeshProfilesPanel v-if="hasBedMesh" class="calibration-stage__profiles" />
+      <MeshProfilesPanel
+        v-if="hasBedMesh && showsMap(procedure)"
+        class="calibration-stage__profiles"
+      />
     </template>
   </CalibrationBench>
 </template>

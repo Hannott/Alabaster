@@ -200,6 +200,37 @@
       "provisional": "The shape is provisional while probing: each point is plotted against the average of the run so far, so it settles as more arrive.",
       "scanningProbe": "A scanning probe reports no per-point progress — the map fills in when the mesh finishes."
     },
+    "context": {
+      "samples": {
+        "title": "Probe samples",
+        "count": "{count} samples",
+        "lastRun": "Last run",
+        "empty": "Each sample is drawn here as the probe takes it.",
+        "waiting": "Waiting for the first sample.",
+        "summary": "{count} samples between {minimum} and {maximum} mm"
+      },
+      "offset": {
+        "title": "Probe offset",
+        "nozzle": "Nozzle",
+        "probe": "Probe",
+        "horizontal": "X {x} · Y {y} mm",
+        "millimetres": "{value} mm",
+        "staged": "Staged, not saved",
+        "missing": "The probe section sets no z_offset.",
+        "summary": "The probe sits {x} mm in X and {y} mm in Y from the nozzle. The nozzle is {z} mm above the bed when the probe triggers."
+      },
+      "layout": {
+        "screwsTitle": "Screws on the bed",
+        "levelingTitle": "Steppers and probe points",
+        "range": "Last range {value} mm",
+        "current": "Adjust now",
+        "unknown": "The bed size is not known yet.",
+        "screw": "Screw",
+        "stepper": "Z stepper",
+        "point": "Probe point, in order",
+        "nozzle": "Nozzle"
+      }
+    },
     "endstops": {
       "title": "Endstops",
       "hint": "Read again every couple of seconds while the printer is idle.",

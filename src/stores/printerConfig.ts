@@ -31,7 +31,7 @@ export type LevelingMethod =
  * all — so a printer using one of the less common sections cannot be
  * recognized by one and missed by the other.
  */
-const probeSections = [
+export const probeSections = [
   'probe',
   'bltouch',
   'smart_effector',

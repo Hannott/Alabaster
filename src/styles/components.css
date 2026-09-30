@@ -13727,6 +13727,277 @@ body.machine-editor-fullscreen-open {
   margin-block-start: 0.25rem;
 }
 
+/*
+ * The bed stage's live column for a procedure that is not about the surface:
+ * the probe's samples, the probe against the nozzle, the bed from above.
+ * Drawings rather than charts, so they share one set of strokes and labels
+ * and none of the data palette. Strokes keep their width however the drawing
+ * scales — the bed plan is drawn in millimetres — and a figure stops at a
+ * reading size rather than filling a wide column: a 300 mm bed drawn 60 rem
+ * across is taller than the screen.
+ */
+.calibration-context__figure {
+  display: block;
+  inline-size: 100%;
+  max-inline-size: 36rem;
+  max-block-size: 30rem;
+  margin-inline: auto;
+  overflow: visible;
+}
+
+.calibration-context__figure line,
+.calibration-context__figure polyline,
+.calibration-context__figure polygon,
+.calibration-context__figure rect,
+.calibration-context__figure circle,
+.calibration-context__figure ellipse {
+  vector-effect: non-scaling-stroke;
+}
+
+.calibration-context__label {
+  fill: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.calibration-context__value {
+  fill: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.calibration-context__guide {
+  stroke: var(--text-muted);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
+
+.calibration-context__dimension {
+  fill: none;
+  stroke: var(--action-primary);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.calibration-context__aside {
+  color: var(--text-muted);
+  font-size: var(--text-hint-size);
+}
+
+.calibration-context__aside--mono {
+  font-family: var(--font-mono);
+}
+
+.calibration-context__facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 1.25rem;
+  margin: 0;
+}
+
+.calibration-context__fact {
+  display: flex;
+  gap: 0.4rem;
+  align-items: baseline;
+}
+
+.calibration-context__fact dt {
+  color: var(--text-muted);
+  font-size: var(--text-hint-size);
+}
+
+.calibration-context__fact dd {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-value-size);
+  font-variant-numeric: tabular-nums;
+}
+
+.calibration-context__fact--staged dd {
+  color: var(--status-caution-text);
+}
+
+.calibration-context__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 1rem;
+  margin: 0;
+  padding: 0;
+  color: var(--text-muted);
+  font-size: var(--text-hint-size);
+  list-style: none;
+}
+
+.calibration-context__legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.calibration-context__key {
+  display: inline-block;
+  inline-size: 0.7rem;
+  block-size: 0.7rem;
+  border: 1.5px solid var(--text-primary);
+}
+
+.calibration-context__key--screw {
+  border-radius: 50%;
+}
+
+.calibration-context__key--stepper {
+  border-radius: 0.1rem;
+  background: var(--surface-soft);
+}
+
+.calibration-context__key--point {
+  inline-size: 0.55rem;
+  block-size: 0.55rem;
+  border-color: var(--action-primary);
+  border-radius: 50%;
+  background: var(--action-primary);
+}
+
+.calibration-context__key--nozzle {
+  border-color: var(--accent-primary);
+  border-radius: 50%;
+}
+
+/* Probe samples: the band from lowest to highest, a line per sample. */
+.calibration-samples__band {
+  fill: var(--surface-soft);
+}
+
+.calibration-samples__deviation {
+  fill: color-mix(in srgb, var(--action-primary) 14%, transparent);
+}
+
+.calibration-samples__edge {
+  stroke: var(--border-subtle);
+  stroke-width: 1;
+}
+
+.calibration-samples__reference {
+  stroke: var(--text-muted);
+  stroke-width: 1;
+  stroke-dasharray: 4 3;
+}
+
+.calibration-samples__sample {
+  stroke: var(--action-primary);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+}
+
+/* Probe offset: the toolhead in outline over a solid bed. */
+.calibration-offset__part {
+  fill: var(--surface-raised);
+  stroke: var(--text-primary);
+  stroke-width: 1.5;
+}
+
+.calibration-offset__stem,
+.calibration-offset__pin {
+  stroke: var(--text-primary);
+  stroke-width: 1.5;
+}
+
+.calibration-offset__trigger {
+  fill: var(--action-primary);
+}
+
+.calibration-offset__bed {
+  fill: var(--surface-soft);
+  stroke: var(--border-subtle);
+  stroke-width: 1;
+}
+
+/*
+ * The bed from above. A screw's state is its words under it — "Base",
+ * "Level", the turn — and the ring only repeats them.
+ */
+.calibration-layout__bed {
+  fill: var(--surface-soft);
+  stroke: var(--border-subtle);
+  stroke-width: 1;
+}
+
+.calibration-layout__path {
+  fill: none;
+  stroke: var(--action-primary);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+  opacity: 0.6;
+}
+
+.calibration-layout__point {
+  fill: var(--action-primary);
+}
+
+.calibration-layout__point-number {
+  fill: var(--action-on-primary);
+  font-family: var(--font-mono);
+  font-weight: var(--font-weight-increased);
+}
+
+.calibration-layout__stepper {
+  fill: var(--surface-raised);
+  stroke: var(--text-primary);
+  stroke-width: 1.5;
+}
+
+.calibration-layout__screw circle {
+  fill: var(--surface-raised);
+  stroke: var(--text-primary);
+  stroke-width: 1.5;
+}
+
+.calibration-layout__screw line {
+  stroke: var(--text-primary);
+  stroke-width: 1.5;
+}
+
+.calibration-layout__screw--base circle,
+.calibration-layout__screw--current circle {
+  stroke: var(--accent-primary);
+  stroke-width: 2.5;
+}
+
+.calibration-layout__screw--level circle {
+  stroke: var(--status-available);
+  stroke-width: 2.5;
+}
+
+.calibration-layout__screw-text {
+  fill: var(--text-muted);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.calibration-layout__screw-text--name {
+  fill: var(--text-primary);
+  font-family: var(--font-sans);
+}
+
+.calibration-layout__screw--level
+  .calibration-layout__screw-text:not(.calibration-layout__screw-text--name) {
+  fill: var(--status-available);
+}
+
+.calibration-layout__nozzle circle {
+  fill: none;
+  stroke: var(--accent-primary);
+  stroke-width: 2;
+}
+
+.calibration-layout__nozzle line {
+  stroke: var(--accent-primary);
+  stroke-width: 1.5;
+}
+
 .calibration-result__outcome {
   font-size: var(--text-hint-size);
 }

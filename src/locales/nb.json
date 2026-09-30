@@ -200,6 +200,37 @@
       "provisional": "Formen er foreløpig mens den prober: hvert punkt plottes mot gjennomsnittet av kjøringen så langt, så den setter seg etter hvert som flere kommer inn.",
       "scanningProbe": "En skannende probe rapporterer ingen framdrift per punkt — kartet fylles ut når meshet er ferdig."
     },
+    "context": {
+      "samples": {
+        "title": "Probeprøver",
+        "count": "{count} prøver",
+        "lastRun": "Siste kjøring",
+        "empty": "Hver prøve tegnes her etter hvert som proben tar den.",
+        "waiting": "Venter på første prøve.",
+        "summary": "{count} prøver mellom {minimum} og {maximum} mm"
+      },
+      "offset": {
+        "title": "Probeforskyvning",
+        "nozzle": "Dyse",
+        "probe": "Probe",
+        "horizontal": "X {x} · Y {y} mm",
+        "millimetres": "{value} mm",
+        "staged": "Klar, ikke lagret",
+        "missing": "Probeseksjonen setter ingen z_offset.",
+        "summary": "Proben sitter {x} mm i X og {y} mm i Y fra dysen. Dysen er {z} mm over sengen når proben utløses."
+      },
+      "layout": {
+        "screwsTitle": "Skruer på sengen",
+        "levelingTitle": "Steppere og probepunkter",
+        "range": "Siste spenn {value} mm",
+        "current": "Juster nå",
+        "unknown": "Sengestørrelsen er ikke kjent ennå.",
+        "screw": "Skrue",
+        "stepper": "Z-stepper",
+        "point": "Probepunkt, i rekkefølge",
+        "nozzle": "Dyse"
+      }
+    },
     "endstops": {
       "title": "Endestopp",
       "hint": "Leses på nytt hvert par sekund mens skriveren er ledig.",

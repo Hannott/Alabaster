@@ -12,7 +12,7 @@ import RotationDistancePanel from '@/components/calibration/RotationDistancePane
 import RunoutSensorsPanel from '@/components/calibration/RunoutSensorsPanel.vue'
 import { useCalibrationSelection } from '@/composables/useCalibrationSelection'
 import { useProcedureContext } from '@/composables/useProcedureContext'
-import { proceduresForStage } from '@/features/calibration/procedures'
+import { proceduresForStage, type CalibrationProcedure } from '@/features/calibration/procedures'
 import type { CalibrationStageId } from '@/features/calibration/stages'
 
 /**
@@ -33,7 +33,13 @@ const props = defineProps<{
   skipConfirm?: boolean | undefined
 }>()
 
-defineSlots<{ live(): unknown }>()
+defineSlots<{
+  /**
+   * Given the open procedure, so a stage can put what that procedure is about
+   * in the live column instead of the same card for every one of them.
+   */
+  live(props: { procedure: CalibrationProcedure | null }): unknown
+}>()
 
 /** Forwarded from `CalibrationProcedureWorkspace`, up to whichever stage passed `skipConfirm`. */
 const emit = defineEmits<{ skip: [] }>()
@@ -95,7 +101,7 @@ const selected = computed(() => {
       </div>
 
       <div class="calibration-bench__column calibration-bench__column--live">
-        <slot name="live"></slot>
+        <slot name="live" :procedure="selected"></slot>
       </div>
     </div>
   </div>

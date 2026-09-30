@@ -11,13 +11,13 @@ physical dependencies run. Each job lists the calibrations your printer can run
 there. Within a job, what checks that the hardware works comes first, and
 what adjusts it after.
 
-| Job              | Calibrations                                                                                                                           | Beside them           |
-| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------- | --------------------- |
-| **Axes & frame** | Endstop check, stepper check, axis rotation distance, Z endstop position, endstop phase, TMC autotune                                  | The Movement controls |
-| **Heaters**      | Heater limits, heater model (PID or MPC)                                                                                               | The temperature chart |
-| **Bed & probe**  | Probe accuracy, probe Z offset, bed screws, quad gantry level or Z tilt, bed tilt, delta calibration, bed mesh, eddy and plugin probes | The height map        |
-| **Resonance**    | Accelerometer check and noise, axis map, belts, input shaper calibration, Shake&Tune shaper, vibrations                                | The Shake&Tune graphs |
-| **Extrusion**    | Filament sensors, rotation distance, pressure advance or nonlinear pressure advance                                                    | The extruder controls |
+| Job              | Calibrations                                                                                                                           | Beside them                                      |
+| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------ |
+| **Axes & frame** | Endstop check, stepper check, axis rotation distance, Z endstop position, endstop phase, TMC autotune                                  | The Movement controls                            |
+| **Heaters**      | Heater limits, heater model (PID or MPC)                                                                                               | The temperature chart                            |
+| **Bed & probe**  | Probe accuracy, probe Z offset, bed screws, quad gantry level or Z tilt, bed tilt, delta calibration, bed mesh, eddy and plugin probes | What the calibration measures, or the height map |
+| **Resonance**    | Accelerometer check and noise, axis map, belts, input shaper calibration, Shake&Tune shaper, vibrations                                | The Shake&Tune graphs                            |
+| **Extrusion**    | Filament sensors, rotation distance, pressure advance or nonlinear pressure advance                                                    | The extruder controls                            |
 
 The card beside a job is the dashboard's own, showing the part a calibration
 reaches for: the Movement card's homing, jog and park controls on **Axes &
@@ -105,6 +105,29 @@ Calibration stages a change instead of writing it. The header's
 [**Save new config**](/interface/configuration) control appears when something
 is waiting, says what would be written, and writes it.
 :::
+
+## Seeing what a bed calibration measures
+
+On **Bed & probe**, the column beside a calibration draws what that
+calibration is about:
+
+- **Probe accuracy** plots every sample at the height it triggered, in the
+  order it was taken, as the probe takes it. A single outlier, a steady drift
+  while the probe warms, and an even scatter look different here even when
+  their range is the same. An earlier run is drawn from its lowest, highest,
+  average and median heights.
+- **Probe Z offset** shows the probe and the nozzle over the bed at the moment
+  the probe triggers, with the saved `x_offset`, `y_offset` and `z_offset`, and
+  a new `z_offset` that is waiting for `SAVE_CONFIG`.
+- **Bed screws** draws the bed to scale with each screw where the
+  configuration puts it, and the turn and height the last check found at each.
+  **Bed screws by hand** draws its screws the same way and marks the one the
+  nozzle is standing at.
+- **Quad gantry level** and **Z tilt** draw the Z steppers and the probe points
+  in the order they are probed, with the range of the last run.
+
+Once X and Y are homed, the nozzle is marked on the bed. Every other bed
+calibration shows the height map.
 
 ## Watching a mesh being probed
 
