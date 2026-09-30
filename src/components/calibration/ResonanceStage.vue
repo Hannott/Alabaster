@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import BeltGuideCard from '@/components/calibration/BeltGuideCard.vue'
 import CalibrationBench from '@/components/calibration/CalibrationBench.vue'
 import ShaperFitsCard from '@/components/calibration/ShaperFitsCard.vue'
 import TuningResultsPanel from '@/components/calibration/TuningResultsPanel.vue'
@@ -20,6 +21,10 @@ import type { ShakeTuneCategory } from '@/stores/shakeTune'
  * orientation plot, the belts their comparison — rather than whichever graph
  * of any kind is newest; `AXES_MAP_CALIBRATION` is Shake&Tune's alone, and
  * its plot already draws the chip's axes against the machine's.
+ *
+ * The belt comparison adds its guide under the graphs rather than above them:
+ * the guide's inputs are read off the graph, and opening it above would push
+ * the graph being read out of view.
  */
 
 const graphCategories: Partial<Record<ProcedureId, ShakeTuneCategory>> = {
@@ -39,6 +44,7 @@ function categoryFor(procedure: CalibrationProcedure | null): ShakeTuneCategory 
     <template #live="{ procedure }">
       <ShaperFitsCard v-if="procedure?.id === 'shaperCalibrate'" />
       <TuningResultsPanel v-else :category="categoryFor(procedure)" />
+      <BeltGuideCard v-if="procedure?.id === 'shakeTuneBelts'" />
     </template>
   </CalibrationBench>
 </template>

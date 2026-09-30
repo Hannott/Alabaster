@@ -340,6 +340,57 @@
         "staticFrequency": "Statisk frekvens"
       }
     },
+    "beltGuide": {
+      "title": "Slik leses belte-grafen",
+      "expand": "Vis belte-guiden",
+      "collapse": "Skjul belte-guiden",
+      "toothCount": "Beltene må ha like mange tenner. Én tann forskjell holder kurvene fra hverandre uansett stramming.",
+      "unpairedSource": "Uparede topper, nummerert i rødt, kommer fra beltebanen: tomgangshjul, pulleys, et belte som rir på en flens. Stramming flytter dem ikke.",
+      "lowerIsLooser": "Den laveste toppen er det løseste beltet. Hvilket belte som har riktig stramming, krever en klimpretest eller en strammingsmåler.",
+      "notTension": "Toppene sammenligner beltene med hverandre. En frekvens alene er ikke en måling av stramming.",
+      "beltStepper": "Belte {name} · {stepper}",
+      "peaks": "Topper, belte {name}",
+      "peaksPlaceholderFirst": "α1, β1",
+      "peaksPlaceholderSecond": "α2, β2",
+      "peaksInvalid": "Frekvenser i Hz, skilt med komma.",
+      "unpaired": "Uparede topper",
+      "atTarget": "Målt til riktig stramming",
+      "atTargetNone": "Ingen belte målt til riktig stramming",
+      "atTargetBelt": "Belte {name} har riktig stramming",
+      "belt": "Belte {name}",
+      "gap": "Avvik",
+      "verdict": {
+        "incomplete": "Skriv inn toppene som er merket på hver kurve.",
+        "beltPathTitle": "Beltebanen først",
+        "beltPath": "Uparede topper: {count}. Sjekk tomgangshjul, settskruer på pulleys og at beltet løper rett, og kjør på nytt.",
+        "disagreeTitle": "Toppene er uenige",
+        "disagree": "Ett par har belte {first} høyest, et annet belte {second}. Det er beltebanen, ikke strammingen.",
+        "matchedTitle": "Like",
+        "matched": "Innenfor avlesningspresisjonen ({offset}). Ingen endring trengs.",
+        "looserTitle": "Belte {name} er løsest",
+        "looser": "{offset} lavere frekvens.",
+        "either": "Stram belte {looser} litt om gangen og kjør på nytt. Er det allerede riktig strammet, slakk belte {tighter} i stedet.",
+        "tightenLooser": "Stram belte {looser} litt om gangen og kjør på nytt.",
+        "loosenTighter": "Slakk belte {tighter} litt om gangen og kjør på nytt."
+      },
+      "cross": {
+        "title": "Kryssjekk mot aksene",
+        "hint": "Hovedtoppene for X og Y kommer fra input shaper-grafene. Portalen er alt som beveger seg i Y utenom verktøyhodet.",
+        "toolheadMass": "Masse, verktøyhode",
+        "gantryMass": "Masse, portal",
+        "xPeak": "Hovedtopp X",
+        "yPeak": "Hovedtopp Y",
+        "axis": "Akse",
+        "expected": "Forventet",
+        "measured": "Målt",
+        "needsMasses": "Skriv inn begge massene for å forutsi aksetoppene.",
+        "needsPair": "Trenger en paret belte-topp over.",
+        "belts": "{axis}: beltene styrer denne aksen.",
+        "softer": "{axis}: noe mykere enn beltene styrer denne aksen, for eksempel festet for verktøyhodet, portalen eller rammen. Stramming hever den ikke.",
+        "stiffer": "{axis}: høyere enn beltene tillater. Sjekk massene; toppen kan være en annen svingning.",
+        "accuracy": "Forutsagt fra den laveste parede belte-toppen, med omtrent ±{tolerance} nøyaktighet."
+      }
+    },
     "console": {
       "show": "Vis konsoll",
       "hide": "Skjul konsoll"
@@ -508,7 +559,8 @@
       "hertz": "Hz",
       "millimetresPerSecond": "mm/s",
       "millimetresPerSecondSquared": "mm/s²",
-      "degrees": "°C"
+      "degrees": "°C",
+      "grams": "g"
     },
     "rotation": {
       "heat": "Varm opp hotenden: {current} °C nå, minst {minimum} °C for å ekstrudere.",

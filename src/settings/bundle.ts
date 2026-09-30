@@ -39,6 +39,7 @@ import { useQuickConfigStore } from '@/stores/quickConfig'
 import { useDocumentationSiteStore } from '@/stores/documentationSite'
 import type { DocsSite } from '@/features/machine/docsLinks'
 import { useZMotionStore, type ZMotion } from '@/stores/zMotion'
+import { useBeltGuideStore, type BeltGuideValues } from '@/stores/beltGuide'
 import { defaultThemePackId, isThemePackId, type ThemePackId } from '@/themes/registry'
 import { isRecord } from '@/utils/records'
 
@@ -107,6 +108,11 @@ export interface SettingsBundle {
    * reports.
    */
   documentationSite: DocsSite | null
+  /**
+   * The belt guide's masses and last reading on the active printer. Null
+   * while nothing has been typed there.
+   */
+  beltGuide: BeltGuideValues | null
 }
 
 function isGcodeColorMode(value: unknown): value is GcodeColorMode {
@@ -131,6 +137,7 @@ export function collectSettingsBundle(): SettingsBundle {
   const quickConfig = useQuickConfigStore()
   const zMotion = useZMotionStore()
   const documentationSite = useDocumentationSiteStore()
+  const beltGuide = useBeltGuideStore()
 
   return {
     version: 1,
@@ -165,6 +172,7 @@ export function collectSettingsBundle(): SettingsBundle {
     quickConfigColumns: quickConfig.storedColumns,
     zMotion: zMotion.stored,
     documentationSite: documentationSite.stored,
+    beltGuide: beltGuide.stored,
   }
 }
 
@@ -195,6 +203,7 @@ export async function applySettingsBundle(input: unknown): Promise<void> {
   const quickConfig = useQuickConfigStore()
   const zMotion = useZMotionStore()
   const documentationSite = useDocumentationSiteStore()
+  const beltGuide = useBeltGuideStore()
 
   if (isRecord(input.theme)) {
     if (typeof input.theme.mode === 'string' && isThemeMode(input.theme.mode)) {
@@ -242,6 +251,7 @@ export async function applySettingsBundle(input: unknown): Promise<void> {
   if (input.quickConfigColumns !== undefined) quickConfig.setColumns(input.quickConfigColumns)
   if (input.zMotion !== undefined) zMotion.replace(input.zMotion)
   if (input.documentationSite !== undefined) documentationSite.replace(input.documentationSite)
+  if (input.beltGuide !== undefined) beltGuide.replace(input.beltGuide)
   if (isRecord(input.gcodeViewer)) {
     const viewer = input.gcodeViewer
     if (isGcodeColorMode(viewer.colorMode)) gcodeViewer.setColorMode(viewer.colorMode)
@@ -288,5 +298,6 @@ export function defaultSettingsBundle(): SettingsBundle {
     quickConfigColumns: null,
     zMotion: null,
     documentationSite: null,
+    beltGuide: null,
   }
 }

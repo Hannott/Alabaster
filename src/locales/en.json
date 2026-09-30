@@ -340,6 +340,57 @@
         "staticFrequency": "Static frequency"
       }
     },
+    "beltGuide": {
+      "title": "Reading the belt graph",
+      "expand": "Show the belt guide",
+      "collapse": "Hide the belt guide",
+      "toothCount": "Both belts need the same tooth count. One tooth apart keeps the curves apart at any tension.",
+      "unpairedSource": "Unpaired peaks, numbered in red, come from the belt path: idlers, pulleys, a belt riding a flange. Tension does not move them.",
+      "lowerIsLooser": "The lower peak is the looser belt. Which belt is at the right tension takes a pluck test or a tension gauge.",
+      "notTension": "The peaks compare the belts with each other. A frequency on its own is not a tension reading.",
+      "beltStepper": "Belt {name} · {stepper}",
+      "peaks": "Belt {name} peaks",
+      "peaksPlaceholderFirst": "α1, β1",
+      "peaksPlaceholderSecond": "α2, β2",
+      "peaksInvalid": "Frequencies in Hz, separated by commas.",
+      "unpaired": "Unpaired peaks",
+      "atTarget": "Measured at target tension",
+      "atTargetNone": "No belt measured at target",
+      "atTargetBelt": "Belt {name} at target",
+      "belt": "Belt {name}",
+      "gap": "Gap",
+      "verdict": {
+        "incomplete": "Enter the peaks marked on each curve.",
+        "beltPathTitle": "Belt path first",
+        "beltPath": "Unpaired peaks: {count}. Check idlers, pulley set screws and belt tracking, then rerun.",
+        "disagreeTitle": "Peaks disagree",
+        "disagree": "One pair has belt {first} higher, another belt {second}. That is the belt path, not tension.",
+        "matchedTitle": "Matched",
+        "matched": "Within reading precision ({offset}). No change needed.",
+        "looserTitle": "Belt {name} is looser",
+        "looser": "{offset} lower in frequency.",
+        "either": "Tighten belt {looser} in small steps and rerun. If it is already at target, loosen belt {tighter} instead.",
+        "tightenLooser": "Tighten belt {looser} in small steps and rerun.",
+        "loosenTighter": "Loosen belt {tighter} in small steps and rerun."
+      },
+      "cross": {
+        "title": "Axis cross-check",
+        "hint": "X and Y main peaks come from the input shaper graphs. The gantry is everything that moves in Y besides the toolhead.",
+        "toolheadMass": "Toolhead mass",
+        "gantryMass": "Gantry mass",
+        "xPeak": "X main peak",
+        "yPeak": "Y main peak",
+        "axis": "Axis",
+        "expected": "Expected",
+        "measured": "Measured",
+        "needsMasses": "Enter both masses to predict the axis peaks.",
+        "needsPair": "Needs a paired belt peak above.",
+        "belts": "{axis}: the belts set this axis.",
+        "softer": "{axis}: something softer than the belts sets this axis, such as the toolhead mount, gantry or frame. Tensioning will not raise it.",
+        "stiffer": "{axis}: higher than the belts allow. Check the masses; the peak may be another mode.",
+        "accuracy": "Predicted from the lowest paired belt peak, to about ±{tolerance}."
+      }
+    },
     "console": {
       "show": "Show console",
       "hide": "Hide console"
@@ -508,7 +559,8 @@
       "hertz": "Hz",
       "millimetresPerSecond": "mm/s",
       "millimetresPerSecondSquared": "mm/s²",
-      "degrees": "°C"
+      "degrees": "°C",
+      "grams": "g"
     },
     "rotation": {
       "heat": "Heat the hotend: {current} °C now, at least {minimum} °C to extrude.",

@@ -14766,6 +14766,64 @@ body.machine-editor-fullscreen-open {
 }
 
 /*
+ * The belt guide is a flush card whose body is a disclosure, so the padding
+ * lives on the revealed element and collapses with it. Shut, the body holds
+ * nothing, and the strip's own rule would sit on the card's border as a
+ * doubled line.
+ */
+.calibration-card:has(> .calibration-card__body:empty) > .calibration-card__header {
+  border-block-end: 0;
+}
+
+.calibration-belt-guide {
+  display: grid;
+  gap: 0.85rem;
+  padding: 0.85rem 0.75rem;
+}
+
+.calibration-belt-guide__notes {
+  display: grid;
+  gap: 0.35rem;
+  max-inline-size: 70ch;
+  padding-inline-start: 1.1rem;
+  list-style: disc;
+  font-size: var(--text-hint-size);
+  color: var(--text-muted);
+}
+
+.calibration-belt-guide__steppers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.calibration-belt-guide__stepper {
+  padding: 0.1rem 0.45rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: 0.25rem;
+  font-family: var(--font-mono);
+  font-size: var(--text-meta-size);
+  color: var(--text-muted);
+}
+
+.calibration-belt-guide__verdict {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.calibration-belt-guide__body {
+  font-size: var(--text-hint-size);
+}
+
+.calibration-belt-guide__cross {
+  display: grid;
+  gap: 0.6rem;
+  padding-block-start: 0.85rem;
+  border-block-start: 1px solid var(--border-subtle);
+}
+
+/*
  * The resonance stage reads a graph rather than browsing crops of them. It used
  * to be one horizontal strip of `object-fit: cover` thumbnails per category,
  * and three failures shared that one rule: a cover-crop of a dense diagnostic

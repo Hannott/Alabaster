@@ -7,6 +7,7 @@ import { useConfirmationsStore } from '@/stores/confirmations'
 import { useDashboardLayoutStore } from '@/stores/dashboardLayout'
 import { useDocumentationSiteStore } from '@/stores/documentationSite'
 import { useZMotionStore } from '@/stores/zMotion'
+import { useBeltGuideStore } from '@/stores/beltGuide'
 
 /*
  * `@/settings/bundle` pulls in `useTheme`, which reads `window.matchMedia`
@@ -89,6 +90,19 @@ describe('settings bundle', () => {
 
     await applySettingsBundle(bundle)
     expect(documentationSite.stored).toBe('kalico')
+  })
+
+  it("carries the active printer's belt guide values, and clears them on a null", async () => {
+    const beltGuide = useBeltGuideStore()
+    beltGuide.update({ toolheadGrams: 800, gantryGrams: 600 })
+    const bundle = collectSettingsBundle()
+    expect(bundle.beltGuide).toMatchObject({ toolheadGrams: 800, gantryGrams: 600 })
+
+    await applySettingsBundle({ beltGuide: null })
+    expect(beltGuide.stored).toBeNull()
+
+    await applySettingsBundle(bundle)
+    expect(beltGuide.values).toMatchObject({ toolheadGrams: 800, gantryGrams: 600 })
   })
 
   it('leaves every field untouched when given something that is not a record', async () => {
