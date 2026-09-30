@@ -237,14 +237,6 @@
         "empty": "Every shaper Klipper fits is compared here once a calibration has run.",
         "waiting": "Waiting for the first axis to finish."
       },
-      "axesMap": {
-        "title": "Accelerometer orientation",
-        "printer": "Printer",
-        "file": "In the file",
-        "detected": "Detected",
-        "matches": "The detected map matches the file.",
-        "noChip": "No single accelerometer to read axes_map from."
-      },
       "motion": {
         "title": "Expected movement",
         "edgeBack": "Back",

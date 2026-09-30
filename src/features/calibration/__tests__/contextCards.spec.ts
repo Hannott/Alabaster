@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
 
-import { parseAxesMap, sameAxesMap } from '@/features/calibration/axesMapping'
 import { shaperFits } from '@/features/calibration/shaperFits'
 import { planDirectionKey, stepperMotion } from '@/features/calibration/stepperMotion'
 
@@ -45,29 +44,6 @@ describe('shaperFits', () => {
 
   it('reads a console entry holding several lines', () => {
     expect(shaperFits([axisOutput('x', 'mzv').join('\n')])).toHaveLength(1)
-  })
-})
-
-describe('axes map', () => {
-  it('turns the per-printer-axis map into where each chip axis points', () => {
-    expect(parseAxesMap('-y, x, z')).toEqual([
-      { chip: 'x', printer: 'y', sign: 1 },
-      { chip: 'y', printer: 'x', sign: -1 },
-      { chip: 'z', printer: 'z', sign: 1 },
-    ])
-    expect(parseAxesMap('')).toEqual(parseAxesMap('x,y,z'))
-  })
-
-  it('refuses a map that is not a permutation of x, y and z', () => {
-    expect(parseAxesMap('x,x,z')).toBeNull()
-    expect(parseAxesMap('x,y')).toBeNull()
-    expect(parseAxesMap('x,y,w')).toBeNull()
-  })
-
-  it('compares maps the way the log writes them', () => {
-    expect(sameAxesMap('-y, +x, z', '-y,x,z')).toBe(true)
-    expect(sameAxesMap(null, 'x,y,z')).toBe(true)
-    expect(sameAxesMap('y,x,z', 'x,y,z')).toBe(false)
   })
 })
 

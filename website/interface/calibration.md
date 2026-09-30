@@ -135,10 +135,10 @@ calibration shows the height map.
   machine, so you can answer whether it moved the right way. On CoreXY a
   single motor moves the toolhead diagonally; a Z stepper on a printer with
   Z tilt or quad gantry level is marked at the corner it lifts.
-- **Axis map** draws the accelerometer's own axes beside the printer's, as
-  the `axes_map` in the config file places them and, where a run found a
-  different one, as it found them. Compare the arrows with the markings on
-  the board.
+- **Axis map**, **Belt comparison**, **Input shaper graphs** and
+  **Vibration profile** open their own newest Shake&Tune graph, such as the
+  accelerometer orientation plot for the axis map, and switch to a new one
+  when a run finishes.
 - **Input shaper calibration** compares every shaper Klipper fitted for each
   axis: its frequency, the vibration it leaves, its smoothing and the
   acceleration it allows, with the recommended one and the one in the config

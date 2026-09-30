@@ -237,14 +237,6 @@
         "empty": "Alle shaperne Klipper tilpasser sammenlignes her når en kalibrering har kjørt.",
         "waiting": "Venter på at første akse blir ferdig."
       },
-      "axesMap": {
-        "title": "Akselerometerets retning",
-        "printer": "Skriver",
-        "file": "I filen",
-        "detected": "Funnet",
-        "matches": "Kartet som ble funnet stemmer med filen.",
-        "noChip": "Ingen entydig akselerometer å lese axes_map fra."
-      },
       "motion": {
         "title": "Forventet bevegelse",
         "edgeBack": "Bak",

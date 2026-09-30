@@ -12,7 +12,12 @@ import {
   resolveTuningSelection,
 } from '@/features/calibration/tuningSelection'
 import { createDateTimeFormatter } from '@/i18n/formats'
-import { shakeTuneCategories, useShakeTuneStore, type ShakeTuneResult } from '@/stores/shakeTune'
+import {
+  shakeTuneCategories,
+  useShakeTuneStore,
+  type ShakeTuneCategory,
+  type ShakeTuneResult,
+} from '@/stores/shakeTune'
 
 /**
  * Shake&Tune's graphs: the rows that choose one, and the pane that shows it,
@@ -23,6 +28,16 @@ import { shakeTuneCategories, useShakeTuneStore, type ShakeTuneResult } from '@/
  * procedures on the same stage, each with its own result; this panel is the
  * stage's live column.
  */
+const props = defineProps<{
+  /**
+   * The kind of graph the open procedure produces. Its newest graph is shown
+   * when the procedure is opened and whenever a run adds a newer one, so the
+   * axis map shows Shake&Tune's orientation plot rather than whichever graph
+   * of any kind happens to be newest.
+   */
+  category?: ShakeTuneCategory | undefined
+}>()
+
 const { locale, t } = useI18n({ useScope: 'global' })
 const shakeTune = useShakeTuneStore()
 const { availability: moonrakerAvailability } = useAvailability('moonraker')
@@ -78,6 +93,17 @@ watch(
       requestedPath.value = next.path
     }
   },
+)
+
+watch(
+  () => {
+    if (!props.category) return null
+    return newestTuningResult(shakeTune.resultsByCategory[props.category])?.path ?? null
+  },
+  (path) => {
+    if (path !== null) requestedPath.value = path
+  },
+  { immediate: true },
 )
 
 function pick(result: ShakeTuneResult): void {

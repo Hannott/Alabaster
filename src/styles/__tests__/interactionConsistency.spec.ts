@@ -378,8 +378,7 @@ describe('interaction and iconography contract', () => {
       'components/calibration/ProbeSamplesCard.vue',
       'components/calibration/ProbeOffsetCard.vue',
       'components/calibration/BedLayoutCard.vue',
-      // So do the accelerometer's axes and a stepper's expected movement.
-      'components/calibration/AxesMapCard.vue',
+      // So does a stepper's expected movement.
       'components/calibration/StepperMotionCard.vue',
     ])
 

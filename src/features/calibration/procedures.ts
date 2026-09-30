@@ -872,7 +872,7 @@ function compactAxesMap(value: string): string {
  * only one there is. Null where that is ambiguous, so the result offers no
  * write rather than guessing which chip's section the map belongs in.
  */
-export function axesMapChip(context: ProcedureContext): string | null {
+function axesMapChip(context: ProcedureContext): string | null {
   const chips = accelerometers(context)
   const tester = context.settings('resonance_tester')
   for (const option of ['accel_chip', 'accel_chip_x']) {
