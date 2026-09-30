@@ -5,11 +5,13 @@ import {
   type ScrewReading,
   type ScrewsTiltStatus,
 } from '@/features/calibration/screws'
+import { shaperFits } from '@/features/calibration/shaperFits'
 import type { CalibrationStageId } from '@/features/calibration/stages'
 import {
   latestShaperRecommendations,
   setInputShaperCommand,
   type ShaperRecommendation,
+  type ShaperRecommendationKind,
 } from '@/features/calibration/shaperRecommendation'
 
 /**
@@ -216,10 +218,30 @@ export type ProcedureAction =
  */
 export type ProcedureOutcome = 'staged' | 'applied' | 'measured' | 'done'
 
+/**
+ * One shaper a run offers for an axis. Shake&Tune names two per axis — one
+ * for performance, one for low vibrations — and Klipper's own calibration
+ * fits every shaper type and recommends one; the reader chooses which one
+ * Apply and Save config use, and `recommended` is the one chosen for them.
+ */
+export interface ShaperCandidate {
+  axis: 'x' | 'y'
+  shaperType: string
+  frequency: number
+  /** Shake&Tune's name for the pick; null for one of Klipper's fits. */
+  kind: ShaperRecommendationKind | null
+  recommended: boolean
+  /** Remaining vibration in percent, and the suggested acceleration, where Klipper printed them. */
+  vibrations?: number
+  maxAccel?: number
+}
+
 export interface ProcedureResult {
   rows: readonly ProcedureResultRow[]
   outcome: ProcedureOutcome
   actions?: readonly ProcedureAction[]
+  /** The shapers a run offers per axis, where it offers more than one to choose from. */
+  shaperCandidates?: readonly ShaperCandidate[]
   /** Bed screws with their place on the bed, for a result drawn as the bed rather than listed. */
   screws?: readonly ScrewReading[]
 }
@@ -291,6 +313,12 @@ export interface CalibrationProcedure {
    * before the log kept its actions.
    */
   actionsFromRows?: (rows: readonly ProcedureResultRow[]) => ProcedureAction[]
+  /**
+   * The interactive helper the command opens and leaves waiting: Klipper's
+   * manual probe for a paper test, or the bed screws walk. The run lasts
+   * until the helper closes rather than until the command returns.
+   */
+  helper?: 'manualProbe' | 'bedScrews'
   /**
    * Ask before running. The heater models heat for minutes and cannot be
    * stopped halfway without losing the run; everything else here is one the
@@ -747,25 +775,66 @@ export function parseShaperCalibrate(
     recommendations.push({ axis, kind: 'best', shaperType, frequency: Number(frequency) })
   }
   if (rows.length === 0) return outcomeOnly(lines)
-  return { rows, outcome: 'staged', actions: shaperActions(recommendations) }
+  const candidates: ShaperCandidate[] = shaperFits(lines).flatMap((axis) =>
+    axis.fits.map((fit) => ({
+      axis: axis.axis,
+      shaperType: fit.name,
+      frequency: fit.frequency,
+      kind: null,
+      recommended: fit.name === axis.recommended,
+      vibrations: fit.vibrations,
+      ...(fit.maxAccel === null ? {} : { maxAccel: fit.maxAccel }),
+    })),
+  )
+  return {
+    rows,
+    outcome: 'staged',
+    actions: shaperActions(recommendations),
+    ...(candidates.length > 0 ? { shaperCandidates: candidates } : {}),
+  }
+}
+
+/**
+ * The low-vibrations pick is not the default: the other recommendation on
+ * the same axis is the one the run chose. The reader can still choose it.
+ */
+function shaperActions(recommendations: readonly ShaperRecommendation[]): ProcedureAction[] {
+  return shaperActionsFor(
+    recommendations.filter((recommendation) => recommendation.kind !== 'lowVibrations'),
+  )
+}
+
+/** Each axis's recommended candidate, the choice a reader starts from. */
+export function defaultShaperPicks(
+  candidates: readonly ShaperCandidate[],
+): Partial<Record<'x' | 'y', ShaperCandidate>> {
+  const picks: Partial<Record<'x' | 'y', ShaperCandidate>> = {}
+  for (const candidate of candidates) {
+    const current = picks[candidate.axis]
+    if (!current || (candidate.recommended && !current.recommended)) {
+      picks[candidate.axis] = candidate
+    }
+  }
+  return picks
 }
 
 /**
  * One Apply and one Save config for the whole run, never one per axis: the
  * two axes are one tuning, and a printer left with X saved and Y only applied
- * is a state nobody chose. The low-vibrations pick is shown but not offered,
- * since the other recommendation on the same axis is the one the run chose.
+ * is a state nobody chose. The last pick for an axis wins.
  */
-function shaperActions(recommendations: readonly ShaperRecommendation[]): ProcedureAction[] {
+export function shaperActionsFor(
+  picks: readonly Pick<ShaperRecommendation, 'axis' | 'shaperType' | 'frequency'>[],
+): ProcedureAction[] {
   const chosen = new Map<ShaperRecommendation['axis'], ShaperRecommendation>()
-  for (const recommendation of recommendations) {
-    if (recommendation.kind === 'lowVibrations') continue
+  for (const pick of picks) {
+    const recommendation: ShaperRecommendation = { ...pick, kind: 'best' }
     if (setInputShaperCommand(recommendation) === null) continue
-    chosen.set(recommendation.axis, recommendation)
+    chosen.set(pick.axis, recommendation)
   }
-  const picks = [...chosen.values()].sort((left, right) => left.axis.localeCompare(right.axis))
-  if (picks.length === 0) return []
-  const words = picks.flatMap((pick) =>
+  const picked = [...chosen.values()].sort((left, right) => left.axis.localeCompare(right.axis))
+  if (picked.length === 0) return []
+  const words = picked.flatMap((pick) =>
     setInputShaperCommand(pick)!
       .replace(/^SET_INPUT_SHAPER /, '')
       .split(' '),
@@ -782,7 +851,7 @@ function shaperActions(recommendations: readonly ShaperRecommendation[]): Proced
       id: 'save-shaper',
       label: key('calibration.result.saveShapers'),
       section: 'input_shaper',
-      changes: picks.flatMap((pick) => [
+      changes: picked.flatMap((pick) => [
         { option: `shaper_type_${pick.axis}`, value: pick.shaperType },
         { option: `shaper_freq_${pick.axis}`, value: String(pick.frequency) },
       ]),
@@ -833,6 +902,13 @@ export function parseShakeTuneShaper(lines: readonly string[]): ProcedureResult 
     })),
     outcome: 'measured',
     actions: shaperActions(recommendations),
+    shaperCandidates: recommendations.map((recommendation) => ({
+      axis: recommendation.axis,
+      shaperType: recommendation.shaperType,
+      frequency: recommendation.frequency,
+      kind: recommendation.kind,
+      recommended: recommendation.kind !== 'lowVibrations',
+    })),
   }
 }
 
@@ -1095,6 +1171,7 @@ export const calibrationProcedures: readonly CalibrationProcedure[] = [
     requires: ['homed', 'notPrinting'],
     effects: ['moves'],
     duration: 'interactive',
+    helper: 'manualProbe',
     staleAfterDays: null,
     build: () => 'Z_ENDSTOP_CALIBRATE',
     snapshot: (_values, context) => ({
@@ -1155,6 +1232,7 @@ export const calibrationProcedures: readonly CalibrationProcedure[] = [
     requires: ['homed', 'notPrinting'],
     effects: ['moves', 'probes'],
     duration: 'interactive',
+    helper: 'manualProbe',
     staleAfterDays: 180,
     params: [chipParameter('probe_eddy_current')],
     build: (values) => buildWithWords('PROBE_EDDY_CURRENT_CALIBRATE', values, ['CHIP']),
@@ -1168,6 +1246,7 @@ export const calibrationProcedures: readonly CalibrationProcedure[] = [
     requires: ['homed', 'notPrinting'],
     effects: ['moves', 'probes'],
     duration: 'interactive',
+    helper: 'manualProbe',
     staleAfterDays: 180,
     build: () => 'BEACON_CALIBRATE',
     parse: (lines) => outcomeOnly(lines),
@@ -1180,6 +1259,7 @@ export const calibrationProcedures: readonly CalibrationProcedure[] = [
     requires: ['homed', 'notPrinting'],
     effects: ['moves', 'probes'],
     duration: 'interactive',
+    helper: 'manualProbe',
     staleAfterDays: 180,
     build: () => 'CARTOGRAPHER_CALIBRATE',
     parse: (lines) => outcomeOnly(lines),
@@ -1242,6 +1322,7 @@ export const calibrationProcedures: readonly CalibrationProcedure[] = [
     requires: ['homed', 'notPrinting', 'zeroedForZ'],
     effects: ['moves', 'probes'],
     duration: 'interactive',
+    helper: 'manualProbe',
     staleAfterDays: 180,
     build: () => 'PROBE_CALIBRATE',
     snapshot: (_values, context) => ({
@@ -1352,6 +1433,7 @@ export const calibrationProcedures: readonly CalibrationProcedure[] = [
     requires: ['homed', 'notPrinting'],
     effects: ['moves'],
     duration: 'interactive',
+    helper: 'bedScrews',
     staleAfterDays: 90,
     build: () => 'BED_SCREWS_ADJUST',
     parse: (lines) => outcomeOnly(lines),

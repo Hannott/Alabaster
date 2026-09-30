@@ -96,6 +96,19 @@ watch(stepper, () => {
   skipped.value = new Set()
 })
 
+/*
+ * A measurement is only true of the drive it was made with: once a written
+ * value is running, the proposal would be worked out again from it and the
+ * old reading, correcting it twice. The next reading starts from a move.
+ */
+watch(
+  () => [configured.value.rotationDistance, configured.value.fullSteps],
+  () => {
+    measured.value = null
+    moved.value = false
+  },
+)
+
 const unmet = computed(() =>
   (['homed', 'notPrinting'] as const)
     .map((requirement) => requirements.value[requirement])
@@ -127,6 +140,8 @@ function canMove(sign: 1 | -1): boolean {
     klipperAvailability.value.isAvailable &&
     unmet.value.length === 0 &&
     !moving.value &&
+    calibration.activeRun === null &&
+    !printer.pendingCommands.calibration &&
     (distance.value ?? 0) > 0 &&
     withinLimits(sign)
   )
@@ -145,6 +160,7 @@ const outOfRange = computed(
 async function move(sign: 1 | -1): Promise<void> {
   if (letter.value === null || distance.value === null) return
   moving.value = true
+  measured.value = null
   try {
     const feed = letter.value === 'Z' ? 300 : 1200
     moved.value = await printer.sendGcode(

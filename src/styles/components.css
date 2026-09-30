@@ -13578,6 +13578,11 @@ body.machine-editor-fullscreen-open {
   font-family: var(--font-mono);
 }
 
+/* A result's choices each carry a sentence, so they stack rather than wrap. */
+.calibration-choice--stacked {
+  flex-direction: column;
+}
+
 .calibration-console-toggle__chevron {
   margin-inline-start: auto;
 }

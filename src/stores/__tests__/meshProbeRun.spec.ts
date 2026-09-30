@@ -13,7 +13,13 @@ async function say(...lines: string[]): Promise<void> {
   for (const raw of lines) {
     gcodeConsole.consoleEntries = [
       ...gcodeConsole.consoleEntries,
-      { id: raw + gcodeConsole.consoleEntries.length, raw, kind: 'response', at: 0 },
+      {
+        id: (gcodeConsole.consoleEntries.at(-1)?.id ?? 0) + 1,
+        raw,
+        kind: raw.startsWith('!!') ? 'error' : 'response',
+        message: raw,
+        at: 0,
+      },
     ] as never
   }
   await nextTick()
@@ -37,6 +43,31 @@ describe('mesh probe run store', () => {
     // A probe line outside a mesh run belongs to QGL, Z-tilt, or a manual PROBE.
     expect(run.isRunning).toBe(false)
     expect(run.points).toEqual([])
+  })
+
+  it('stays finished while a full transcript trims its oldest lines', async () => {
+    const run = useMeshProbeRunStore()
+    const bedMesh = useBedMeshStore()
+    const gcodeConsole = useConsoleStore()
+
+    await say('BED_MESH_CALIBRATE', firstPoint)
+    bedMesh.probedMatrix = [[0.1, 0.2]] as never
+    await nextTick()
+    expect(run.isRunning).toBe(false)
+
+    // Trimming shifts every position; the run is named by its entry id, not by where it sits.
+    gcodeConsole.consoleEntries = gcodeConsole.consoleEntries.slice(0) as never
+    await say('ok', 'B:60.0 /60.0')
+    expect(run.isRunning).toBe(false)
+  })
+
+  it('ends a run that Klipper refused', async () => {
+    const run = useMeshProbeRunStore()
+
+    await say('BED_MESH_CALIBRATE', firstPoint)
+    expect(run.isRunning).toBe(true)
+    await say('!! Probe triggered prior to movement')
+    expect(run.isRunning).toBe(false)
   })
 
   it('collects each point as it is probed', async () => {

@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { procedureById, type ProcedureContext } from '@/features/calibration/procedures'
 import { useAvailabilityStore } from '@/stores/availability'
+import { useManualProbeStore } from '@/stores/manualProbe'
 import { useCalibrationStore } from '@/stores/calibration'
 import { useConsoleStore } from '@/stores/console'
 import { useMoonrakerStore } from '@/stores/moonraker'
@@ -309,16 +310,53 @@ describe('the calibration log', () => {
   it('updates the entry as an interactive run’s result arrives', async () => {
     const database: Database = { value: undefined }
     const { calibration, finish } = setup(database)
+    const manualProbe = useManualProbeStore()
     const run = calibration.run(procedureById('probeZOffset')!, {}, context)
     await flushPromises()
+    manualProbe.isActive = true
     await finish()
-    await run
+    await flushPromises()
+    // The command returned with the paper test still waiting: the run is not over.
+    expect(calibration.activeRun?.procedureId).toBe('probeZOffset')
+
     say('// probe: z_offset: 1.535')
+    manualProbe.isActive = false
+    await run
     await flushPromises()
 
+    expect(calibration.activeRun).toBeNull()
     const stored = database.value as { procedures: { probeZOffset: Array<{ rows: unknown[] }> } }
     expect(stored.procedures.probeZOffset).toHaveLength(1)
     expect(stored.procedures.probeZOffset[0]!.rows).toHaveLength(1)
+  })
+
+  it('logs a paper test closed without a value as failed', async () => {
+    const database: Database = { value: undefined }
+    const { calibration, finish } = setup(database)
+    const manualProbe = useManualProbeStore()
+    const run = calibration.run(procedureById('probeZOffset')!, {}, context)
+    await flushPromises()
+    manualProbe.isActive = true
+    await finish()
+    await flushPromises()
+    manualProbe.isActive = false
+
+    expect(await run).toBe(false)
+    const stored = database.value as { procedures: { probeZOffset: Array<{ outcome: string }> } }
+    expect(stored.procedures.probeZOffset[0]!.outcome).toBe('failed')
+  })
+
+  it('stops a finished run’s output at the next command sent', async () => {
+    const { calibration, finish } = setup({ value: undefined })
+    const run = calibration.run(procedureById('probeAccuracy')!, {}, context)
+    await flushPromises()
+    say('// probe at 1,1 is z=1.000000')
+    await finish()
+    await run
+    say('BED_MESH_CALIBRATE', 'command')
+    say('// probe at 2,2 is z=1.100000')
+
+    expect(calibration.linesFor('probeAccuracy')).toEqual(['// probe at 1,1 is z=1.000000'])
   })
 
   it('merges with runs another browser logged, rather than writing over them', async () => {

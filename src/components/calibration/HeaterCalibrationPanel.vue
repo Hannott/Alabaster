@@ -8,6 +8,7 @@ import PromptDialog from '@/components/PromptDialog.vue'
 import { sensorLabel } from '@/components/dashboard/modules/temperatureSensors'
 import { useActionGuard } from '@/composables/useActionGuard'
 import { useCalibrationRun } from '@/composables/useCalibrationRun'
+import { useFollowingLog } from '@/composables/useFollowingLog'
 import { useConsoleStore } from '@/stores/console'
 import { usePrinterStore } from '@/stores/printer'
 import { usePrinterConfigStore } from '@/stores/printerConfig'
@@ -60,6 +61,7 @@ const calibrationKind = ref<'pid' | 'mpc'>('pid')
 const calibrationPromptOpen = ref(false)
 const calibrationConfirmOpen = ref(false)
 const calibrationTargetDraft = ref(defaultCalibrationTarget)
+/** The last console entry before the calibration was sent; its transcript is what follows. */
 const calibrationTranscriptStart = ref(0)
 const calibrationSucceeded = ref<boolean | null>(null)
 
@@ -72,9 +74,15 @@ const calibratingSensorLabel = computed(() => {
   const reading = telemetry.readings[calibratingObjectName.value ?? '']
   return reading ? sensorLabel(reading, t) : ''
 })
+// By entry id, not position: a full console trims its oldest lines, and a
+// position then pointed past the calibration's own first lines.
 const calibrationTranscript = computed(() =>
-  gcodeConsole.consoleLines.slice(calibrationTranscriptStart.value),
+  gcodeConsole.consoleEntries
+    .filter((entry) => entry.id > calibrationTranscriptStart.value)
+    .map((entry) => entry.raw),
 )
+const transcriptLog = ref<HTMLElement | null>(null)
+const followTranscript = useFollowingLog(transcriptLog, () => calibrationTranscript.value.length)
 const showCalibrationPanel = computed(
   () =>
     calibratingObjectName.value !== null &&
@@ -169,7 +177,7 @@ async function startCalibration(): Promise<void> {
   if (!objectName) return
   // Only the lines the calibration itself produces belong in its transcript —
   // never whatever else happened to be in the shared console buffer already.
-  calibrationTranscriptStart.value = gcodeConsole.consoleLines.length
+  calibrationTranscriptStart.value = gcodeConsole.consoleEntries.at(-1)?.id ?? 0
   calibrationSucceeded.value = await calibrationRun.run('heaterModel', {
     HEATER: objectName,
     TARGET: String(calibrationTargetDraft.value),
@@ -205,10 +213,12 @@ async function startCalibration(): Promise<void> {
 
     <div v-if="showCalibrationPanel" class="mt-2">
       <ol
+        ref="transcriptLog"
         class="console-output selectable"
         role="log"
         tabindex="0"
         :aria-label="t('dashboard.temperature.calibrationOutputLabel')"
+        @scroll="followTranscript.onScroll"
       >
         <li v-if="calibrationTranscript.length === 0" class="text-muted">
           {{ t('dashboard.temperature.calibrationRunning') }}

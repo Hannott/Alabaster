@@ -14,6 +14,11 @@ import { usePrinterConfigStore } from '@/stores/printerConfig'
  *
  * Klipper's defaults stand where a heater has no `[verify_heater]` section of
  * its own, and they are marked as defaults rather than shown as if set.
+ *
+ * A model a calibration has staged is shown in place of the file's, marked
+ * with the value it replaces: the file does not change until `SAVE_CONFIG`
+ * and a restart, and until then this panel showed the old constants right
+ * after the calibration that replaced them.
  */
 const { t } = useI18n({ useScope: 'global' })
 const printerConfig = usePrinterConfigStore()
@@ -45,9 +50,16 @@ const heaters = computed(() =>
   context.value.heaters.map((heater) => {
     const verify = printerConfig.section(`verify_heater ${heater.objectName}`)
     const own = printerConfig.section(heater.objectName)
+    const staged = context.value.pendingItems()[heater.objectName] ?? {}
     return {
       ...heater,
-      model: modelOptions[heater.kind].map((option) => ({ option, value: shown(own?.[option]) })),
+      model: modelOptions[heater.kind].map((option) => {
+        const file = shown(own?.[option])
+        const pending = shown(staged[option])
+        return pending !== null && pending !== file
+          ? { option, value: pending, replaces: file ?? '—' }
+          : { option, value: file, replaces: null }
+      }),
       verify: verifyOptions.map((option) => {
         const value = shown(verify?.[option])
         return {
@@ -79,10 +91,17 @@ const heaters = computed(() =>
         <tbody>
           <tr v-for="entry in heater.model" :key="entry.option">
             <th scope="row">{{ entry.option }}</th>
-            <td class="calibration-result__number calibration-heater__value">
+            <td
+              class="calibration-result__number calibration-heater__value"
+              :class="{ 'calibration-result__number--changed': entry.replaces !== null }"
+            >
               {{ entry.value ?? '—' }}
             </td>
-            <td></td>
+            <td>
+              <span v-if="entry.replaces !== null" class="calibration-heater__default">{{
+                t('calibration.heaterCheck.staged', { value: entry.replaces })
+              }}</span>
+            </td>
           </tr>
           <tr v-for="entry in heater.verify" :key="entry.option">
             <th scope="row">{{ entry.option }}</th>

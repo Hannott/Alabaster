@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import AppButton from '@/components/AppButton.vue'
@@ -111,6 +111,17 @@ const extruding = ref(false)
 const extruded = ref(false)
 
 /*
+ * A measurement is only true of the rotation distance it was made with. Once
+ * a written value is running, the proposal would be worked out again from
+ * the new value and the old measurement — correcting it a second time — so
+ * the measurement goes, and the next one starts from an extrude.
+ */
+watch(current, () => {
+  remaining.value = null
+  extruded.value = false
+})
+
+/*
  * Slowly — 1 mm/s — because a fast extrude into free air slips in the
  * extruder gears and measures the slip rather than the steps. The transport's
  * local deadline is off for the same reason the other long commands opt out:
@@ -118,6 +129,7 @@ const extruded = ref(false)
  */
 async function extrude(): Promise<void> {
   extruding.value = true
+  remaining.value = null
   try {
     extruded.value = await printer.sendGcode(
       [

@@ -13,6 +13,7 @@ import CalibrationSparkline from '@/components/calibration/CalibrationSparkline.
 import { useActionGuard } from '@/composables/useActionGuard'
 import { useAvailability } from '@/composables/useAvailability'
 import { useCalibrationSelection } from '@/composables/useCalibrationSelection'
+import { useFollowingLog } from '@/composables/useFollowingLog'
 import { useProcedureContext } from '@/composables/useProcedureContext'
 import {
   useProcedureRequirements,
@@ -20,14 +21,17 @@ import {
 } from '@/composables/useProcedureRequirements'
 import { useProcedureText } from '@/composables/useProcedureText'
 import {
+  defaultShaperPicks,
   initialProcedureValues,
   missingProcedureValues,
   nextProcedure,
   procedureSubject,
+  shaperActionsFor,
   type CalibrationProcedure,
   type ProcedureAction,
   type ProcedureId,
   type ProcedureParameter,
+  type ShaperCandidate,
 } from '@/features/calibration/procedures'
 import { trendSeries } from '@/features/calibration/trends'
 import { useCalibrationStore, type PersistActionOutcome } from '@/stores/calibration'
@@ -209,6 +213,11 @@ function requestRun(): void {
 async function startRun(): Promise<void> {
   confirmOpen.value = false
   actionOutcomes.value = {}
+  outputChoice.value = null
+  // The questions are about this run; the last run's ticks are not answers to it.
+  const others = { ...answersById.value }
+  delete others[answerScope.value]
+  answersById.value = others
   await calibration.run(props.procedure, values.value, context.value)
 }
 
@@ -217,10 +226,96 @@ const output = computed(() =>
     .linesFor(props.procedure.id, subject.value)
     .flatMap((line) => line.split('\n'))
     .map((line) => line.replace(/^\s*\/\/\s?/, ''))
-    .slice(-12),
+    .slice(-200),
 )
-const showOutput = ref(false)
 const result = computed(() => calibration.resultFor(props.procedure.id, subject.value))
+
+/*
+ * One state for whether the output is shown, which the toggle both reads and
+ * sets. The log used to open on its own while a run had nothing else to show,
+ * independently of the toggle — so during a run the toggle flipped its label
+ * and the log stayed exactly where it was. Null follows the run: shown while
+ * it has no result yet, hidden once it has one. A press is the reader's
+ * choice and holds until another procedure is opened or another run starts.
+ */
+const outputChoice = ref<boolean | null>(null)
+const outputVisible = computed(
+  () => outputChoice.value ?? (isRunning.value && !result.value?.rows.length),
+)
+function toggleOutput(): void {
+  outputChoice.value = !outputVisible.value
+}
+const outputLog = ref<HTMLElement | null>(null)
+const followLog = useFollowingLog(outputLog, () => output.value.length)
+
+/*
+ * Which shaper each axis gets, where a run offers more than one: Shake&Tune's
+ * "for performance" and "for low vibrations", or every shaper Klipper fitted.
+ * Held per run, so the next run starts from its own recommendation.
+ */
+const shaperChoice = ref<{ at: number; picks: Partial<Record<'x' | 'y', string>> }>({
+  at: 0,
+  picks: {},
+})
+
+function candidateKey(candidate: ShaperCandidate): string {
+  return `${candidate.shaperType}@${candidate.frequency}`
+}
+
+const shaperAxes = computed(() => {
+  const candidates = result.value?.shaperCandidates ?? []
+  const axes = (['x', 'y'] as const).flatMap((axis) => {
+    const options = candidates.filter((candidate) => candidate.axis === axis)
+    return options.length > 0 ? [{ axis, options }] : []
+  })
+  return axes.some((axis) => axis.options.length > 1) ? axes : []
+})
+
+const chosenShapers = computed(() => {
+  const defaults = defaultShaperPicks(result.value?.shaperCandidates ?? [])
+  const picks = shaperChoice.value.at === run.value?.startedAt ? shaperChoice.value.picks : {}
+  return shaperAxes.value.flatMap(({ axis, options }) => {
+    const chosen = options.find((option) => candidateKey(option) === picks[axis]) ?? defaults[axis]
+    return chosen ? [chosen] : []
+  })
+})
+
+function chooseShaper(axis: 'x' | 'y', candidate: ShaperCandidate): void {
+  const at = run.value?.startedAt ?? 0
+  const picks = shaperChoice.value.at === at ? shaperChoice.value.picks : {}
+  shaperChoice.value = { at, picks: { ...picks, [axis]: candidateKey(candidate) } }
+  // What was applied or saved was the previous choice; its note no longer describes this one.
+  actionOutcomes.value = {}
+}
+
+function isChosen(candidate: ShaperCandidate): boolean {
+  return chosenShapers.value.some(
+    (chosen) => chosen.axis === candidate.axis && candidateKey(chosen) === candidateKey(candidate),
+  )
+}
+
+function candidateLabel(candidate: ShaperCandidate): string {
+  const value = `${candidate.shaperType} @ ${candidate.frequency} Hz`
+  if (candidate.kind !== null && candidate.kind !== 'best') {
+    return `${t(`calibration.result.shaperChoice.${candidate.kind}`)}: ${value}`
+  }
+  const parts = [value]
+  if (candidate.vibrations !== undefined) {
+    parts.push(t('calibration.result.shaperChoice.vibrations', { value: candidate.vibrations }))
+  }
+  if (candidate.maxAccel !== undefined) {
+    parts.push(t('calibration.result.shaperChoice.maxAccel', { value: candidate.maxAccel }))
+  }
+  if (candidate.recommended) parts.push(t('calibration.result.shaperChoice.recommended'))
+  return parts.join(' · ')
+}
+
+/** The result's actions, built from the chosen shapers where the reader has a choice. */
+const resultActions = computed<readonly ProcedureAction[]>(() =>
+  shaperAxes.value.length > 0
+    ? shaperActionsFor(chosenShapers.value)
+    : (result.value?.actions ?? []),
+)
 const hasBefore = computed(
   () => result.value?.rows.some((row) => row.before !== undefined) ?? false,
 )
@@ -247,6 +342,8 @@ async function runAction(action: ProcedureAction, at?: number): Promise<void> {
 /** A restart during a print would end it, so an action that restarts waits for the print. */
 function actionDisabled(action: ProcedureAction): boolean {
   if (!klipperAvailability.value.isAvailable || pendingAction.value !== null) return true
+  // A command key takes one command at a time and refuses a second without a word.
+  if (calibration.activeRun !== null || printer.pendingCommands.calibration) return true
   return action.kind === 'persist' && action.restart === true && printer.hasActivePrint
 }
 
@@ -357,7 +454,7 @@ watch(
   () => [props.procedure.id, subject.value],
   () => {
     confirmOpen.value = false
-    showOutput.value = false
+    outputChoice.value = null
     showAllHistory.value = false
     actionOutcomes.value = {}
   },
@@ -560,8 +657,32 @@ const effects = computed(() =>
         @click="recordAnswers"
       />
 
-      <ul v-if="result?.actions?.length" class="calibration-result__actions">
-        <li v-for="action in result.actions" :key="action.id">
+      <fieldset
+        v-for="axis in shaperAxes"
+        :key="axis.axis"
+        class="calibration-choice calibration-choice--stacked"
+        :disabled="pendingAction !== null"
+      >
+        <legend class="calibration-choice__legend">
+          {{ t('calibration.result.shaperChoice.legend', { axis: axis.axis.toUpperCase() }) }}
+        </legend>
+        <label
+          v-for="candidate in axis.options"
+          :key="candidateKey(candidate)"
+          class="check-row check-row--block calibration-choice__row"
+        >
+          <input
+            type="radio"
+            :name="`${procedure.id}-shaper-${axis.axis}`"
+            :checked="isChosen(candidate)"
+            @change="chooseShaper(axis.axis, candidate)"
+          />
+          <span>{{ candidateLabel(candidate) }}</span>
+        </label>
+      </fieldset>
+
+      <ul v-if="resultActions.length" class="calibration-result__actions">
+        <li v-for="action in resultActions" :key="action.id">
           <AppButton
             size="sm"
             :label="text(action.label)"
@@ -578,18 +699,22 @@ const effects = computed(() =>
       <AppButton
         variant="quiet"
         size="xs"
-        :aria-expanded="showOutput"
-        :label="t(showOutput ? 'calibration.bench.hideOutput' : 'calibration.bench.showOutput')"
-        @click="showOutput = !showOutput"
+        :aria-expanded="outputVisible"
+        :label="t(outputVisible ? 'calibration.bench.hideOutput' : 'calibration.bench.showOutput')"
+        @click="toggleOutput"
       />
       <ol
-        v-if="showOutput || (isRunning && !result?.rows.length)"
+        v-if="outputVisible"
+        ref="outputLog"
         class="console-output selectable calibration-result__output"
         role="log"
         tabindex="0"
         :aria-label="t('calibration.bench.output')"
+        @scroll="followLog.onScroll"
       >
-        <li v-if="output.length === 0" class="text-muted">{{ t('calibration.bench.waiting') }}</li>
+        <li v-if="output.length === 0" class="text-muted">
+          {{ isRunning ? t('calibration.bench.waiting') : t('calibration.bench.noOutput') }}
+        </li>
         <li v-for="(line, index) in output" :key="index">{{ line }}</li>
       </ol>
     </div>

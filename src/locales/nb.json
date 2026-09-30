@@ -360,6 +360,7 @@
       "hideOutput": "Skjul utdata",
       "output": "Utdata",
       "waiting": "Venter på utdata …",
+      "noOutput": "Kjøringen skrev ingenting.",
       "history": "Tidligere kjøringer",
       "confirmTitle": "Kjøre {name}?",
       "blocked": {
@@ -445,6 +446,14 @@
       "suggestedMaxAccel": "Foreslått max_accel ({axis})",
       "applyShapers": "Bruk",
       "saveShapers": "Lagre konfigurasjon",
+      "shaperChoice": {
+        "legend": "Shaper for {axis}",
+        "performance": "For ytelse",
+        "lowVibrations": "For lave vibrasjoner",
+        "vibrations": "{value} % vibrasjoner",
+        "maxAccel": "maks aks. {value}",
+        "recommended": "anbefalt"
+      },
       "shaperKind": {
         "performance": "{axis} · for ytelse",
         "lowVibrations": "{axis} · for lite vibrasjon",
@@ -515,6 +524,7 @@
       "notExtruded": "Dette er verdien målingen din gir. Ekstruder fra dette panelet for at den skal telle."
     },
     "heaterCheck": {
+      "staged": "Klar til lagring, var {value}",
       "default": "Klippers standard"
     },
     "npa": {

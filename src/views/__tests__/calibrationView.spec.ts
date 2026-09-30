@@ -911,6 +911,41 @@ describe('Calibration view', () => {
     })
   })
 
+  it('applies the shaper the reader chose, and shows and hides the run’s output', async () => {
+    homed()
+    const view = await mountResonance()
+    const rpcCall = vi.spyOn(useMoonrakerStore(pinia), 'rpcCall').mockResolvedValue('ok' as never)
+    await selectProcedure(view, 'shakeTuneShaper')
+    await runButton(view).trigger('click')
+    await flushPromises()
+    answer([
+      '// X axis frequency profile generation...',
+      '//     -> For performance: MZV @ 48.2 Hz (with a damping ratio of 0.052)',
+      '//     -> For low vibrations: EI @ 52.0 Hz (with a damping ratio of 0.052)',
+    ])
+    await flushPromises()
+
+    const choices = view.findAll('.calibration-choice--stacked input[type="radio"]')
+    expect(choices).toHaveLength(2)
+    expect((choices[0]!.element as HTMLInputElement).checked).toBe(true)
+    await choices[1]!.setValue(true)
+    await view
+      .findAll('.calibration-result__actions button')
+      .find((button) => button.text() === 'Apply')!
+      .trigger('click')
+    expect(rpcCall).toHaveBeenCalledWith('printer.gcode.script', {
+      script: 'SET_INPUT_SHAPER SHAPER_TYPE_X=ei SHAPER_FREQ_X=52',
+    })
+
+    const toggle = () =>
+      view.findAll('.calibration-result button').find((button) => /output/i.test(button.text()))!
+    expect(view.find('.calibration-result__output').exists()).toBe(false)
+    await toggle().trigger('click')
+    expect(view.get('.calibration-result__output').text()).toContain('For low vibrations')
+    await toggle().trigger('click')
+    expect(view.find('.calibration-result__output').exists()).toBe(false)
+  })
+
   /**
    * The graph used to be reachable only as a plain link to the PNG, which a
    * browser either downloads or opens in its own tab — neither lets Escape, an

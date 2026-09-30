@@ -222,11 +222,26 @@ const printBlocked = computed(
 )
 const printed = ref<NpaTower | null>(null)
 
+/*
+ * No local deadline: the macro heats and then prints the whole tower before
+ * it returns, which is many minutes. Under the transport's usual 60 seconds
+ * the call gave up mid-print, reported a failure, and offered Print again
+ * while the first tower was still going.
+ */
 async function printTower(): Promise<void> {
   const tower = activeTower.value
   if (script.value === null || tower === null) return
-  if (await printer.sendGcode(script.value, 'calibration')) printed.value = tower
+  printed.value = null
+  writeOutcome.value = null
+  if (await printer.sendGcode(script.value, 'calibration', { timeoutMs: null })) {
+    printed.value = tower
+  }
 }
+
+// A note says what the last write on this tower did; on another tower it describes nothing.
+watch(tab, () => {
+  writeOutcome.value = null
+})
 
 /** The reading the fields describe, against the config the tower printed with. */
 const draft = computed<NpaReading | null>(() => {

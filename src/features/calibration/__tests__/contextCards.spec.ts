@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
 
+import {
+  defaultShaperPicks,
+  parseShakeTuneShaper,
+  parseShaperCalibrate,
+  shaperActionsFor,
+} from '@/features/calibration/procedures'
 import { shaperFits } from '@/features/calibration/shaperFits'
 import { planDirectionKey, stepperMotion } from '@/features/calibration/stepperMotion'
 
@@ -78,5 +84,56 @@ describe('stepperMotion', () => {
   it('names straight moves by their side', () => {
     expect(planDirectionKey(1, 0)).toBe('calibration.context.motion.direction.right')
     expect(planDirectionKey(0, 1)).toBe('calibration.context.motion.direction.back')
+  })
+})
+
+describe('shaper choices', () => {
+  const shakeTuneLines = [
+    'X axis frequency profile generation...',
+    '-> For performance: MZV @ 48.2 Hz (with a damping ratio of 0.052)',
+    '-> For low vibrations: EI @ 52.0 Hz (with a damping ratio of 0.052)',
+    'Y axis frequency profile generation...',
+    '-> Best shaper: MZV @ 40.0 Hz',
+  ]
+
+  it('offers both of Shake&Tune’s picks and starts from the one for performance', () => {
+    const result = parseShakeTuneShaper(shakeTuneLines)!
+    const candidates = result.shaperCandidates!
+    expect(candidates.filter((candidate) => candidate.axis === 'x')).toHaveLength(2)
+    expect(defaultShaperPicks(candidates).x).toMatchObject({
+      shaperType: 'mzv',
+      kind: 'performance',
+    })
+  })
+
+  it('offers every shaper Klipper fitted, recommended first', () => {
+    const result = parseShaperCalibrate(axisOutput('x', 'mzv'), {})!
+    expect(result.shaperCandidates!.map((candidate) => candidate.shaperType)).toEqual([
+      'zv',
+      'mzv',
+      'ei',
+    ])
+    expect(defaultShaperPicks(result.shaperCandidates!).x?.shaperType).toBe('mzv')
+  })
+
+  it('applies and saves the shapers the reader chose', () => {
+    const actions = shaperActionsFor([
+      { axis: 'y', shaperType: 'mzv', frequency: 40 },
+      { axis: 'x', shaperType: 'ei', frequency: 52 },
+    ])
+    expect(actions[0]).toMatchObject({
+      kind: 'gcode',
+      command:
+        'SET_INPUT_SHAPER SHAPER_TYPE_X=ei SHAPER_FREQ_X=52 SHAPER_TYPE_Y=mzv SHAPER_FREQ_Y=40',
+    })
+    expect(actions[1]).toMatchObject({
+      kind: 'persist',
+      changes: [
+        { option: 'shaper_type_x', value: 'ei' },
+        { option: 'shaper_freq_x', value: '52' },
+        { option: 'shaper_type_y', value: 'mzv' },
+        { option: 'shaper_freq_y', value: '40' },
+      ],
+    })
   })
 })

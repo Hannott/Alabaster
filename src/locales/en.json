@@ -360,6 +360,7 @@
       "hideOutput": "Hide output",
       "output": "Output",
       "waiting": "Waiting for output…",
+      "noOutput": "The run printed nothing.",
       "history": "Earlier runs",
       "confirmTitle": "Run {name}?",
       "blocked": {
@@ -445,6 +446,14 @@
       "suggestedMaxAccel": "Suggested max_accel ({axis})",
       "applyShapers": "Apply",
       "saveShapers": "Save config",
+      "shaperChoice": {
+        "legend": "Shaper for {axis}",
+        "performance": "For performance",
+        "lowVibrations": "For low vibrations",
+        "vibrations": "{value} % vibrations",
+        "maxAccel": "max accel {value}",
+        "recommended": "recommended"
+      },
       "shaperKind": {
         "performance": "{axis} · for performance",
         "lowVibrations": "{axis} · for low vibrations",
@@ -515,7 +524,8 @@
       "notExtruded": "This is the value your measurement gives. Extrude from this panel for it to count."
     },
     "heaterCheck": {
-      "default": "Klipper default"
+      "default": "Klipper default",
+      "staged": "Staged, was {value}"
     },
     "npa": {
       "path": "Extruder",

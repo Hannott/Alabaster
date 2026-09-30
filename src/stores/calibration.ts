@@ -18,10 +18,13 @@ import {
 } from '@/features/calibration/procedures'
 import type { LevelingMethod } from '@/stores/printerConfig'
 import { useAvailabilityStore } from '@/stores/availability'
+import { useBedScrewsStore } from '@/stores/bedScrews'
+import { useManualProbeStore } from '@/stores/manualProbe'
 import { useConsoleStore } from '@/stores/console'
 import { useMoonrakerStore } from '@/stores/moonraker'
 import { usePrinterStore } from '@/stores/printer'
 import { useQuickConfigStore } from '@/stores/quickConfig'
+import { useShakeTuneStore } from '@/stores/shakeTune'
 
 /** One run a procedure started, as the log keeps it. */
 export interface CalibrationLogEntry {
@@ -50,6 +53,14 @@ export interface CalibrationRun {
   before: ProcedureSnapshot
   /** The last console entry before the run was sent; its output is everything after. */
   startEntryId: number
+  /**
+   * The last console entry that is still the run's own, once another run has
+   * started. Until then a finished run's output ends at the first command
+   * sent after it finished — see `outputFor`.
+   */
+  endEntryId: number | null
+  /** The last console entry when the run finished; null while it runs. */
+  finishedEntryId: number | null
   startedAt: number
   running: boolean
   succeeded: boolean | null
@@ -213,6 +224,9 @@ export const useCalibrationStore = defineStore('calibration', () => {
   const moonraker = useMoonrakerStore()
   const printer = usePrinterStore()
   const quickConfig = useQuickConfigStore()
+  const shakeTune = useShakeTuneStore()
+  const manualProbe = useManualProbeStore()
+  const bedScrews = useBedScrewsStore()
 
   const runs = reactive(new Map<string, CalibrationRun>())
   const log = ref<CalibrationLog>({})
@@ -230,10 +244,27 @@ export const useCalibrationStore = defineStore('calibration', () => {
     return entries.length > 0 ? entries[entries.length - 1]!.id : 0
   }
 
+  /**
+   * What the run printed: every line after it was sent, up to where it ended.
+   * A run's output used to have no end, so a finished probe accuracy test kept
+   * collecting the probe lines of the mesh or the levelling run after it — its
+   * samples, its result and its log entry drifted with them. It ends at the
+   * next run started here, or at the first command sent after it finished,
+   * whichever comes first; lines printed before that command are its own
+   * trailing output.
+   */
   function outputFor(run: CalibrationRun): string[] {
-    return gcodeConsole.consoleEntries
-      .filter((entry) => entry.id > run.startEntryId && entry.kind !== 'command')
-      .map((entry) => entry.raw)
+    const lines: string[] = []
+    for (const entry of gcodeConsole.consoleEntries) {
+      if (entry.id <= run.startEntryId) continue
+      if (run.endEntryId !== null && entry.id > run.endEntryId) break
+      if (entry.kind === 'command') {
+        if (run.finishedEntryId !== null && entry.id > run.finishedEntryId) break
+        continue
+      }
+      lines.push(entry.raw)
+    }
+    return lines
   }
 
   function runFor(id: ProcedureId, subject = ''): CalibrationRun | null {
@@ -413,13 +444,19 @@ export const useCalibrationStore = defineStore('calibration', () => {
     const script = procedure.build(values, context)
     if (script === null) return false
     const subject = procedureSubject(procedure, values)
+    const startEntryId = lastEntryId()
+    for (const earlier of runs.values()) {
+      if (earlier.endEntryId === null) earlier.endEntryId = startEntryId
+    }
     const record: CalibrationRun = {
       procedureId: procedure.id,
       subject,
       script,
       values: { ...values },
       before: procedure.snapshot?.(values, context) ?? {},
-      startEntryId: lastEntryId(),
+      startEntryId,
+      endEntryId: null,
+      finishedEntryId: null,
       startedAt: Date.now(),
       running: true,
       succeeded: null,
@@ -430,15 +467,72 @@ export const useCalibrationStore = defineStore('calibration', () => {
     }
     const key = runKey(procedure.id, subject)
     runs.set(key, record)
-    const succeeded = await dispatch(procedure, script, values)
+    const watchesGraphs = shakeTuneProcedures.has(procedure.id)
+    if (watchesGraphs) shakeTune.start()
+    let succeeded = await dispatch(procedure, script, values)
+    if (watchesGraphs) setTimeout(() => shakeTune.stop(), graphLandingMs)
+    if (succeeded && procedure.helper) {
+      succeeded = await helperFinished(procedure.helper)
+    }
     const current = runs.get(key)
     if (current && current.startedAt === record.startedAt) {
+      current.stagedRows = stagedRowsFor(current)
+      // A helper closed with nothing found or staged was aborted, or its ACCEPT refused.
+      if (succeeded && procedure.helper === 'manualProbe') {
+        const result = resultOfRun(current)
+        succeeded = (result?.rows.length ?? 0) > 0 || result?.outcome === 'staged'
+      }
       current.running = false
       current.succeeded = succeeded
-      current.stagedRows = stagedRowsFor(current)
+      current.finishedEntryId = lastEntryId()
       recordRun(current)
     }
     return succeeded
+  }
+
+  /** The runs whose graph lands in Shake&Tune's results folder after their last line. */
+  const shakeTuneProcedures = new Set<ProcedureId>([
+    'axesMap',
+    'shakeTuneBelts',
+    'shakeTuneShaper',
+    'shakeTuneVibrations',
+  ])
+  /** How long the results listing is kept current after such a run, for its graph to be written. */
+  const graphLandingMs = 10 * 60 * 1000
+
+  /** How long a helper may take to open after its command returned, before it is taken as never opening. */
+  const helperOpenMs = 3000
+
+  /**
+   * Resolves once the interactive helper a run opened has closed — the paper
+   * test's ACCEPT or ABORT, the last screw accepted. The command returns as
+   * soon as the helper opens, so a run that ended on the command's return
+   * said "Finished" while the prompt was still waiting, re-enabled Run, and
+   * let a second procedure start in the middle of the first. False when the
+   * connection went while it waited.
+   */
+  function helperFinished(helper: 'manualProbe' | 'bedScrews'): Promise<boolean> {
+    const isActive = () => (helper === 'manualProbe' ? manualProbe.isActive : bedScrews.isActive)
+    return new Promise((resolve) => {
+      let opened = isActive()
+      let stop: (() => void) | null = null
+      const timer = setTimeout(() => {
+        if (!opened) finish(true)
+      }, helperOpenMs)
+      function finish(value: boolean): void {
+        clearTimeout(timer)
+        stop?.()
+        resolve(value)
+      }
+      stop = watch(
+        () => [isActive(), availability.isKlipperReady] as const,
+        ([active, available]) => {
+          if (!available) return finish(false)
+          if (active) opened = true
+          else if (opened) finish(true)
+        },
+      )
+    })
   }
 
   /*

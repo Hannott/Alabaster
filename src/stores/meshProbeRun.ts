@@ -42,11 +42,11 @@ export const useMeshProbeRunStore = defineStore('meshProbeRun', () => {
   const bedMesh = useBedMeshStore()
 
   /**
-   * The transcript line that started the run whose mesh has already arrived.
+   * The console entry that started the run whose mesh has already arrived.
    * Kept so a finished run stops being followed without having to find a
    * completion line — Klipper prints none worth relying on, and Kalico's differs.
    */
-  const completedRunCommand = ref<string | null>(null)
+  const completedRunId = ref<number | null>(null)
 
   /**
    * True when the machine's probe sweeps rather than touching each point, so the
@@ -56,31 +56,45 @@ export const useMeshProbeRunStore = defineStore('meshProbeRun', () => {
 
   /** Index of the most recent calibrate command in the transcript, or -1. */
   const runStartIndex = computed(() => {
-    const lines = gcodeConsole.consoleLines
-    for (let index = lines.length - 1; index >= 0; index -= 1) {
-      if (isMeshCalibrateCommand(lines[index]!)) return index
+    const entries = gcodeConsole.consoleEntries
+    for (let index = entries.length - 1; index >= 0; index -= 1) {
+      if (isMeshCalibrateCommand(entries[index]!.raw)) return index
     }
     return -1
   })
 
-  /** The command line that started the current run, which identifies it. */
-  const runCommand = computed(() => {
+  /**
+   * The console entry id of the command that started the current run, which
+   * identifies it. Not its position: once the transcript is full, every new
+   * line trims the oldest and shifts every position, and a run named by its
+   * position looked like a new run on each line — so a finished mesh went
+   * back to "Probing" and stayed there.
+   */
+  const runId = computed(() => {
     const index = runStartIndex.value
-    if (index < 0) return null
-    // The index alone would shift as the transcript is trimmed; the line plus its
-    // position is stable enough to tell one run from the next.
-    return `${index}:${gcodeConsole.consoleLines[index]}`
+    return index < 0 ? null : gcodeConsole.consoleEntries[index]!.id
+  })
+
+  /**
+   * Klipper's error for the run — an out-of-range point, a probe that did not
+   * trigger, an abort — ends it as surely as a finished mesh does. A failed
+   * run leaves no new mesh to notice, so without this it was followed forever.
+   */
+  const hasFailed = computed(() => {
+    const index = runStartIndex.value
+    if (index < 0) return false
+    return gcodeConsole.consoleEntries.slice(index + 1).some((entry) => entry.kind === 'error')
   })
 
   const isRunning = computed(
-    () => runCommand.value !== null && runCommand.value !== completedRunCommand.value,
+    () => runId.value !== null && runId.value !== completedRunId.value && !hasFailed.value,
   )
 
   const points = computed<ProbedPoint[]>(() => {
     if (!isRunning.value) return []
     const collected: ProbedPoint[] = []
-    for (const line of gcodeConsole.consoleLines.slice(runStartIndex.value + 1)) {
-      const point = parseProbedPoint(line)
+    for (const entry of gcodeConsole.consoleEntries.slice(runStartIndex.value + 1)) {
+      const point = parseProbedPoint(entry.raw)
       if (point) collected.push(point)
     }
     return collected
@@ -101,7 +115,7 @@ export const useMeshProbeRunStore = defineStore('meshProbeRun', () => {
   /** The mesh that was loaded when the current run began. */
   const signatureAtRunStart = ref(matrixSignature())
 
-  watch(runCommand, () => {
+  watch(runId, () => {
     signatureAtRunStart.value = matrixSignature()
   })
 
@@ -126,7 +140,7 @@ export const useMeshProbeRunStore = defineStore('meshProbeRun', () => {
     (signature) => {
       if (!isRunning.value) return
       if (signature === '' || signature === signatureAtRunStart.value) return
-      completedRunCommand.value = runCommand.value
+      completedRunId.value = runId.value
     },
   )
 

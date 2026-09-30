@@ -145,6 +145,11 @@ calibration shows the height map.
   file marked. A shaper with slightly more vibration and a much higher
   acceleration may suit a fast printer better than the recommendation.
 
+When a shaper run offers more than one shaper for an axis, you choose which
+one **Apply** and **Save config** use: Shake&Tune's pick for performance or
+for low vibrations, or any shaper Klipper fitted. The recommended one is
+chosen until you pick another.
+
 ## Watching a mesh being probed
 
 The height map draws each point as it arrives. You can see a probing run go

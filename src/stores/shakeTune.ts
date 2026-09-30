@@ -126,6 +126,13 @@ export const useShakeTuneStore = defineStore('shakeTune', () => {
   let refreshTimer: ReturnType<typeof setTimeout> | null = null
   let generation = 0
   let started = false
+  /*
+   * How many callers want the listing kept current. The graph panel starts it
+   * while it is on screen, and a Shake&Tune run holds it until its graph has
+   * had time to land: with a single on/off switch, leaving the stage mid-run
+   * stopped the listing, and the run's result never learned of its graph.
+   */
+  let users = 0
   let stopAvailabilityWatch: WatchStopHandle | null = null
   let stopPrinterConfigWatch: WatchStopHandle | null = null
   let stopFileNotifications: (() => void) | null = null
@@ -200,6 +207,7 @@ export const useShakeTuneStore = defineStore('shakeTune', () => {
   }
 
   function start(): void {
+    users += 1
     if (started) return
     started = true
     stopPrinterChangeReset = moonraker.onPrinterChange(printerChanged)
@@ -233,7 +241,8 @@ export const useShakeTuneStore = defineStore('shakeTune', () => {
   }
 
   function stop(): void {
-    if (!started) return
+    if (users > 0) users -= 1
+    if (users > 0 || !started) return
     started = false
     generation += 1
     stopAvailabilityWatch?.()
