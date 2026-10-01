@@ -10,38 +10,36 @@ import CalibrationRequirements from '@/components/calibration/CalibrationRequire
 import { useCalibrationSelection } from '@/composables/useCalibrationSelection'
 import { useConfigWrite } from '@/composables/useConfigWrite'
 import { useProcedureRequirements } from '@/composables/useProcedureRequirements'
-import type { BedPoint } from '@/features/calibration/bedContext'
+import { useScrewRecording } from '@/composables/useScrewRecording'
 import { procedureById } from '@/features/calibration/procedures'
 import { configuredScrews } from '@/features/calibration/screws'
 import {
-  isReachable,
   minimumScrews,
-  nearestReachable,
   pointText,
-  screwCoordinate,
   screwSections,
   screwWrite,
-  type Reference,
   type ScrewTarget,
 } from '@/features/calibration/toolheadPoints'
 import { useCalibrationStore, type CalibrationLogEntry } from '@/stores/calibration'
-import { usePrinterStore } from '@/stores/printer'
 import { usePrinterConfigStore } from '@/stores/printerConfig'
 
 /**
  * The bed screws' coordinates, recorded by standing over each screw instead of
  * measuring the bed: jog the nozzle or the probe over a screw with the
- * Movement card, record it, and the next; the panel works out what the
- * section wants and writes every screw at once.
+ * Movement card, or click a screw on the bed drawing to go there, and record
+ * it; the panel works out what the section wants and writes every screw at
+ * once.
  *
- * Which of the two the reader stands over is theirs to choose, and the
+ * The list starts as the screws the file already holds, so fixing one screw is
+ * standing over it and re-recording it rather than recording every screw
+ * again. Which part stands over a screw is chosen per screw, and the
  * conversion is the one easy thing to get backwards: `screws_tilt_adjust`
  * wants where to send the nozzle so the probe lands on the screw, and
- * `bed_screws` wants the nozzle over it. See `toolheadPoints.ts`.
+ * `bed_screws` wants the nozzle over it. See `toolheadPoints.ts`. The list
+ * itself lives in `useScrewRecording`, which the bed drawing reads too.
  */
 const { t } = useI18n({ useScope: 'global' })
 const calibration = useCalibrationStore()
-const printer = usePrinterStore()
 const printerConfig = usePrinterConfigStore()
 const requirements = useProcedureRequirements()
 const selection = useCalibrationSelection()
@@ -73,56 +71,62 @@ const written = computed(() => printerConfig.loadedConfig[section.value] ?? null
 // The live column draws the section being recorded, not the first one it finds.
 watch(target, (value) => selection.setSubject('screwPositions', value), { immediate: true })
 
-/* The probe is only the natural thing to stand over where the section is measured with it. */
-const reference = ref<Reference>(printerConfig.hasProbe ? 'probe' : 'nozzle')
-const offset = computed(() => printerConfig.probeOffset)
+const recording = useScrewRecording(target)
+const { reference, screws, nearest } = recording
 
-interface Recorded {
-  toolhead: BedPoint
-  name: string
-}
-const recorded = ref<Recorded[]>([])
-
-watch(target, () => {
-  recorded.value = []
-  configWrite.forget()
-})
+/*
+ * The file's screws replace the list whenever nothing has been changed in it
+ * yet — on opening, on switching section, when the config first arrives, and
+ * after a save's restart reads back what was written. A list with changes in
+ * it is never replaced under the reader.
+ */
+watch(
+  () => [target.value, JSON.stringify(configured.value), JSON.stringify(written.value)],
+  (now, before) => {
+    if (now[0] !== before?.[0]) configWrite.forget()
+    if (recording.isFor.value && recording.touched.value) return
+    recording.seed(configured.value, written.value)
+  },
+  { immediate: true },
+)
 
 function record(): void {
-  const [x, y] = printer.motion.position
-  if (typeof x !== 'number' || typeof y !== 'number') return
-  const index = recorded.value.length + 1
-  const name = written.value?.[`screw${index}_name`]
-  recorded.value = [
-    ...recorded.value,
-    { toolhead: { x, y }, name: typeof name === 'string' ? name : '' },
-  ]
+  const name = written.value?.[`screw${screws.value.length + 1}_name`]
+  recording.record(typeof name === 'string' ? name : '')
+  configWrite.forget()
+}
+
+function rerecordNearest(): void {
+  recording.rerecordNearest()
   configWrite.forget()
 }
 
 function remove(index: number): void {
-  recorded.value = recorded.value.filter((_, position) => position !== index)
+  recording.remove(index)
   configWrite.forget()
 }
 
-const travel = computed(() => printer.buildVolume)
+function startOver(): void {
+  recording.clear()
+  configWrite.forget()
+}
 
-const screws = computed(() =>
-  recorded.value.map((entry) => {
-    const point = screwCoordinate(target.value, reference.value, entry.toolhead, offset.value)
-    const reachable = isReachable(point, travel.value)
-    return {
-      point: reachable ? point : nearestReachable(point, travel.value),
-      name: entry.name,
-      reachable,
-    }
-  }),
-)
+function screwLabel(index: number): string {
+  return screws.value[index]?.name.trim() || `screw${index + 1}`
+}
+
+const changed = computed(() => recording.differsFrom(configured.value, written.value))
+
+function isChanged(index: number): boolean {
+  const before = configured.value[index]
+  const screw = screws.value[index]
+  return !before || !screw || pointText(before) !== pointText(screw.coordinate)
+}
 
 const write = computed(() =>
   screwWrite(
     target.value,
-    screws.value.map(({ point, name }) => ({ point, name })),
+    screws.value.map(({ coordinate, name }) => ({ point: coordinate, name })),
     written.value,
   ),
 )
@@ -135,13 +139,14 @@ async function save(): Promise<void> {
     write.value.removes,
   )
   if (outcome === null || outcome === 'refused') return
+  recording.settle()
   calibration.recordManual(
     'screwPositions',
-    { section: section.value, reference: reference.value },
+    { section: section.value },
     screws.value.map((screw, index) => ({
       label: { literal: `screw${index + 1}` },
       before: configured.value[index] ? pointText(configured.value[index]) : null,
-      after: pointText(screw.point),
+      after: pointText(screw.coordinate),
     })),
     'measured',
   )
@@ -207,14 +212,27 @@ function historySummary(entry: CalibrationLogEntry): string {
     <ol class="calibration-steps">
       <li class="calibration-step">
         <span class="calibration-step__text">{{
-          t(`calibration.screwPositions.stand.${reference}`, { index: recorded.length + 1 })
+          t(`calibration.screwPositions.stand.${reference}`)
         }}</span>
+        <!--
+          Re-record names the screw it would replace — the one the chosen part
+          is closest to, which the bed drawing marks too — so the press says
+          what it will overwrite before it does.
+        -->
         <div class="calibration-step__controls">
           <AppButton
+            v-if="nearest !== null"
             size="sm"
             icon="crosshair"
-            :label="t('calibration.screwPositions.record', { index: recorded.length + 1 })"
+            :label="t('calibration.screwPositions.rerecord', { name: screwLabel(nearest) })"
             :disabled="!ready"
+            @click="rerecordNearest"
+          />
+          <AppButton
+            size="sm"
+            icon="add"
+            :label="t('calibration.screwPositions.record', { index: screws.length + 1 })"
+            :disabled="!ready || recording.toolhead.value === null"
             @click="record"
           />
         </div>
@@ -233,7 +251,12 @@ function historySummary(entry: CalibrationLogEntry): string {
             <span class="calibration-workspace__command">screw{{ index + 1 }}</span>
             <span class="calibration-result__number">
               {{ configured[index] ? pointText(configured[index]!) : '—' }} →
-              <span class="calibration-result__number--changed">{{ pointText(screw.point) }}</span>
+              <span :class="{ 'calibration-result__number--changed': isChanged(index) }">{{
+                pointText(screw.coordinate)
+              }}</span>
+            </span>
+            <span v-if="screw.reference" class="calibration-panel__hint">
+              {{ t(`calibration.screwPositions.stoodWith.${screw.reference}`) }}
             </span>
             <span v-if="!screw.reachable" class="calibration-panel__hint">
               {{ t('calibration.screwPositions.clamped') }}
@@ -241,10 +264,11 @@ function historySummary(entry: CalibrationLogEntry): string {
           </span>
           <span class="calibration-screw-record__controls">
             <AppField
-              v-model="recorded[index]!.name"
+              :model-value="screw.name"
               type="text"
               size="xs"
               :label="t('calibration.screwPositions.name')"
+              @update:model-value="recording.rename(index, String($event))"
             />
             <AppButton
               size="xs"
@@ -268,8 +292,15 @@ function historySummary(entry: CalibrationLogEntry): string {
           icon="save"
           :label="t('calibration.npa.saveRestart')"
           :pending="configWrite.writing.value === 'screws'"
-          :disabled="configWrite.disabled.value || screws.length < minimumScrews"
+          :disabled="configWrite.disabled.value || !changed || screws.length < minimumScrews"
           @click="save"
+        />
+        <AppButton
+          size="sm"
+          variant="quiet"
+          icon="reset"
+          :label="t('calibration.screwPositions.startOver')"
+          @click="startOver"
         />
         <span v-if="saveOutcome" class="calibration-panel__hint">{{
           t(`calibration.result.persist.${saveOutcome}`)

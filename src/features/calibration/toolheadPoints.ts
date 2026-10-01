@@ -54,6 +54,42 @@ export function screwCoordinate(
   return target === 'bedScrews' ? screw : { x: screw.x - offset.x, y: screw.y - offset.y }
 }
 
+/**
+ * Where on the bed the screw a section coordinate names actually is — the
+ * inverse of `screwCoordinate` with the nozzle as the reference.
+ * `screws_tilt_adjust` stores where the nozzle goes so the probe lands on the
+ * screw, so its screw sits one probe offset away from the stored point.
+ */
+export function screwOnBed(target: ScrewTarget, coordinate: BedPoint, offset: BedPoint): BedPoint {
+  return target === 'bedScrews'
+    ? coordinate
+    : { x: coordinate.x + offset.x, y: coordinate.y + offset.y }
+}
+
+/** Where to send the toolhead so `reference` stands over a point on the bed. */
+export function toolheadOver(reference: Reference, point: BedPoint, offset: BedPoint): BedPoint {
+  return reference === 'nozzle' ? point : { x: point.x - offset.x, y: point.y - offset.y }
+}
+
+/** The point on the bed `reference` is over while the toolhead stands at `toolhead`. */
+export function standingOver(reference: Reference, toolhead: BedPoint, offset: BedPoint): BedPoint {
+  return reference === 'nozzle' ? toolhead : { x: toolhead.x + offset.x, y: toolhead.y + offset.y }
+}
+
+/** The index of the point closest to `at`, or null for an empty list. */
+export function nearestIndex(points: readonly BedPoint[], at: BedPoint): number | null {
+  let best: number | null = null
+  let bestDistance = Number.POSITIVE_INFINITY
+  points.forEach((point, index) => {
+    const distance = Math.hypot(point.x - at.x, point.y - at.y)
+    if (distance < bestDistance) {
+      best = index
+      bestDistance = distance
+    }
+  })
+  return best
+}
+
 export interface Travel {
   minimum: readonly (number | null)[]
   maximum: readonly (number | null)[]

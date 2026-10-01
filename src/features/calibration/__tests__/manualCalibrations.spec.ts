@@ -19,10 +19,14 @@ import {
 } from '@/features/calibration/skew'
 import {
   isReachable,
+  nearestIndex,
   nearestReachable,
   probeOffsetFrom,
   screwCoordinate,
+  screwOnBed,
   screwWrite,
+  standingOver,
+  toolheadOver,
 } from '@/features/calibration/toolheadPoints'
 import { applyScript, towerScript, towerValue } from '@/features/calibration/tuningTower'
 
@@ -105,6 +109,27 @@ describe('toolhead points', () => {
     expect(screwCoordinate('screwsTilt', 'nozzle', toolhead, offset)).toEqual({ x: 125, y: 90 })
     expect(screwCoordinate('bedScrews', 'nozzle', toolhead, offset)).toEqual(toolhead)
     expect(screwCoordinate('bedScrews', 'probe', toolhead, offset)).toEqual({ x: 75, y: 110 })
+  })
+
+  it('finds the screw on the bed a stored coordinate names, and sends either part back over it', () => {
+    const stored = screwCoordinate('screwsTilt', 'nozzle', { x: 100, y: 100 }, offset)
+    expect(screwOnBed('screwsTilt', stored, offset)).toEqual({ x: 100, y: 100 })
+    expect(screwOnBed('bedScrews', { x: 100, y: 100 }, offset)).toEqual({ x: 100, y: 100 })
+
+    const screw = { x: 100, y: 100 }
+    expect(toolheadOver('nozzle', screw, offset)).toEqual(screw)
+    expect(toolheadOver('probe', screw, offset)).toEqual({ x: 125, y: 90 })
+    expect(standingOver('probe', toolheadOver('probe', screw, offset), offset)).toEqual(screw)
+  })
+
+  it('picks the nearest point, and none from an empty list', () => {
+    const points = [
+      { x: 30, y: 30 },
+      { x: 200, y: 30 },
+      { x: 115, y: 200 },
+    ]
+    expect(nearestIndex(points, { x: 180, y: 60 })).toBe(1)
+    expect(nearestIndex([], { x: 0, y: 0 })).toBeNull()
   })
 
   it('flags a coordinate the nozzle cannot reach, and offers the nearest one', () => {

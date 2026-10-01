@@ -682,7 +682,8 @@ input[type='radio']:focus-visible,
 .farm-estop:focus-visible,
 .tab-select:focus-visible,
 .text-action:focus-visible,
-.history-trend__hit:focus-visible {
+.history-trend__hit:focus-visible,
+.calibration-layout__screw--movable:focus-visible {
   outline: 2px solid var(--focus-ring);
   outline-offset: 1px;
 }
@@ -13514,8 +13515,15 @@ body.machine-editor-fullscreen-open {
 }
 
 /* The workspace: `calibration-workspace` marks the selected procedure's card, its rules below. */
+/*
+ * Both carry their own size rather than inheriting one: every panel puts
+ * them in a different parent, and inheriting the body's 16 px made a config
+ * name or a reading the largest text on a card whose fields and hints are
+ * 12.8 and 11.2. The caption step matches the text inside an AppField.
+ */
 .calibration-workspace__command {
   font-family: var(--font-mono);
+  font-size: var(--text-value-micro-size);
 }
 
 .calibration-workspace__description {
@@ -13671,6 +13679,7 @@ body.machine-editor-fullscreen-open {
 
 .calibration-result__number {
   font-family: var(--font-mono);
+  font-size: var(--text-value-micro-size);
   font-variant-numeric: tabular-nums;
 }
 
@@ -14005,6 +14014,43 @@ body.machine-editor-fullscreen-open {
 .calibration-layout__screw--level
   .calibration-layout__screw-text:not(.calibration-layout__screw-text--name) {
   fill: var(--status-available);
+}
+
+/*
+ * A screw the toolhead can be sent to. The ring takes the accent on hover and
+ * focus and the "Move here?" prompt appears beside it, so the target is named
+ * in words and not by the ring alone. `pointer-events` stays on the circle's
+ * painted fill, which is why the fill is never `none`.
+ */
+.calibration-layout__screw--movable circle,
+.calibration-layout__screw--movable line {
+  transition: stroke var(--motion-duration-fast) var(--motion-ease-standard);
+}
+
+.calibration-layout__screw--movable:hover circle,
+.calibration-layout__screw--movable:focus-visible circle {
+  fill: color-mix(in srgb, var(--action-primary) 12%, var(--surface-raised));
+  stroke: var(--action-primary);
+  stroke-width: 2.5;
+}
+
+.calibration-layout__screw--movable:hover line,
+.calibration-layout__screw--movable:focus-visible line {
+  stroke: var(--action-primary);
+}
+
+.calibration-layout__screw-prompt {
+  fill: var(--action-primary);
+  font-family: var(--font-sans);
+  font-weight: var(--font-weight-increased);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--motion-duration-fast) var(--motion-ease-standard);
+}
+
+.calibration-layout__screw--movable:hover .calibration-layout__screw-prompt,
+.calibration-layout__screw--movable:focus-visible .calibration-layout__screw-prompt {
+  opacity: 1;
 }
 
 .calibration-layout__nozzle circle {
@@ -14380,19 +14426,26 @@ body.machine-editor-fullscreen-open {
 }
 
 /* Recorded bed screws: the values, and the name to write, wrapping under them when narrow. */
+/*
+ * Every row on the same two tracks — values, then the name field and its
+ * remove button — so the fields line up down the list. A flex row wrapped
+ * wherever its own content ran out, which put one screw's field beside its
+ * values and the next one's under them. Below the container width the two
+ * tracks need, every row stacks instead, all of them at once.
+ */
 .calibration-screw-records {
+  container-type: inline-size;
   display: grid;
-  gap: 0.5rem;
+  gap: 0.75rem;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
 .calibration-screw-record {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: space-between;
   gap: 0.35rem 0.75rem;
 }
 
@@ -14400,7 +14453,18 @@ body.machine-editor-fullscreen-open {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  gap: 0.25rem 0.75rem;
+  gap: 0.15rem 0.75rem;
+}
+
+/* Notes about a screw take their own line under its values, never a gap beside them. */
+.calibration-screw-record__values > .calibration-panel__hint {
+  flex-basis: 100%;
+}
+
+@container (max-width: 28rem) {
+  .calibration-screw-record {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .calibration-screw-record__controls {

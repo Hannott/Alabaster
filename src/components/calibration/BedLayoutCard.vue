@@ -3,6 +3,8 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import CalibrationCard from '@/components/calibration/CalibrationCard.vue'
+import { useAvailability } from '@/composables/useAvailability'
+import { useScrewRecording } from '@/composables/useScrewRecording'
 import {
   atProbe,
   levelingLayout,
@@ -17,8 +19,14 @@ import {
   screwReadings,
   type ScrewReading,
 } from '@/features/calibration/screws'
+import {
+  toolheadOver,
+  type Reference,
+  type ScrewTarget,
+} from '@/features/calibration/toolheadPoints'
 import { useBedScrewsStore } from '@/stores/bedScrews'
 import { useCalibrationStore } from '@/stores/calibration'
+import { useManualProbeStore } from '@/stores/manualProbe'
 import { usePrinterStore } from '@/stores/printer'
 import { usePrinterConfigStore } from '@/stores/printerConfig'
 import { useScrewsTiltStore } from '@/stores/screwsTilt'
@@ -43,8 +51,15 @@ import { useScrewsTiltStore } from '@/stores/screwsTilt'
  * buttons; this is the same bed at its real proportions, and it is drawn
  * before any run, from the configuration alone, which is when somebody is
  * checking that the screws in the file are the screws on the machine.
+ *
+ * Every screw is also a way to get there: clicking one sends the nozzle or the
+ * probe over it, at the height the toolhead already has. Which of the two is
+ * the screw-positions panel's choice while screws are being recorded, and
+ * otherwise what the procedure measures with. While recording, the drawing is
+ * the list being recorded rather than the file, and marks the screw a
+ * re-record would replace.
  */
-const props = defineProps<{ procedure: LayoutProcedure }>()
+const props = defineProps<{ procedure: LayoutProcedure; recording?: boolean }>()
 
 const { t, locale } = useI18n({ useScope: 'global' })
 const bedScrews = useBedScrewsStore()
@@ -52,6 +67,14 @@ const calibration = useCalibrationStore()
 const printer = usePrinterStore()
 const printerConfig = usePrinterConfigStore()
 const screwsTilt = useScrewsTiltStore()
+const manualProbe = useManualProbeStore()
+const { availability: klipperAvailability } = useAvailability('klipper')
+
+const screwTarget = computed<ScrewTarget>(() =>
+  props.procedure === 'bedScrews' ? 'bedScrews' : 'screwsTilt',
+)
+const recordingState = useScrewRecording(screwTarget)
+const isRecording = computed(() => props.recording === true && recordingState.isFor.value)
 
 interface ScrewMarker {
   key: string
@@ -59,6 +82,7 @@ interface ScrewMarker {
   point: BedPoint
   reading: ScrewReading | null
   current: boolean
+  nearest: boolean
 }
 
 /** Whether the open procedure measures with the probe, and so where the probe goes is what it measures. */
@@ -67,6 +91,16 @@ const offset = computed(() => (printerConfig.hasProbe ? printerConfig.probeOffse
 const hasOffset = computed(() => offset.value.x !== 0 || offset.value.y !== 0)
 
 const screws = computed<ScrewMarker[]>(() => {
+  if (isRecording.value) {
+    return recordingState.screws.value.map((screw, index) => ({
+      key: screw.key,
+      name: screw.name.trim() || screw.key,
+      point: screw.onBed,
+      reading: null,
+      current: false,
+      nearest: index === recordingState.nearest.value,
+    }))
+  }
   if (props.procedure === 'screwsTilt') {
     const settings = printerConfig.section('screws_tilt_adjust')
     const readings = screwReadings(screwsTilt.status, settings)
@@ -76,6 +110,7 @@ const screws = computed<ScrewMarker[]>(() => {
       point: atProbe({ x: screw.x, y: screw.y }, offset.value),
       reading: readings.find((reading) => reading.key === screw.key) ?? null,
       current: false,
+      nearest: false,
     }))
   }
   if (props.procedure === 'bedScrews') {
@@ -90,6 +125,7 @@ const screws = computed<ScrewMarker[]>(() => {
       point: { x: screw.x, y: screw.y },
       reading: null,
       current: screw === current,
+      nearest: false,
     }))
   }
   return []
@@ -150,6 +186,38 @@ const probe = computed(() =>
     : null,
 )
 
+/** The part a click on a screw sends over it. */
+const moveReference = computed<Reference>(() => {
+  if (props.recording) return recordingState.reference.value
+  return measuresWithProbe.value && printerConfig.hasProbe ? 'probe' : 'nozzle'
+})
+
+/*
+ * Not while anything else is driving the toolhead: a print, a calibration run,
+ * a move already on its way, or one of Klipper's own helpers holding the
+ * machine — `BED_SCREWS_ADJUST` and a manual probe each expect the toolhead
+ * where they left it.
+ */
+const canMove = computed(
+  () =>
+    toolhead.value !== null &&
+    klipperAvailability.value.isAvailable &&
+    !printer.hasActivePrint &&
+    calibration.activeRun === null &&
+    !printer.pendingCommands.move &&
+    !bedScrews.isActive &&
+    !manualProbe.isActive,
+)
+
+function moveOver(screw: ScrewMarker): void {
+  if (!canMove.value) return
+  void printer.moveTo(toolheadOver(moveReference.value, screw.point, offset.value))
+}
+
+function moveLabel(screw: ScrewMarker): string {
+  return t(`calibration.context.layout.moveTo.${moveReference.value}`, { name: screw.name })
+}
+
 const offsetFormatter = computed(
   () => new Intl.NumberFormat(locale.value, { maximumFractionDigits: 1 }),
 )
@@ -161,6 +229,11 @@ function place(point: BedPoint): BedPoint {
 /** Labels go under a mark, or over it for one near the front edge. */
 function labelBelow(point: BedPoint): boolean {
   return box.value ? place(point).y < box.value.depth * 0.75 : true
+}
+
+/** The hover prompt goes on the side of a screw facing the middle of the bed. */
+function promptLeft(point: BedPoint): boolean {
+  return box.value ? place(point).x > box.value.width / 2 : false
 }
 
 const heightFormatter = computed(
@@ -177,11 +250,12 @@ function screwLines(screw: ScrewMarker): string[] {
     lines.push(t('calibration.screws.z', { value: heightFormatter.value.format(reading.z) }))
   }
   if (screw.current) lines.push(t('calibration.context.layout.current'))
+  if (screw.nearest) lines.push(t('calibration.context.layout.nearest'))
   return lines
 }
 
 function screwState(screw: ScrewMarker): string {
-  if (screw.current) return 'current'
+  if (screw.current || screw.nearest) return 'current'
   const reading = screw.reading
   if (!reading) return 'plain'
   if (reading.isBase) return 'base'
@@ -301,12 +375,28 @@ const isEmpty = computed(
         </g>
       </g>
 
+      <!--
+        Each screw is a button while the toolhead can be sent to it. The
+        "Move here?" prompt sits beside the screw, toward the middle of the bed
+        so it never runs off the drawing, clear of the label above or below it,
+        and shows on hover and keyboard focus alike.
+      -->
       <g
         v-for="screw in screws"
         :key="screw.key"
         class="calibration-layout__screw"
-        :class="`calibration-layout__screw--${screwState(screw)}`"
+        :class="[
+          `calibration-layout__screw--${screwState(screw)}`,
+          { 'calibration-layout__screw--movable': canMove },
+        ]"
+        :role="canMove ? 'button' : undefined"
+        :tabindex="canMove ? 0 : undefined"
+        :aria-label="canMove ? moveLabel(screw) : undefined"
+        @click="moveOver(screw)"
+        @keydown.enter.prevent="moveOver(screw)"
+        @keydown.space.prevent="moveOver(screw)"
       >
+        <title v-if="canMove">{{ moveLabel(screw) }}</title>
         <circle :cx="place(screw.point).x" :cy="place(screw.point).y" :r="unit * 3" />
         <line
           :x1="place(screw.point).x - unit * 1.8"
@@ -329,6 +419,18 @@ const isEmpty = computed(
           text-anchor="middle"
         >
           {{ line }}
+        </text>
+        <text
+          v-if="canMove"
+          class="calibration-layout__screw-prompt"
+          :x="place(screw.point).x + (promptLeft(screw.point) ? -unit * 4.5 : unit * 4.5)"
+          :y="place(screw.point).y"
+          :font-size="unit * 3.2"
+          :text-anchor="promptLeft(screw.point) ? 'end' : 'start'"
+          dominant-baseline="central"
+          aria-hidden="true"
+        >
+          {{ t('calibration.context.layout.moveHere') }}
         </text>
       </g>
 

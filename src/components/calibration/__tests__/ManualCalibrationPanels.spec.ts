@@ -11,6 +11,7 @@ import SensorlessHomingPanel from '@/components/calibration/SensorlessHomingPane
 import SkewCorrectionPanel from '@/components/calibration/SkewCorrectionPanel.vue'
 import TuningTowerPanel from '@/components/calibration/TuningTowerPanel.vue'
 import { resetCalibrationSelection } from '@/composables/useCalibrationSelection'
+import { resetScrewRecording } from '@/composables/useScrewRecording'
 import { i18n } from '@/i18n'
 import { useAvailabilityStore } from '@/stores/availability'
 import { useCalibrationStore } from '@/stores/calibration'
@@ -27,6 +28,7 @@ beforeEach(() => {
   vi.restoreAllMocks()
   localStorage.clear()
   resetCalibrationSelection()
+  resetScrewRecording()
   pinia = createPinia()
   setActivePinia(pinia)
   const moonraker = useMoonrakerStore(pinia)
@@ -190,6 +192,9 @@ describe('ScrewPositionsPanel', () => {
     )
     const runAction = vi.spyOn(useCalibrationStore(pinia), 'runAction').mockResolvedValue('saved')
     const panel = await mountPanel(ScrewPositionsPanel)
+    // The list opens as the file's four screws; recording a fresh set starts from none.
+    expect(panel.findAll('.calibration-screw-record')).toHaveLength(4)
+    await press(panel, 'Start over')
     await panel.find('input[value="nozzle"]').setValue(true)
     for (const [x, y] of [
       [40, 40],
@@ -365,6 +370,80 @@ describe('LoadCellPanel', () => {
     await restartKlipper()
     expect(panel.findAll('button').some((button) => button.text() === 'Accept')).toBe(false)
     expect(panel.find('.calibration-result').exists()).toBe(false)
+  })
+})
+
+describe('ScrewPositionsPanel re-recording', () => {
+  const tilt = {
+    probe: { x_offset: -25, y_offset: 10, z_offset: 1 },
+    screws_tilt_adjust: { screw1: [30, 30], screw2: [200, 30], screw3: [115, 200] },
+  }
+  const written = {
+    screws_tilt_adjust: {
+      screw1: '30, 30',
+      screw1_name: 'front left',
+      screw2: '200, 30',
+      screw3: '115, 200',
+    },
+  }
+
+  it('replaces only the screw nearest the chosen part, with that part, and keeps the others', async () => {
+    seed(tilt, written)
+    const runAction = vi.spyOn(useCalibrationStore(pinia), 'runAction').mockResolvedValue('saved')
+    const panel = await mountPanel(ScrewPositionsPanel)
+    const save = () =>
+      panel.findAll('button').find((button) => button.text() === 'Save and restart')!
+    expect(save().attributes('disabled')).toBeDefined()
+
+    // The probe stands at 175 + -25 = 150, 40: nearest to screw2's probe point at 175, 40.
+    await standAt(175, 30)
+    await press(panel, 'Re-record screw2')
+    // Then the nozzle over screw3's own position, which screws_tilt_adjust stores one offset back.
+    await panel.find('input[value="nozzle"]').setValue(true)
+    await standAt(92, 212)
+    await press(panel, 'Re-record screw3')
+
+    const records = panel.findAll('.calibration-screw-record').map((record) => record.text())
+    expect(records[0]).not.toContain('recorded with')
+    expect(records[1]).toContain('recorded with the probe')
+    expect(records[2]).toContain('recorded with the nozzle')
+
+    await press(panel, 'Save and restart')
+    expect(runAction).toHaveBeenCalledWith(
+      expect.objectContaining({
+        changes: [
+          { option: 'screw1', value: '30, 30' },
+          { option: 'screw1_name', value: 'front left' },
+          { option: 'screw2', value: '175, 30' },
+          { option: 'screw3', value: '117, 202' },
+        ],
+        removes: [],
+      }),
+    )
+  })
+
+  it('sends the chosen part over a screw clicked on the drawing, and marks the nearest', async () => {
+    seed(tilt, written)
+    const printer = usePrinterStore(pinia)
+    printer.buildVolume.minimum = [0, 0, 0]
+    printer.buildVolume.maximum = [235, 235, 250]
+    const moveTo = vi.spyOn(printer, 'moveTo').mockResolvedValue(true)
+    await mountPanel(ScrewPositionsPanel)
+    await standAt(10, 10)
+    const card = mount(BedLayoutCard, {
+      props: { procedure: 'screwsTilt', recording: true },
+      global: { plugins: [i18n, pinia] },
+    })
+    await flushPromises()
+
+    const markers = card.findAll('.calibration-layout__screw')
+    expect(markers[0]?.text()).toContain('Nearest')
+    expect(markers[1]?.attributes('aria-label')).toBe('Move the probe over screw2')
+    expect(markers[1]?.text()).toContain('Move here?')
+
+    // The probe over screw2's probe point is the nozzle at the stored coordinate.
+    await markers[1]!.trigger('click')
+    expect(moveTo).toHaveBeenLastCalledWith({ x: 200, y: 30 })
   })
 })
 

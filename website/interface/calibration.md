@@ -132,7 +132,10 @@ calibration is about:
   the screws, with the Movement controls to jog with.
 
 Once X and Y are homed, the nozzle is marked on the bed, and the probe beside
-it with a dashed ring. Every other bed calibration shows the height map.
+it with a dashed ring. Click a screw to send the toolhead there at its current
+height: the probe goes over the screw for `[screws_tilt_adjust]`, the nozzle
+for `[bed_screws]`, and whichever you chose while recording screw positions.
+Every other bed calibration shows the height map.
 
 ## Seeing what the other calibrations measure
 
@@ -267,9 +270,13 @@ says so and asks for another run after the adjustment.
 ## Screw positions
 
 Records the bed screws' coordinates by standing over them, instead of
-measuring the bed with a ruler. Choose whether you line up the nozzle or the
-probe over each screw, jog there with the Movement controls, and record the
-screw; screw 1 is the base screw the others are measured against. The panel
+measuring the bed with a ruler. The list starts with the screws already in the
+section. To correct one, stand over it and **Re-record** it: the button names
+the screw nearest the toolhead, which the drawing marks **Nearest**. To record
+a full set, choose **Start over** and record each screw in turn; screw 1 is the
+base screw the others are measured against. Choose the nozzle or the probe
+separately for each screw, whichever is easier to line up there, and jog with
+the Movement controls or click the screw on the drawing. The panel
 works out what the section needs: `[screws_tilt_adjust]` wants where to send
 the nozzle so the probe lands on the screw, `[bed_screws]` wants the nozzle
 over it. A coordinate the nozzle cannot reach is moved to the nearest one it

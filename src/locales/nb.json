@@ -271,7 +271,13 @@
         "point": "Probepunkt, i rekkefølge",
         "nozzle": "Dyse",
         "atProbe": "Tegnet der proben måler. Konfigen lagrer dyseposisjonen, forskjøvet X {x}, Y {y} mm.",
-        "probe": "Probe"
+        "probe": "Probe",
+        "nearest": "Nærmest",
+        "moveHere": "Flytt hit?",
+        "moveTo": {
+          "nozzle": "Flytt dysen over {name}",
+          "probe": "Flytt proben over {name}"
+        }
       }
     },
     "endstops": {
@@ -1004,10 +1010,16 @@
       "nozzle": "Dysen",
       "probe": "Proben",
       "stand": {
-        "nozzle": "Jogg dysen over skrue {index}.",
-        "probe": "Jogg probens målepunkt over skrue {index}."
+        "nozzle": "Jogg dysen over en skrue, eller klikk på skruen på sengen.",
+        "probe": "Jogg probens målepunkt over en skrue, eller klikk på skruen på sengen."
       },
       "record": "Registrer skrue {index}",
+      "rerecord": "Registrer {name} på nytt",
+      "stoodWith": {
+        "nozzle": "registrert med dysen",
+        "probe": "registrert med proben"
+      },
+      "startOver": "Begynn på nytt",
       "base": "Skrue 1 er basisskruen de andre måles mot.",
       "name": "Navn",
       "remove": "Fjern skrue {index}",

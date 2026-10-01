@@ -78,7 +78,11 @@ function showsMap(procedure: CalibrationProcedure | null): boolean {
       <ProbeOffsetCard
         v-else-if="procedure?.id === 'probeZOffset' || procedure?.id === 'probeXyOffset'"
       />
-      <BedLayoutCard v-else-if="layoutFor(procedure)" :procedure="layoutFor(procedure)!" />
+      <BedLayoutCard
+        v-else-if="layoutFor(procedure)"
+        :procedure="layoutFor(procedure)!"
+        :recording="procedure?.id === 'screwPositions'"
+      />
 
       <HostedDashboardModule
         v-if="procedure && jogProcedures.has(procedure.id)"

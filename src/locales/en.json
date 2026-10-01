@@ -271,7 +271,13 @@
         "point": "Probe point, in order",
         "nozzle": "Nozzle",
         "atProbe": "Drawn where the probe measures. The config stores the nozzle position, offset by X {x}, Y {y} mm.",
-        "probe": "Probe"
+        "probe": "Probe",
+        "nearest": "Nearest",
+        "moveHere": "Move here?",
+        "moveTo": {
+          "nozzle": "Move the nozzle over {name}",
+          "probe": "Move the probe over {name}"
+        }
       }
     },
     "endstops": {
@@ -1004,10 +1010,16 @@
       "nozzle": "The nozzle",
       "probe": "The probe",
       "stand": {
-        "nozzle": "Jog the nozzle over screw {index}.",
-        "probe": "Jog the probe's sensing point over screw {index}."
+        "nozzle": "Jog the nozzle over a screw, or click the screw on the bed.",
+        "probe": "Jog the probe's sensing point over a screw, or click the screw on the bed."
       },
       "record": "Record screw {index}",
+      "rerecord": "Re-record {name}",
+      "stoodWith": {
+        "nozzle": "recorded with the nozzle",
+        "probe": "recorded with the probe"
+      },
+      "startOver": "Start over",
       "base": "Screw 1 is the base screw the others are measured against.",
       "name": "Name",
       "remove": "Remove screw {index}",
