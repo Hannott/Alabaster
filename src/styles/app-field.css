@@ -152,6 +152,12 @@
  * with the correct token on both sides instead of choosing one surface and
  * leaving a visible patch on the other.
  *
+ * Both halves are read from `--app-field-surround` and `--app-field-fill`
+ * (see `.app-field__box` in components.css), because the surface around a
+ * field is not always the card's. A container on the soft surface swaps the
+ * two, so the field stays one step from what is behind it and the notch
+ * matches both sides; `.calibration-result` is the instance.
+ *
  * The label is anchored to the box, which is why the box is the positioning
  * context: `top: 0` plus a half-height translate centers the notch on the box's
  * own top border at every size. Hanging it off the outer field made an end
@@ -166,7 +172,11 @@
   max-width: calc(100% - 1rem);
   transform: translateY(-50%);
   padding-inline: 0.25rem;
-  background: linear-gradient(to bottom, var(--surface-raised) 0 50%, var(--surface-soft) 50% 100%);
+  background: linear-gradient(
+    to bottom,
+    var(--app-field-surround, var(--surface-raised)) 0 50%,
+    var(--app-field-fill, var(--surface-soft)) 50% 100%
+  );
   color: var(--text-muted);
   font-size: var(--text-field-label-size);
   font-weight: var(--font-weight);

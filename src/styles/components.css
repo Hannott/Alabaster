@@ -1296,6 +1296,11 @@ input[type='radio']:focus-visible,
   font-size: var(--control-field-xs-size);
 }
 
+/* The fill the embedded label's notch matches; see `.app-field--label-embed .app-field__label`. */
+.app-field__box {
+  background-color: var(--app-field-fill, var(--surface-soft));
+}
+
 /* Same rule as the button's: one step of contrast from the surface behind it. */
 .field--on-soft {
   background-color: var(--surface-raised);
@@ -13606,6 +13611,9 @@ body.machine-editor-fullscreen-open {
 }
 
 .calibration-result {
+  --app-field-surround: var(--surface-soft);
+  --app-field-fill: var(--surface-raised);
+
   display: grid;
   gap: 0.6rem;
   padding: 0.75rem;
