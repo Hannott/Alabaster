@@ -27,6 +27,7 @@ const context: ProcedureContext = {
   mesh: () => null,
   newestGraph: () => null,
   screwsTilt: () => null,
+  written: () => null,
 }
 
 function say(raw: string, kind: 'response' | 'command' = 'response'): void {

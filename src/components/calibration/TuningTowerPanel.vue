@@ -6,6 +6,7 @@ import AppButton from '@/components/AppButton.vue'
 import AppField from '@/components/AppField.vue'
 import CalibrationCard from '@/components/calibration/CalibrationCard.vue'
 import CalibrationHistory from '@/components/calibration/CalibrationHistory.vue'
+import { onKlipperRestart } from '@/composables/onKlipperRestart'
 import { useAvailability } from '@/composables/useAvailability'
 import { useConfigWrite } from '@/composables/useConfigWrite'
 import { useProcedureContext } from '@/composables/useProcedureContext'
@@ -136,6 +137,12 @@ async function apply(): Promise<void> {
 watch(calculated, () => {
   applied.value = false
   configWrite.forget()
+})
+
+/* A restart disarms the tower and drops a value applied until restart. */
+onKlipperRestart(() => {
+  prepared.value = false
+  applied.value = false
 })
 
 async function save(): Promise<void> {

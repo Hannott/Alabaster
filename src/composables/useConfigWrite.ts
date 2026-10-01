@@ -1,5 +1,6 @@
 import { computed, ref } from 'vue'
 
+import { onKlipperRestart } from '@/composables/onKlipperRestart'
 import { useAvailability } from '@/composables/useAvailability'
 import { useCalibrationStore, type PersistActionOutcome } from '@/stores/calibration'
 import { usePrinterStore } from '@/stores/printer'
@@ -30,6 +31,8 @@ export function useConfigWrite() {
     section: string,
     changes: readonly { option: string; value: string }[],
     removes: readonly string[] = [],
+    /** False for every write but the last of several sections, so Klipper restarts once. */
+    restart = true,
   ): Promise<PersistActionOutcome | null> {
     writing.value = id
     try {
@@ -40,7 +43,7 @@ export function useConfigWrite() {
         section,
         changes,
         removes,
-        restart: true,
+        restart,
       })
       if (typeof outcome !== 'string') return null
       last.value = { id, outcome }
@@ -58,6 +61,9 @@ export function useConfigWrite() {
   function forget(): void {
     last.value = null
   }
+
+  // "Klipper is restarting" and "restart to load it" are both over once it is back.
+  onKlipperRestart(forget)
 
   return { writing, disabled, write, outcomeFor, forget }
 }

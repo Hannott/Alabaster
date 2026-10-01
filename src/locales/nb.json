@@ -483,7 +483,9 @@
         "applied": "Brukt til Klipper starter på nytt.",
         "measured": "Målt; ingenting på skriveren ble endret.",
         "done": "Ferdig.",
-        "failed": "Kommandoen feilet. Utdataene sier hvorfor."
+        "failed": "Kommandoen feilet. Utdataene sier hvorfor.",
+        "appliedEnded": "Var aktiv til Klipper ble restartet.",
+        "stagedEnded": "Lagt klar før Klipper sist restartet; venter ikke lenger."
       },
       "actionApplied": "Brukt til Klipper starter på nytt.",
       "persist": {
@@ -1013,8 +1015,6 @@
       "tooFew": "Klipper trenger minst {count} skruer."
     },
     "sensorless": {
-      "retract": "{stepper} har homing_retract_dist {value}. Sensorløs homing trenger 0.",
-      "holdCurrent": "[{section}] setter hold_current, som flytter vognen etter at den stopper.",
       "centre": "Sett vognen nær midten av skinnen. Motorer av lar den skyves dit.",
       "motorsOff": "Motorer av",
       "attempt": "Sett en følsomhet og hom. {most} er mest følsom, {least} minst.",
@@ -1023,12 +1023,26 @@
       "outcome": {
         "stoppedEarly": "Stoppet for tidlig",
         "singleTouch": "Homet, én berøring",
-        "banged": "Homet, dunket"
+        "banged": "Homet, dunket",
+        "noTrigger": "Ingen stall registrert"
       },
       "stop": "En akse som ikke stopper, stanses med nødstopp.",
       "result": "Resultat",
       "range": "Mest følsomme fulle homing: {maximum} · Minst følsomme enkeltberøring: {minimum}",
-      "narrow": "Spennet er under {count} steg, som kan gi ustabil homing. Høyere homing_speed gjør det bredere."
+      "narrow": "Spennet er under {count} steg, som kan gi ustabil homing. Høyere homing_speed gjør det bredere.",
+      "setup": {
+        "pin": "<MCU-pinnen koblet til driverens DIAG>",
+        "switch": "{stepper} homer mot en bryter. Sensorløs homing trenger disse linjene i konfigen først:",
+        "adjust": "Klippers TMC-guide ber om disse endringene for {stepper} før søket:",
+        "remove": "Fjern {option} fra [{section}].",
+        "restart": "Bryteren kan bli sittende; Klipper slutter å lese den.",
+        "diagPin": "DIAG-pinne",
+        "fix": "Fiks konfig og restart",
+        "pinHint": "Starter som aksens endestoppinne, som kortets DIAG-jumper kobler driveren til. Endre den der DIAG er koblet et annet sted.",
+        "direction": "{stepper} homer bort fra sin position_endstop, så homing-bevegelsen er bare en millimeter eller to og slutter før motoren kan stalle. Klippers homing-retning må passe med enden endestoppen står i:"
+      },
+      "noTrigger": "{message} Driveren meldte ingen stall på hele bevegelsen: prøv en mer følsom verdi. Ved den mest følsomme når ikke DIAG-signalet pinnen satt som diag_pin.",
+      "failed": "Homing feilet: {message}"
     },
     "loadCell": {
       "cell": "Veiecelle",

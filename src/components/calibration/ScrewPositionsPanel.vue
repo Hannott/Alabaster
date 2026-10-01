@@ -62,8 +62,13 @@ const target = computed<ScrewTarget>(() =>
     : (targets.value[0] ?? 'screwsTilt'),
 )
 const section = computed(() => screwSections[target.value])
-const existing = computed(() => printerConfig.section(section.value))
-const configured = computed(() => configuredScrews(existing.value))
+const configured = computed(() => configuredScrews(printerConfig.section(section.value)))
+/*
+ * The lines the file holds, for names and for what a write removes. Klipper
+ * reports "screw at x,y" as the name of a screw nobody named, so the settings
+ * would prefill that as a name and write it back as if someone had chosen it.
+ */
+const written = computed(() => printerConfig.loadedConfig[section.value] ?? null)
 
 // The live column draws the section being recorded, not the first one it finds.
 watch(target, (value) => selection.setSubject('screwPositions', value), { immediate: true })
@@ -87,7 +92,7 @@ function record(): void {
   const [x, y] = printer.motion.position
   if (typeof x !== 'number' || typeof y !== 'number') return
   const index = recorded.value.length + 1
-  const name = existing.value?.[`screw${index}_name`]
+  const name = written.value?.[`screw${index}_name`]
   recorded.value = [
     ...recorded.value,
     { toolhead: { x, y }, name: typeof name === 'string' ? name : '' },
@@ -118,7 +123,7 @@ const write = computed(() =>
   screwWrite(
     target.value,
     screws.value.map(({ point, name }) => ({ point, name })),
-    existing.value,
+    written.value,
   ),
 )
 

@@ -14348,6 +14348,29 @@ body.machine-editor-fullscreen-open {
   inline-size: 13rem;
 }
 
+/*
+ * Config lines a calibration needs written by hand, as the file will hold
+ * them: mono, kept as typed, and wrapping rather than scrolling the card.
+ */
+.calibration-sensorless-setup {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.calibration-snippet {
+  margin: 0;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--control-radius-sm);
+  background: var(--surface-soft);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: var(--text-meta-size);
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 /* Recorded bed screws: the values, and the name to write, wrapping under them when narrow. */
 .calibration-screw-records {
   display: grid;

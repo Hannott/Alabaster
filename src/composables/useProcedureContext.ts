@@ -58,6 +58,7 @@ export function useProcedureContext(): ComputedRef<ProcedureContext> {
         const value = printerConfig.section(section)
         return isRecord(value) ? value : null
       },
+      written: (section) => printerConfig.loadedConfig[section.toLowerCase()] ?? null,
       kinematics: typeof kinematics === 'string' ? kinematics : null,
       hasProbe: printerConfig.hasProbe,
       heaters: heaters.value,

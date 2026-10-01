@@ -7,6 +7,7 @@ import AppField from '@/components/AppField.vue'
 import CalibrationCard from '@/components/calibration/CalibrationCard.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import { useActionGuard } from '@/composables/useActionGuard'
+import { onKlipperRestart } from '@/composables/onKlipperRestart'
 import { useAvailability } from '@/composables/useAvailability'
 import { useProcedureText } from '@/composables/useProcedureText'
 import {
@@ -124,6 +125,10 @@ const extruderUnshaped = computed(() => {
 
 const writing = ref<string | null>(null)
 const writeOutcome = ref<{ id: string; outcome: PersistActionOutcome } | null>(null)
+// "Klipper is restarting" is over once it is back.
+onKlipperRestart(() => {
+  writeOutcome.value = null
+})
 
 async function persist(
   id: string,

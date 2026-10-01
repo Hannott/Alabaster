@@ -3,9 +3,11 @@ import { describe, expect, it } from 'vitest'
 import { loadCellWord, loadCells, readLoadCell } from '@/features/calibration/loadCell'
 import {
   attemptScript,
+  homingDirectionFix,
   nextValue,
   recommendedSensitivity,
   sensitivityRange,
+  setupSnippet,
   stallDriversFor,
 } from '@/features/calibration/sensorless'
 import {
@@ -142,19 +144,54 @@ describe('toolhead points', () => {
 describe('sensorless homing', () => {
   const settings = settingsOf({
     stepper_x: { endstop_pin: 'tmc2209_stepper_x:virtual_endstop' },
+    // Klipper reports the driver's maximum as hold_current whether or not the file sets one.
+    'tmc2209 stepper_x': { hold_current: 2 },
     stepper_y: { endstop_pin: '^PA2' },
+    'tmc2209 stepper_y': { hold_current: 0.5 },
     stepper_z: { endstop_pin: 'tmc5160_stepper_z:virtual_endstop' },
   })
+  const written = (section: string) =>
+    section === 'tmc2209 stepper_y' ? { hold_current: '0.5' } : null
   const drivers = stallDriversFor(
     ['tmc2209 stepper_x', 'tmc2209 stepper_y', 'tmc5160 stepper_z', 'tmc2208 stepper_e'],
     settings,
+    written,
   )
 
-  it('offers only steppers that home against their own driver', () => {
-    expect(drivers.map((driver) => [driver.stepper, driver.field])).toEqual([
-      ['stepper_x', 'sgthrs'],
-      ['stepper_z', 'sgt'],
+  it('offers steppers that home against their driver, and X and Y that could', () => {
+    expect(drivers.map((driver) => [driver.stepper, driver.field, driver.setup.blocking])).toEqual([
+      ['stepper_x', 'sgthrs', false],
+      ['stepper_y', 'sgthrs', true],
+      ['stepper_z', 'sgt', false],
     ])
+    // Z on a switch or on the probe is not offered: the guide advises against homing Z by stall.
+    for (const pin of ['^PA3', 'probe:z_virtual_endstop']) {
+      expect(
+        stallDriversFor(
+          ['tmc2209 stepper_z'],
+          settingsOf({ stepper_z: { endstop_pin: pin } }),
+          () => null,
+        ),
+      ).toEqual([])
+    }
+  })
+
+  it('writes out the lines an axis on a switch needs, the DIAG pin left to the wiring', () => {
+    const y = drivers[1]!
+    expect(setupSnippet(y.setup, '<pin>')).toBe(
+      [
+        '[stepper_y]',
+        'endstop_pin: tmc2209_stepper_y:virtual_endstop',
+        'homing_retract_dist: 0',
+        '',
+        '[tmc2209 stepper_y]',
+        'diag_pin: <pin>',
+        'driver_SGTHRS: 255',
+      ].join('\n'),
+    )
+    expect(y.setup.removes).toEqual([{ section: 'tmc2209 stepper_y', option: 'hold_current' }])
+    // The default Klipper reports for a hold_current nobody wrote is not a line to remove.
+    expect(drivers[0]!.setup.removes).toEqual([])
   })
 
   it("finds the range and keeps a third of the way up from the guide's minimum", () => {
@@ -171,7 +208,7 @@ describe('sensorless homing', () => {
   })
 
   it('counts sensitivity the other way on an sgt driver', () => {
-    const z = drivers[1]!
+    const z = drivers[2]!
     const range = sensitivityRange(z, [
       { value: -10, outcome: 'singleTouch' },
       { value: 5, outcome: 'singleTouch' },
@@ -214,5 +251,40 @@ describe('load cell', () => {
       capacityKg: 13.23,
     })
     expect(readLoadCell(['// Load cell calibration aborted']).phase).toBe('aborted')
+  })
+})
+
+describe('sensorless homing direction', () => {
+  it('turns the homing direction toward the end position_endstop is at', () => {
+    // FrankenForge: endstop at the top, homed downward, a 1.5 mm homing move.
+    const top = { position_endstop: 300, position_min: -1, position_max: 301 }
+    expect(homingDirectionFix({ ...top, homing_positive_dir: false })).toBe('True')
+    expect(homingDirectionFix({ ...top, homing_positive_dir: true })).toBeNull()
+    expect(
+      homingDirectionFix({ position_endstop: 0, position_max: 300, homing_positive_dir: true }),
+    ).toBe('False')
+    // Left unset, Klipper works the direction out from the endstop itself.
+    expect(homingDirectionFix(top)).toBeNull()
+  })
+
+  it('blocks the search while the direction is wrong, and steps toward sensitive after no stall', () => {
+    const [x] = stallDriversFor(
+      ['tmc2209 stepper_x'],
+      settingsOf({
+        stepper_x: {
+          endstop_pin: 'tmc2209_stepper_x:virtual_endstop',
+          homing_retract_dist: 0,
+          position_endstop: 300,
+          position_max: 301,
+          homing_positive_dir: false,
+        },
+      }),
+      () => ({ diag_pin: '^STOP0' }),
+    )
+    expect(x!.setup).toMatchObject({
+      blocking: true,
+      lines: [{ section: 'stepper_x', option: 'homing_positive_dir', value: 'True' }],
+    })
+    expect(nextValue(x!, { value: 100, outcome: 'noTrigger' })).toBe(110)
   })
 })

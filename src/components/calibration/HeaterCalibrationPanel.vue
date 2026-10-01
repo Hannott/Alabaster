@@ -8,6 +8,7 @@ import PromptDialog from '@/components/PromptDialog.vue'
 import { sensorLabel } from '@/components/dashboard/modules/temperatureSensors'
 import { useActionGuard } from '@/composables/useActionGuard'
 import { useCalibrationRun } from '@/composables/useCalibrationRun'
+import { onKlipperRestart } from '@/composables/onKlipperRestart'
 import { useFollowingLog } from '@/composables/useFollowingLog'
 import { useConsoleStore } from '@/stores/console'
 import { usePrinterStore } from '@/stores/printer'
@@ -64,6 +65,15 @@ const calibrationTargetDraft = ref(defaultCalibrationTarget)
 /** The last console entry before the calibration was sent; its transcript is what follows. */
 const calibrationTranscriptStart = ref(0)
 const calibrationSucceeded = ref<boolean | null>(null)
+/*
+ * The restart after SAVE_CONFIG writes the staged model, and any other one
+ * drops it, so "staged" stops being true at the next restart either way; the
+ * transcript stays, since its constants are why the calibration was run.
+ */
+const restartedSinceCalibration = ref(false)
+onKlipperRestart(() => {
+  restartedSinceCalibration.value = true
+})
 
 const calibratableSensors = computed(() =>
   telemetry.sensors.filter(
@@ -131,6 +141,7 @@ function openCalibrationPrompt(sensor: SensorReading): void {
   calibratingObjectName.value = sensor.objectName
   calibrationKind.value = kind
   calibrationSucceeded.value = null
+  restartedSinceCalibration.value = false
   calibrationTargetDraft.value =
     sensor.target !== null && sensor.target > 0
       ? Math.round(sensor.target)
@@ -235,7 +246,7 @@ async function startCalibration(): Promise<void> {
         surface staged it, so this says what happened and names where to make it
         permanent.
       -->
-      <p v-if="calibrationSucceeded === true" class="hint mt-2">
+      <p v-if="calibrationSucceeded === true && !restartedSinceCalibration" class="hint mt-2">
         {{ t('dashboard.temperature.calibrationStaged') }}
       </p>
     </div>

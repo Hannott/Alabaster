@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import AppButton from '@/components/AppButton.vue'
+import { onKlipperRestart } from '@/composables/onKlipperRestart'
 import { useAvailability } from '@/composables/useAvailability'
 import {
   formatNumber,
@@ -131,6 +132,10 @@ const removesGearRatio = computed(
 
 const writing = ref(false)
 const outcome = ref<PersistActionOutcome | null>(null)
+// "Restart to load it" is over once Klipper has restarted.
+onKlipperRestart(() => {
+  outcome.value = null
+})
 watch(
   () => [props.proposed, props.targets],
   () => (outcome.value = null),

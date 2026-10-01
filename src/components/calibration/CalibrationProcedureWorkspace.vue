@@ -11,6 +11,7 @@ import CalibrationRequirements from '@/components/calibration/CalibrationRequire
 import CalibrationScrewsGrid from '@/components/calibration/CalibrationScrewsGrid.vue'
 import CalibrationSparkline from '@/components/calibration/CalibrationSparkline.vue'
 import { useActionGuard } from '@/composables/useActionGuard'
+import { onKlipperRestart } from '@/composables/onKlipperRestart'
 import { useAvailability } from '@/composables/useAvailability'
 import { useCalibrationSelection } from '@/composables/useCalibrationSelection'
 import { useFollowingLog } from '@/composables/useFollowingLog'
@@ -31,6 +32,7 @@ import {
   type ShaperCandidate,
 } from '@/features/calibration/procedures'
 import { trendSeries } from '@/features/calibration/trends'
+import { useAvailabilityStore } from '@/stores/availability'
 import { useCalibrationStore, type PersistActionOutcome } from '@/stores/calibration'
 import { usePrinterStore } from '@/stores/printer'
 
@@ -56,6 +58,7 @@ const emit = defineEmits<{ skip: []; select: [id: ProcedureId] }>()
 const { t } = useI18n({ useScope: 'global' })
 const calibration = useCalibrationStore()
 const printer = usePrinterStore()
+const availability = useAvailabilityStore()
 const context = useProcedureContext()
 const requirements = useProcedureRequirements()
 const { lastRun, text, when } = useProcedureText()
@@ -301,6 +304,10 @@ const hasBefore = computed(
 )
 
 const actionOutcomes = ref<Record<string, PersistActionOutcome | boolean>>({})
+/* "Applied until Klipper restarts" and "Klipper is restarting" both end with the restart. */
+onKlipperRestart(() => {
+  actionOutcomes.value = {}
+})
 const pendingAction = ref<string | null>(null)
 
 /** The current run's actions keep their own ids; an earlier run's are scoped by when it ran. */
@@ -342,6 +349,20 @@ const outcomeText = computed(() => {
   }
   if (run.value?.succeeded === false) return t('calibration.result.outcome.failed')
   if (!result.value) return null
+  /*
+   * Applied and staged both last until a restart. One since the run has
+   * undone the first and either written or dropped the second, so the result
+   * still says what it found and no longer says it is running or waiting.
+   */
+  const readyAt = availability.klipperReadyAt
+  const restartedSince = readyAt !== null && readyAt > (run.value?.startedAt ?? 0)
+  if (restartedSince && result.value.outcome === 'applied') {
+    return t('calibration.result.outcome.appliedEnded')
+  }
+  // A reconnect counts as a restart too, so a staged value Klipper still reports keeps its note.
+  if (restartedSince && result.value.outcome === 'staged' && !printer.saveConfigPending) {
+    return t('calibration.result.outcome.stagedEnded')
+  }
   return t(`calibration.result.outcome.${result.value.outcome}`)
 })
 

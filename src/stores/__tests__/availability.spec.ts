@@ -66,6 +66,21 @@ describe('availability store', () => {
     expect(store.availabilityFor('klipper').isAvailable).toBe(true)
   })
 
+  it('counts each time Klipper comes back ready, and not a repeated ready', () => {
+    const store = useAvailabilityStore()
+    store.moonrakerConnected({ klippy_connected: true, klippy_state: 'ready' })
+    store.printerSnapshotSynchronized()
+    expect(store.klipperSession).toBe(1)
+    store.printerSnapshotSynchronized()
+    expect(store.klipperSession).toBe(1)
+
+    store.handleKlipperNotification('notify_klippy_disconnected')
+    store.handleKlipperNotification('notify_klippy_ready')
+    store.printerSnapshotSynchronized()
+    expect(store.klipperSession).toBe(2)
+    expect(store.klipperReadyAt).not.toBeNull()
+  })
+
   it('drops back to startup when Klipper restarts out from under a ready connection', () => {
     const store = useAvailabilityStore()
     store.moonrakerConnected({ klippy_connected: true, klippy_state: 'ready' })

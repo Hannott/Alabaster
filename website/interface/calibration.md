@@ -327,9 +327,22 @@ axis, then say what it did: stopped short, homed with one touch, or homed and
 banged. The panel keeps the list, finds the most sensitive value that still
 homed and the least sensitive one that stopped with one touch, and proposes
 the value a third of the way between them, from the second. **Save and
-restart** writes it as `driver_SGTHRS` or `driver_SGT`. The panel says when
-`homing_retract_dist` is not 0 or `hold_current` is set, which both spoil the
-search, and when the range is too narrow to home reliably.
+restart** writes it as `driver_SGTHRS` or `driver_SGT`. When the range is too
+narrow to home reliably, the panel says so.
+
+X and Y are offered on any driver that can detect a stall, also while they
+still home on a switch. Such an axis shows the config lines it needs instead of
+the search: `endstop_pin` on the driver's virtual endstop, `homing_retract_dist:
+0`, the driver's DIAG pin, and the most sensitive starting value. **Fix config
+and restart** writes them for that axis, and removes a `hold_current`, with one
+restart. The DIAG pin starts as the axis's endstop pin, which a board's DIAG
+jumper connects the driver to; change it where yours is wired elsewhere. The
+same list names a `homing_retract_dist` or `hold_current` on an axis that is
+already set up, since both spoil the search, and a `homing_positive_dir`
+pointing away from `position_endstop`, which makes the homing move a millimetre
+or two and fails at every sensitivity. A home that finds no stall at all is
+recorded from Klipper's own error, and the next value offered is more sensitive. Z is offered only once it homes on
+its driver, since Klipper advises against homing Z by stall.
 
 ## Skew correction
 

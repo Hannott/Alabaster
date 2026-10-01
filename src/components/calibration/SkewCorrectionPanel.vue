@@ -6,6 +6,7 @@ import AppButton from '@/components/AppButton.vue'
 import AppField from '@/components/AppField.vue'
 import CalibrationCard from '@/components/calibration/CalibrationCard.vue'
 import CalibrationHistory from '@/components/calibration/CalibrationHistory.vue'
+import { onKlipperRestart } from '@/composables/onKlipperRestart'
 import { useAvailability } from '@/composables/useAvailability'
 import { useProcedureContext } from '@/composables/useProcedureContext'
 import type { ProcedureResultRow } from '@/features/calibration/procedures'
@@ -98,6 +99,15 @@ function skewText(value: number | null): string {
 const busy = ref<'clear' | 'save' | null>(null)
 const cleared = ref(false)
 const saved = ref(false)
+
+/*
+ * A restart loads skew from the start macro, if any, so "cleared" no longer
+ * holds; and the restart that follows SAVE_CONFIG is what wrote "staged".
+ */
+onKlipperRestart(() => {
+  cleared.value = false
+  saved.value = false
+})
 
 const canSend = computed(
   () =>

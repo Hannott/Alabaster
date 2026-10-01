@@ -6,6 +6,7 @@ import AppButton from '@/components/AppButton.vue'
 import AppField from '@/components/AppField.vue'
 import CalibrationCard from '@/components/calibration/CalibrationCard.vue'
 import CalibrationHistory from '@/components/calibration/CalibrationHistory.vue'
+import { onKlipperRestart } from '@/composables/onKlipperRestart'
 import { useAvailability } from '@/composables/useAvailability'
 import { useProcedureContext } from '@/composables/useProcedureContext'
 import {
@@ -56,6 +57,11 @@ const phase = computed(() => reading.value.phase)
 const isOpen = computed(
   () => phase.value === 'started' || phase.value === 'tared' || phase.value === 'calibrated',
 )
+
+/* A restart closes Klipper's helper; its lines before that describe a calibration that is gone. */
+onKlipperRestart(() => {
+  startedAfter.value = null
+})
 
 const grams = ref<number | null>(null)
 const busy = ref<string | null>(null)

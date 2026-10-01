@@ -65,6 +65,18 @@ export const useAvailabilityStore = defineStore('availability', () => {
   const subscriptionState = ref<SubscriptionState>('inactive')
   const hasReachedMoonraker = ref(false)
   const hasReachedKlipper = ref(false)
+  /**
+   * Counts every time Klipper comes back ready with a fresh snapshot — the
+   * first connect, every restart and firmware restart, and a reconnect — with
+   * the moment it did. Not every value has a status object to go stale
+   * through: what a surface sent and noted itself ("tower armed", "applied
+   * until restart", a guided helper it opened) lives only in that surface,
+   * and a restart silently ends all of it. Such a surface watches this and
+   * drops its note. A reconnect counts too, since nothing says whether
+   * Klipper restarted while the connection was gone.
+   */
+  const klipperSession = ref(0)
+  const klipperReadyAt = ref<number | null>(null)
 
   const isMoonrakerConnected = computed(() => transportState.value === 'connected')
   const isKlipperReady = computed(
@@ -144,6 +156,10 @@ export const useAvailabilityStore = defineStore('availability', () => {
   function printerSnapshotSynchronized(): boolean {
     if (!isMoonrakerConnected.value || klipperState.value !== 'ready') return false
 
+    if (subscriptionState.value !== 'ready') {
+      klipperSession.value += 1
+      klipperReadyAt.value = Date.now()
+    }
     subscriptionState.value = 'ready'
     hasReachedKlipper.value = true
     return true
@@ -229,6 +245,8 @@ export const useAvailabilityStore = defineStore('availability', () => {
     subscriptionState,
     hasReachedMoonraker,
     hasReachedKlipper,
+    klipperSession,
+    klipperReadyAt,
     isMoonrakerConnected,
     isKlipperReady,
     beginConnection,

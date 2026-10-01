@@ -483,7 +483,9 @@
         "applied": "Applied until Klipper restarts.",
         "measured": "Measured; nothing on the printer changed.",
         "done": "Finished.",
-        "failed": "The command failed. The output says why."
+        "failed": "The command failed. The output says why.",
+        "appliedEnded": "Was applied until Klipper restarted.",
+        "stagedEnded": "Staged before Klipper last restarted; no longer pending."
       },
       "actionApplied": "Applied until Klipper restarts.",
       "persist": {
@@ -1013,8 +1015,6 @@
       "tooFew": "Klipper needs at least {count} screws."
     },
     "sensorless": {
-      "retract": "{stepper} has homing_retract_dist {value}. Sensorless homing needs 0.",
-      "holdCurrent": "[{section}] sets hold_current, which moves the carriage after it stalls.",
       "centre": "Put the carriage near the middle of its rail. Motors off lets it be pushed there.",
       "motorsOff": "Motors off",
       "attempt": "Set a sensitivity and home. {most} is the most sensitive, {least} the least.",
@@ -1023,12 +1023,26 @@
       "outcome": {
         "stoppedEarly": "Stopped short",
         "singleTouch": "Homed, one touch",
-        "banged": "Homed, banged"
+        "banged": "Homed, banged",
+        "noTrigger": "No stall seen"
       },
       "stop": "An axis that does not stop is halted with the emergency stop.",
       "result": "Result",
       "range": "Most sensitive full home: {maximum} · Least sensitive single touch: {minimum}",
-      "narrow": "The range is under {count} steps, which can home unreliably. A faster homing_speed widens it."
+      "narrow": "The range is under {count} steps, which can home unreliably. A faster homing_speed widens it.",
+      "setup": {
+        "pin": "<the MCU pin wired to the driver's DIAG>",
+        "switch": "{stepper} homes on a switch. Sensorless homing needs these lines in the config first:",
+        "adjust": "Klipper's TMC guide asks for these changes to {stepper} before the search:",
+        "remove": "Remove {option} from [{section}].",
+        "restart": "The switch can stay wired; Klipper stops reading it.",
+        "diagPin": "DIAG pin",
+        "fix": "Fix config and restart",
+        "pinHint": "Starts as the axis's endstop pin, which a board's DIAG jumper connects the driver to. Change it where the DIAG is wired elsewhere.",
+        "direction": "{stepper} homes away from its position_endstop, so its homing move is only a millimetre or two and ends before the motor can stall. Klipper's homing direction has to match the end the endstop is at:"
+      },
+      "noTrigger": "{message} The driver reported no stall the whole move: try a more sensitive value. At the most sensitive one, the DIAG signal is not reaching the pin set as diag_pin.",
+      "failed": "Homing failed: {message}"
     },
     "loadCell": {
       "cell": "Load cell",

@@ -176,6 +176,13 @@ export interface ProcedureContext {
   hasMacro: (name: string) => boolean
   /** A section's loaded settings, lower-cased keys, or null. */
   settings: (section: string) => Record<string, unknown> | null
+  /**
+   * A section's options as the files write them, raw text, or null. Not the
+   * same question as `settings`: Klipper reports every option it read there,
+   * defaults included, so a `hold_current` nobody wrote reads as 2.0 in
+   * `settings` and is absent here. Ask this whether a line is in the config.
+   */
+  written: (section: string) => Readonly<Record<string, string>> | null
   kinematics: string | null
   hasProbe: boolean
   heaters: readonly ProcedureHeater[]
@@ -1212,7 +1219,8 @@ export const calibrationProcedures: readonly CalibrationProcedure[] = [
     id: 'sensorlessHoming',
     stage: 'axes',
     command: 'SET_TMC_FIELD',
-    available: (context) => stallDriversFor(context.sections, context.settings).length > 0,
+    available: (context) =>
+      stallDriversFor(context.sections, context.settings, context.written).length > 0,
     requires: ['notPrinting'],
     effects: ['moves'],
     duration: 'interactive',

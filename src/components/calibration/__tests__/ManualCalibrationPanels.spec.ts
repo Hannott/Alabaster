@@ -37,8 +37,24 @@ beforeEach(() => {
   vi.spyOn(moonraker, 'rpcCall').mockResolvedValue({} as never)
 })
 
-function seed(settings: Record<string, Record<string, unknown>>): void {
-  usePrinterConfigStore(pinia).settings = settings
+/** `written` is what the files hold; the settings carry Klipper's defaults on top of it. */
+function seed(
+  settings: Record<string, Record<string, unknown>>,
+  written: Record<string, Record<string, string>> = {},
+): void {
+  const printerConfig = usePrinterConfigStore(pinia)
+  printerConfig.settings = settings
+  printerConfig.loadedConfig = written
+}
+
+/** Klipper goes away and comes back ready, as a restart or a firmware restart does. */
+async function restartKlipper(): Promise<void> {
+  const availability = useAvailabilityStore(pinia)
+  availability.handleKlipperNotification('notify_klippy_disconnected')
+  await flushPromises()
+  availability.handleKlipperNotification('notify_klippy_ready')
+  availability.printerSnapshotSynchronized()
+  await flushPromises()
 }
 
 async function mountPanel(component: Component): Promise<VueWrapper> {
@@ -109,6 +125,11 @@ describe('TuningTowerPanel', () => {
       'calibration',
     )
 
+    expect(panel.text()).toContain('Tower armed.')
+    // A restart disarms the tower, so the note that says it is armed goes with it.
+    await restartKlipper()
+    expect(panel.text()).not.toContain('Tower armed.')
+
     await setField(panel, 'Height', '12.9')
     expect(panel.find('.calibration-result').text()).toContain('0.258')
     await press(panel, 'Save and restart')
@@ -147,15 +168,26 @@ describe('ProbeXyOffsetPanel', () => {
 
 describe('ScrewPositionsPanel', () => {
   it('turns nozzle positions into probe-aimed coordinates and drops the screw no longer there', async () => {
-    seed({
-      probe: { x_offset: -25, y_offset: 10, z_offset: 1 },
-      screws_tilt_adjust: {
-        screw1: [30, 30],
-        screw2: [200, 30],
-        screw3: [200, 200],
-        screw4: [30, 200],
+    seed(
+      {
+        probe: { x_offset: -25, y_offset: 10, z_offset: 1 },
+        screws_tilt_adjust: {
+          screw1: [30, 30],
+          screw1_name: 'screw at 30.000,30.000',
+          screw2: [200, 30],
+          screw3: [200, 200],
+          screw4: [30, 200],
+        },
       },
-    })
+      {
+        screws_tilt_adjust: {
+          screw1: '30, 30',
+          screw2: '200, 30',
+          screw3: '200, 200',
+          screw4: '30, 200',
+        },
+      },
+    )
     const runAction = vi.spyOn(useCalibrationStore(pinia), 'runAction').mockResolvedValue('saved')
     const panel = await mountPanel(ScrewPositionsPanel)
     await panel.find('input[value="nozzle"]').setValue(true)
@@ -211,6 +243,97 @@ describe('SensorlessHomingPanel', () => {
   })
 })
 
+describe('SensorlessHomingPanel when a home finds no stall', () => {
+  it("records Klipper's no-trigger as the answer and offers a more sensitive value", async () => {
+    seed(
+      {
+        stepper_x: { endstop_pin: 'tmc2209_stepper_x:virtual_endstop', homing_retract_dist: 0 },
+        'tmc2209 stepper_x': { driver_sgthrs: 100 },
+      },
+      { 'tmc2209 stepper_x': { diag_pin: '^STOP0' } },
+    )
+    const printer = usePrinterStore(pinia)
+    vi.spyOn(printer, 'sendGcode').mockImplementation(async () => {
+      printer.lastCommandErrorMessage = 'No trigger on x after full movement'
+      return false
+    })
+    const panel = await mountPanel(SensorlessHomingPanel)
+    await setField(panel, 'SGTHRS', '100')
+    await press(panel, 'Set and home X')
+    expect(panel.text()).toContain('The driver reported no stall the whole move')
+    expect(panel.text()).not.toContain('What did it do at 100?')
+    expect(panel.find('.calibration-result').text()).toContain('No stall seen')
+    expect(panel.findAll('input').map((input) => input.element.value)).toContain('110')
+  })
+})
+
+describe('SensorlessHomingPanel on an axis that homes on a switch', () => {
+  it('says what to write instead of offering a home that would only find the switch', async () => {
+    seed(
+      {
+        stepper_x: { endstop_pin: 'tmc2209_stepper_x:virtual_endstop', homing_retract_dist: 0 },
+        'tmc2209 stepper_x': { driver_sgthrs: 100, hold_current: 2 },
+        stepper_y: { endstop_pin: '^STOP1', homing_retract_dist: 1 },
+        'tmc2209 stepper_y': { hold_current: 2 },
+      },
+      { 'tmc2209 stepper_y': { hold_current: '2' } },
+    )
+    const panel = await mountPanel(SensorlessHomingPanel)
+    // X's hold_current is Klipper's default, not a line in the file: nothing to change.
+    expect(panel.find('.calibration-sensorless-setup').exists()).toBe(false)
+
+    await panel.find('input[value="stepper_y"]').setValue(true)
+    await flushPromises()
+    expect(panel.text()).toContain('stepper_y homes on a switch.')
+    expect(panel.find('.calibration-snippet').text()).toContain(
+      'endstop_pin: tmc2209_stepper_y:virtual_endstop',
+    )
+    expect(panel.text()).toContain('Remove hold_current from [tmc2209 stepper_y].')
+    expect(panel.findAll('button').some((button) => button.text() === 'Set and home Y')).toBe(false)
+  })
+
+  it('fixes both sections of the axis with one restart, the DIAG pin taken from the field', async () => {
+    seed(
+      {
+        stepper_y: { endstop_pin: '^STOP1', homing_retract_dist: 1 },
+        'tmc2209 stepper_y': { hold_current: 2 },
+      },
+      { 'tmc2209 stepper_y': { hold_current: '2' } },
+    )
+    const runAction = vi.spyOn(useCalibrationStore(pinia), 'runAction').mockResolvedValue('saved')
+    const panel = await mountPanel(SensorlessHomingPanel)
+    // The DIAG jumper connects the driver to the endstop input, so that is where it starts.
+    expect(panel.find('.calibration-snippet').text()).toContain('diag_pin: ^STOP1')
+
+    await setField(panel, 'DIAG pin', '^PG6')
+    await press(panel, 'Fix config and restart')
+    expect(runAction).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        section: 'stepper_y',
+        changes: [
+          { option: 'endstop_pin', value: 'tmc2209_stepper_y:virtual_endstop' },
+          { option: 'homing_retract_dist', value: '0' },
+        ],
+        removes: [],
+        restart: false,
+      }),
+    )
+    expect(runAction).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        section: 'tmc2209 stepper_y',
+        changes: [
+          { option: 'diag_pin', value: '^PG6' },
+          { option: 'driver_SGTHRS', value: '255' },
+        ],
+        removes: ['hold_current'],
+        restart: true,
+      }),
+    )
+  })
+})
+
 describe('LoadCellPanel', () => {
   it('follows the helper through its own lines, and accepts only once calibrated', async () => {
     seed({ load_cell_probe: { counts_per_gram: 600 } })
@@ -237,6 +360,11 @@ describe('LoadCellPanel', () => {
     await flushPromises()
     expect(panel.find('.calibration-result').text()).toContain('632.48')
     expect(accept().attributes('disabled')).toBeUndefined()
+
+    // A restart closes Klipper's helper: no Accept for a calibration that is gone.
+    await restartKlipper()
+    expect(panel.findAll('button').some((button) => button.text() === 'Accept')).toBe(false)
+    expect(panel.find('.calibration-result').exists()).toBe(false)
   })
 })
 

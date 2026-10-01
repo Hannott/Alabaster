@@ -12,6 +12,7 @@ import { useProcedureContext } from '@/composables/useProcedureContext'
 import {
   attemptScript,
   narrowRange,
+  setupSnippet,
   nextValue,
   recommendedSensitivity,
   sensitivityRange,
@@ -39,28 +40,30 @@ const context = useProcedureContext()
 const { availability: klipperAvailability } = useAvailability('klipper')
 const configWrite = useConfigWrite()
 
-const drivers = computed(() => stallDriversFor(context.value.sections, context.value.settings))
+const drivers = computed(() =>
+  stallDriversFor(context.value.sections, context.value.settings, context.value.written),
+)
 const chosen = ref<string | null>(null)
 const driver = computed(
   () => drivers.value.find((candidate) => candidate.stepper === chosen.value) ?? drivers.value[0],
 )
 
 const attempts = ref<Attempt[]>([])
+/** Klipper's words for the last attempt that failed, until the next one. */
+const failure = ref<string | null>(null)
 const value = ref<number | null>(null)
 
 watch(
   () => driver.value?.stepper,
   () => {
     attempts.value = []
+    failure.value = null
     value.value = driver.value ? nextValue(driver.value, undefined) : null
     configWrite.forget()
   },
   { immediate: true },
 )
 
-const stepperSettings = computed(() =>
-  driver.value ? context.value.settings(driver.value.stepper) : null,
-)
 const driverSettings = computed(() =>
   driver.value ? context.value.settings(driver.value.section) : null,
 )
@@ -69,9 +72,73 @@ const inFile = computed(() => {
   return typeof saved === 'number' || typeof saved === 'string' ? String(saved) : null
 })
 
-/* The two settings the guide says spoil a search before it starts, stated where they are wrong. */
-const retract = computed(() => Number(stepperSettings.value?.homing_retract_dist ?? 5))
-const holdCurrent = computed(() => driverSettings.value?.hold_current)
+/*
+ * What the config has to say before the search means anything, as the lines
+ * to write: an axis still homing on its switch, a second homing move, a hold
+ * current. The DIAG pin is the one value only the wiring knows.
+ */
+const setup = computed(() => driver.value?.setup ?? null)
+
+/*
+ * The DIAG pin is the one value only the wiring knows. It starts as the
+ * axis's endstop pin, because a board's DIAG jumper connects the driver to
+ * that same input, and the reader corrects it where their wiring differs.
+ */
+const needsPin = computed(() => setup.value?.lines.some((line) => line.value === null) ?? false)
+const diagPin = ref('')
+watch(
+  () => driver.value?.stepper,
+  (stepper) => {
+    const pin = stepper ? context.value.settings(stepper)?.endstop_pin : undefined
+    diagPin.value = typeof pin === 'string' && !/virtual_endstop/.test(pin) ? pin.trim() : ''
+  },
+  { immediate: true },
+)
+/** A pin as Klipper names one: pull-up, inversion and an MCU prefix allowed, nothing else. */
+const pinValid = computed(() =>
+  /^[\^~!]*[A-Za-z0-9_.-]+(:[A-Za-z0-9_.-]+)?$/.test(diagPin.value.trim()),
+)
+
+const snippet = computed(() =>
+  setup.value
+    ? setupSnippet(
+        setup.value,
+        pinValid.value ? diagPin.value.trim() : t('calibration.sensorless.setup.pin'),
+      )
+    : '',
+)
+
+/*
+ * Every section the setup touches, each written with its own lines and
+ * removals, and one restart after the last, so the axis comes back up homing
+ * on its driver with the whole setup in place rather than half of it.
+ */
+async function fixConfig(): Promise<void> {
+  const current = setup.value
+  if (!current || (needsPin.value && !pinValid.value)) return
+  const sections = [
+    ...new Set([
+      ...current.lines.map((line) => line.section),
+      ...current.removes.map((removal) => removal.section),
+    ]),
+  ]
+  for (const [index, section] of sections.entries()) {
+    const outcome = await configWrite.write(
+      'setup',
+      section,
+      current.lines
+        .filter((line) => line.section === section)
+        .map((line) => ({ option: line.option, value: line.value ?? diagPin.value.trim() })),
+      current.removes
+        .filter((removal) => removal.section === section)
+        .map((removal) => removal.option),
+      index === sections.length - 1,
+    )
+    if (outcome === null || outcome === 'refused') return
+  }
+}
+
+const setupOutcome = computed(() => configWrite.outcomeFor('setup'))
 
 const homing = ref(false)
 /** The value the last attempt homed with, waiting for the reader's answer. */
@@ -80,6 +147,7 @@ const awaiting = ref<number | null>(null)
 const canHome = computed(
   () =>
     driver.value !== undefined &&
+    !driver.value.setup.blocking &&
     value.value !== null &&
     klipperAvailability.value.isAvailable &&
     !printer.hasActivePrint &&
@@ -99,8 +167,26 @@ async function home(): Promise<void> {
      * reported a stall, and Klipper takes that as the endstop — so the
      * reader's answer is asked for either way.
      */
-    await printer.sendGcode(attemptScript(driver.value, tried), 'calibration', { timeoutMs: null })
-    awaiting.value = tried
+    const homed = await printer.sendGcode(attemptScript(driver.value, tried), 'calibration', {
+      timeoutMs: null,
+    })
+    /*
+     * A home that ran its whole move without a stall fails, and Klipper says
+     * so; that is the answer, so it is recorded rather than asked. Any other
+     * failure is shown as Klipper worded it and recorded as nothing.
+     */
+    if (homed) {
+      awaiting.value = tried
+      failure.value = null
+    } else {
+      const message = printer.lastCommandErrorMessage ?? ''
+      failure.value = message
+      if (/No trigger on \w+ after full movement/i.test(message)) {
+        const attempt = { value: tried, outcome: 'noTrigger' as const }
+        attempts.value = [...attempts.value, attempt]
+        value.value = nextValue(driver.value, attempt)
+      }
+    }
   } finally {
     homing.value = false
   }
@@ -193,14 +279,60 @@ function historySummary(entry: CalibrationLogEntry): string {
       </fieldset>
     </div>
 
-    <p v-if="retract !== 0" class="calibration-panel__hint" role="alert">
-      {{ t('calibration.sensorless.retract', { stepper: driver?.stepper ?? '', value: retract }) }}
-    </p>
-    <p v-if="holdCurrent !== undefined" class="calibration-panel__hint" role="alert">
-      {{ t('calibration.sensorless.holdCurrent', { section: driver?.section ?? '' }) }}
-    </p>
+    <div
+      v-if="driver && setup && (setup.lines.length > 0 || setup.removes.length > 0)"
+      class="calibration-sensorless-setup"
+    >
+      <p class="calibration-panel__hint" role="alert">
+        {{
+          t(
+            !setup.blocking
+              ? 'calibration.sensorless.setup.adjust'
+              : setup.lines.some((line) => line.option === 'endstop_pin')
+                ? 'calibration.sensorless.setup.switch'
+                : 'calibration.sensorless.setup.direction',
+            { stepper: driver.stepper },
+          )
+        }}
+      </p>
+      <pre v-if="snippet" class="calibration-snippet selectable">{{ snippet }}</pre>
+      <p
+        v-for="removal in setup.removes"
+        :key="`${removal.section}.${removal.option}`"
+        class="calibration-panel__hint"
+      >
+        {{ t('calibration.sensorless.setup.remove', removal) }}
+      </p>
+      <div class="calibration-step__controls">
+        <AppField
+          v-if="needsPin"
+          v-model="diagPin"
+          type="text"
+          size="sm"
+          :label="t('calibration.sensorless.setup.diagPin')"
+        />
+        <AppButton
+          size="sm"
+          variant="primary"
+          icon="save"
+          :label="t('calibration.sensorless.setup.fix')"
+          :pending="configWrite.writing.value === 'setup'"
+          :disabled="configWrite.disabled.value || (needsPin && !pinValid)"
+          @click="fixConfig"
+        />
+      </div>
+      <p v-if="needsPin" class="calibration-panel__hint">
+        {{ t('calibration.sensorless.setup.pinHint') }}
+      </p>
+      <p v-if="setupOutcome" class="calibration-panel__hint" role="status">
+        {{ t(`calibration.result.persist.${setupOutcome}`) }}
+      </p>
+      <p v-else-if="setup.blocking" class="calibration-panel__hint">
+        {{ t('calibration.sensorless.setup.restart') }}
+      </p>
+    </div>
 
-    <ol v-if="driver" class="calibration-steps">
+    <ol v-if="driver && !driver.setup.blocking" class="calibration-steps">
       <li class="calibration-step">
         <span class="calibration-step__text">{{ t('calibration.sensorless.centre') }}</span>
         <div class="calibration-step__controls">
@@ -254,7 +386,19 @@ function historySummary(entry: CalibrationLogEntry): string {
         </div>
       </li>
     </ol>
-    <p class="calibration-panel__hint">{{ t('calibration.sensorless.stop') }}</p>
+    <p v-if="failure" class="calibration-panel__hint" role="alert">
+      {{
+        t(
+          /No trigger/i.test(failure)
+            ? 'calibration.sensorless.noTrigger'
+            : 'calibration.sensorless.failed',
+          { message: failure },
+        )
+      }}
+    </p>
+    <p v-if="driver && !driver.setup.blocking" class="calibration-panel__hint">
+      {{ t('calibration.sensorless.stop') }}
+    </p>
 
     <div v-if="attempts.length > 0" class="calibration-result" role="status" aria-live="polite">
       <table class="calibration-result__table">

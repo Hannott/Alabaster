@@ -53,6 +53,7 @@ function context(
     mesh: () => null,
     newestGraph: () => null,
     screwsTilt: () => null,
+    written: () => null,
     ...overrides,
   }
 }
