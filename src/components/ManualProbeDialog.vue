@@ -30,6 +30,7 @@ import { offsetMagnitude, signedOffsetStep } from '@/components/dashboard/module
 import { useAvailability } from '@/composables/useAvailability'
 import { useManualProbeStore } from '@/stores/manualProbe'
 import { usePrinterStore, type ManualProbeStep } from '@/stores/printer'
+import { useZMotionStore } from '@/stores/zMotion'
 
 /**
  * The ladder of explicit distances, in millimetres, coarsest first. Klipper
@@ -82,6 +83,7 @@ function halveDistance(direction: 1 | -1): number | null {
 const { locale, t } = useI18n({ useScope: 'global' })
 const printer = usePrinterStore()
 const manualProbe = useManualProbeStore()
+const zMotion = useZMotionStore()
 const { isAvailable } = useAvailability('klipper')
 
 const dialog = ref<HTMLDialogElement | null>(null)
@@ -111,9 +113,23 @@ const canStep = computed(() => isAvailable.value && !printer.pendingCommands.man
 /** Accept and Abort are the two ways out, and each blocks the other, not the ladder. */
 const canFinish = computed(() => isAvailable.value && !printer.pendingCommands.manualProbeFinish)
 
+/**
+ * The sign of a step that moves the moving part up, so the top row of each grid
+ * is always the part travelling up — the same physical layout as every Z
+ * control on the Movement card, read from `stores/zMotion.ts`. On a bed that
+ * Z+ moves down, the top row is the negative one: it raises the bed and closes
+ * the gap.
+ */
+const upSign = computed<1 | -1>(() => (zMotion.zPlusIsUp ? 1 : -1))
+
 function stepLabel(millimetres: number): string {
-  const magnitude = offsetMagnitude(Math.abs(millimetres), 'millimetre')
-  return t(millimetres < 0 ? 'manualProbe.stepDown' : 'manualProbe.stepUp', { step: magnitude })
+  const raises = millimetres > 0 === zMotion.zPlusIsUp
+  return t('manualProbe.step', {
+    distance: signedOffsetStep(millimetres, 'millimetre'),
+    direction: t(
+      `dashboard.movement.zDirection.${raises ? 'raise' : 'lower'}.${zMotion.movingPart}`,
+    ),
+  })
 }
 
 /**
@@ -128,7 +144,7 @@ function stepLabel(millimetres: number): string {
  * offer a button labeled `+0`.
  */
 const halveControls = computed(() =>
-  ([1, -1] as const).map((direction) => {
+  (zMotion.zPlusIsUp ? ([1, -1] as const) : ([-1, 1] as const)).map((direction) => {
     const distance = halveDistance(direction)
     const signed = distance === null ? null : distance * direction
     const magnitude = distance === null ? null : offsetMagnitude(distance, 'millimetre')
@@ -264,13 +280,11 @@ onBeforeUnmount(() => {
 
       <!--
         Both control grids share one column track and one direction: every
-        magnitude is a column, the top row of each grid moves away from the bed
-        and the bottom row toward it. Nothing states that in words, because every
-        label carries its own sign and the height above it moves as you press —
-        `TESTZ Z=-0.05` lowers the nozzle by 0.05mm and means nothing else.
-        (Movement's babystep row does carry a legend, and needs one: there,
-        negative closes the gap while the probe's own `z_offset` runs the other
-        way, so the sign genuinely is ambiguous. Here it is not.)
+        magnitude is a column, the top row of each grid moves the moving part up
+        and the bottom row moves it down. On a nozzle that Z+ raises that is +
+        above −; on a bed that Z+ lowers it mirrors, so the top row raises the
+        bed and closes the gap. Each button's name says which part goes which
+        way, because the sign alone cannot.
 
         The first arrangement split direction horizontally — negatives descending
         into the middle, positives ascending out of it, the way that same babystep
@@ -308,27 +322,27 @@ onBeforeUnmount(() => {
           <div class="manual-probe-dialog__row">
             <AppButton
               v-for="step in stepLadder"
-              :key="`probe-plus-${step}`"
+              :key="`probe-up-${step}`"
               size="sm"
               mono
-              :label="signedOffsetStep(step, 'millimetre')"
+              :label="signedOffsetStep(upSign * step, 'millimetre')"
               :disabled="!canStep"
-              :aria-label="stepLabel(step)"
-              :title="stepLabel(step)"
-              @click="printer.testZ(step)"
+              :aria-label="stepLabel(upSign * step)"
+              :title="stepLabel(upSign * step)"
+              @click="printer.testZ(upSign * step)"
             />
           </div>
           <div class="manual-probe-dialog__row">
             <AppButton
               v-for="step in stepLadder"
-              :key="`probe-minus-${step}`"
+              :key="`probe-down-${step}`"
               size="sm"
               mono
-              :label="signedOffsetStep(-step, 'millimetre')"
+              :label="signedOffsetStep(-upSign * step, 'millimetre')"
               :disabled="!canStep"
-              :aria-label="stepLabel(-step)"
-              :title="stepLabel(-step)"
-              @click="printer.testZ(-step)"
+              :aria-label="stepLabel(-upSign * step)"
+              :title="stepLabel(-upSign * step)"
+              @click="printer.testZ(-upSign * step)"
             />
           </div>
         </div>

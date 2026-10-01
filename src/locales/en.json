@@ -2065,8 +2065,7 @@
     "bisectHint": "Each press halves what is left to the nearest height already tried that way. Klipper's own limit is 0.2 mm per press.",
     "bracketClosed": "Nothing left to halve — this is the nearest height already tried.",
     "stepsTitle": "Move by",
-    "stepDown": "Move down {step} mm",
-    "stepUp": "Move up {step} mm",
+    "step": "Z {distance} mm — {direction}",
     "refused": "Klipper refused the probe: {reason}",
     "accept": "Accept",
     "abort": "Abort"

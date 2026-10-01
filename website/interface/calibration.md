@@ -212,6 +212,11 @@ in that direction.
 | Accept         | Ends the probe at this height and hands it back to whatever asked.            |
 | Abort          | Ends the probe without recording anything.                                    |
 
+The top row moves the moving part up and the bottom row moves it down,
+following [Z motion](/interface/settings#z-motion) as the Movement card does.
+On a printer where Z+ lowers the bed, the top row raises the bed to close the
+gap.
+
 Every button shows the distance it will move, including the halving pair.
 That number shrinks automatically as the bracket closes, so you can see how
 much room is left. Klipper's own notation

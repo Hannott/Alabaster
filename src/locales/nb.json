@@ -2065,8 +2065,7 @@
     "bisectHint": "Hvert trykk halverer det som står igjen til nærmeste høyde som alt er prøvd den veien. Klippers egen grense er 0,2 mm per trykk.",
     "bracketClosed": "Ingenting igjen å halvere — dette er nærmeste høyde som alt er prøvd.",
     "stepsTitle": "Flytt",
-    "stepDown": "Flytt {step} mm ned",
-    "stepUp": "Flytt {step} mm opp",
+    "step": "Z {distance} mm — {direction}",
     "refused": "Klipper avviste probingen: {reason}",
     "accept": "Godta",
     "abort": "Avbryt"

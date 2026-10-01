@@ -8,6 +8,7 @@ import { i18n } from '@/i18n'
 import { useAvailabilityStore } from '@/stores/availability'
 import { useManualProbeStore } from '@/stores/manualProbe'
 import { usePrinterStore } from '@/stores/printer'
+import { useZMotionStore } from '@/stores/zMotion'
 
 beforeAll(() => {
   // jsdom ships <dialog> without its modal methods, so the shared shell's
@@ -53,6 +54,7 @@ function mountDialog() {
 
 describe('ManualProbeDialog', () => {
   beforeEach(() => {
+    window.localStorage.clear()
     setActivePinia(createPinia())
     readyKlipper()
   })
@@ -139,6 +141,28 @@ describe('ManualProbeDialog', () => {
     expect(wrapper.text()).not.toContain('Toward the bed')
     expect(wrapper.text()).not.toContain('Away from the bed')
     expect(wrapper.find('.manual-probe-dialog__legend').exists()).toBe(false)
+  })
+
+  it('puts the steps that raise the bed on top where Z+ moves the bed down', async () => {
+    useZMotionStore().setMovingPart('bed')
+    startProbe()
+    const printer = usePrinterStore()
+    const testZ = vi.spyOn(printer, 'testZ').mockResolvedValue(true)
+    const wrapper = mountDialog()
+    await nextTick()
+
+    const rows = wrapper.findAll('.manual-probe-dialog__row')
+    expect(rows.map((row) => row.findAll('button').map((button) => button.text()))).toEqual([
+      ['−.023'],
+      ['+.026'],
+      ['−1', '−.1', '−.05', '−.01', '−.005'],
+      ['+1', '+.1', '+.05', '+.01', '+.005'],
+    ])
+    expect(rows[2]?.find('button').attributes('title')).toBe('Z −1 mm — raise bed')
+
+    await rows[0]?.find('button').trigger('click')
+    await rows[2]?.find('button').trigger('click')
+    expect(testZ.mock.calls.map(([step]) => step)).toEqual(['-', -1])
   })
 
   /*
