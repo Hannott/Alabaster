@@ -197,3 +197,33 @@ export function nudgeCoordinate(
     y: Math.min(extents.maximumY, Math.max(extents.minimumY, moved.y)),
   }
 }
+
+/**
+ * A footprint outline as an SVG `points` list, in a viewBox of
+ * `0 0 width depth` — the bed in millimetres, Y already flipped by
+ * `planPoint`. Drawing in millimetres rather than in fractions keeps a circle
+ * a circle and a stroke's dash pattern even, provided the element is sized to
+ * the bed's own aspect ratio, which every plot of the machine is.
+ */
+export function planOutline(
+  polygon: readonly (readonly [number, number])[],
+  extents: BedExtents,
+): string {
+  return polygon
+    .map(([x, y]) => {
+      const point = planPointInBedUnits({ x, y }, extents)
+      return `${point.x},${point.y}`
+    })
+    .join(' ')
+}
+
+/** A plan point in the same millimetre viewBox `planOutline` draws in. */
+export function planPointInBedUnits(coordinate: BedCoordinate, extents: BedExtents): BedCoordinate {
+  const point = planPoint(coordinate, extents)
+  return { x: round(point.x * extents.width), y: round(point.y * extents.depth) }
+}
+
+/** Hundredths of a millimetre: enough for any plot, short enough to diff. */
+function round(value: number): number {
+  return Math.round(value * 100) / 100
+}

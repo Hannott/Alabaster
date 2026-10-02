@@ -369,6 +369,8 @@ describe('interaction and iconography contract', () => {
       // Movement's bed plan draws the build volume, not an icon — and it is a
       // component of its own for the same reason the temperature chart is.
       'components/dashboard/modules/MovementBedPlan.vue',
+      // The exclude-object map draws the plate's objects, for the same reason.
+      'components/ExcludeObjectMap.vue',
       // History's trend chart draws stacked bars, not an icon, for the same reason.
       'components/history/HistoryTrendChart.vue',
       // Calibration's sparkline draws a logged series as a line, for the same reason.

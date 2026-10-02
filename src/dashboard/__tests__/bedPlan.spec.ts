@@ -4,7 +4,9 @@ import {
   bedExtents,
   nudgeCoordinate,
   planCoordinate,
+  planOutline,
   planPoint,
+  planPointInBedUnits,
   type BedExtents,
 } from '@/dashboard/bedPlan'
 
@@ -188,5 +190,27 @@ describe('circular beds', () => {
     const nudged = nudgeCoordinate({ x: 90, y: 90 }, 10, 10, circle)
     const distance = Math.hypot(nudged.x - circle.centerX, nudged.y - circle.centerY)
     expect(distance).toBeCloseTo(circle.radius)
+  })
+})
+
+describe('object outlines', () => {
+  const offset = bedExtents([-10, -20], [240, 180])!
+
+  it('draws a footprint in bed millimetres with the back of the bed at the top', () => {
+    // A 10mm square in the front-left corner of a negative-origin bed.
+    const outline = planOutline(
+      [
+        [-10, -20],
+        [0, -20],
+        [0, -10],
+        [-10, -10],
+      ],
+      offset,
+    )
+    expect(outline).toBe('0,200 10,200 10,190 0,190')
+  })
+
+  it('places a point in the same units the outline uses', () => {
+    expect(planPointInBedUnits({ x: 115, y: 80 }, offset)).toEqual({ x: 125, y: 100 })
   })
 })

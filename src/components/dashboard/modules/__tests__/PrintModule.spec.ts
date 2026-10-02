@@ -698,16 +698,22 @@ describe('PrintModule', () => {
     expect(run).toHaveBeenCalledWith('SET_PAUSE_NEXT_LAYER', { ENABLE: '1', MACRO: 'PAUSE' })
   })
 
-  it('reaches Exclude object as an icon button, not a labeled row, once the plate defines one', async () => {
+  it('reaches Exclude object from a quiet control counting the objects still to print', async () => {
     const { printer, wrapper, pinia } = mountModule()
     startPrinting(printer)
     const excludeObject = useExcludeObjectStore(pinia)
-    excludeObject.objects = [{ name: 'part_1', center: [10, 10] }]
+    excludeObject.objects = [
+      { name: 'part_1', center: [10, 10], polygon: null, area: 0 },
+      { name: 'part_2', center: [30, 10], polygon: null, area: 0 },
+      { name: 'part_3', center: [50, 10], polygon: null, area: 0 },
+    ]
+    excludeObject.excludedNames = ['part_2']
     await flushPromises()
 
-    const button = wrapper.get('[aria-label="Exclude object"]')
-    expect(button.text()).toBe('')
-    expect(button.attributes('title')).toBe('Exclude object')
+    const label = 'Exclude object, 2 of 3 objects left'
+    const button = wrapper.get(`[aria-label="${label}"]`)
+    expect(button.text()).toBe('2/3')
+    expect(button.attributes('title')).toBe(label)
     expect(wrapper.findComponent(ExcludeObjectDialog).props('open')).toBe(false)
 
     await button.trigger('click')
@@ -719,14 +725,14 @@ describe('PrintModule', () => {
     startPrinting(printer)
     await flushPromises()
 
-    expect(wrapper.find('[aria-label="Exclude object"]').exists()).toBe(false)
+    expect(wrapper.find('[aria-label^="Exclude object"]').exists()).toBe(false)
   })
 
   it('groups job controls separately from optional print tools in the footer', async () => {
     const { printer, wrapper, pinia } = mountModule()
     startPrinting(printer)
     const excludeObject = useExcludeObjectStore(pinia)
-    excludeObject.objects = [{ name: 'part_1', center: [10, 10] }]
+    excludeObject.objects = [{ name: 'part_1', center: [10, 10], polygon: null, area: 0 }]
     await flushPromises()
 
     const actions = wrapper.get('.print-actions')
@@ -734,7 +740,7 @@ describe('PrintModule', () => {
     expect(actions.get('.print-actions__primary').text()).toContain('Cancel')
 
     const secondary = actions.get('.print-actions__secondary')
-    expect(secondary.get('[aria-label="Exclude object"]').classes()).toContain('button--quiet')
+    expect(secondary.get('[aria-label^="Exclude object"]').classes()).toContain('button--quiet')
     expect(
       wrapper.findAllComponents(AppIcon).some((icon) => icon.props('name') === 'excludeObject'),
     ).toBe(true)

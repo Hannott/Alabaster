@@ -8796,59 +8796,156 @@ input.z-axis__slider {
   letter-spacing: var(--text-dialog-title-tracking);
 }
 
-.exclude-object-description {
-  margin-block-start: 0.5rem;
-  color: var(--text-muted);
-  font-size: var(--text-meta-size);
+/*
+ * Map beside list wants more than a confirmation's measure, so the dialog
+ * widens only when there is a map to show; a file with no placement data keeps
+ * the narrow list-only shape.
+ */
+.exclude-object-dialog--map {
+  max-width: min(52rem, calc(100vw - 2rem));
+  max-block-size: calc(100dvh - 2rem);
+}
+
+.exclude-object-body {
+  display: grid;
+  gap: 1rem;
+  margin-block-start: 1rem;
+}
+
+@media (min-width: 48rem) {
+  .exclude-object-dialog--map .exclude-object-body {
+    grid-template-columns: minmax(0, 3fr) minmax(15rem, 2fr);
+    align-items: start;
+  }
+
+  .exclude-object-dialog--map .exclude-object-list {
+    max-height: min(26rem, calc(100dvh - 12rem));
+  }
+}
+
+.exclude-object-plate {
+  display: grid;
+  min-width: 0;
+  justify-items: center;
+  gap: 0.4rem;
 }
 
 /*
- * The scatter is `aria-hidden`: every dot it draws is also a row in the list
- * below, with its own button, so the picture adds a spatial reference without
- * being the only way to reach any object. `aspect-ratio` is set inline from
- * the reported build volume — see `bedExtents` — so a rectangular bed is never
- * silently squared.
+ * Sized to the bed's aspect so a millimetre is the same length both ways — the
+ * outlines are drawn in millimetres — and capped by height through that same
+ * aspect, so a deep bed narrows rather than pushing the list off the dialog.
  */
-.exclude-object-plate {
+.exclude-map {
   position: relative;
-  margin-block-start: 1rem;
+  inline-size: min(100%, calc(min(24rem, 50dvh) * var(--exclude-map-aspect)));
+  aspect-ratio: var(--exclude-map-aspect);
   border: 1px solid var(--border-subtle);
   border-radius: 0.35rem;
   background: var(--surface-soft);
   overflow: hidden;
 }
 
-.exclude-object-dot {
-  position: absolute;
-  width: 0.85rem;
-  height: 0.85rem;
-  transform: translate(-50%, -50%);
+.exclude-map--circular {
   border-radius: 50%;
 }
 
-.exclude-object-dot--pending {
-  background: var(--color-data-green);
+.exclude-map > svg {
+  display: block;
+  inline-size: 100%;
+  block-size: 100%;
 }
 
-/* A ring, not only a different fill — shape carries the state, not color alone. */
-.exclude-object-dot--current {
-  background: var(--color-data-sky);
-  outline: 2px solid var(--color-data-sky);
-  outline-offset: 2px;
+.exclude-map__object {
+  cursor: pointer;
 }
 
-/* Hollow rather than filled, so "excluded" reads as a shape change too. */
-.exclude-object-dot--excluded {
-  background: transparent;
-  border: 2px solid var(--text-muted);
+/*
+ * A wide invisible stroke around every shape, so a part a few millimetres
+ * across is still a target a finger can land on. Drawn per object, smallest
+ * last, so where two halos overlap the smaller part wins.
+ */
+.exclude-map__hit {
+  fill: transparent;
+  stroke: transparent;
+  stroke-width: 14px;
+  vector-effect: non-scaling-stroke;
+  pointer-events: all;
+}
+
+.exclude-map__shape {
+  fill: color-mix(in srgb, var(--text-primary) 10%, transparent);
+  stroke: var(--text-muted);
+  stroke-width: 1.5px;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+  transition-duration: var(--motion-duration-fast);
+  transition-property: fill, stroke;
+  transition-timing-function: var(--motion-ease-standard);
+}
+
+/* Heavier outline as well as the hue, so "printing now" is a shape too. */
+.exclude-map__object--current .exclude-map__shape {
+  fill: color-mix(in srgb, var(--color-data-sky) 22%, transparent);
+  stroke: var(--color-data-sky);
+  stroke-width: 2.5px;
+}
+
+/* Dashed and unfilled: an outline of where a part would have been. */
+.exclude-map__object--excluded .exclude-map__shape {
+  fill: none;
+  stroke: var(--text-muted);
+  stroke-dasharray: 4 3;
+}
+
+.exclude-map__object--highlighted .exclude-map__shape {
+  fill: color-mix(in srgb, var(--action-primary) 35%, transparent);
+  stroke: var(--action-primary);
+  stroke-width: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .exclude-map__shape {
+    transition: none;
+  }
+}
+
+/*
+ * One line, always reserved, so naming an object never moves the list or the
+ * map; it names the object picked out, else the one printing.
+ */
+.exclude-object-caption {
+  display: flex;
+  min-width: 0;
+  max-inline-size: 100%;
+  min-block-size: 1.5em;
+  align-items: baseline;
+  gap: 0.5rem;
+  font-size: var(--text-meta-size);
+}
+
+.exclude-object-caption__name {
+  overflow: hidden;
+  color: var(--text-primary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.exclude-object-caption__state {
+  flex: 0 0 auto;
+  color: var(--text-muted);
+  font-weight: var(--font-weight-increased);
 }
 
 .exclude-object-list {
   display: grid;
+  min-width: 0;
   gap: 0.4rem;
-  margin-block-start: 1rem;
   max-height: 16rem;
   overflow-y: auto;
+}
+
+.exclude-object-row[data-hovered] {
+  background-color: color-mix(in srgb, var(--action-primary) 6%, transparent);
 }
 
 .exclude-object-row[data-state='excluded'] {

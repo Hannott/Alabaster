@@ -50,8 +50,8 @@ describe('exclude object store', () => {
     })
 
     expect(store.objects).toEqual([
-      { name: 'cube_1', center: [10, 10] },
-      { name: 'cube_2', center: [50, 50] },
+      { name: 'cube_1', center: [10, 10], polygon: null, area: 0 },
+      { name: 'cube_2', center: [50, 50], polygon: null, area: 0 },
     ])
     expect(store.excludedSet.has('cube_1')).toBe(true)
     expect(store.currentObjectName).toBe('cube_2')
@@ -72,7 +72,7 @@ describe('exclude object store', () => {
       },
     })
 
-    expect(store.objects).toEqual([{ name: 'cube_1', center: null }])
+    expect(store.objects).toEqual([{ name: 'cube_1', center: null, polygon: null, area: 0 }])
     expect(store.currentObjectName).toBeNull()
   })
 
@@ -92,6 +92,76 @@ describe('exclude object store', () => {
 
     expect(store.excludedSet.has('cube_1')).toBe(true)
     // A delta that omits a field leaves it as last reported, not reset.
-    expect(store.objects).toEqual([{ name: 'cube_1', center: [10, 10] }])
+    expect(store.objects).toEqual([{ name: 'cube_1', center: [10, 10], polygon: null, area: 0 }])
+  })
+
+  it('keeps the footprint outline and its area, whatever its winding', () => {
+    const { store, snapshot } = wireStore()
+
+    snapshot({
+      exclude_object: {
+        objects: [
+          {
+            name: 'clockwise',
+            center: [5, 5],
+            polygon: [
+              [0, 0],
+              [0, 10],
+              [10, 10],
+              [10, 0],
+            ],
+          },
+          {
+            name: 'triangle',
+            center: [2, 1],
+            polygon: [
+              [0, 0],
+              [4, 0],
+              [0, 3],
+            ],
+          },
+        ],
+      },
+    })
+
+    expect(store.objects.map((object) => object.area)).toEqual([100, 6])
+    expect(store.objects[1]?.polygon).toEqual([
+      [0, 0],
+      [4, 0],
+      [0, 3],
+    ])
+  })
+
+  it('drops an outline with too few points or a malformed one, keeping the center', () => {
+    const { store, snapshot } = wireStore()
+
+    snapshot({
+      exclude_object: {
+        objects: [
+          {
+            name: 'line',
+            center: [1, 1],
+            polygon: [
+              [0, 0],
+              [2, 2],
+            ],
+          },
+          {
+            name: 'broken',
+            center: [3, 3],
+            polygon: [
+              [0, 0],
+              [4, 'x'],
+              [0, 4],
+            ],
+          },
+        ],
+      },
+    })
+
+    expect(store.objects).toEqual([
+      { name: 'line', center: [1, 1], polygon: null, area: 0 },
+      { name: 'broken', center: [3, 3], polygon: null, area: 0 },
+    ])
   })
 })

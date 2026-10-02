@@ -77,8 +77,13 @@ does an established Klipper web interface's own macro pack.
 
 ### Exclude an object
 
-If the file defines objects, **Exclude object** lists them and marks the one
-currently printing.
+If the file defines objects, you can skip a failed part and let the rest of
+the plate finish. The control shows how many objects are still printing, such
+as `4/5`, so you can see at a glance whether one has already been skipped.
+
+In **Exclude object**, find the part by where it sits on the bed rather than
+by its slicer-generated name. Tapping a part on the bed only selects it in the
+list, so a mis-tap can't skip the wrong one; you exclude it from the list.
 
 This action cannot be undone for the current job. The confirmation states
 this.

@@ -161,6 +161,17 @@ watch(
  */
 const canExcludeObjects = computed(() => printer.hasActivePrint && excludeObject.hasObjects)
 
+/** Left-to-print over defined, so a part already skipped is visible without opening the dialog. */
+const excludeObjectCount = computed(
+  () => `${excludeObject.pendingObjects.length}/${excludeObject.objects.length}`,
+)
+const excludeObjectLabel = computed(() =>
+  t('dashboard.print.excludeObjectRemaining', {
+    remaining: excludeObject.pendingObjects.length,
+    total: excludeObject.objects.length,
+  }),
+)
+
 const overdueMaintenanceNames = computed(() =>
   maintenance.overdueRows.map((row) => row.interval.name),
 )
@@ -1006,10 +1017,11 @@ function requestPause(): void {
               <AppButton
                 v-if="canExcludeObjects"
                 variant="quiet"
-                icon-only
+                mono
                 icon="excludeObject"
-                :aria-label="t('dashboard.print.excludeObject')"
-                :title="t('dashboard.print.excludeObject')"
+                :label="excludeObjectCount"
+                :aria-label="excludeObjectLabel"
+                :title="excludeObjectLabel"
                 @click="isExcludeObjectOpen = true"
               />
               <AppButton

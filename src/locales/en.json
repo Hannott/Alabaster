@@ -1495,6 +1495,7 @@
       "skipPauseWarning": "Pause a print without confirming",
       "skipCancelWarning": "Cancel a print without confirming",
       "excludeObject": "Exclude object",
+      "excludeObjectRemaining": "Exclude object, {remaining} of {total} objects left",
       "pauseAtLayer": "Pause at a layer…",
       "pauseAtLayerTitle": "Pause at a layer",
       "pauseAtLayerDescription": "The print pauses as soon as this layer starts.",
@@ -2108,14 +2109,13 @@
   },
   "excludeObject": {
     "title": "Exclude an object",
-    "description": "Warning: All objects with the same name will be excluded.",
     "close": "Close",
     "empty": "This file defines no objects to exclude.",
     "printingNow": "Printing now",
     "exclude": "Exclude",
     "excluded": "Excluded",
     "confirmTitle": "Exclude this object?",
-    "confirmDescription": "Are you sure you want to exclude {name}?"
+    "confirmDescription": "{name} is skipped for the rest of this print. This cannot be undone."
   },
   "manualProbe": {
     "open": "Manual probe",

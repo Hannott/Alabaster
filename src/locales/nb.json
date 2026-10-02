@@ -1495,6 +1495,7 @@
       "skipPauseWarning": "Sett utskrift på pause uten bekreftelse",
       "skipCancelWarning": "Avbryt en utskrift uten bekreftelse",
       "excludeObject": "Ekskluder objekt",
+      "excludeObjectRemaining": "Ekskluder objekt, {remaining} av {total} objekter igjen",
       "pauseAtLayer": "Pause ved et lag…",
       "pauseAtLayerTitle": "Pause ved et lag",
       "pauseAtLayerDescription": "Utskriften pauser så snart dette laget starter.",
@@ -2108,14 +2109,13 @@
   },
   "excludeObject": {
     "title": "Ekskluder et objekt",
-    "description": "Advarsel: Alle objekter med samme navn vil bli ekskludert.",
     "close": "Lukk",
     "empty": "Denne filen definerer ingen objekter som kan ekskluderes.",
     "printingNow": "Skrives ut nå",
     "exclude": "Ekskluder",
     "excluded": "Ekskludert",
     "confirmTitle": "Ekskludere dette objektet?",
-    "confirmDescription": "Ekskluderer {name}. Alle objekter med samme navn vil bli ekskludert."
+    "confirmDescription": "{name} hoppes over resten av denne utskriften. Dette kan ikke angres."
   },
   "manualProbe": {
     "open": "Manuell probing",
