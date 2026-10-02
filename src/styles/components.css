@@ -14582,6 +14582,13 @@ body.machine-editor-fullscreen-open {
   font-size: var(--text-hint-size);
 }
 
+/* The slotted element of a DisclosureReveal carries the spacing, so it collapses with the panel. */
+.calibration-npa__tower-settings {
+  display: grid;
+  gap: 0.6rem;
+  padding-block-start: 0.25rem;
+}
+
 .calibration-heater {
   display: grid;
   gap: 0.35rem;

@@ -4,6 +4,7 @@ import {
   buildTowerScript,
   macroRangeWords,
   matchesStart,
+  nextRange,
   nextTower,
   rangeAround,
   readingFromValues,
@@ -66,20 +67,44 @@ describe('tower range', () => {
     expect(rangeAround('offset', 0.12)).toEqual({ from: 0.08, to: 0.16 })
   })
 
+  it('starts the next print of a tower from the value its latest reading found', () => {
+    expect(nextRange('bowden', 'offset', [])).toEqual({ from: 0, to: 1 })
+    const read = reading({ range: { from: 0, to: 0.5 }, side: 18 })
+    expect(nextRange('direct', 'offset', [read])).toEqual({ from: 0.12, to: 0.24 })
+    // Another tower's reading, or one on the other path, says nothing about this one.
+    expect(nextRange('direct', 'advance', [read])).toEqual({ from: 0, to: 0.05 })
+    expect(nextRange('bowden', 'offset', [read])).toEqual({ from: 0, to: 1 })
+    // Read at the very bottom: nothing to centre on, so the same sweep again.
+    expect(nextRange('direct', 'offset', [reading({ side: 0 })])).toEqual({ from: 0, to: 0.25 })
+  })
+
   it('builds the RUN_PA_TEST line, and refuses one it cannot build', () => {
+    // A first sweep leaves the range to the macro's own FACTOR.
     expect(
       buildTowerScript({
-        tower: 'advance',
-        range: { from: 0, to: 0.05 },
+        path: 'bowden',
+        tower: 'offset',
+        range: { from: 0, to: 1 },
+        nozzle: 0.4,
+        targetTemp: 215,
+        bedTemp: 60,
+      }),
+    ).toBe('RUN_PA_TEST NOZZLE=0.4 TARGET_TEMP=215 BED_TEMP=60 TESTPARAM=1')
+    expect(
+      buildTowerScript({
+        path: 'direct',
+        tower: 'offset',
+        range: { from: 0.12, to: 0.24 },
         nozzle: 0.4,
         targetTemp: 215,
         bedTemp: 60,
       }),
     ).toBe(
-      'RUN_PA_TEST NOZZLE=0.4 TARGET_TEMP=215 BED_TEMP=60 TESTPARAM=0 PA_VALUE=0.05 PA_RANGE=0.05',
+      'RUN_PA_TEST NOZZLE=0.4 TARGET_TEMP=215 BED_TEMP=60 TESTPARAM=1 PA_VALUE=0.18 PA_RANGE=0.06',
     )
     expect(
       buildTowerScript({
+        path: 'direct',
         tower: 'offset',
         range: { from: 0.2, to: 0.1 },
         nozzle: 0.4,
@@ -89,6 +114,7 @@ describe('tower range', () => {
     ).toBeNull()
     expect(
       buildTowerScript({
+        path: 'direct',
         tower: 'offset',
         range: { from: 0, to: 0.1 },
         nozzle: 0,

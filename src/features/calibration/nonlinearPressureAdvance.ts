@@ -8,12 +8,16 @@ import { formatNumber } from '@/features/calibration/axisRotation'
  *
  * The towers come from `RUN_PA_TEST`, the macro Kalico's Setup section has the
  * owner paste into their config together with their own start G-code — the
- * same arrangement Shake&Tune's macros have, and gated the same way. Every run
- * sends `PA_VALUE` and `PA_RANGE` rather than leaving them at zero: with zero,
- * the macro's range comes from a `FACTOR` hard-coded in the owner's copy, which
- * Alabaster cannot read, and a height could not be turned back into a value.
- * With both sent, the macro's own arithmetic fixes the sweep to exactly the
- * From–To range shown, so the reading is exact.
+ * same arrangement Shake&Tune's macros have, and gated the same way.
+ *
+ * A tower's first print sweeps from zero with the macro's own `FACTOR`s and
+ * sends no `PA_VALUE` or `PA_RANGE`: the guide's `FACTOR`s, with its Bowden
+ * adjustment, are exactly `firstRange`. Every later print of the same tower is
+ * centred on the value the previous reading of it found, which the log keeps
+ * across a reload, and sends that value as `PA_VALUE` with the spread as
+ * `PA_RANGE`. Re-sending the first sweep's top as both words made every
+ * reprint start over from zero at the first sweep's coarse resolution,
+ * however close the previous reading had already come.
  *
  * The coefficients interact, so the guide is iterative rather than linear:
  * a tower can say "keep this value, then print the next one" or "nudge the
@@ -146,7 +150,33 @@ export function valueAtHeight(range: NpaRange, towerHeight: number, height: numb
   return range.from + ((range.to - range.from) * clamped) / towerHeight
 }
 
+function isFirstRange(path: NpaPath, tower: NpaTower, range: NpaRange): boolean {
+  const first = firstRange(path, tower)
+  return range.from === first.from && range.to === first.to
+}
+
+/**
+ * The sweep a tower's next print uses: around the value its latest reading
+ * found, else that reading's own sweep when it found nothing usable, else the
+ * first sweep.
+ */
+export function nextRange(
+  path: NpaPath,
+  tower: NpaTower,
+  readings: readonly NpaReading[],
+): NpaRange {
+  const last = readings.filter((reading) => reading.path === path && reading.tower === tower).at(-1)
+  if (!last) return firstRange(path, tower)
+  const value = readingValue(last)
+  if (value !== null && value > 0) {
+    const around = rangeAround(tower, value)
+    if (isValidRange(around)) return around
+  }
+  return { ...last.range }
+}
+
 export interface TowerRequest {
+  path: NpaPath
   tower: NpaTower
   range: NpaRange
   nozzle: number
@@ -163,16 +193,21 @@ export function buildTowerScript(request: TowerRequest): string | null {
   if (!isValidRange(request.range)) return null
   if (!isPositive(request.nozzle) || !isPositive(request.targetTemp)) return null
   if (!Number.isFinite(request.bedTemp) || request.bedTemp < 0) return null
-  const words = macroRangeWords(request.range)
-  return [
+  const line = [
     'RUN_PA_TEST',
     `NOZZLE=${formatNumber(request.nozzle, 3)}`,
     `TARGET_TEMP=${formatNumber(request.targetTemp, 1)}`,
     `BED_TEMP=${formatNumber(request.bedTemp, 1)}`,
     `TESTPARAM=${towerTestParam[request.tower]}`,
-    `PA_VALUE=${formatNumber(words.value, 6)}`,
-    `PA_RANGE=${formatNumber(words.range, 6)}`,
-  ].join(' ')
+  ]
+  if (!isFirstRange(request.path, request.tower, request.range)) {
+    const words = macroRangeWords(request.range)
+    line.push(
+      `PA_VALUE=${formatNumber(words.value, 6)}`,
+      `PA_RANGE=${formatNumber(words.range, 6)}`,
+    )
+  }
+  return line.join(' ')
 }
 
 /*

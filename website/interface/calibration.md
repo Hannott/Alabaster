@@ -486,9 +486,16 @@ the nonlinear model does not read.
    `linear_advance` and `nonlinear_offset` at 0, and a `linearization_velocity`
    of 1 for direct drive or 2 for Bowden) and restarts Klipper. A leftover
    `pressure_advance` line is removed, because Klipper will not start with it.
+   The panel opens here until the file holds these values or a tower has been
+   read, so a new round never starts from an earlier tuning by mistake.
 2. **Print tower** runs `RUN_PA_TEST` for the tower that is open. **From** and
    **To** set the range the tower sweeps, so the range you see is the range
-   printed.
+   printed. A tower's first print uses the macro's own `FACTOR`s, which match
+   the guide's defaults; on a Bowden printer, change them as the guide says.
+   Every later print of the same tower is centred on the value its last
+   reading found, also after a reload. **Tower settings** edits the tower's
+   size, layers, and test speeds in `[pa_test]` and restarts Klipper. Values
+   Kalico would refuse to start with are caught before anything is written.
 3. Enter the height where the tower looks best, on the left side, the front, or
    both, depending on the tower. The value at that height appears straight
    away.
@@ -504,8 +511,8 @@ guide. The Bowden order keeps 80% of the first advance reading and returns to
 the offset tower after the time offset.
 
 Every tower stays available, so you can print one again at any point.
-**Narrow around** re-centres a tower's range on the value just read, for a
-closer second tower. Readings are kept on the printer, next to the value each
+**Narrow around** re-centres a tower's range on the value just read before you
+save the reading. Readings are kept on the printer, next to the value each
 one worked out. **Save and restart** writes any of them to the config and
 restarts Klipper, including one from an earlier tower. The table at the top
 compares what the file holds with the latest calculated values. **Clear**

@@ -659,6 +659,33 @@
         "save": "Save reading",
         "narrow": "Narrow around {value}"
       },
+      "towerSettings": {
+        "title": "Tower settings",
+        "detail": "[pa_test] in the config. Saving restarts Klipper.",
+        "option": {
+          "slow_velocity": "Slow speed",
+          "medium_velocity": "Medium speed",
+          "fast_velocity": "Fast speed",
+          "height": "Tower height",
+          "size_x": "Width (X)",
+          "size_y": "Depth (Y)",
+          "origin_x": "Centre X",
+          "origin_y": "Centre Y",
+          "layer_height": "Layer height",
+          "first_layer_height": "First layer height",
+          "perimeters": "Perimeters",
+          "brim_width": "Brim width",
+          "filament_diameter": "Filament diameter",
+          "fan_speed": "Fan speed (0–1)"
+        },
+        "problem": {
+          "required": "{option} needs a value.",
+          "above": "{option} must be above {than}.",
+          "atLeast": "{option} must be at least {value}.",
+          "atMost": "{option} must be at most {value}.",
+          "whole": "{option} must be a whole number."
+        }
+      },
       "suggestion": {
         "agree": "The side and the front agree within {tolerance} mm.",
         "keep": "Keep {option} = {value}.",

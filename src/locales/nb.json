@@ -659,6 +659,33 @@
         "save": "Lagre avlesning",
         "narrow": "Snevre inn rundt {value}"
       },
+      "towerSettings": {
+        "title": "Tårninnstillinger",
+        "detail": "[pa_test] i konfigurasjonen. Lagring starter Klipper på nytt.",
+        "option": {
+          "slow_velocity": "Lav hastighet",
+          "medium_velocity": "Middels hastighet",
+          "fast_velocity": "Høy hastighet",
+          "height": "Tårnhøyde",
+          "size_x": "Bredde (X)",
+          "size_y": "Dybde (Y)",
+          "origin_x": "Senter X",
+          "origin_y": "Senter Y",
+          "layer_height": "Lagtykkelse",
+          "first_layer_height": "Tykkelse første lag",
+          "perimeters": "Perimetre",
+          "brim_width": "Brim-bredde",
+          "filament_diameter": "Filamentdiameter",
+          "fan_speed": "Viftehastighet (0–1)"
+        },
+        "problem": {
+          "required": "{option} må ha en verdi.",
+          "above": "{option} må være over {than}.",
+          "atLeast": "{option} må være minst {value}.",
+          "atMost": "{option} må være høyst {value}.",
+          "whole": "{option} må være et heltall."
+        }
+      },
       "suggestion": {
         "agree": "Siden og fronten stemmer overens innenfor {tolerance} mm.",
         "keep": "Behold {option} = {value}.",

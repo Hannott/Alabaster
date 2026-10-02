@@ -6,6 +6,7 @@ import AppButton from '@/components/AppButton.vue'
 import AppField from '@/components/AppField.vue'
 import CalibrationCard from '@/components/calibration/CalibrationCard.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
+import DisclosureReveal from '@/components/DisclosureReveal.vue'
 import { useActionGuard } from '@/composables/useActionGuard'
 import { onKlipperRestart } from '@/composables/onKlipperRestart'
 import { useAvailability } from '@/composables/useAvailability'
@@ -20,6 +21,7 @@ import {
   isNonlinearModel,
   isValidRange,
   matchesStart,
+  nextRange,
   nextTower,
   nonlinearModels,
   pathTowers,
@@ -41,6 +43,15 @@ import {
   type NpaSuggestion,
   type NpaTower,
 } from '@/features/calibration/nonlinearPressureAdvance'
+import {
+  paTestChanges,
+  paTestOptions,
+  paTestProblem,
+  readPaTest,
+  type PaTestOption,
+  type PaTestProblem,
+  type PaTestValues,
+} from '@/features/calibration/paTestSettings'
 import { useCalibrationStore, type PersistActionOutcome } from '@/stores/calibration'
 import { useConfirmationsStore } from '@/stores/confirmations'
 import { usePrinterStore } from '@/stores/printer'
@@ -81,7 +92,15 @@ const readings = computed(() =>
   sessionReadings(entries.value).filter((reading) => reading.path === path.value),
 )
 const suggestedTower = computed(() => nextTower(path.value, readings.value))
-const needsStart = computed(() => !isNonlinearModel(config.value.model))
+/*
+ * Before any reading, a file that is not at the guide's starting values would
+ * have the first tower sweep against coefficients an earlier tuning left in.
+ */
+const needsStart = computed(
+  () =>
+    !isNonlinearModel(config.value.model) ||
+    (readings.value.length === 0 && !matchesStart(config.value, path.value)),
+)
 
 type Tab = 'start' | NpaTower
 const tab = ref<Tab>(needsStart.value ? 'start' : (suggestedTower.value ?? 'offset'))
@@ -134,6 +153,7 @@ async function persist(
   id: string,
   changes: { option: string; value: string }[],
   removes: string[] = [],
+  section = 'extruder',
 ): Promise<void> {
   writing.value = id
   try {
@@ -141,7 +161,7 @@ async function persist(
       kind: 'persist',
       id,
       label: { literal: id },
-      section: 'extruder',
+      section,
       changes,
       removes,
       restart: true,
@@ -172,18 +192,32 @@ async function writeStart(): Promise<void> {
  * ------------------------------------------------------------------ towers
  */
 
-function lastRangeFor(tower: NpaTower): NpaRange {
-  const last = readings.value.filter((reading) => reading.tower === tower).at(-1)
-  return last ? { ...last.range } : firstRange(path.value, tower)
-}
+const rangeFor = (tower: NpaTower) => nextRange(path.value, tower, readings.value)
 
 const ranges = ref<Record<NpaTower, NpaRange>>({
-  offset: lastRangeFor('offset'),
-  advance: lastRangeFor('advance'),
-  timeOffset: lastRangeFor('timeOffset'),
+  offset: rangeFor('offset'),
+  advance: rangeFor('advance'),
+  timeOffset: rangeFor('timeOffset'),
 })
 watch(path, () => {
-  for (const tower of pathTowers[path.value]) ranges.value[tower] = lastRangeFor(tower)
+  for (const tower of pathTowers[path.value]) ranges.value[tower] = rangeFor(tower)
+})
+/*
+ * A new reading of a tower — saved here, or arriving with the log after a
+ * reload — moves that tower's next sweep onto the value it found.
+ */
+const latestReadingAt = computed(() =>
+  Object.fromEntries(
+    pathTowers[path.value].map((tower) => [
+      tower,
+      readings.value.filter((reading) => reading.tower === tower).at(-1)?.at ?? null,
+    ]),
+  ),
+)
+watch(latestReadingAt, (next, previous) => {
+  for (const tower of pathTowers[path.value]) {
+    if (next[tower] !== previous[tower]) ranges.value[tower] = rangeFor(tower)
+  }
 })
 
 const lastValues = computed(() => entries.value.at(-1)?.values ?? {})
@@ -210,6 +244,7 @@ const script = computed(() => {
   const tower = activeTower.value
   if (tower === null || nozzle.value === null || targetTemp.value === null) return null
   return buildTowerScript({
+    path: path.value,
     tower,
     range: ranges.value[tower],
     nozzle: nozzle.value,
@@ -307,6 +342,45 @@ async function actOn(suggestion: NpaSuggestion): Promise<void> {
 
 function narrow(tower: NpaTower, value: number): void {
   ranges.value[tower] = rangeAround(tower, value)
+}
+
+/*
+ * ------------------------------------------------------------------ tower settings
+ *
+ * The fields follow what Klipper loaded, so a restart after saving shows the
+ * file's values rather than the ones typed.
+ */
+const towerSettingsOpen = ref(false)
+const loadedPaTest = computed(() => readPaTest(printerConfig.section('pa_test')))
+const paTest = ref<PaTestValues>({ ...loadedPaTest.value })
+watch(loadedPaTest, (next) => {
+  paTest.value = { ...next }
+})
+const paTestIssue = computed(() => paTestProblem(paTest.value))
+const paTestEdits = computed(() => paTestChanges(loadedPaTest.value, paTest.value))
+
+function paTestLabel(option: PaTestOption): string {
+  return t(`calibration.npa.towerSettings.option.${option}`)
+}
+
+function paTestIssueText(issue: PaTestProblem): string {
+  const option = paTestLabel(issue.option)
+  if (issue.kind === 'required') {
+    return t('calibration.npa.towerSettings.problem.required', { option })
+  }
+  if (issue.kind === 'whole') return t('calibration.npa.towerSettings.problem.whole', { option })
+  if (issue.kind === 'atLeast') {
+    return t('calibration.npa.towerSettings.problem.atLeast', { option, value: issue.min })
+  }
+  if (issue.kind === 'atMost') {
+    return t('calibration.npa.towerSettings.problem.atMost', { option, value: issue.max })
+  }
+  const than = typeof issue.than === 'number' ? String(issue.than) : paTestLabel(issue.than)
+  return t('calibration.npa.towerSettings.problem.above', { option, than })
+}
+
+function savePaTest(): void {
+  void persist('paTest', paTestEdits.value, [], 'pa_test')
 }
 
 /*
@@ -679,6 +753,50 @@ const writeDisabled = computed(
           :max="150"
         />
       </div>
+      <div>
+        <AppButton
+          variant="quiet"
+          size="xs"
+          :icon="towerSettingsOpen ? 'collapse' : 'expand'"
+          :label="t('calibration.npa.towerSettings.title')"
+          :aria-expanded="towerSettingsOpen"
+          aria-controls="npa-tower-settings"
+          @click="towerSettingsOpen = !towerSettingsOpen"
+        />
+      </div>
+      <DisclosureReveal :open="towerSettingsOpen">
+        <div id="npa-tower-settings" class="calibration-npa__tower-settings">
+          <p class="calibration-panel__hint">{{ t('calibration.npa.towerSettings.detail') }}</p>
+          <div class="calibration-params">
+            <AppField
+              v-for="{ option, unit } in paTestOptions"
+              :key="option"
+              v-model="paTest[option]"
+              type="number"
+              size="sm"
+              :label="paTestLabel(option)"
+              v-bind="unit === null ? {} : { unit: t(`calibration.unit.${unit}`) }"
+              :min="0"
+            />
+          </div>
+          <div class="calibration-result__actions">
+            <AppButton
+              size="sm"
+              icon="save"
+              :label="t('calibration.npa.saveRestart')"
+              :pending="writing === 'paTest'"
+              :disabled="writeDisabled || paTestIssue !== null || paTestEdits.length === 0"
+              @click="savePaTest"
+            />
+            <span v-if="paTestIssue" class="calibration-panel__hint" role="status">{{
+              paTestIssueText(paTestIssue)
+            }}</span>
+            <span v-else-if="writeOutcome?.id === 'paTest'" class="calibration-panel__hint">{{
+              t(`calibration.result.persist.${writeOutcome.outcome}`)
+            }}</span>
+          </div>
+        </div>
+      </DisclosureReveal>
       <div class="calibration-run">
         <code class="calibration-run__script selectable">{{
           script ?? t('calibration.bench.noScript')

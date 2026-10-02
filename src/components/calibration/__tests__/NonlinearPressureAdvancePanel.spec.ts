@@ -14,6 +14,15 @@ enableAutoUnmount(afterEach)
 
 let pinia: Pinia
 
+const directStart = {
+  pressure_advance_model: 'recipr',
+  linear_advance: 0,
+  nonlinear_offset: 0,
+  linearization_velocity: 1,
+  pressure_advance_smooth_time: 0.02,
+  pressure_advance_time_offset: 0,
+}
+
 function seed(extruder: Record<string, unknown>): void {
   usePrinterConfigStore(pinia).settings = {
     extruder: { nozzle_diameter: 0.4, ...extruder },
@@ -66,6 +75,58 @@ describe('NonlinearPressureAdvancePanel', () => {
     expect(panel.text()).toContain('Removes pressure_advance')
   })
 
+  it('opens on the starting values before any reading when the file holds an earlier tuning', async () => {
+    seed({ ...directStart, nonlinear_offset: 0.12 })
+    const panel = await mountPanel()
+    expect(tab(panel, 'Start').attributes('aria-pressed')).toBe('true')
+    expect(panel.text()).toContain('Next: write the starting values.')
+  })
+
+  it('writes a changed tower speed to [pa_test], and holds back one Kalico would refuse', async () => {
+    seed(directStart)
+    usePrinterConfigStore(pinia).settings = {
+      ...usePrinterConfigStore(pinia).settings,
+      pa_test: {
+        height: 50,
+        layer_height: 0.2,
+        first_layer_height: 0.24,
+        perimeters: 2,
+        brim_width: 6,
+        slow_velocity: 20,
+        medium_velocity: 50,
+        fast_velocity: 150,
+        filament_diameter: 1.75,
+        fan_speed: 0.5,
+      },
+    }
+    const runAction = vi.spyOn(useCalibrationStore(pinia), 'runAction').mockResolvedValue('saved')
+    const panel = await mountPanel()
+    await panel
+      .findAll('button')
+      .find((button) => button.text() === 'Tower settings')!
+      .trigger('click')
+    const save = () =>
+      panel
+        .find('#npa-tower-settings')
+        .findAll('button')
+        .find((button) => button.text() === 'Save and restart')!
+
+    await setField(panel, 'Fast speed', '40')
+    expect(panel.text()).toContain('Fast speed must be above Medium speed.')
+    expect(save().attributes('disabled')).toBeDefined()
+
+    await setField(panel, 'Fast speed', '300')
+    await save().trigger('click')
+    await flushPromises()
+    expect(runAction).toHaveBeenCalledWith(
+      expect.objectContaining({
+        section: 'pa_test',
+        changes: [{ option: 'fast_velocity', value: '300' }],
+        restart: true,
+      }),
+    )
+  })
+
   it('prints the tower it suggests with the range it shows', async () => {
     seed({
       pressure_advance_model: 'recipr',
@@ -84,7 +145,7 @@ describe('NonlinearPressureAdvancePanel', () => {
       .trigger('click')
     await flushPromises()
     expect(sendGcode).toHaveBeenCalledWith(
-      'RUN_PA_TEST NOZZLE=0.4 TARGET_TEMP=210 BED_TEMP=60 TESTPARAM=1 PA_VALUE=0.5 PA_RANGE=0.5',
+      'RUN_PA_TEST NOZZLE=0.4 TARGET_TEMP=210 BED_TEMP=60 TESTPARAM=1',
       'calibration',
       // The tower heats and prints before the macro returns; no local deadline cuts it short.
       { timeoutMs: null },
@@ -92,7 +153,7 @@ describe('NonlinearPressureAdvancePanel', () => {
   })
 
   it('turns a side height into a value and suggests the next tower', async () => {
-    seed({ pressure_advance_model: 'recipr', linear_advance: 0, nonlinear_offset: 0 })
+    seed(directStart)
     const calibration = useCalibrationStore(pinia)
     const panel = await mountPanel()
     await setField(panel, 'Side', '13.5')
@@ -108,6 +169,20 @@ describe('NonlinearPressureAdvancePanel', () => {
     expect(entry?.values).toMatchObject({ kind: 'reading', tower: 'offset', side: '13.5' })
     expect(panel.text()).toContain('Next: print the advance tower.')
     expect(panel.find('.calibration-history').text()).toContain('nonlinear_offset 0.135')
+
+    // A reprint of the offset tower centres on the 0.135 it found, not the first sweep again.
+    const sendGcode = vi.spyOn(usePrinterStore(pinia), 'sendGcode').mockResolvedValue(true)
+    await tab(panel, 'Offset').trigger('click')
+    await panel
+      .findAll('button')
+      .find((button) => button.text() === 'Print tower')!
+      .trigger('click')
+    await flushPromises()
+    expect(sendGcode).toHaveBeenCalledWith(
+      'RUN_PA_TEST NOZZLE=0.4 TARGET_TEMP=210 BED_TEMP=60 TESTPARAM=1 PA_VALUE=0.135 PA_RANGE=0.045',
+      'calibration',
+      { timeoutMs: null },
+    )
   })
 
   it('asks for the offset to come down when the side converges below the front', async () => {
