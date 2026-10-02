@@ -1874,6 +1874,15 @@
       "retract": "Trekk tilbake",
       "extrude": "Ekstruder",
       "extrusionPreview": "Ekstrudering: ~{length} mm \\@ {flow} mm³/s - Ø {nozzle} mm",
+      "extrusionPreviewSpeed": "Ekstrudering: ~{length} mm \\@ {speed} mm/s filament - Ø {nozzle} mm",
+      "flow": "Ekstruderingsflyt",
+      "flowPresets": "Forhåndsvalg for flyt",
+      "setFlow": "Sett flyt til {value} mm³/s",
+      "speedUnitLabel": "Ekstruderingshastighet i",
+      "speedUnit": {
+        "linear": "mm/s",
+        "volumetric": "mm³/s"
+      },
       "pressureAdvance": "Pressure advance",
       "advance": "Advance",
       "smoothTime": "Smooth time",

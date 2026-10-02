@@ -75,3 +75,19 @@ export function extrudedBeadLength(
 
   return filamentLengthMm * (filamentDiameterMm / nozzleDiameterMm) ** 2
 }
+
+/**
+ * The filament speed, in mm/s, that feeds a volumetric flow in mm³/s — the
+ * inverse of `volumetricFlow`, for a manual extrude asked for in the units a
+ * hotend is rated in. Null without a usable diameter, for the reason
+ * `volumetricFlow` gives: an assumed 1.75 mm on a 2.85 mm machine would push
+ * 2.65 times the flow that was asked for.
+ */
+export function feedrateForFlow(
+  flowMm3PerSecond: number,
+  filamentDiameterMm: number | null | undefined,
+): number | null {
+  const unitFlow = volumetricFlow(1, filamentDiameterMm)
+  if (unitFlow === null || !Number.isFinite(flowMm3PerSecond)) return null
+  return flowMm3PerSecond / unitFlow
+}

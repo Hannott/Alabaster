@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   extrudedBeadLength,
+  feedrateForFlow,
   isExtruderMoving,
   volumetricFlow,
 } from '@/components/dashboard/modules/extruderFlow'
@@ -51,6 +52,13 @@ describe('extruderFlow', () => {
     expect(isExtruderMoving(0.05)).toBe(true)
     expect(isExtruderMoving(-2.4)).toBe(true)
     expect(isExtruderMoving(Number.NaN)).toBe(false)
+  })
+
+  it('turns a volumetric flow back into the filament speed that feeds it, and refuses to guess a diameter', () => {
+    expect(feedrateForFlow(12.026, 1.75)).toBeCloseTo(5, 3)
+    expect(volumetricFlow(feedrateForFlow(10, 2.85)!, 2.85)).toBeCloseTo(10, 6)
+    expect(feedrateForFlow(10, null)).toBeNull()
+    expect(feedrateForFlow(10, 0)).toBeNull()
   })
 
   describe('extrudedBeadLength', () => {

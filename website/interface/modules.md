@@ -394,7 +394,11 @@ The Extruder card controls extruding, retracting, and the tuning that goes
 with them.
 
 - **Extrude and retract**: Set a length and feedrate. Disabled below the
-  minimum extrusion temperature, and shows that temperature.
+  minimum extrusion temperature, and shows that temperature. Set the speed
+  in mm³/s instead, the unit hotends are rated in, from the card's settings.
+  The card converts it with the loaded spool's filament diameter, or the
+  `filament_diameter` in `[extruder]`, so the flow you set stays the same
+  across spools.
 - **Extrusion factor**: Includes a reset to 100%. Klipper carries this value
   from one job to the next, which is why the collapsed card always shows it.
 - **Macro buttons**: Pick whatever your load and unload macros are called.

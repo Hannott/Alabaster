@@ -51,3 +51,17 @@ export function readExtruderCardSetting(
 ): boolean {
   return configBoolean(config, key, extruderCardDefaults[key])
 }
+
+/**
+ * What the manual-extrusion speed field is set in: filament speed in mm/s, the
+ * number `G1 E… F…` takes, or volumetric flow in mm³/s, the number a hotend is
+ * rated in. Each is stored under its own key (`feedrate`, `flow`), so a flow
+ * someone chose stays that flow when the spool — and with it the diameter —
+ * changes.
+ */
+export const extrusionSpeedUnits = ['linear', 'volumetric'] as const
+export type ExtrusionSpeedUnit = (typeof extrusionSpeedUnits)[number]
+
+export function readExtrusionSpeedUnit(config: Record<string, unknown>): ExtrusionSpeedUnit {
+  return config.speedUnit === 'volumetric' ? 'volumetric' : 'linear'
+}

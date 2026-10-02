@@ -150,6 +150,47 @@ describe('ExtruderModule', () => {
   })
 
   /*
+   * 10 mm³/s of 1.75 mm filament is 10 / 2.4053 = 4.1575 mm/s of filament fed —
+   * worked out from the filament's cross-section, never the nozzle's.
+   */
+  it('takes the speed in mm³/s when the card is set to it, and sends the filament speed that feeds it', async () => {
+    const { printer, telemetry, printerConfig, wrapper } = mountModule({ speedUnit: 'volumetric' })
+    const extrude = vi.spyOn(printer, 'extrudeFilament').mockResolvedValue(true)
+    warmExtruder(telemetry, 220)
+    printer.extruder.canExtrude = true
+    printerConfig.settings = { extruder: { filament_diameter: 1.75, nozzle_diameter: 0.4 } }
+    await flushPromises()
+
+    await wrapper.get('[aria-label="Set flow to 10 mm³/s"]').trigger('click')
+    await flushPromises()
+    await wrapper.get('.button--primary').trigger('click')
+
+    expect(extrude.mock.calls.at(-1)?.[1]).toBeCloseTo(4.1575, 3)
+    expect(wrapper.text()).toContain('4.2 mm/s filament')
+  })
+
+  it('starts a card switched to mm³/s at the flow its feedrate already sent', async () => {
+    const { telemetry, printerConfig, wrapper } = mountModule({ speedUnit: 'volumetric' })
+    warmExtruder(telemetry, 220)
+    configureFilamentDiameter(printerConfig)
+    await flushPromises()
+
+    // The stored default of 5 mm/s through 1.75 mm filament is 12.0 mm³/s.
+    const field = wrapper
+      .findAll('.app-field')
+      .find((candidate) => candidate.text().includes('Flow'))
+    expect(field?.find('input').element.value).toBe('12')
+  })
+
+  it('keeps the field in mm/s while no filament diameter is known, whatever the card is set to', async () => {
+    const { wrapper } = mountModule({ speedUnit: 'volumetric' })
+    await flushPromises()
+
+    expect(wrapper.find('[aria-label="Set feedrate to 2 mm/s"]').exists()).toBe(true)
+    expect(wrapper.find('[aria-label="Set flow to 10 mm³/s"]').exists()).toBe(false)
+  })
+
+  /*
    * Assuming 1.75 mm filament through an unassessed nozzle would be a
    * fabricated bead length dressed as a measurement — the same refusal
    * `volumetricFlow` already takes for the live flow reading elsewhere on

@@ -2,8 +2,13 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import AppButton from '@/components/AppButton.vue'
 import QuickSettingToggle from '@/components/dashboard/QuickSettingToggle.vue'
-import { readExtruderCardSetting } from '@/components/dashboard/modules/extruderCardSettings'
+import {
+  extrusionSpeedUnits,
+  readExtruderCardSetting,
+  readExtrusionSpeedUnit,
+} from '@/components/dashboard/modules/extruderCardSettings'
 import { useDashboardModule } from '@/dashboard/context'
 import { extruderDefaultQuickKeys } from '@/dashboard/quickSettingDefaults'
 import { useQuickSettings } from '@/dashboard/quickSettings'
@@ -41,6 +46,7 @@ const showRetraction = computed(() => readExtruderCardSetting(config.value, 'sho
 const showExtrusionFactor = computed(() =>
   readExtruderCardSetting(config.value, 'showExtrusionFactor'),
 )
+const speedUnit = computed(() => readExtrusionSpeedUnit(config.value))
 </script>
 
 <template>
@@ -76,6 +82,33 @@ const showExtrusionFactor = computed(() =>
       :shown="quick.isQuick('showManualExtrusion')"
       @toggle="quick.setQuick('showManualExtrusion', $event)"
     />
+  </div>
+
+  <!--
+    Movement's Z-offset unit row, for the same kind of choice: which unit one
+    field on the card is typed in. It changes nothing the buttons can send.
+  -->
+  <div v-if="showManualExtrusion && quick.visible('speedUnit')" class="settings-row">
+    <span class="settings-row__label">{{ t('dashboard.extruder.speedUnitLabel') }}</span>
+    <div class="flex items-center gap-2">
+      <div class="segmented">
+        <AppButton
+          v-for="unit in extrusionSpeedUnits"
+          :key="`speedUnit-${unit}`"
+          size="sm"
+          :aria-pressed="speedUnit === unit"
+          @click="updateConfig({ speedUnit: unit })"
+        >
+          {{ t(`dashboard.extruder.speedUnit.${unit}`) }}
+        </AppButton>
+      </div>
+      <QuickSettingToggle
+        v-if="mode === 'pane'"
+        :label="t('dashboard.extruder.speedUnitLabel')"
+        :shown="quick.isQuick('speedUnit')"
+        @toggle="quick.setQuick('speedUnit', $event)"
+      />
+    </div>
   </div>
 
   <div v-if="quick.visible('showLoadMacros')" class="settings-row">

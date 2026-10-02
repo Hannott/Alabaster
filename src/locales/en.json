@@ -1874,6 +1874,15 @@
       "retract": "Retract",
       "extrude": "Extrude",
       "extrusionPreview": "Extrusion: ~{length} mm \\@ {flow} mm³/s - Ø {nozzle} mm",
+      "extrusionPreviewSpeed": "Extrusion: ~{length} mm \\@ {speed} mm/s filament - Ø {nozzle} mm",
+      "flow": "Extrusion Flow",
+      "flowPresets": "Flow presets",
+      "setFlow": "Set flow to {value} mm³/s",
+      "speedUnitLabel": "Extrusion speed in",
+      "speedUnit": {
+        "linear": "mm/s",
+        "volumetric": "mm³/s"
+      },
       "pressureAdvance": "Pressure advance",
       "advance": "Advance",
       "smoothTime": "Smooth time",

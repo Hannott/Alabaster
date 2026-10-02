@@ -1471,10 +1471,15 @@ export const usePrinterStore = defineStore('printer', () => {
     return sendGcode(`SET_VELOCITY_LIMIT ${parts.join(' ')}`, 'limits')
   }
 
-  /** Relative extrusion is restored afterwards so the caller cannot leave the printer in it. */
+  /**
+   * Relative extrusion is restored afterwards so the caller cannot leave the
+   * printer in it. The floor is 0.1 mm/s rather than 1 because a flow asked for
+   * in mm³/s lands below 1 mm/s of filament — 2 mm³/s of 1.75 mm is 0.83 — and
+   * a floor of 1 would silently push 20% more than was asked for.
+   */
   function extrudeFilament(length: number, feedrate: number): Promise<boolean> {
     if (!Number.isFinite(length) || length === 0) return Promise.resolve(false)
-    const speed = Math.round(clamp(feedrate, 1, 60) * 60)
+    const speed = Math.round(clamp(feedrate, 0.1, 60) * 60)
     return sendGcode(
       [
         'SAVE_GCODE_STATE NAME=_alabaster_extrude',

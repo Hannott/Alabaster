@@ -8,9 +8,13 @@ import AppIcon from '@/components/AppIcon.vue'
 import AppSlider from '@/components/AppSlider.vue'
 import AppDashboardModule from '@/components/dashboard/AppDashboardModule.vue'
 import ExtruderQuickSettings from '@/components/dashboard/modules/ExtruderQuickSettings.vue'
-import { readExtruderCardSetting } from '@/components/dashboard/modules/extruderCardSettings'
+import {
+  readExtruderCardSetting,
+  readExtrusionSpeedUnit,
+} from '@/components/dashboard/modules/extruderCardSettings'
 import {
   extrudedBeadLength,
+  feedrateForFlow,
   isExtruderMoving,
   volumetricFlow,
 } from '@/components/dashboard/modules/extruderFlow'
@@ -94,6 +98,51 @@ const length = computed(() => configNumber(config.value, 'length', 25))
 const feedrate = computed(() => configNumber(config.value, 'feedrate', 5))
 
 /**
+ * The filament diameter every flow figure on this card is worked out from: the
+ * loaded spool's, then the `filament_diameter` Klipper's own `[extruder]` is
+ * configured with. Volume is what is conserved between filament and bead, so
+ * this — not the nozzle — is what turns mm/s of filament into mm³/s.
+ */
+const filamentDiameter = computed(
+  () => spool.activeSpool?.filament?.diameter ?? printerConfig.extruderGeometry.filamentDiameter,
+)
+
+/**
+ * Whether the speed field is set in mm³/s. Only while a diameter is known:
+ * without one there is no honest conversion, so the card falls back to the
+ * filament speed it can always send rather than offering a flow it would have
+ * to invent the meaning of.
+ */
+const isVolumetric = computed(
+  () =>
+    readExtrusionSpeedUnit(config.value) === 'volumetric' &&
+    feedrateForFlow(1, filamentDiameter.value) !== null,
+)
+
+/*
+ * A card that has never stored a flow starts from the flow its stored
+ * feedrate already produces, so switching units never changes the speed the
+ * buttons send.
+ */
+const flow = computed(() => {
+  const fromFeedrate = volumetricFlow(feedrate.value, filamentDiameter.value) ?? 0
+  return configNumber(config.value, 'flow', Number(fromFeedrate.toFixed(1)))
+})
+
+/** The filament speed the two buttons send, in mm/s, whichever unit the field is set in. */
+const sentFeedrate = computed(() =>
+  isVolumetric.value
+    ? (feedrateForFlow(flow.value, filamentDiameter.value) ?? feedrate.value)
+    : feedrate.value,
+)
+
+/** The field's ceiling in mm³/s: the 60 mm/s the extrude command is clamped to. */
+const maximumFlow = computed(() => {
+  const ceiling = volumetricFlow(60, filamentDiameter.value) ?? 0
+  return Math.floor(ceiling)
+})
+
+/**
  * Quick picks beside each field, the same `button--value` shape Movement's
  * own jog-distance and Z-offset steps use. Every control in a feed row —
  * chip, field box, and the row's action button — sits on the `sm` tier, so
@@ -106,6 +155,7 @@ const feedrate = computed(() => configNumber(config.value, 'feedrate', 5))
  */
 const lengthPresets = [1, 5, 10, 25, 50]
 const feedratePresets = [1, 2, 5, 10, 15]
+const flowPresets = [2, 5, 10, 15, 20]
 
 const numberFormatter = computed(
   () => new Intl.NumberFormat(locale.value, { maximumFractionDigits: 1 }),
@@ -388,20 +438,21 @@ function commitExtrusionFactor(value: number): void {
 }
 
 /**
- * What the current length and feedrate would actually push out the nozzle,
- * once filament diameter is converted to bead diameter. Null without a known
- * filament diameter (from the active spool) or nozzle diameter (from
- * Klipper's own `[extruder]` section) — the same refusal-to-guess posture
- * `volumetricFlow` already takes, since both a fabricated bead length and a
- * fabricated flow are numbers someone could act on.
+ * What the current length and speed would actually push out the nozzle, once
+ * filament diameter is converted to bead diameter. Null without a known
+ * filament diameter or nozzle diameter (from Klipper's own `[extruder]`
+ * section) — the same refusal-to-guess posture `volumetricFlow` already takes,
+ * since both a fabricated bead length and a fabricated flow are numbers
+ * someone could act on. It states whichever of flow and filament speed the
+ * field above is not set in, since repeating the field's own number says
+ * nothing.
  */
 const extrusionPreview = computed(() => {
-  const filamentDiameter = spool.activeSpool?.filament?.diameter
   const nozzleDiameter = printerConfig.extruderGeometry.nozzleDiameter
-  const beadLength = extrudedBeadLength(length.value, filamentDiameter, nozzleDiameter)
-  const flow = volumetricFlow(feedrate.value, filamentDiameter)
-  if (beadLength === null || flow === null || nozzleDiameter === null) return null
-  return { beadLength, flow, nozzleDiameter }
+  const beadLength = extrudedBeadLength(length.value, filamentDiameter.value, nozzleDiameter)
+  const sentFlow = volumetricFlow(sentFeedrate.value, filamentDiameter.value)
+  if (beadLength === null || sentFlow === null || nozzleDiameter === null) return null
+  return { beadLength, flow: sentFlow, speed: sentFeedrate.value, nozzleDiameter }
 })
 
 /**
@@ -493,12 +544,7 @@ const isMoving = computed(() => isExtruderMoving(peakExtruderVelocity.value))
  * since flow scales with the square of the diameter and this is a figure
  * people compare against a hotend's rated limit.
  */
-const flowValue = computed(() =>
-  volumetricFlow(
-    peakExtruderVelocity.value,
-    spool.activeSpool?.filament?.diameter ?? printerConfig.extruderGeometry.filamentDiameter,
-  ),
-)
+const flowValue = computed(() => volumetricFlow(peakExtruderVelocity.value, filamentDiameter.value))
 
 /**
  * The volumetric-flow number this card shows. Without either a spool or
@@ -640,7 +686,34 @@ const readoutValue = computed(() =>
             </div>
           </div>
 
-          <div class="extruder-feed__value">
+          <div v-if="isVolumetric" class="extruder-feed__value">
+            <AppField
+              :model-value="flow"
+              :label="t('dashboard.extruder.flow')"
+              :unit="t('dashboard.extruder.cubicMillimetresPerSecondUnit')"
+              :min="0.5"
+              :max="maximumFlow"
+              :step="0.5"
+              @commit="(value) => updateConfig({ flow: value ?? flow })"
+            />
+            <div
+              class="extruder-feed__presets"
+              role="group"
+              :aria-label="t('dashboard.extruder.flowPresets')"
+            >
+              <AppButton
+                v-for="preset in flowPresets"
+                :key="`flow-${preset}`"
+                size="sm"
+                mono
+                :label="preset"
+                :aria-label="t('dashboard.extruder.setFlow', { value: preset })"
+                @click="updateConfig({ flow: preset })"
+              />
+            </div>
+          </div>
+
+          <div v-else class="extruder-feed__value">
             <AppField
               :model-value="feedrate"
               :label="t('dashboard.extruder.feedrate')"
@@ -681,11 +754,17 @@ const readoutValue = computed(() =>
         -->
         <p v-if="extrusionPreview" class="extruder-feed__note hint">
           {{
-            t('dashboard.extruder.extrusionPreview', {
-              length: numberFormatter.format(extrusionPreview.beadLength),
-              flow: numberFormatter.format(extrusionPreview.flow),
-              nozzle: numberFormatter.format(extrusionPreview.nozzleDiameter),
-            })
+            t(
+              isVolumetric
+                ? 'dashboard.extruder.extrusionPreviewSpeed'
+                : 'dashboard.extruder.extrusionPreview',
+              {
+                length: numberFormatter.format(extrusionPreview.beadLength),
+                flow: numberFormatter.format(extrusionPreview.flow),
+                speed: numberFormatter.format(extrusionPreview.speed),
+                nozzle: numberFormatter.format(extrusionPreview.nozzleDiameter),
+              },
+            )
           }}
         </p>
 
@@ -695,7 +774,7 @@ const readoutValue = computed(() =>
             :disabled="!canManualExtrude || printer.pendingCommands.extrude"
             icon="up"
             :label="t('dashboard.extruder.retract')"
-            @click="printer.extrudeFilament(-length, feedrate)"
+            @click="printer.extrudeFilament(-length, sentFeedrate)"
           />
           <AppButton
             size="sm"
@@ -703,7 +782,7 @@ const readoutValue = computed(() =>
             :disabled="!canManualExtrude || printer.pendingCommands.extrude"
             icon="down"
             :label="t('dashboard.extruder.extrude')"
-            @click="printer.extrudeFilament(length, feedrate)"
+            @click="printer.extrudeFilament(length, sentFeedrate)"
           />
         </div>
       </div>

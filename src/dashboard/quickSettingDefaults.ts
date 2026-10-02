@@ -48,6 +48,7 @@ export const macrosDefaultQuickKeys = ['hideMissing'] as const
  */
 export const extruderDefaultQuickKeys = [
   'showManualExtrusion',
+  'speedUnit',
   'showLoadMacros',
   'showRetraction',
   'showPressureAdvance',
