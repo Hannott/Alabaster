@@ -250,6 +250,10 @@ the only file with unsaved edits, this happens immediately. If other files
 also have unsaved edits, Alabaster asks to save them too, and names them, so
 no edit stays only in memory when Klipper restarts.
 
+Whatever restarted Klipper, the open file reloads from the printer once it is
+back, so values `SAVE_CONFIG` just wrote appear without reopening the file.
+A file with unsaved edits keeps them.
+
 ## Collapsing sections
 
 Every `[section]` and every option with lines indented under it — a macro's

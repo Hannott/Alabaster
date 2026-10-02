@@ -248,6 +248,7 @@ export const useMachineFilesStore = defineStore('machineFiles', () => {
   let refreshTimer: ReturnType<typeof setTimeout> | null = null
   let searchFilesRequest: Promise<void> | null = null
   let stopAvailabilityWatch: WatchStopHandle | null = null
+  let stopKlipperReadyWatch: WatchStopHandle | null = null
   let stopFileNotifications: (() => void) | null = null
   let stopPrinterChangeReset: (() => void) | null = null
   const permissionsByPath = new Map<string, string>()
@@ -1637,6 +1638,11 @@ export const useMachineFilesStore = defineStore('machineFiles', () => {
     }
   }
 
+  // An unsaved edit is never refetched over; it already holds what matters.
+  function refreshCleanCurrentFile(): void {
+    if (currentFile.value && !isDirty.value) void openFileByPath(currentFile.value)
+  }
+
   function scheduleRefresh(): void {
     if (refreshTimer) clearTimeout(refreshTimer)
     refreshTimer = setTimeout(() => {
@@ -1732,7 +1738,7 @@ export const useMachineFilesStore = defineStore('machineFiles', () => {
         if (connected) {
           void refreshDirectory()
           void refreshIncludedConfigPaths()
-          if (currentFile.value && !isDirty.value) void openFileByPath(currentFile.value)
+          refreshCleanCurrentFile()
         } else {
           directoryGeneration += 1
           fileGeneration += 1
@@ -1741,6 +1747,18 @@ export const useMachineFilesStore = defineStore('machineFiles', () => {
         }
       },
       { immediate: true },
+    )
+    /*
+     * A Klipper restart leaves Moonraker connected, so the reconnect above never
+     * sees it — yet `SAVE_CONFIG` rewrites `printer.cfg` right before it, and
+     * the file left open across the restart would otherwise keep showing what
+     * disk held before.
+     */
+    stopKlipperReadyWatch = watch(
+      () => availability.isKlipperReady,
+      (ready, wasReady) => {
+        if (ready && !wasReady) refreshCleanCurrentFile()
+      },
     )
     try {
       stopFileNotifications = moonraker.onNotification('notify_filelist_changed', scheduleRefresh)
@@ -1757,6 +1775,8 @@ export const useMachineFilesStore = defineStore('machineFiles', () => {
     includedPathsGeneration += 1
     stopAvailabilityWatch?.()
     stopAvailabilityWatch = null
+    stopKlipperReadyWatch?.()
+    stopKlipperReadyWatch = null
     stopFileNotifications?.()
     stopFileNotifications = null
     stopPrinterChangeReset?.()

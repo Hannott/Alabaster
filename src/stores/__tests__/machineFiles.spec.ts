@@ -671,6 +671,42 @@ describe('machine files store', () => {
       expect(machineFiles.hasUnappliedConfigChanges).toBe(false)
     })
 
+    async function restartKlipperWithDiskHolding(content: string) {
+      const availability = useAvailabilityStore()
+      vi.stubGlobal('fetch', vi.fn<typeof fetch>().mockResolvedValue(new Response(content)))
+      availability.setKlipperState('startup')
+      await nextTick()
+      availability.setKlipperState('ready')
+      availability.printerSnapshotSynchronized()
+      await nextTick()
+    }
+
+    // SAVE_CONFIG rewrites printer.cfg and restarts Klipper while Moonraker stays connected.
+    it('refreshes the open file when Klipper restarts', async () => {
+      const { machineFiles } = await openSavedFile()
+      machineFiles.start()
+
+      await restartKlipperWithDiskHolding('[stepper_x]\n#*# <---------------------->')
+
+      await vi.waitFor(() =>
+        expect(machineFiles.editorContent).toBe('[stepper_x]\n#*# <---------------------->'),
+      )
+      expect(machineFiles.isDirty).toBe(false)
+      machineFiles.stop()
+    })
+
+    it('keeps an unsaved edit across a Klipper restart', async () => {
+      const { machineFiles } = await openSavedFile()
+      machineFiles.start()
+      machineFiles.editorContent = '[stepper_x]\nstep_pin: PA0'
+
+      await restartKlipperWithDiskHolding('[stepper_y]')
+
+      expect(fetch).not.toHaveBeenCalled()
+      expect(machineFiles.editorContent).toBe('[stepper_x]\nstep_pin: PA0')
+      machineFiles.stop()
+    })
+
     /* A different printer has its own config and its own restart state. */
     it('does not follow a printer switch', async () => {
       const { machineFiles, moonraker } = await openSavedFile()
