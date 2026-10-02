@@ -57,10 +57,14 @@ const states = computed(() => props.requires.map((requirement) => requirements.v
     >
       <AppIcon :name="state.met ? 'check' : 'warning'" class="size-4 shrink-0" aria-hidden="true" />
       <span class="calibration-check__text">{{
-        t(`calibration.requirement.${state.requirement}.${state.met ? 'met' : 'unmet'}`)
+        t(`calibration.requirement.${state.requirement}.${state.wording}`, state.params ?? {})
       }}</span>
+      <!-- A condition met only on the config's word still offers the check that would show it. -->
       <AppButton
-        v-if="!state.met && state.fix"
+        v-if="
+          (!state.met || state.wording === 'configured' || state.wording === 'boardConnected') &&
+          state.fix
+        "
         size="xs"
         :icon="fixIcons[state.fix.id]"
         :label="t(`calibration.requirement.fix.${state.fix.id}`)"

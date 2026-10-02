@@ -42,7 +42,7 @@ const section = computed(
 const configured = computed(() => printerConfig.probeOffset)
 
 function toolhead(): BedPoint | null {
-  const [x, y] = printer.motion.position
+  const [x, y] = printer.toolheadPosition
   return typeof x === 'number' && typeof y === 'number' ? { x, y } : null
 }
 

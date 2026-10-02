@@ -1089,6 +1089,177 @@ describe('Calibration view', () => {
     )
   })
 
+  it('says a last run failed rather than dating it like a success', async () => {
+    const printerConfig = await import('@/stores/printerConfig')
+    const config = printerConfig.usePrinterConfigStore(pinia)
+    vi.spyOn(config, 'hasProbe', 'get').mockReturnValue(true)
+    const measuredAt = Date.now() - 2 * 86_400_000
+    const logged = {
+      version: 1,
+      procedures: {
+        probeAccuracy: [
+          {
+            at: measuredAt,
+            values: {},
+            rows: [{ label: { key: 'calibration.probe.range' }, after: '0.012' }],
+            outcome: 'measured',
+          },
+          { at: Date.now() - 3_600_000, values: {}, rows: [], outcome: 'failed' },
+          { at: Date.now() - 1_800_000, values: {}, rows: [], outcome: 'running' },
+        ],
+      },
+    }
+    vi.spyOn(useMoonrakerStore(pinia), 'rpcCall').mockImplementation(((method: string) =>
+      Promise.resolve(
+        method === 'server.database.get_item' ? { value: logged } : { x: 'TRIGGERED', y: 'open' },
+      )) as never)
+
+    const view = await mountView('bed')
+    const row = view
+      .findAll('.calibration-procedure')
+      .find((candidate) =>
+        candidate.text().includes(i18n.global.t('calibration.procedure.probeAccuracy.name')),
+      )!
+    // The newest entry was never seen to finish; the one before it failed. Neither is "the last run".
+    expect(row.get('.calibration-procedure__last').text()).toContain('not seen to finish')
+    expect(row.get('.calibration-procedure__value').text()).toBe('Range 0.012')
+    expect(useCalibrationStore(pinia).lastRunAt('probeAccuracy')).toBe(measuredAt)
+  })
+
+  it('opens an earlier run as the result, with what it found, and forgets one after asking', async () => {
+    const printerConfig = await import('@/stores/printerConfig')
+    const config = printerConfig.usePrinterConfigStore(pinia)
+    vi.spyOn(config, 'hasProbe', 'get').mockReturnValue(true)
+    const older = Date.now() - 2 * 86_400_000
+    const newer = Date.now() - 86_400_000
+    const logged = {
+      version: 1,
+      procedures: {
+        probeAccuracy: [
+          {
+            at: older,
+            values: {},
+            rows: [{ label: { key: 'calibration.probe.range' }, after: '0.031' }],
+            outcome: 'measured',
+          },
+          {
+            at: newer,
+            values: {},
+            rows: [{ label: { key: 'calibration.probe.range' }, after: '0.012' }],
+            outcome: 'measured',
+          },
+        ],
+      },
+    }
+    let stored: unknown = logged
+    vi.spyOn(useMoonrakerStore(pinia), 'rpcCall').mockImplementation(((
+      method: string,
+      params?: { value?: unknown },
+    ) => {
+      if (method === 'server.database.get_item') return Promise.resolve({ value: stored })
+      if (method === 'server.database.post_item') stored = params?.value
+      return Promise.resolve({ x: 'TRIGGERED', y: 'open' })
+    }) as never)
+
+    const view = await mountView('bed')
+    await selectProcedure(view, 'probeAccuracy')
+    // No run this sitting: nothing is shown as the result until a row is opened.
+    expect(view.find('.calibration-result').exists()).toBe(false)
+    const rows = view.findAll('.calibration-history__open')
+    expect(rows).toHaveLength(2)
+
+    await rows[1]!.trigger('click')
+    await flushPromises()
+    expect(view.get('.calibration-result__title').text()).toBe('Earlier result')
+    expect(view.get('.calibration-result__table').text()).toContain('0.031')
+    expect(rows[1]!.classes()).toContain('selection-row--selected')
+
+    // Back to latest closes it; with no live run there is nothing in its place.
+    await view
+      .findAll('.calibration-result button')
+      .find((button) => button.text() === 'Back to latest')!
+      .trigger('click')
+    await flushPromises()
+    expect(view.find('.calibration-result').exists()).toBe(false)
+
+    // Forget asks first, then removes the run from the printer's record.
+    const forget = view
+      .findAll('.calibration-history__entry button')
+      .find((button) => button.text() === 'Forget')!
+    await forget.trigger('click')
+    await flushPromises()
+    const dialog = view.findAll('dialog').find((candidate) => candidate.text().includes('Forget'))!
+    await dialog
+      .findAll('button')
+      .find((button) => button.text() === 'Forget')!
+      .trigger('click')
+    await flushPromises()
+    expect(view.findAll('.calibration-history__open')).toHaveLength(1)
+    const written = stored as { forgotten: { probeAccuracy: number[] } }
+    expect(written.forgotten.probeAccuracy).toEqual([newer])
+  })
+
+  it('reads an accelerometer on its own board from the board, and says when it is unplugged', async () => {
+    const machineSystem = (await import('@/stores/machineSystem')).useMachineSystemStore(pinia)
+    const board = {
+      id: 'mcu btt_lis2dw',
+      name: 'mcu btt_lis2dw',
+      isPrimary: false,
+      chip: 'rp2040',
+      app: null,
+      version: 'v0.13',
+      load: null,
+      frequency: null,
+      isDisconnected: false,
+    }
+    machineSystem.mcuModules = [board]
+    const printerConfig = await import('@/stores/printerConfig')
+    const config = printerConfig.usePrinterConfigStore(pinia)
+    config.settings = { ...config.settings, lis2dw: { cs_pin: 'btt_lis2dw:gpio9' } } as never
+    const view = await mountResonance()
+
+    expect(view.get('.calibration-readiness').text()).toContain(
+      'Accelerometer board btt_lis2dw connected',
+    )
+    // Klipper's own word for a non-critical MCU gone quiet outranks everything else.
+    machineSystem.mcuModules = [{ ...board, isDisconnected: true }]
+    await flushPromises()
+    expect(view.get('.calibration-readiness').text()).toContain(
+      'Accelerometer board btt_lis2dw is not connected.',
+    )
+    await selectProcedure(view, 'shakeTuneShaper')
+    expect(runButton(view).attributes('disabled')).toBeDefined()
+  })
+
+  it('takes the accelerometer at the config’s word until it answers, and asks again after a Klipper restart', async () => {
+    const view = await mountResonance()
+    const availability = useAvailabilityStore(pinia)
+    const configured = i18n.global.t('calibration.requirement.accelerometer.configured')
+    const answering = i18n.global.t('calibration.requirement.accelerometer.met')
+    expect(view.get('.calibration-readiness').text()).toContain(configured)
+
+    // The check is offered beside a condition met only on the config's word.
+    await selectProcedure(view, 'shakeTuneShaper')
+    const check = view
+      .findAll('.calibration-checks button')
+      .find(
+        (button) =>
+          button.text() === i18n.global.t('calibration.requirement.fix.checkAccelerometer'),
+      )
+    expect(check).toBeDefined()
+    await check!.trigger('click')
+    await flushPromises()
+    expect(view.get('.calibration-readiness').text()).toContain(answering)
+
+    // A restart re-detects the board the chip hangs off; what it said before is no longer evidence.
+    availability.handleKlipperNotification('notify_klippy_shutdown')
+    availability.handleKlipperNotification('notify_klippy_ready')
+    availability.printerSnapshotSynchronized()
+    await flushPromises()
+    expect(view.get('.calibration-readiness').text()).toContain(configured)
+    expect(view.get('.calibration-readiness').text()).not.toContain(answering)
+  })
+
   it('names the next step under a result, and draws what the log can show', async () => {
     const printerConfig = await import('@/stores/printerConfig')
     const config = printerConfig.usePrinterConfigStore(pinia)

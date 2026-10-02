@@ -234,7 +234,16 @@ function numberOf(value: unknown): number | null {
   return null
 }
 
-export function readNpaConfig(section: Record<string, unknown> | null): NpaConfig {
+/**
+ * `section` is Klipper's resolved view (`configfile.settings`), which carries a
+ * default `pressure_advance` for every extruder; `written` is the file's own
+ * lines, and the only one that can say whether a `pressure_advance` line is
+ * there to be removed. Without it, the option is taken as absent.
+ */
+export function readNpaConfig(
+  section: Record<string, unknown> | null,
+  written: Record<string, unknown> | null = null,
+): NpaConfig {
   const model = section?.pressure_advance_model
   return {
     model: typeof model === 'string' && model.trim() !== '' ? model.trim().toLowerCase() : null,
@@ -243,7 +252,7 @@ export function readNpaConfig(section: Record<string, unknown> | null): NpaConfi
     linearizationVelocity: numberOf(section?.linearization_velocity),
     timeOffset: numberOf(section?.pressure_advance_time_offset),
     smoothTime: numberOf(section?.pressure_advance_smooth_time),
-    hasLinearAdvanceOption: section !== null && section.pressure_advance !== undefined,
+    hasLinearAdvanceOption: written !== null && written.pressure_advance !== undefined,
   }
 }
 

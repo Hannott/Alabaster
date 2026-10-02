@@ -43,10 +43,20 @@ and whether it moves the toolhead, heats, or probes.
   order), **Check accelerometer** before a resonance run, and **Clear mesh and
   Z offset** before a Z calibration, so what it measures is the probe alone.
   A fix waits while a calibration runs. The band above the list shows the
-  conditions for the whole job.
+  conditions for the whole job. The accelerometer condition is answered by
+  the chip itself: a check or a resonance run that answered since Klipper
+  last started counts, one that failed with a chip fault does not, and until
+  either has happened a configured chip is listed as configured, not as
+  answering, with the check offered beside it. A Klipper restart, which is
+  how an accelerometer board plugged in or pulled gets re-detected, starts
+  that over. An accelerometer on its own USB board, such as a BTT ADXL or
+  LIS2DW board, is a board Klipper can see directly: the condition names it as
+  connected, and says so the moment Klipper reports it unplugged.
 - **Values** you might change, such as a mesh profile name or a heater's
   target, are fields with Klipper's default shown. The command they build is
-  shown under them.
+  shown under them. What you typed or recorded in a calibration stays while
+  you look at another on the same job, so a measurement is not lost to
+  checking something; moving to another job starts it clean.
 - **Run** sends it. One calibration runs at a time, from wherever it was
   started: the Movement card's **Level bed** and **Calibrate Z**, the bed mesh
   card's **Calibrate**, and a heater model from the Temperatures card run the
@@ -68,12 +78,22 @@ and whether it moves the toolhead, heats, or probes.
 Each calibration also shows when it last ran on this printer, and what the
 printer is set to: the values its last run found, or, for one that has never
 run here, the value in the config file, such as the probe's `z_offset` or the
-configured input shaper. Its earlier results are listed with the same buttons
-the result had, so an older shaper run can still be applied or saved; the
-five newest are shown, and **Show all** opens the whole record of twenty. The
+configured input shaper. Its earlier runs are listed under the result, the
+five newest first, and **Show all** opens the whole record of twenty. Click an
+earlier run to open it as the result: its values next to what the printer had
+before, how it ended, and whatever its result offered, so an older shaper run
+can still be applied or saved and its shaper chosen as on the day. **Back to
+latest** returns to the newest run. **Forget** removes one run from the
+printer's record, after asking, for every browser. The
 record is kept on the printer, so every browser sees the same dates. A
 calibration that is due, such as a mesh older than 30 days or heater models
-older than 90, is marked as due. A job opens on its first calibration. Under a result, the
+older than 90, is marked as due. A run that failed, or that no browser saw
+finish, is listed as such rather than as a date: it left the printer as it
+was, so it does not count as the last run, and a calibration whose only run
+failed is still due. A run is on record from the moment it starts, so one
+interrupted by a reload or a dropped connection is not lost, and one that
+Klipper stopped under ends there rather than holding every Run button until
+the page is reloaded. A job opens on its first calibration. Under a result, the
 panel names the next calibration on the job that is due or has never run
 here, with **Open** to go to it. Klipper's input shaper calibration and
 Shake&Tune's count as one: running either finishes the job, and neither is
@@ -183,7 +203,7 @@ one onto the printer to see what it contains.
 
 | Action           | Notes                                                                           |
 | ---------------- | ------------------------------------------------------------------------------- |
-| Calibrate mesh   | Runs `BED_MESH_CALIBRATE`.                                                      |
+| Calibrate mesh   | Opens the bed mesh calibration beside it, with its profile and probe count.     |
 | Load             | Makes a saved profile active.                                                   |
 | Save loaded mesh | Names and stores the mesh currently loaded.                                     |
 | Rename           | Klipper can only rename the loaded profile, so the page says so when it is not. |
@@ -301,6 +321,15 @@ paper at the same spot with the same dialog as the Z offset's paper test. The
 calibration waits through every point and stages the compensation for
 `SAVE_CONFIG`. Y is offered where `[axis_twist_compensation]` has a Y line to
 calibrate on. Calibrate the probe Z offset again afterwards.
+
+## Probe temperature drift
+
+Calibrates `[temperature_probe]`'s drift table: a paper test first, then a
+sample each time you ask for one as the probe warms toward the target. The
+result counts the samples and says the temperature the next one waits for;
+**Next sample** takes it, **Complete** stages the table for `SAVE_CONFIG`, and
+**Abort** ends the calibration with nothing staged. The run stays open through
+those steps.
 
 ## Load cell
 
@@ -541,17 +570,21 @@ mark distinguishes a genuine runout from a sensor that was never active.
 plugin. Its result shows the recommended shaper and frequency per axis next to
 the configured ones, with the suggested `max_accel`. The result is staged for
 `SAVE_CONFIG`. **Apply** puts both axes into effect right away, until Klipper
-restarts; **Save config** runs `SAVE_CONFIG`. **Save max_accel** writes the
-lowest acceleration the chosen shapers allow to `[printer]`, so corners are not
-smoothed past the cap the calibration was run with.
+restarts; **Save config** runs `SAVE_CONFIG`. Klipper stages its own
+recommendation, and `SAVE_CONFIG` writes what is staged: choose another shaper
+and **Save config** says so instead of writing the recommendation under the
+chosen name. Apply the chosen one, or save Klipper's. **Save max_accel** writes
+the lowest acceleration the chosen shapers allow to `[printer]`, so corners are
+not smoothed past the cap the calibration was run with.
 
 **Axis map** (Shake&Tune) finds how the accelerometer is mounted. When the
 detected `axes_map` differs from the one configured, one button writes it to
 the accelerometer's section in your configuration.
 
-**Accelerometer check** reads the accelerometer once to see that it answers.
-**Accelerometer noise** reads background vibration for two seconds, so a fan
-touching the toolhead or a loose mount shows before a real test.
+**Accelerometer check** reads the accelerometer once to see that it answers,
+and is what turns the job's accelerometer condition from configured to
+answering. **Accelerometer noise** reads background vibration for two seconds,
+so a fan touching the toolhead or a loose mount shows before a real test.
 
 With Shake&Tune installed, its shaper, belts, and vibrations tests are
 calibrations too. Each takes the few values worth changing, with the default

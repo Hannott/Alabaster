@@ -59,12 +59,20 @@ function layoutFor(procedure: CalibrationProcedure | null): LayoutProcedure | nu
  */
 const jogProcedures = new Set<ProcedureId>(['probeXyOffset', 'screwPositions'])
 
+/** The procedures about a sensor rather than the surface, which the map says nothing about. */
+const sensorProcedures = new Set<ProcedureId>([
+  'probeAccuracy',
+  'probeZOffset',
+  'loadCell',
+  'eddyDriveCurrent',
+  'probeDrift',
+])
+
 /** Whether the open procedure is about the surface, and so gets the map. */
 function showsMap(procedure: CalibrationProcedure | null): boolean {
   const id = procedure?.id
   return (
-    id !== 'probeAccuracy' &&
-    id !== 'probeZOffset' &&
+    !(id !== undefined && sensorProcedures.has(id)) &&
     !(id !== undefined && jogProcedures.has(id)) &&
     layoutFor(procedure) === null
   )
@@ -100,7 +108,11 @@ function showsMap(procedure: CalibrationProcedure | null): boolean {
         class="calibration-stage__map"
       >
         <template #actions>
-          <p v-if="probeRun.isRunning" class="calibration-map__running" role="status">
+          <p
+            v-if="probeRun.isRunning && !probeRun.isScanning"
+            class="calibration-map__running"
+            role="status"
+          >
             <AppIcon name="mesh" class="size-4 shrink-0" aria-hidden="true" />
             {{ t('calibration.map.probing', { count: probeRun.points.length }) }}
           </p>
@@ -111,14 +123,16 @@ function showsMap(procedure: CalibrationProcedure | null): boolean {
           mean of the run so far, because Klipper reports absolute trigger heights
           and the surface is drawn as deviation. Early points move as that mean
           settles, so the panel says the shape is provisional rather than letting
-          it be read as the finished mesh.
+          it be read as the finished mesh. A scanning probe reports no points at
+          all while it sweeps, so a machine with one says that instead, before
+          and during a run — never "probing, 0 points so far" over a sweep.
         -->
-        <p v-if="probeRun.isRunning" class="calibration-panel__hint">
-          {{ t('calibration.map.provisional') }}
-        </p>
-        <p v-else-if="probeRun.isScanning" class="calibration-notice" role="status">
+        <p v-if="probeRun.isScanning" class="calibration-notice" role="status">
           <AppIcon name="warning" class="size-4 shrink-0" aria-hidden="true" />
           <span>{{ t('calibration.map.scanningProbe') }}</span>
+        </p>
+        <p v-else-if="probeRun.isRunning" class="calibration-panel__hint">
+          {{ t('calibration.map.provisional') }}
         </p>
 
         <!--
@@ -130,9 +144,11 @@ function showsMap(procedure: CalibrationProcedure | null): boolean {
         <BedMeshModule live-probing force-probe-labels />
       </HostedDashboardModule>
 
+      <!-- Its Calibrate opens the mesh procedure here rather than running a second copy of it. -->
       <MeshProfilesPanel
         v-if="hasBedMesh && showsMap(procedure)"
         class="calibration-stage__profiles"
+        @calibrate="selection.selectProcedure('bed', 'bedMesh')"
       />
     </template>
   </CalibrationBench>

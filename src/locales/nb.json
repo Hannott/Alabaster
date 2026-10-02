@@ -286,6 +286,7 @@
       "refresh": "Les nå",
       "empty": "Denne skriveren melder ingen endestopp.",
       "failed": "Siste avlesning ble avvist. Verdiene under er fra forrige avlesning.",
+      "failedEmpty": "Avlesningen ble avvist eller svarte ikke, så ingenting er kjent ennå. Les nå spør igjen.",
       "paused": "Avlesning er satt på pause mens en utskrift kjører, så disse er ikke ferske.",
       "readAt": "Lest {time}.",
       "state": {
@@ -408,6 +409,8 @@
       "never": "Aldri kjørt",
       "today": "I dag {time}",
       "stale": "{when} · bør kjøres",
+      "failed": "{when} · feilet",
+      "interrupted": "{when} · ikke sett fullført",
       "running": "Kjører",
       "readiness": "Klar?",
       "staged": "Klar for SAVE_CONFIG: {count}",
@@ -421,6 +424,10 @@
       "waiting": "Venter på utdata …",
       "noOutput": "Kjøringen skrev ingenting.",
       "history": "Tidligere kjøringer",
+      "latest": "Tilbake til siste",
+      "forget": "Glem",
+      "forgetTitle": "Glemme denne kjøringen?",
+      "forgetDescription": "Fjerner den fra skriverens logg, for alle nettlesere.",
       "confirmTitle": "Kjøre {name}?",
       "blocked": {
         "unavailable": "Klipper er ikke klar.",
@@ -466,6 +473,9 @@
       "homeAll": "Hom alle",
       "accelerometer": {
         "met": "Akselerometeret svarer",
+        "configured": "Akselerometer konfigurert, ikke sjekket siden Klipper startet",
+        "boardConnected": "Akselerometerkortet {board} er tilkoblet",
+        "boardDisconnected": "Akselerometerkortet {board} er ikke tilkoblet.",
         "unmet": "Akselerometeret har ikke svart."
       },
       "zeroedForZ": {
@@ -490,17 +500,27 @@
         "measured": "Målt; ingenting på skriveren ble endret.",
         "done": "Ferdig.",
         "failed": "Kommandoen feilet. Utdataene sier hvorfor.",
+        "interrupted": "Ikke sett fullført: Klipper stoppet, eller siden var borte, mens den kjørte.",
+        "aborted": "Avsluttet uten verdi: papirtesten ble avbrutt, eller ACCEPT ble avvist.",
         "appliedEnded": "Var aktiv til Klipper ble restartet.",
         "stagedEnded": "Lagt klar før Klipper sist restartet; venter ikke lenger."
       },
+      "earlierTitle": "Tidligere resultat",
       "actionApplied": "Brukt til Klipper starter på nytt.",
       "persist": {
         "saved": "Skrevet til konfigurasjonsfilen. Start på nytt for å laste den.",
         "buffered": "Skrevet inn i ulagrede endringer i den filen. Lagre den i Konfigurasjon.",
         "unchanged": "Filen sier allerede dette.",
         "refused": "Ikke skrevet: linjen er i SAVE_CONFIG-blokken eller har en ventende endring.",
+        "stagedDiffers": "Ikke skrevet: Klipper har lagt klar en annen verdi, og SAVE_CONFIG skriver den. Bruk denne i stedet, eller lagre Klippers.",
         "restarting": "Skrevet til konfigurasjonsfilen. Klipper starter på nytt."
       },
+      "samples": "Prøver",
+      "sampleTemperature": "Siste prøve ved",
+      "nextTemperature": "Neste prøve ved",
+      "driftNext": "Neste prøve",
+      "driftComplete": "Fullfør",
+      "driftAbort": "Avbryt",
       "retries": "Forsøk",
       "range": "Spenn",
       "tolerance": "Toleranse",
@@ -793,7 +813,7 @@
       "probeDrift": {
         "name": "Temperaturdrift for probe",
         "description": "Probens drift mens den blir varm.",
-        "detail": "Varmer mot målet mens den prober gjentatte ganger, og registrerer driften ved hver temperatur."
+        "detail": "Først en papirtest, så en prøve hver gang du ber om en mens proben varmes mot målet; Fullfør legger drifttabellen klar for SAVE_CONFIG."
       },
       "beacon": {
         "name": "Beacon-kalibrering",
@@ -3302,6 +3322,7 @@
       "regenerateApiKey": "Generer API-nøkkelen på nytt",
       "openLargeGcodeFile": "Åpne en stor fil i G-kode-viseren",
       "deleteMeshProfile": "Slett en bednettprofil, fra Kalibrering-siden",
+      "forgetCalibrationRun": "Glem en loggført kalibreringskjøring, fra Kalibrering-siden",
       "clearPressureAdvanceReadings": "Tømme avlesningene for ikke-lineært trykkforsprang",
       "deleteSavedLayout": "Slett et lagret dashbordoppsett",
       "clearConsole": "Tøm konsolltranskriptet",

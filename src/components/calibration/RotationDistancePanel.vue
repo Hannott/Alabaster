@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 import AppButton from '@/components/AppButton.vue'
 import AppField from '@/components/AppField.vue'
 import CalibrationCard from '@/components/calibration/CalibrationCard.vue'
+import CalibrationRequirements from '@/components/calibration/CalibrationRequirements.vue'
 import RotationHardwareFields, {
   type RotationProposal,
 } from '@/components/calibration/RotationHardwareFields.vue'
@@ -12,6 +13,7 @@ import RotationResult from '@/components/calibration/RotationResult.vue'
 import { useAvailability } from '@/composables/useAvailability'
 import { useProcedureText } from '@/composables/useProcedureText'
 import { formatNumber, stepperDrive, suggestedFullSteps } from '@/features/calibration/axisRotation'
+import { procedureById } from '@/features/calibration/procedures'
 import { rotationDistanceFrom } from '@/features/calibration/rotationDistance'
 import { useCalibrationStore } from '@/stores/calibration'
 import { usePrinterStore } from '@/stores/printer'
@@ -51,6 +53,20 @@ const { availability: klipperAvailability } = useAvailability('klipper')
  */
 const requested = ref(Math.min(100, printerConfig.maxExtrudeDistance))
 const marked = ref(requested.value + 20)
+/*
+ * The config can arrive after the panel does; until the reader has typed a
+ * length of their own, the two follow it rather than keeping the default
+ * that was captured before the file was read.
+ */
+const lengthsTouched = ref(false)
+watch(
+  () => printerConfig.maxExtrudeDistance,
+  (distance) => {
+    if (lengthsTouched.value) return
+    requested.value = Math.min(100, distance)
+    marked.value = requested.value + 20
+  },
+)
 const remaining = ref<number | null>(null)
 const heatTarget = ref(200)
 
@@ -164,6 +180,8 @@ const history = computed(() =>
       {{ t('calibration.procedure.rotationDistance.detail') }}
     </p>
 
+    <CalibrationRequirements :requires="procedureById('rotationDistance')!.requires" />
+
     <fieldset class="calibration-choice">
       <legend class="calibration-choice__legend">{{ t('calibration.drive.method') }}</legend>
       <label class="check-row check-row--block calibration-choice__row">
@@ -225,6 +243,7 @@ const history = computed(() =>
             :unit="t('calibration.unit.millimetres')"
             :min="requested + 1"
             :max="500"
+            @update:model-value="lengthsTouched = true"
           />
         </div>
       </li>
@@ -241,6 +260,7 @@ const history = computed(() =>
             :unit="t('calibration.unit.millimetres')"
             :min="10"
             :max="printerConfig.maxExtrudeDistance"
+            @update:model-value="lengthsTouched = true"
           />
           <AppButton
             size="sm"
@@ -296,6 +316,7 @@ const history = computed(() =>
       :targets="['extruder']"
       log-id="rotationDistance"
       :log-values="logValues"
+      :disabled="method === 'measure' && !extruded"
     />
 
     <div v-if="history.length > 0" class="calibration-history">

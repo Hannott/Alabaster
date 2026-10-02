@@ -14,6 +14,9 @@ import { useBedMeshStore } from '@/stores/bedMesh'
 import { useConfirmationsStore } from '@/stores/confirmations'
 import { usePrinterStore } from '@/stores/printer'
 
+/** The reader asked for a mesh: the host opens the mesh procedure. */
+const emit = defineEmits<{ calibrate: [] }>()
+
 const { locale, t } = useI18n({ useScope: 'global' })
 const bedMesh = useBedMeshStore()
 const printer = usePrinterStore()
@@ -84,13 +87,19 @@ function validateMeshName(value: string, except?: string): string | undefined {
 <template>
   <CalibrationCard :title="t('calibration.mesh.title')">
     <template #aside>
+      <!--
+        Opens the mesh procedure beside this panel rather than running one of
+        its own: the workspace there holds the profile name and probe count
+        the reader typed, and two Run buttons for one procedure in one view
+        sent two different commands.
+      -->
       <AppButton
         size="xs"
         :pending="printer.pendingCommands.bedMesh"
         icon="mesh"
         :label="t('calibration.mesh.calibrate')"
         :disabled="!canCommand || calibrationRun.busy.value"
-        @click="calibrationRun.run('bedMesh')"
+        @click="emit('calibrate')"
       />
       <AppButton
         size="xs"

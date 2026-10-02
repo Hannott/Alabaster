@@ -15,6 +15,8 @@ import {
   type ProcedureResultRow,
   type ProcedureSnapshot,
   type ProcedureValues,
+  type ShaperCandidate,
+  procedureHelper,
 } from '@/features/calibration/procedures'
 import type { LevelingMethod } from '@/stores/printerConfig'
 import { useAvailabilityStore } from '@/stores/availability'
@@ -26,22 +28,68 @@ import { usePrinterStore } from '@/stores/printer'
 import { useQuickConfigStore } from '@/stores/quickConfig'
 import { useShakeTuneStore } from '@/stores/shakeTune'
 
+/**
+ * How a logged run ended. `running` is the provisional entry written when a
+ * run starts, so a run the page loses — a reload, a dropped connection — is
+ * still on record; read back without a live run behind it, it is shown as
+ * `interrupted`. `interrupted` is also written outright for a run Klipper
+ * left in the middle of.
+ */
+export type LogOutcome = ProcedureOutcome | 'failed' | 'running' | 'interrupted' | 'aborted'
+
 /** One run a procedure started, as the log keeps it. */
 export interface CalibrationLogEntry {
   /** When the run started, epoch milliseconds; also the entry's identity. */
   at: number
   values: Record<string, string>
   rows: ProcedureResultRow[]
-  outcome: ProcedureOutcome | 'failed'
+  outcome: LogOutcome
   /** What the result offered, so an earlier run can still be applied or saved. */
   actions?: ProcedureAction[]
+  /** The shapers the run offered per axis, so an earlier run opened later still has the choice. */
+  candidates?: ShaperCandidate[]
 }
 
 export type CalibrationLog = Partial<Record<ProcedureId, CalibrationLogEntry[]>>
 
+/**
+ * Runs forgotten one at a time, by when they started. Kept beside the log
+ * because the log is merged, never replaced: without the tombstone, the next
+ * browser to write — or this one, from its own copy — would merge the
+ * forgotten run straight back.
+ */
+export type ForgottenRuns = Partial<Record<ProcedureId, number[]>>
+
 interface StoredLog {
   version: 1
   procedures: CalibrationLog
+  forgotten?: ForgottenRuns
+}
+
+interface LogState {
+  procedures: CalibrationLog
+  forgotten: ForgottenRuns
+}
+
+/** Enough to outlive the twenty entries a procedure keeps, so a forgotten run stays forgotten. */
+const tombstonesPerProcedure = 40
+
+/**
+ * How long the store waits on the printer at each point a run can only be
+ * judged by time. One object, so a test that drives a helper can shorten them
+ * rather than wait on the real ones.
+ */
+export const calibrationTimings = {
+  /** How long a helper may take to open after its command returned, before it is taken as never opening. */
+  helperOpenMs: 3000,
+  /**
+   * How long a helper that opens once per point may stay closed between two
+   * points: the toolhead lifts, travels and probes in between. Past it, a
+   * sequence that never printed its last line — a probe error mid-way — ends.
+   */
+  helperReopenMs: 120_000,
+  /** How long a closed paper test may take to stage or print its value before it is read as aborted. */
+  lateResultMs: 20_000,
 }
 
 export interface CalibrationRun {
@@ -62,8 +110,14 @@ export interface CalibrationRun {
   /** The last console entry when the run finished; null while it runs. */
   finishedEntryId: number | null
   startedAt: number
+  /** `availability.klipperSession` when the run started: a restart since makes what it learned old news. */
+  session: number
   running: boolean
   succeeded: boolean | null
+  /** Klipper left ready while it ran, so nothing it would have printed was read. */
+  interrupted: boolean
+  /** Its helper closed with nothing found or staged: the paper test was aborted, or its ACCEPT refused. */
+  aborted: boolean
   /** What the run reads the printer through; its closures read live state. */
   context: ProcedureContext
   /** What was staged for SAVE_CONFIG when the run started, so only its own staging counts. */
@@ -78,7 +132,14 @@ export interface CalibrationRun {
   answers: ProcedureResultRow[]
 }
 
-export type PersistActionOutcome = 'saved' | 'buffered' | 'unchanged' | 'refused' | 'restarting'
+export type PersistActionOutcome =
+  | 'saved'
+  | 'buffered'
+  | 'unchanged'
+  | 'refused'
+  | 'restarting'
+  /** Klipper staged another value for the option; SAVE_CONFIG would write that one, so nothing was. */
+  | 'stagedDiffers'
 
 /*
  * The log is a record of the machine, not a preference of whoever is looking at
@@ -107,26 +168,47 @@ const levelingProcedures: Partial<Record<ProcedureId, LevelingMethod>> = {
 
 /**
  * Two copies of the log as one: every run either has, oldest first, capped per
- * procedure. A procedure named in `cleared` is taken out of the remote copy
- * first, since merging would bring its deleted entries straight back.
+ * procedure, less every run either side forgot. A procedure named in
+ * `cleared` is taken out of the remote copy first, since merging would bring
+ * its deleted entries straight back.
  */
 function mergeLogs(
-  remote: CalibrationLog,
-  local: CalibrationLog,
+  remote: LogState,
+  local: LogState,
   cleared: readonly ProcedureId[] = [],
-): CalibrationLog {
-  const merged: CalibrationLog = { ...remote }
+): LogState {
+  const forgotten: ForgottenRuns = {}
+  const ids = new Set<ProcedureId>([
+    ...(Object.keys(remote.forgotten) as ProcedureId[]),
+    ...(Object.keys(local.forgotten) as ProcedureId[]),
+  ])
+  for (const id of ids) {
+    if (cleared.includes(id)) continue
+    const ats = new Set([...(remote.forgotten[id] ?? []), ...(local.forgotten[id] ?? [])])
+    forgotten[id] = [...ats].sort((left, right) => left - right).slice(-tombstonesPerProcedure)
+  }
+  const merged: CalibrationLog = { ...remote.procedures }
   for (const id of cleared) delete merged[id]
-  for (const [id, entries] of Object.entries(local) as Array<
+  for (const [id, entries] of Object.entries(local.procedures) as Array<
     [ProcedureId, CalibrationLogEntry[]]
   >) {
     const byAt = new Map((merged[id] ?? []).map((entry) => [entry.at, entry]))
-    for (const entry of entries) byAt.set(entry.at, entry)
+    for (const entry of entries) {
+      // A provisional entry never replaces the final one another browser wrote.
+      const existing = byAt.get(entry.at)
+      if (existing && entry.outcome === 'running' && existing.outcome !== 'running') continue
+      byAt.set(entry.at, entry)
+    }
     merged[id] = [...byAt.values()]
       .sort((left, right) => left.at - right.at)
       .slice(-entriesPerProcedure)
   }
-  return merged
+  for (const [id, ats] of Object.entries(forgotten) as Array<[ProcedureId, number[]]>) {
+    const entries = merged[id]
+    if (!entries) continue
+    merged[id] = entries.filter((entry) => !ats.includes(entry.at))
+  }
+  return { procedures: merged, forgotten }
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -184,21 +266,56 @@ function readStoredAction(value: unknown): ProcedureAction | null {
   return value.restart === true ? { ...action, restart: true } : action
 }
 
+/** A shaper candidate as the log keeps it: an axis, a type Klipper would accept, a frequency. */
+function readStoredCandidate(value: unknown): ShaperCandidate | null {
+  if (!isRecord(value)) return null
+  const { axis, shaperType, frequency, kind, recommended, vibrations, maxAccel } = value
+  if (axis !== 'x' && axis !== 'y') return null
+  if (!isText(shaperType) || !/^[a-z0-9_]+$/.test(shaperType)) return null
+  if (typeof frequency !== 'number' || !Number.isFinite(frequency)) return null
+  if (kind !== null && kind !== 'performance' && kind !== 'lowVibrations' && kind !== 'best') {
+    return null
+  }
+  const candidate: ShaperCandidate = {
+    axis,
+    shaperType,
+    frequency,
+    kind,
+    recommended: recommended === true,
+  }
+  if (typeof vibrations === 'number' && Number.isFinite(vibrations))
+    candidate.vibrations = vibrations
+  if (typeof maxAccel === 'number' && Number.isFinite(maxAccel)) candidate.maxAccel = maxAccel
+  return candidate
+}
+
 function readStoredEntry(entry: unknown): CalibrationLogEntry | null {
   if (!isRecord(entry) || typeof entry.at !== 'number' || !Array.isArray(entry.rows)) return null
-  const { actions: storedActions, ...rest } = entry as unknown as CalibrationLogEntry & {
-    actions?: unknown
-  }
+  const {
+    actions: storedActions,
+    candidates: storedCandidates,
+    ...rest
+  } = entry as unknown as CalibrationLogEntry & { actions?: unknown; candidates?: unknown }
   const actions = Array.isArray(storedActions)
     ? storedActions
         .map(readStoredAction)
         .filter((action): action is ProcedureAction => action !== null)
     : []
-  return actions.length > 0 ? { ...rest, actions } : rest
+  const candidates = Array.isArray(storedCandidates)
+    ? storedCandidates
+        .map(readStoredCandidate)
+        .filter((candidate): candidate is ShaperCandidate => candidate !== null)
+    : []
+  const read: CalibrationLogEntry = { ...rest }
+  if (actions.length > 0) read.actions = actions
+  if (candidates.length > 0) read.candidates = candidates
+  return read
 }
 
-function readStoredLog(value: unknown): CalibrationLog {
-  if (!isRecord(value) || value.version !== 1 || !isRecord(value.procedures)) return {}
+function readStoredLog(value: unknown): LogState {
+  if (!isRecord(value) || value.version !== 1 || !isRecord(value.procedures)) {
+    return { procedures: {}, forgotten: {} }
+  }
   const log: CalibrationLog = {}
   for (const [id, entries] of Object.entries(value.procedures)) {
     if (procedureById(id) === undefined || !Array.isArray(entries)) continue
@@ -206,7 +323,16 @@ function readStoredLog(value: unknown): CalibrationLog {
       .map(readStoredEntry)
       .filter((entry): entry is CalibrationLogEntry => entry !== null)
   }
-  return log
+  const forgotten: ForgottenRuns = {}
+  if (isRecord(value.forgotten)) {
+    for (const [id, ats] of Object.entries(value.forgotten)) {
+      if (procedureById(id) === undefined || !Array.isArray(ats)) continue
+      forgotten[id as ProcedureId] = ats.filter(
+        (at): at is number => typeof at === 'number' && Number.isFinite(at),
+      )
+    }
+  }
+  return { procedures: log, forgotten }
 }
 
 /**
@@ -230,14 +356,37 @@ export const useCalibrationStore = defineStore('calibration', () => {
 
   const runs = reactive(new Map<string, CalibrationRun>())
   const log = ref<CalibrationLog>({})
+  const forgotten = ref<ForgottenRuns>({})
   const logLoaded = ref(false)
   const logFailed = ref(false)
   let loadGeneration = 0
   let started = false
   let stopConnectionWatch: (() => void) | null = null
-  let stopPrinterChange: (() => void) | null = null
 
   const activeRun = computed(() => [...runs.values()].find((run) => run.running) ?? null)
+
+  /**
+   * A guided panel's helper that Klipper has open — the load cell's
+   * `LOAD_CELL_CALIBRATE` — which is not a run here but holds the machine the
+   * same way: a Run started under it would answer that helper's commands.
+   */
+  const openHelper = ref<string | null>(null)
+  /** Whether the machine is spoken for, by a run or by an open helper. */
+  const busy = computed(() => activeRun.value !== null || openHelper.value !== null)
+
+  function setHelperOpen(id: string, open: boolean): void {
+    if (open) openHelper.value = id
+    else if (openHelper.value === id) openHelper.value = null
+  }
+
+  /*
+   * Registered for the store's whole life, not between `start()` and `stop()`:
+   * a printer switched while another route was open, and a dashboard shortcut
+   * that runs a procedure without the page ever mounting, both reach this
+   * store without `start()`. Carried across such a switch, the old printer's
+   * log merged into the new printer's database on the next write.
+   */
+  moonraker.onPrinterChange(printerChanged)
 
   function lastEntryId(): number {
     const entries = gcodeConsole.consoleEntries
@@ -259,12 +408,24 @@ export const useCalibrationStore = defineStore('calibration', () => {
       if (entry.id <= run.startEntryId) continue
       if (run.endEntryId !== null && entry.id > run.endEntryId) break
       if (entry.kind === 'command') {
-        if (run.finishedEntryId !== null && entry.id > run.finishedEntryId) break
+        if (endsRun(run, entry)) break
         continue
       }
       lines.push(entry.raw)
     }
     return lines
+  }
+
+  /**
+   * Whether a command sent after the run finished ends what it may still
+   * claim. A procedure's own follow-ups — the next sample of a drift
+   * calibration, the paper test it opens — continue the run instead.
+   */
+  function endsRun(run: CalibrationRun, entry: { id: number; raw: string }): boolean {
+    if (run.finishedEntryId === null || entry.id <= run.finishedEntryId) return false
+    const followUps = procedureById(run.procedureId)?.followUps ?? []
+    const command = entry.raw.trim().toUpperCase()
+    return !followUps.some((followUp) => command === followUp || command.startsWith(`${followUp} `))
   }
 
   function runFor(id: ProcedureId, subject = ''): CalibrationRun | null {
@@ -315,6 +476,22 @@ export const useCalibrationStore = defineStore('calibration', () => {
     return rows.length > run.stagedRows.length ? rows : run.stagedRows
   }
 
+  /**
+   * Whether what is staged now can still be the run's own. The same bound as
+   * its output: until another run starts here, or a command is sent after it
+   * finished. A finished run used to keep reading the pending list for as
+   * long as the page was open, so a stepper check logged the probe offset a
+   * paper test staged three hours later as its own result.
+   */
+  function acceptsStaging(run: CalibrationRun): boolean {
+    if (run.running) return true
+    if (run.endEntryId !== null) return false
+    if (run.finishedEntryId === null) return true
+    return !gcodeConsole.consoleEntries.some(
+      (entry) => entry.kind === 'command' && endsRun(run, entry),
+    )
+  }
+
   /** The runs of a procedure, or of one subject of it, oldest first. */
   function historyFor(id: ProcedureId, subject = ''): readonly CalibrationLogEntry[] {
     const entries = log.value[id] ?? []
@@ -323,10 +500,47 @@ export const useCalibrationStore = defineStore('calibration', () => {
     return entries.filter((entry) => procedureSubject(procedure, entry.values) === subject)
   }
 
+  /**
+   * How an entry reads now: a provisional `running` entry with no live run
+   * behind it is a run this page never saw finish — a reload or a dropped
+   * connection ended it, or another browser is running it this moment, which
+   * that browser's final entry will say.
+   */
+  function outcomeOf(entry: CalibrationLogEntry): LogOutcome {
+    if (entry.outcome !== 'running') return entry.outcome
+    const live = [...runs.values()].some((run) => run.running && run.startedAt === entry.at)
+    return live ? 'running' : 'interrupted'
+  }
+
+  /** A run that found what it set out to find — not one that failed, or was never seen to finish. */
+  function isCompleted(entry: CalibrationLogEntry): boolean {
+    const outcome = outcomeOf(entry)
+    return (
+      outcome !== 'failed' &&
+      outcome !== 'running' &&
+      outcome !== 'interrupted' &&
+      outcome !== 'aborted'
+    )
+  }
+
+  /** The newest entry of a procedure, however it ended; null where none is logged. */
+  function latestEntry(id: ProcedureId): CalibrationLogEntry | null {
+    const entries = log.value[id] ?? []
+    return entries.reduce<CalibrationLogEntry | null>(
+      (newest, entry) => (newest === null || entry.at > newest.at ? entry : newest),
+      null,
+    )
+  }
+
+  /**
+   * When the procedure last completed. A failed run, or one the page lost,
+   * does not count: it left the printer as it was, and a procedure whose
+   * only run failed is still due.
+   */
   function lastRunAt(id: ProcedureId): number | null {
-    const entries = log.value[id]
-    if (!entries || entries.length === 0) return null
-    return Math.max(...entries.map((entry) => entry.at))
+    const completed = (log.value[id] ?? []).filter(isCompleted)
+    if (completed.length === 0) return null
+    return Math.max(...completed.map((entry) => entry.at))
   }
 
   async function loadLog(): Promise<void> {
@@ -343,7 +557,12 @@ export const useCalibrationStore = defineStore('calibration', () => {
        * (a reconnect reloads the log mid-sitting), and the printer's copy may
        * not have that run yet. Replacing would send its row back to "never run".
        */
-      log.value = mergeLogs(readStoredLog(response.value), log.value)
+      const merged = mergeLogs(readStoredLog(response.value), {
+        procedures: log.value,
+        forgotten: forgotten.value,
+      })
+      log.value = merged.procedures
+      forgotten.value = merged.forgotten
       logFailed.value = false
     } catch {
       // Moonraker answers an error for a key never written: nothing remote to add.
@@ -363,7 +582,7 @@ export const useCalibrationStore = defineStore('calibration', () => {
    */
   async function writeLog(cleared: readonly ProcedureId[] = []): Promise<void> {
     if (!availability.isMoonrakerConnected) return
-    let remote: CalibrationLog
+    let remote: LogState
     try {
       const response = await moonraker.rpcCall('server.database.get_item', {
         namespace: logNamespace,
@@ -371,12 +590,17 @@ export const useCalibrationStore = defineStore('calibration', () => {
       })
       remote = readStoredLog(response.value)
     } catch {
-      remote = {}
+      remote = { procedures: {}, forgotten: {} }
     }
-    const merged = mergeLogs(remote, log.value, cleared)
-    log.value = merged
+    const merged = mergeLogs(remote, { procedures: log.value, forgotten: forgotten.value }, cleared)
+    log.value = merged.procedures
+    forgotten.value = merged.forgotten
     try {
-      const value: StoredLog = { version: 1, procedures: merged }
+      const value: StoredLog = {
+        version: 1,
+        procedures: merged.procedures,
+        forgotten: merged.forgotten,
+      }
       await moonraker.rpcCall('server.database.post_item', {
         namespace: logNamespace,
         key: logKey,
@@ -388,16 +612,34 @@ export const useCalibrationStore = defineStore('calibration', () => {
     }
   }
 
-  /** Records, or updates, the log entry for a run from what it has printed so far. */
+  function outcomeOfRun(run: CalibrationRun, result: ProcedureResult | null): LogOutcome {
+    if (run.running) return 'running'
+    if (run.interrupted) return 'interrupted'
+    if (run.aborted) return 'aborted'
+    if (run.succeeded === false) return 'failed'
+    return result?.outcome ?? 'done'
+  }
+
+  /**
+   * Records, or updates, the log entry for a run from what it has printed so
+   * far. Called once when the run starts, so the printer has a record of it
+   * before the command returns — a page reloaded mid-run used to leave no
+   * trace, and its Run button came back while the printer was still at work.
+   */
   function recordRun(run: CalibrationRun): void {
     const result = resultOfRun(run)
     const entry: CalibrationLogEntry = {
       at: run.startedAt,
       values: run.values,
       rows: [...(result?.rows ?? [])],
-      outcome: run.succeeded === false ? 'failed' : (result?.outcome ?? 'done'),
+      outcome: outcomeOfRun(run, result),
     }
-    if (run.succeeded !== false && result?.actions?.length) entry.actions = [...result.actions]
+    // A step of the run itself is not something a later reader can take with its result.
+    const kept = (result?.actions ?? []).filter((action) => action.transient !== true)
+    if (run.succeeded === true && kept.length > 0) entry.actions = kept
+    if (run.succeeded === true && result?.shaperCandidates?.length) {
+      entry.candidates = [...result.shaperCandidates]
+    }
     const entries = (log.value[run.procedureId] ?? []).filter(
       (existing) => existing.at !== run.startedAt,
     )
@@ -422,7 +664,8 @@ export const useCalibrationStore = defineStore('calibration', () => {
       return printer.calibrateBedMesh(values.PROFILE, values.PROBE_COUNT)
     }
     const leveling = levelingProcedures[procedure.id]
-    if (leveling !== undefined) return printer.runLeveling(leveling)
+    // The card's own path sends the bare command; one with words (a screw DIRECTION) is sent as built.
+    if (leveling !== undefined && script === procedure.command) return printer.runLeveling(leveling)
     if (procedure.id === 'heaterModel') {
       const kind = script.startsWith('MPC_CALIBRATE') ? 'mpc' : 'pid'
       return printer.calibrateHeater(kind, values.HEATER ?? '', Number(values.TARGET))
@@ -458,8 +701,11 @@ export const useCalibrationStore = defineStore('calibration', () => {
       endEntryId: null,
       finishedEntryId: null,
       startedAt: Date.now(),
+      session: availability.klipperSession,
       running: true,
       succeeded: null,
+      interrupted: false,
+      aborted: false,
       context,
       pendingBefore: context.pendingItems(),
       stagedRows: [],
@@ -467,31 +713,113 @@ export const useCalibrationStore = defineStore('calibration', () => {
     }
     const key = runKey(procedure.id, subject)
     runs.set(key, record)
+    recordRun(record)
     const watchesGraphs = shakeTuneProcedures.has(procedure.id)
     if (watchesGraphs) shakeTune.start()
-    let succeeded = await dispatch(procedure, script, values)
-    if (watchesGraphs) setTimeout(() => shakeTune.stop(), graphLandingMs)
-    if (succeeded && procedure.helper) {
-      const helperDone = procedure.helperDone
-      succeeded = await helperFinished(
-        procedure.helper,
-        helperDone ? () => helperDone(outputFor(record)) : null,
-      )
+    const leaving = untilKlipperLeaves()
+    const helper = procedureHelper(procedure, context)
+    let succeeded: boolean
+    let aborted = false
+    try {
+      succeeded = await Promise.race([dispatch(procedure, script, values), leaving.promise])
+      if (succeeded && helper !== null) {
+        const helperDone = procedure.helperDone
+        const ending = await helperFinished(
+          helper,
+          helperDone ? () => helperDone(outputFor(record)) : null,
+        )
+        succeeded = ending !== 'lost'
+        /*
+         * A paper test's helper closes before what it stages lands: the probe
+         * modules move and scan for seconds after ACCEPT, an eddy probe's
+         * calibration longest of all. Closed with nothing yet, the run waits
+         * a while for a value or a staging before it is read as aborted — the
+         * ABORT itself prints nothing to tell the two apart. A helper that
+         * never opened was refused outright, and has nothing to wait for.
+         */
+        if (succeeded && helper === 'manualProbe') {
+          const found =
+            ending === 'closed'
+              ? await Promise.race([lateResult(record), leaving.promise])
+              : hasResult(record)
+          if (found === false) {
+            if (leaving.left) succeeded = false
+            else aborted = true
+          }
+        }
+      }
+    } finally {
+      leaving.stop()
+      if (watchesGraphs) setTimeout(() => shakeTune.stop(), graphLandingMs)
     }
     const current = runs.get(key)
-    if (current && current.startedAt === record.startedAt) {
+    if (current && current.startedAt === record.startedAt && current.running) {
       current.stagedRows = stagedRowsFor(current)
-      // A helper closed with nothing found or staged was aborted, or its ACCEPT refused.
-      if (succeeded && procedure.helper === 'manualProbe') {
-        const result = resultOfRun(current)
-        succeeded = (result?.rows.length ?? 0) > 0 || result?.outcome === 'staged'
-      }
       current.running = false
-      current.succeeded = succeeded
+      current.aborted = aborted
+      current.succeeded = succeeded && !aborted
+      current.interrupted = leaving.left
       current.finishedEntryId = lastEntryId()
       recordRun(current)
     }
-    return succeeded
+    return current?.succeeded ?? false
+  }
+
+  /** Whether the run has a value or a staging to show. */
+  function hasResult(run: CalibrationRun): boolean {
+    run.stagedRows = stagedRowsFor(run)
+    const result = resultOfRun(run)
+    return (result?.rows.length ?? 0) > 0 || result?.outcome === 'staged'
+  }
+
+  /** Resolves true as soon as the run has a value or a staging, false once it has waited long enough. */
+  function lateResult(run: CalibrationRun): Promise<boolean> {
+    if (hasResult(run)) return Promise.resolve(true)
+    return new Promise((resolve) => {
+      let stop: (() => void) | null = null
+      const timer = setTimeout(() => finish(false), calibrationTimings.lateResultMs)
+      function finish(value: boolean): void {
+        clearTimeout(timer)
+        stop?.()
+        resolve(value)
+      }
+      stop = watch(
+        () => [gcodeConsole.consoleEntries, printer.saveConfigPendingItems] as const,
+        () => {
+          if (hasResult(run)) finish(true)
+        },
+        { deep: true },
+      )
+    })
+  }
+
+  /**
+   * Resolves false the moment Klipper leaves ready, for a run to race its
+   * command against. Moonraker answers a command that was in flight when
+   * Klipper went down, but a Klipper that stops without dropping its
+   * connection may never answer — and a run that never ends keeps every Run
+   * button on the bench and the dashboard disabled until the page is reloaded.
+   */
+  function untilKlipperLeaves(): { promise: Promise<false>; stop: () => void; left: boolean } {
+    let stop: (() => void) | null = null
+    const state = {
+      left: false,
+      stop: () => {
+        stop?.()
+        stop = null
+      },
+      promise: new Promise<false>((resolve) => {
+        stop = watch(
+          () => availability.isKlipperReady,
+          (ready) => {
+            if (ready) return
+            state.left = true
+            resolve(false)
+          },
+        )
+      }),
+    }
+    return state
   }
 
   /** The runs whose graph lands in Shake&Tune's results folder after their last line. */
@@ -504,15 +832,6 @@ export const useCalibrationStore = defineStore('calibration', () => {
   /** How long the results listing is kept current after such a run, for its graph to be written. */
   const graphLandingMs = 10 * 60 * 1000
 
-  /** How long a helper may take to open after its command returned, before it is taken as never opening. */
-  const helperOpenMs = 3000
-  /**
-   * How long a helper that opens once per point may stay closed between two
-   * points: the toolhead lifts, travels and probes in between. Past it, a
-   * sequence that never printed its last line — a probe error mid-way — ends.
-   */
-  const helperReopenMs = 120_000
-
   /**
    * Resolves once the interactive helper a run opened has closed — the paper
    * test's ACCEPT or ABORT, the last screw accepted. The command returns as
@@ -524,16 +843,16 @@ export const useCalibrationStore = defineStore('calibration', () => {
   function helperFinished(
     helper: 'manualProbe' | 'bedScrews',
     done: (() => boolean) | null,
-  ): Promise<boolean> {
+  ): Promise<'closed' | 'neverOpened' | 'lost'> {
     const isActive = () => (helper === 'manualProbe' ? manualProbe.isActive : bedScrews.isActive)
     return new Promise((resolve) => {
       let opened = isActive()
       let stop: (() => void) | null = null
       let reopenTimer: ReturnType<typeof setTimeout> | null = null
       const timer = setTimeout(() => {
-        if (!opened) finish(true)
-      }, helperOpenMs)
-      function finish(value: boolean): void {
+        if (!opened) finish('neverOpened')
+      }, calibrationTimings.helperOpenMs)
+      function finish(value: 'closed' | 'neverOpened' | 'lost'): void {
         clearTimeout(timer)
         if (reopenTimer !== null) clearTimeout(reopenTimer)
         stop?.()
@@ -542,14 +861,14 @@ export const useCalibrationStore = defineStore('calibration', () => {
       stop = watch(
         () => [isActive(), availability.isKlipperReady, done?.() ?? true] as const,
         ([active, available, finished]) => {
-          if (!available) return finish(false)
+          if (!available) return finish('lost')
           if (active) {
             opened = true
             if (reopenTimer !== null) clearTimeout(reopenTimer)
             reopenTimer = null
           } else if (opened) {
-            if (finished) return finish(true)
-            reopenTimer ??= setTimeout(() => finish(true), helperReopenMs)
+            if (finished) return finish('closed')
+            reopenTimer ??= setTimeout(() => finish('closed'), calibrationTimings.helperReopenMs)
           }
         },
       )
@@ -566,7 +885,7 @@ export const useCalibrationStore = defineStore('calibration', () => {
     () => printer.saveConfigPendingItems,
     () => {
       for (const current of runs.values()) {
-        if (current.running) continue
+        if (current.running || !acceptsStaging(current)) continue
         current.stagedRows = stagedRowsFor(current)
       }
     },
@@ -577,17 +896,21 @@ export const useCalibrationStore = defineStore('calibration', () => {
    * An interactive run — a paper test, a screw-by-screw adjustment — answers
    * with its result after the command itself has returned, when the reader
    * accepts, and a Shake&Tune run's graph lands after its last line. So a
-   * finished run's log entry is refreshed as more of its result arrives, for
-   * as long as it is the latest run of its procedure. Watching the results
-   * themselves, rather than the transcript, is what lets a result that grew
-   * from a status update or a directory listing be logged too.
+   * finished run's log entry is refreshed as its result arrives. Watching the
+   * results themselves, rather than the transcript, is what lets a result
+   * that grew from a status update or a directory listing be logged too — and
+   * it is refreshed when the result *changes*, not only when it grows: a mesh
+   * whose parser had nothing until the mesh loaded was logged as the staged
+   * list, and a longer list of noise beat four rows of the result for good.
    */
+  function loggedShape(result: ProcedureResult | null): string {
+    return JSON.stringify([result?.outcome ?? null, result?.rows ?? []])
+  }
+
   watch(
     () =>
       [...runs.values()].map((current) =>
-        current.running || current.succeeded !== true
-          ? -1
-          : (resultOfRun(current)?.rows.length ?? 0),
+        current.running || current.succeeded !== true ? '' : loggedShape(resultOfRun(current)),
       ),
     () => {
       for (const current of runs.values()) {
@@ -595,8 +918,12 @@ export const useCalibrationStore = defineStore('calibration', () => {
         const logged = log.value[current.procedureId]?.find(
           (entry) => entry.at === current.startedAt,
         )
-        const rows = resultOfRun(current)?.rows.length ?? 0
-        if (logged && rows > logged.rows.length) recordRun(current)
+        if (!logged) continue
+        const shape = loggedShape({
+          outcome: logged.outcome as ProcedureOutcome,
+          rows: logged.rows,
+        })
+        if (shape !== loggedShape(resultOfRun(current))) recordRun(current)
       }
     },
   )
@@ -640,7 +967,35 @@ export const useCalibrationStore = defineStore('calibration', () => {
     const rest = { ...log.value }
     delete rest[id]
     log.value = rest
+    const restForgotten = { ...forgotten.value }
+    delete restForgotten[id]
+    forgotten.value = restForgotten
     void writeLog([id])
+  }
+
+  /**
+   * Forgets one logged run, on every browser. The run's own record in this
+   * page goes with it, so the workspace does not keep showing a result the
+   * log no longer has.
+   */
+  function forgetEntry(id: ProcedureId, at: number): void {
+    for (const [key, current] of runs) {
+      if (current.procedureId === id && current.startedAt === at && !current.running) {
+        runs.delete(key)
+      }
+    }
+    const entries = (log.value[id] ?? []).filter((entry) => entry.at !== at)
+    log.value = { ...log.value, [id]: entries }
+    forgotten.value = {
+      ...forgotten.value,
+      [id]: [...(forgotten.value[id] ?? []), at].slice(-tombstonesPerProcedure),
+    }
+    void writeLog()
+  }
+
+  /** What Klipper has staged for this option, if anything. */
+  function stagedValue(section: string, option: string): string | undefined {
+    return printer.saveConfigPendingItems[section.toLowerCase()]?.[option.toLowerCase()]
   }
 
   async function runAction(action: ProcedureAction): Promise<PersistActionOutcome | boolean> {
@@ -649,14 +1004,26 @@ export const useCalibrationStore = defineStore('calibration', () => {
     const statuses: PersistActionOutcome[] = []
     let wroteAutosave = false
     for (const change of action.changes) {
+      /*
+       * A staged option is SAVE_CONFIG's to write, and it writes what Klipper
+       * staged. Where that is the value asked for, the file is left alone and
+       * the save below does the writing; where it is not — a shaper the
+       * reader chose over the recommendation Klipper staged — nothing here can
+       * make SAVE_CONFIG write the chosen one, and saving would silently keep
+       * Klipper's. The file writer's own refusal does not compare values, so it
+       * is not asked.
+       */
+      const staged = stagedValue(action.section, change.option)
+      if (staged !== undefined) {
+        if (staged.trim().toLowerCase() === change.value.trim().toLowerCase()) {
+          statuses.push('unchanged')
+          continue
+        }
+        return 'stagedDiffers'
+      }
       const result = await quickConfig.persistOption(action.section, change.option, change.value, {
         intoAutosave: restart,
       })
-      // A staged value is what SAVE_CONFIG is for: it writes it, so the file is left alone.
-      if (restart && result.status === 'refused' && result.reason === 'pending') {
-        statuses.push('unchanged')
-        continue
-      }
       statuses.push(result.status)
       if ('autosave' in result && result.autosave) wroteAutosave = true
       // Stopping at the first refusal leaves no half-written pair behind it.
@@ -686,6 +1053,8 @@ export const useCalibrationStore = defineStore('calibration', () => {
     loadGeneration += 1
     runs.clear()
     log.value = {}
+    forgotten.value = {}
+    openHelper.value = null
     logLoaded.value = false
     logFailed.value = false
   }
@@ -693,7 +1062,6 @@ export const useCalibrationStore = defineStore('calibration', () => {
   function start(): void {
     if (started) return
     started = true
-    stopPrinterChange = moonraker.onPrinterChange(printerChanged)
     stopConnectionWatch = watch(
       () => availability.isMoonrakerConnected,
       (connected) => {
@@ -708,13 +1076,13 @@ export const useCalibrationStore = defineStore('calibration', () => {
     started = false
     stopConnectionWatch?.()
     stopConnectionWatch = null
-    stopPrinterChange?.()
-    stopPrinterChange = null
   }
 
   return {
     runs,
     activeRun,
+    busy,
+    setHelperOpen,
     log,
     logLoaded,
     logFailed,
@@ -722,12 +1090,15 @@ export const useCalibrationStore = defineStore('calibration', () => {
     linesFor,
     resultFor,
     historyFor,
+    latestEntry,
+    outcomeOf,
     lastRunAt,
     run,
     runAction,
     answer,
     recordManual,
     clearLog,
+    forgetEntry,
     loadLog,
     start,
     stop,

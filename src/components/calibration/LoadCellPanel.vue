@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import AppButton from '@/components/AppButton.vue'
@@ -57,6 +57,14 @@ const phase = computed(() => reading.value.phase)
 const isOpen = computed(
   () => phase.value === 'started' || phase.value === 'tared' || phase.value === 'calibrated',
 )
+
+/*
+ * While Klipper's helper is open the machine answers to it — TARE, CALIBRATE,
+ * ACCEPT — so the store is told, and every Run on the bench waits like it
+ * would for a run. Said on unmount too, since the helper outlives the panel.
+ */
+watch(isOpen, (open) => calibration.setHelperOpen('loadCell', open), { immediate: true })
+onBeforeUnmount(() => calibration.setHelperOpen('loadCell', false))
 
 /* A restart closes Klipper's helper; its lines before that describe a calibration that is gone. */
 onKlipperRestart(() => {

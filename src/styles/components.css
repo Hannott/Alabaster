@@ -14284,9 +14284,8 @@ body.machine-editor-fullscreen-open {
 
 .calibration-history__entry {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.25rem 0.75rem;
-  padding: 0.3rem 0;
+  align-items: flex-start;
+  gap: 0.25rem;
   border-block-end: 1px solid var(--border-subtle);
 }
 
@@ -14294,9 +14293,34 @@ body.machine-editor-fullscreen-open {
   border-block-end: 0;
 }
 
+/*
+ * The row itself opens the run into the result card, so it is a `file-select`
+ * composing `selection-row` like every list the reader picks from; the Forget
+ * button sits beside it rather than inside, since a button holds no button.
+ */
+.calibration-history__open {
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0.75rem;
+  padding: 0.3rem 0.5rem;
+  font-size: inherit;
+}
+
 .calibration-history__when {
   color: var(--text-muted);
   font-variant-numeric: tabular-nums;
+}
+
+/* A guided panel's row has nothing to open; it keeps the same measure as one that does. */
+.calibration-history__line {
+  display: flex;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0.75rem;
+  padding: 0.3rem 0.5rem;
+  min-width: 0;
 }
 
 .calibration-history__body {
@@ -14304,11 +14328,6 @@ body.machine-editor-fullscreen-open {
   flex: 1 1 16rem;
   gap: 0.25rem;
   min-width: 0;
-}
-
-/* Beside the date, a run's buttons stack one per line; under it they pair by axis. */
-.calibration-history__body--actions {
-  flex-basis: 100%;
 }
 
 .calibration-history__summary {

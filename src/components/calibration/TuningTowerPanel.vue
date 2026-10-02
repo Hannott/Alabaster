@@ -6,12 +6,14 @@ import AppButton from '@/components/AppButton.vue'
 import AppField from '@/components/AppField.vue'
 import CalibrationCard from '@/components/calibration/CalibrationCard.vue'
 import CalibrationHistory from '@/components/calibration/CalibrationHistory.vue'
+import CalibrationRequirements from '@/components/calibration/CalibrationRequirements.vue'
 import { onKlipperRestart } from '@/composables/onKlipperRestart'
 import { useAvailability } from '@/composables/useAvailability'
 import { useConfigWrite } from '@/composables/useConfigWrite'
 import { useProcedureContext } from '@/composables/useProcedureContext'
 import { formatNumber } from '@/features/calibration/axisRotation'
 import { isNonlinearModel, readNpaConfig } from '@/features/calibration/nonlinearPressureAdvance'
+import { procedureById } from '@/features/calibration/procedures'
 import {
   applyScript,
   isValidSweep,
@@ -93,9 +95,10 @@ const calculated = computed(() =>
     : formatNumber(towerValue(sweep.value, height.value), info.value.decimals),
 )
 
+/* The file's own line: `configfile.settings` reports a default (0 for a retract length) as though set. */
 const inFile = computed(() => {
-  const value = context.value.settings(info.value.section)?.[info.value.option]
-  return typeof value === 'number' || typeof value === 'string' ? String(value) : null
+  const value = context.value.written(info.value.section)?.[info.value.option]
+  return typeof value === 'string' && value.trim() !== '' ? value.trim() : null
 })
 
 const busy = ref<'prepare' | 'apply' | null>(null)
@@ -186,6 +189,8 @@ function historySummary(entry: CalibrationLogEntry): string {
     <p class="calibration-workspace__description">
       {{ t('calibration.procedure.tuningTower.detail') }}
     </p>
+
+    <CalibrationRequirements :requires="procedureById('tuningTower')!.requires" />
 
     <div class="calibration-params">
       <fieldset v-if="targets.length > 1" class="calibration-choice">

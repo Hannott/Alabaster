@@ -12,6 +12,7 @@ import CalibrationScrewsGrid from '@/components/calibration/CalibrationScrewsGri
 import CalibrationSparkline from '@/components/calibration/CalibrationSparkline.vue'
 import { useActionGuard } from '@/composables/useActionGuard'
 import { onKlipperRestart } from '@/composables/onKlipperRestart'
+import { useNow } from '@/composables/useNow'
 import { useAvailability } from '@/composables/useAvailability'
 import { useCalibrationSelection } from '@/composables/useCalibrationSelection'
 import { useFollowingLog } from '@/composables/useFollowingLog'
@@ -29,11 +30,18 @@ import {
   type ProcedureAction,
   type ProcedureId,
   type ProcedureParameter,
+  type ProcedureResultRow,
   type ShaperCandidate,
 } from '@/features/calibration/procedures'
+import type { ScrewReading } from '@/features/calibration/screws'
 import { trendSeries } from '@/features/calibration/trends'
 import { useAvailabilityStore } from '@/stores/availability'
-import { useCalibrationStore, type PersistActionOutcome } from '@/stores/calibration'
+import {
+  useCalibrationStore,
+  type LogOutcome,
+  type PersistActionOutcome,
+} from '@/stores/calibration'
+import { useConfirmationsStore } from '@/stores/confirmations'
 import { usePrinterStore } from '@/stores/printer'
 
 /**
@@ -57,6 +65,7 @@ const emit = defineEmits<{ skip: []; select: [id: ProcedureId] }>()
 
 const { t } = useI18n({ useScope: 'global' })
 const calibration = useCalibrationStore()
+const confirmations = useConfirmationsStore()
 const printer = usePrinterStore()
 const availability = useAvailabilityStore()
 const context = useProcedureContext()
@@ -122,7 +131,9 @@ function fieldAttributes(parameter: ProcedureParameter): Record<string, string |
   const placeholder = parameter.placeholder?.(context.value)
   if (placeholder) attributes.placeholder = placeholder
   if (parameter.min !== undefined) attributes.min = parameter.min
-  if (parameter.max !== undefined) attributes.max = parameter.max
+  const max =
+    typeof parameter.max === 'function' ? parameter.max(context.value, values.value) : parameter.max
+  if (max !== undefined) attributes.max = max
   return attributes
 }
 
@@ -157,7 +168,7 @@ watch([() => props.procedure.id, subject], ([id, value]) => selection.setSubject
 })
 const run = computed(() => calibration.runFor(props.procedure.id, subject.value))
 const isRunning = computed(() => run.value?.running === true)
-const otherRunning = computed(() => calibration.activeRun !== null && !isRunning.value)
+const otherRunning = computed(() => calibration.busy && !isRunning.value)
 
 const canRun = computed(
   () =>
@@ -197,6 +208,7 @@ async function startRun(): Promise<void> {
   confirmOpen.value = false
   actionOutcomes.value = {}
   outputChoice.value = null
+  openedAt.value = null
   // The questions are about this run; the last run's ticks are not answers to it.
   const others = { ...answersById.value }
   delete others[answerScope.value]
@@ -212,6 +224,110 @@ const output = computed(() =>
     .slice(-200),
 )
 const result = computed(() => calibration.resultFor(props.procedure.id, subject.value))
+
+/**
+ * Every logged run, oldest first, including the one shown as the result.
+ * Declared here because the result shown can be one of them.
+ */
+const logged = computed(() => calibration.historyFor(props.procedure.id, subject.value))
+
+/*
+ * An earlier run opened from the list, by when it started; null shows the
+ * latest. The history used to be one summary line per run with its buttons
+ * beside it, which could not show a run's values against what the printer
+ * had before, nor offer the shaper choice its result had — so an earlier run
+ * opens into the same result card the live run uses.
+ */
+const openedAt = ref<number | null>(null)
+const opened = computed(() =>
+  openedAt.value === null
+    ? null
+    : (logged.value.find((entry) => entry.at === openedAt.value) ?? null),
+)
+
+/** What the result card shows: the opened earlier run, else the live one. */
+interface ShownResult {
+  at: number
+  subject: string
+  rows: readonly ProcedureResultRow[]
+  outcome: LogOutcome
+  actions: readonly ProcedureAction[]
+  candidates: readonly ShaperCandidate[]
+  screws: readonly ScrewReading[] | undefined
+  live: boolean
+}
+
+const shown = computed<ShownResult | null>(() => {
+  const entry = opened.value
+  if (entry) {
+    return {
+      at: entry.at,
+      subject: procedureSubject(props.procedure, entry.values),
+      rows: entry.rows,
+      outcome: calibration.outcomeOf(entry),
+      actions: entry.actions ?? props.procedure.actionsFromRows?.(entry.rows) ?? [],
+      candidates: entry.candidates ?? [],
+      screws: undefined,
+      live: false,
+    }
+  }
+  const live = run.value
+  if (!live) return null
+  const outcome: LogOutcome = live.running
+    ? 'running'
+    : live.interrupted
+      ? 'interrupted'
+      : live.aborted
+        ? 'aborted'
+        : live.succeeded === false
+          ? 'failed'
+          : (result.value?.outcome ?? 'done')
+  return {
+    at: live.startedAt,
+    subject: live.subject,
+    rows: result.value?.rows ?? [],
+    outcome,
+    actions: result.value?.actions ?? [],
+    candidates: result.value?.shaperCandidates ?? [],
+    screws: result.value?.screws,
+    live: true,
+  }
+})
+
+const shownEnded = computed(() => {
+  const outcome = shown.value?.outcome
+  return outcome === 'failed' || outcome === 'interrupted' || outcome === 'aborted'
+})
+
+function openEntry(at: number): void {
+  openedAt.value = openedAt.value === at ? null : at
+  actionOutcomes.value = {}
+}
+
+/*
+ * One run forgotten, after asking: the log is the printer's, so this is the
+ * only copy on every browser.
+ */
+const forgetAt = ref<number | null>(null)
+const forgetGuard = useActionGuard({
+  tier: 'terminal',
+  emphasis: 'quiet',
+  key: 'forgetCalibrationRun',
+})
+
+function requestForget(at: number): void {
+  forgetGuard.request(
+    () => forgetEntry(at),
+    () => (forgetAt.value = at),
+  )
+}
+
+function forgetEntry(at: number | null = forgetAt.value): void {
+  forgetAt.value = null
+  if (at === null) return
+  if (openedAt.value === at) openedAt.value = null
+  calibration.forgetEntry(props.procedure.id, at)
+}
 
 /*
  * One state for whether the output is shown, which the toggle both reads and
@@ -246,7 +362,7 @@ function candidateKey(candidate: ShaperCandidate): string {
 }
 
 const shaperAxes = computed(() => {
-  const candidates = result.value?.shaperCandidates ?? []
+  const candidates = shown.value?.candidates ?? []
   const axes = (['x', 'y'] as const).flatMap((axis) => {
     const options = candidates.filter((candidate) => candidate.axis === axis)
     return options.length > 0 ? [{ axis, options }] : []
@@ -255,8 +371,8 @@ const shaperAxes = computed(() => {
 })
 
 const chosenShapers = computed(() => {
-  const defaults = defaultShaperPicks(result.value?.shaperCandidates ?? [])
-  const picks = shaperChoice.value.at === run.value?.startedAt ? shaperChoice.value.picks : {}
+  const defaults = defaultShaperPicks(shown.value?.candidates ?? [])
+  const picks = shaperChoice.value.at === shown.value?.at ? shaperChoice.value.picks : {}
   return shaperAxes.value.flatMap(({ axis, options }) => {
     const chosen = options.find((option) => candidateKey(option) === picks[axis]) ?? defaults[axis]
     return chosen ? [chosen] : []
@@ -264,7 +380,7 @@ const chosenShapers = computed(() => {
 })
 
 function chooseShaper(axis: 'x' | 'y', candidate: ShaperCandidate): void {
-  const at = run.value?.startedAt ?? 0
+  const at = shown.value?.at ?? 0
   const picks = shaperChoice.value.at === at ? shaperChoice.value.picks : {}
   shaperChoice.value = { at, picks: { ...picks, [axis]: candidateKey(candidate) } }
   // What was applied or saved was the previous choice; its note no longer describes this one.
@@ -293,15 +409,17 @@ function candidateLabel(candidate: ShaperCandidate): string {
   return parts.join(' · ')
 }
 
-/** The result's actions, built from the chosen shapers where the reader has a choice. */
-const resultActions = computed<readonly ProcedureAction[]>(() =>
-  shaperAxes.value.length > 0
-    ? shaperActionsFor(chosenShapers.value)
-    : (result.value?.actions ?? []),
-)
-const hasBefore = computed(
-  () => result.value?.rows.some((row) => row.before !== undefined) ?? false,
-)
+/**
+ * The shown result's actions, built from the chosen shapers where the reader
+ * has a choice. A step of the run itself — a drift calibration's next sample
+ * — belongs to the live run only.
+ */
+const resultActions = computed<readonly ProcedureAction[]>(() => {
+  if (shaperAxes.value.length > 0) return shaperActionsFor(chosenShapers.value)
+  const actions = shown.value?.actions ?? []
+  return shown.value?.live ? actions : actions.filter((action) => action.transient !== true)
+})
+const hasBefore = computed(() => shown.value?.rows.some((row) => row.before !== undefined) ?? false)
 
 const actionOutcomes = ref<Record<string, PersistActionOutcome | boolean>>({})
 /* "Applied until Klipper restarts" and "Klipper is restarting" both end with the restart. */
@@ -310,13 +428,13 @@ onKlipperRestart(() => {
 })
 const pendingAction = ref<string | null>(null)
 
-/** The current run's actions keep their own ids; an earlier run's are scoped by when it ran. */
-function actionKey(action: ProcedureAction, at?: number): string {
-  return at === undefined ? action.id : `${at}:${action.id}`
+/** An action's note is about one run's press of it, so the key carries when that run started. */
+function actionKey(action: ProcedureAction): string {
+  return `${shown.value?.at ?? 0}:${action.id}`
 }
 
-async function runAction(action: ProcedureAction, at?: number): Promise<void> {
-  const id = actionKey(action, at)
+async function runAction(action: ProcedureAction): Promise<void> {
+  const id = actionKey(action)
   pendingAction.value = id
   try {
     const outcome = await calibration.runAction(action)
@@ -330,12 +448,12 @@ async function runAction(action: ProcedureAction, at?: number): Promise<void> {
 function actionDisabled(action: ProcedureAction): boolean {
   if (!klipperAvailability.value.isAvailable || pendingAction.value !== null) return true
   // A command key takes one command at a time and refuses a second without a word.
-  if (calibration.activeRun !== null || printer.pendingCommands.calibration) return true
+  if (calibration.busy || printer.pendingCommands.calibration) return true
   return action.kind === 'persist' && action.restart === true && printer.hasActivePrint
 }
 
-function actionNote(action: ProcedureAction, at?: number): string | null {
-  const outcome = actionOutcomes.value[actionKey(action, at)]
+function actionNote(action: ProcedureAction): string | null {
+  const outcome = actionOutcomes.value[actionKey(action)]
   if (outcome === undefined) return null
   if (outcome === true) return t('calibration.result.actionApplied')
   if (outcome === false) return t('dashboard.commandFailed')
@@ -343,27 +461,29 @@ function actionNote(action: ProcedureAction, at?: number): string | null {
 }
 
 const outcomeText = computed(() => {
+  const view = shown.value
+  if (!view) return null
   // A screws run past its deviation limit fails on purpose, and says so itself.
-  if (run.value?.succeeded === false && result.value?.screws?.length) {
+  if (view.live && run.value?.succeeded === false && result.value?.screws?.length) {
     return t('calibration.screws.overLimit')
   }
-  if (run.value?.succeeded === false) return t('calibration.result.outcome.failed')
-  if (!result.value) return null
+  if (view.outcome === 'running') return null
+  if (shownEnded.value) return t(`calibration.result.outcome.${view.outcome}`)
   /*
    * Applied and staged both last until a restart. One since the run has
    * undone the first and either written or dropped the second, so the result
    * still says what it found and no longer says it is running or waiting.
    */
   const readyAt = availability.klipperReadyAt
-  const restartedSince = readyAt !== null && readyAt > (run.value?.startedAt ?? 0)
-  if (restartedSince && result.value.outcome === 'applied') {
+  const restartedSince = readyAt !== null && readyAt > view.at
+  if (restartedSince && view.outcome === 'applied') {
     return t('calibration.result.outcome.appliedEnded')
   }
   // A reconnect counts as a restart too, so a staged value Klipper still reports keeps its note.
-  if (restartedSince && result.value.outcome === 'staged' && !printer.saveConfigPending) {
+  if (restartedSince && view.outcome === 'staged' && !printer.saveConfigPending) {
     return t('calibration.result.outcome.stagedEnded')
   }
-  return t(`calibration.result.outcome.${result.value.outcome}`)
+  return t(`calibration.result.outcome.${view.outcome}`)
 })
 
 /*
@@ -405,13 +525,9 @@ function recordAnswers(): void {
  * this one, so the sentence never names a procedure the stage would not
  * have opened on itself.
  */
+const now = useNow()
 const next = computed(() =>
-  nextProcedure(
-    props.procedures,
-    props.procedure.id,
-    (id) => calibration.lastRunAt(id),
-    Date.now(),
-  ),
+  nextProcedure(props.procedures, props.procedure.id, (id) => calibration.lastRunAt(id), now.value),
 )
 const nextText = computed(() => {
   if (next.value === null) return null
@@ -422,8 +538,6 @@ const nextText = computed(() => {
     : t('calibration.bench.next.stale', { name, when: lastRun(at) })
 })
 
-/** Every logged run, oldest first, including the one shown as the result. */
-const logged = computed(() => calibration.historyFor(props.procedure.id, subject.value))
 const trends = computed(() => trendSeries(props.procedure.id, logged.value))
 
 /** Five recent runs read at a glance; the whole log is there for comparing them. */
@@ -436,18 +550,17 @@ const history = computed(() =>
   showAllHistory.value ? earlier.value : earlier.value.slice(0, recentHistory),
 )
 
-function entryActions(entry: (typeof history.value)[number]): readonly ProcedureAction[] {
-  if (entry.outcome === 'failed') return []
-  return entry.actions ?? props.procedure.actionsFromRows?.(entry.rows) ?? []
-}
-
 /** Every value an earlier run found, one per line — a shaper run has one per axis. */
 function summary(entry: (typeof history.value)[number]): string[] {
-  if (entry.outcome === 'failed') return [t('calibration.result.outcome.failed')]
+  const outcome = calibration.outcomeOf(entry)
+  if (outcome === 'failed' || outcome === 'interrupted' || outcome === 'aborted') {
+    return [t(`calibration.result.outcome.${outcome}`)]
+  }
+  if (outcome === 'running') return [t('calibration.bench.running')]
   const found = entry.rows.filter((row) => row.after !== '')
   return found.length > 0
     ? found.map((row) => `${text(row.label)} ${row.after}`)
-    : [t(`calibration.result.outcome.${entry.outcome}`)]
+    : [t(`calibration.result.outcome.${outcome}`)]
 }
 
 // What belongs to one procedure's view resets when another is chosen, or another subject of it.
@@ -455,6 +568,8 @@ watch(
   () => [props.procedure.id, subject.value],
   () => {
     confirmOpen.value = false
+    forgetAt.value = null
+    openedAt.value = null
     outputChoice.value = null
     showAllHistory.value = false
     actionOutcomes.value = {}
@@ -559,20 +674,33 @@ const effects = computed(() =>
       {{ t('calibration.bench.interactive') }}
     </p>
 
-    <div v-if="run" class="calibration-result" role="status" aria-live="polite">
+    <div v-if="shown" class="calibration-result" role="status" aria-live="polite">
       <div class="calibration-result__head">
         <h3 class="calibration-result__title">
-          {{ isRunning ? t('calibration.bench.running') : t('calibration.result.title') }}
+          {{
+            shown.live && isRunning
+              ? t('calibration.bench.running')
+              : shown.live
+                ? t('calibration.result.title')
+                : t('calibration.result.earlierTitle')
+          }}
         </h3>
         <span class="calibration-result__when">{{
-          [run.subject, when(run.startedAt)].filter(Boolean).join(' · ')
+          [shown.subject, when(shown.at)].filter(Boolean).join(' · ')
         }}</span>
+        <AppButton
+          v-if="!shown.live"
+          variant="quiet"
+          size="xs"
+          :label="t('calibration.bench.latest')"
+          @click="openedAt = null"
+        />
       </div>
 
-      <CalibrationScrewsGrid v-if="result?.screws?.length" :screws="result.screws" />
+      <CalibrationScrewsGrid v-if="shown.screws?.length" :screws="shown.screws" />
 
       <table
-        v-if="result && result.rows.length > 0 && !result.screws?.length"
+        v-if="shown.rows.length > 0 && !shown.screws?.length"
         class="calibration-result__table"
       >
         <thead>
@@ -583,7 +711,7 @@ const effects = computed(() =>
           </tr>
         </thead>
         <tbody>
-          <tr v-for="(row, index) in result.rows" :key="index">
+          <tr v-for="(row, index) in shown.rows" :key="index">
             <th scope="row">{{ text(row.label) }}</th>
             <td v-if="hasBefore" class="calibration-result__number">{{ row.before || '—' }}</td>
             <td
@@ -601,12 +729,16 @@ const effects = computed(() =>
       <p
         v-if="outcomeText"
         class="calibration-result__outcome"
-        :class="{ 'calibration-result__outcome--failed': run.succeeded === false }"
+        :class="{ 'calibration-result__outcome--failed': shownEnded }"
       >
         {{ outcomeText }}
       </p>
 
-      <fieldset v-if="askAnswers" class="calibration-choice" :disabled="answersRecorded">
+      <fieldset
+        v-if="shown.live && askAnswers"
+        class="calibration-choice"
+        :disabled="answersRecorded"
+      >
         <legend class="calibration-choice__legend">{{ t('calibration.answer.title') }}</legend>
         <label
           v-for="question in procedure.answers"
@@ -621,11 +753,11 @@ const effects = computed(() =>
           <span>{{ t(question.label) }}</span>
         </label>
       </fieldset>
-      <p v-if="askAnswers && answersRecorded" class="calibration-panel__hint">
+      <p v-if="shown.live && askAnswers && answersRecorded" class="calibration-panel__hint">
         {{ t('calibration.answer.recorded') }}
       </p>
       <AppButton
-        v-else-if="askAnswers"
+        v-else-if="shown.live && askAnswers"
         size="sm"
         :label="t('calibration.answer.record')"
         @click="recordAnswers"
@@ -660,7 +792,7 @@ const effects = computed(() =>
           <AppButton
             size="sm"
             :label="text(action.label)"
-            :pending="pendingAction === action.id"
+            :pending="pendingAction === actionKey(action)"
             :disabled="actionDisabled(action)"
             @click="runAction(action)"
           />
@@ -671,6 +803,7 @@ const effects = computed(() =>
       </ul>
 
       <AppButton
+        v-if="shown.live"
         variant="quiet"
         size="xs"
         :aria-expanded="outputVisible"
@@ -678,7 +811,7 @@ const effects = computed(() =>
         @click="toggleOutput"
       />
       <ol
-        v-if="outputVisible"
+        v-if="shown.live && outputVisible"
         ref="outputLog"
         class="console-output selectable calibration-result__output"
         role="log"
@@ -714,34 +847,38 @@ const effects = computed(() =>
           <CalibrationSparkline :values="series.values" />
         </li>
       </ul>
+      <!--
+        Each run is a row the reader opens into the result card above, with
+        its values, its outcome and whatever its result offered; a row the
+        reader has no further use for is forgotten from the printer's record.
+      -->
       <ul class="calibration-history__list">
         <li v-for="entry in history" :key="entry.at" class="calibration-history__entry">
-          <span class="calibration-history__when">{{ when(entry.at) }}</span>
-          <div
-            class="calibration-history__body"
-            :class="{ 'calibration-history__body--actions': entryActions(entry).length }"
+          <button
+            type="button"
+            class="file-select selection-row calibration-history__open"
+            :class="{ 'selection-row--selected': entry.at === openedAt }"
+            :aria-pressed="entry.at === openedAt"
+            @click="openEntry(entry.at)"
           >
-            <span
-              v-for="(line, index) in summary(entry)"
-              :key="index"
-              class="calibration-history__summary"
-              >{{ line }}</span
-            >
-            <ul v-if="entryActions(entry).length" class="calibration-result__actions">
-              <li v-for="action in entryActions(entry)" :key="action.id">
-                <AppButton
-                  size="sm"
-                  :label="text(action.label)"
-                  :pending="pendingAction === actionKey(action, entry.at)"
-                  :disabled="actionDisabled(action)"
-                  @click="runAction(action, entry.at)"
-                />
-                <span v-if="actionNote(action, entry.at)" class="calibration-panel__hint">{{
-                  actionNote(action, entry.at)
-                }}</span>
-              </li>
-            </ul>
-          </div>
+            <span class="calibration-history__when">{{ when(entry.at) }}</span>
+            <span class="calibration-history__body">
+              <span
+                v-for="(line, index) in summary(entry)"
+                :key="index"
+                class="calibration-history__summary"
+                >{{ line }}</span
+              >
+            </span>
+          </button>
+          <AppButton
+            :guard="forgetGuard"
+            size="xs"
+            icon="trash"
+            :label="t('calibration.bench.forget')"
+            :disabled="calibration.outcomeOf(entry) === 'running'"
+            @click="requestForget(entry.at)"
+          />
         </li>
       </ul>
       <AppButton
@@ -772,6 +909,19 @@ const effects = computed(() =>
       @confirm="startRun"
       @cancel="confirmOpen = false"
       @skip="emit('skip')"
+    />
+
+    <ConfirmDialog
+      :open="forgetAt !== null"
+      :title="t('calibration.bench.forgetTitle')"
+      :description="t('calibration.bench.forgetDescription')"
+      :items="forgetAt === null ? [] : [when(forgetAt)]"
+      :confirm-label="t('calibration.bench.forget')"
+      tone="danger"
+      show-skip-option
+      @confirm="forgetEntry()"
+      @cancel="forgetAt = null"
+      @skip="confirmations.setSkip('forgetCalibrationRun', true)"
     />
   </CalibrationCard>
 </template>

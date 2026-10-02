@@ -6,9 +6,12 @@ import AppButton from '@/components/AppButton.vue'
 import AppField from '@/components/AppField.vue'
 import CalibrationCard from '@/components/calibration/CalibrationCard.vue'
 import CalibrationHistory from '@/components/calibration/CalibrationHistory.vue'
+import CalibrationRequirements from '@/components/calibration/CalibrationRequirements.vue'
+import { onKlipperRestart } from '@/composables/onKlipperRestart'
 import { useAvailability } from '@/composables/useAvailability'
 import { useConfigWrite } from '@/composables/useConfigWrite'
 import { useProcedureContext } from '@/composables/useProcedureContext'
+import { procedureById } from '@/features/calibration/procedures'
 import {
   attemptScript,
   narrowRange,
@@ -64,12 +67,22 @@ watch(
   { immediate: true },
 )
 
-const driverSettings = computed(() =>
-  driver.value ? context.value.settings(driver.value.section) : null,
-)
+/* The file's own line: `configfile.settings` reports a default of 0 for a driver with no line. */
 const inFile = computed(() => {
-  const saved = driverSettings.value?.[driver.value?.option.toLowerCase() ?? '']
-  return typeof saved === 'number' || typeof saved === 'string' ? String(saved) : null
+  const written = driver.value ? context.value.written(driver.value.section) : null
+  const saved =
+    written?.[driver.value?.option.toLowerCase() ?? ''] ?? written?.[driver.value?.option ?? '']
+  return typeof saved === 'string' && saved.trim() !== '' ? saved.trim() : null
+})
+
+/*
+ * Klipper's words for a failed attempt, and the attempt waiting for an
+ * answer, are this panel's notes about the printer; a restart ends both.
+ * The attempts themselves are what the reader saw, and stay.
+ */
+onKlipperRestart(() => {
+  failure.value = null
+  awaiting.value = null
 })
 
 /*
@@ -257,6 +270,8 @@ function historySummary(entry: CalibrationLogEntry): string {
     <p class="calibration-workspace__description">
       {{ t('calibration.procedure.sensorlessHoming.detail') }}
     </p>
+
+    <CalibrationRequirements :requires="procedureById('sensorlessHoming')!.requires" />
 
     <div class="calibration-params">
       <fieldset v-if="drivers.length > 1" class="calibration-choice">

@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { procedureById, type ProcedureContext } from '@/features/calibration/procedures'
 import { useAvailabilityStore } from '@/stores/availability'
 import { useManualProbeStore } from '@/stores/manualProbe'
-import { useCalibrationStore } from '@/stores/calibration'
+import { calibrationTimings, useCalibrationStore } from '@/stores/calibration'
 import { useConsoleStore } from '@/stores/console'
 import { useMoonrakerStore } from '@/stores/moonraker'
 import { usePrinterStore } from '@/stores/printer'
@@ -47,6 +47,12 @@ function setup(database: Database = { value: undefined }) {
   useAvailabilityStore().moonrakerConnected({ klippy_connected: true, klippy_state: 'ready' })
   const moonraker = useMoonrakerStore()
   let releaseScript: (() => void) | null = null
+  let refuseScript: (() => void) | null = null
+  const printerChangeResets: Array<() => void> = []
+  vi.spyOn(moonraker, 'onPrinterChange').mockImplementation((reset) => {
+    printerChangeResets.push(reset)
+    return () => undefined
+  })
   const rpcCall = vi.spyOn(moonraker, 'rpcCall').mockImplementation(((
     method: string,
     params?: { value?: unknown },
@@ -61,8 +67,9 @@ function setup(database: Database = { value: undefined }) {
       return Promise.resolve({})
     }
     if (method === 'printer.gcode.script') {
-      return new Promise((resolve) => {
+      return new Promise((resolve, reject) => {
         releaseScript = () => resolve('ok')
+        refuseScript = () => reject(new Error('Klipper refused it'))
       })
     }
     return Promise.resolve({})
@@ -74,12 +81,22 @@ function setup(database: Database = { value: undefined }) {
       releaseScript?.()
       await flushPromises()
     },
+    fail: async () => {
+      refuseScript?.()
+      await flushPromises()
+    },
+    /** What the Moonraker store does when another printer is selected. */
+    switchPrinter: () => {
+      for (const reset of printerChangeResets) reset()
+    },
   }
 }
 
 beforeEach(() => {
   vi.restoreAllMocks()
   setActivePinia(createPinia())
+  // A closed paper test waits for a late staging before it is read as aborted; not for 20 s here.
+  calibrationTimings.lateResultMs = 20
 })
 
 describe('calibration runs', () => {
@@ -182,6 +199,155 @@ describe('what a run staged', () => {
     expect(calibration.resultFor('probeZOffset')?.rows).toEqual([
       { label: { literal: 'z_offset' }, before: '1.4', after: '1.535' },
     ])
+  })
+})
+
+describe('what a finished run may still claim', () => {
+  it('does not take what was staged after a command sent since it finished', async () => {
+    const { calibration, finish } = setup()
+    const printer = usePrinterStore()
+    const run = calibration.run(procedureById('stepperBuzz')!, { STEPPER: 'stepper_x' }, context)
+    await flushPromises()
+    say('// ok')
+    await finish()
+    await run
+    // A paper test started from the console, hours later, stages the probe offset.
+    say('PROBE_CALIBRATE', 'command')
+    say('// probe: z_offset: 0.480')
+    printer.saveConfigPendingItems = { probe: { z_offset: '0.480' } }
+    await flushPromises()
+
+    expect(calibration.resultFor('stepperBuzz', 'stepper_x')).toMatchObject({
+      rows: [],
+      outcome: 'done',
+    })
+  })
+
+  it('does not take what a later run staged', async () => {
+    const { calibration, finish } = setup()
+    const printer = usePrinterStore()
+    const first = calibration.run(procedureById('axesNoise')!, {}, context)
+    await flushPromises()
+    say('// ok')
+    await finish()
+    await first
+    const second = calibration.run(procedureById('autoZ')!, {}, context)
+    await flushPromises()
+    say('// Z-CALIBRATION: ENDSTOP=-0.100 NOZZLE=-0.050 PROBE=1.400')
+    printer.saveConfigPendingItems = { probe: { z_offset: '0.480' } }
+    await flushPromises()
+    await finish()
+    await second
+
+    expect(calibration.resultFor('axesNoise')).toMatchObject({ rows: [], outcome: 'done' })
+    expect(calibration.resultFor('autoZ')?.rows).toHaveLength(1)
+  })
+
+  it('re-logs a result that changed shape, not only one that grew', async () => {
+    const database: Database = { value: undefined }
+    const { calibration, finish } = setup(database)
+    // A helper run watches Klipper's readiness, and ends on its first change otherwise.
+    useAvailabilityStore().printerSnapshotSynchronized()
+    const printer = usePrinterStore()
+    const manualProbe = useManualProbeStore()
+    const run = calibration.run(procedureById('probeZOffset')!, {}, context)
+    await flushPromises()
+    manualProbe.isActive = true
+    await finish()
+    // ACCEPT stages the offset; the line that names it trails the helper closing.
+    printer.saveConfigPendingItems = { probe: { z_offset: '1.535' } }
+    manualProbe.isActive = false
+    await run
+    await flushPromises()
+    say('// probe: z_offset: 1.535')
+    await flushPromises()
+
+    const stored = database.value as {
+      procedures: { probeZOffset: Array<{ rows: Array<{ label: unknown }> }> }
+    }
+    expect(stored.procedures.probeZOffset[0]!.rows).toEqual([
+      { label: { literal: 'z_offset' }, before: '1.4', after: '1.535' },
+    ])
+  })
+})
+
+describe('a run the page or Klipper lost', () => {
+  it('is on record from the moment it starts', async () => {
+    const database: Database = { value: undefined }
+    const { calibration, finish } = setup(database)
+    const run = calibration.run(procedureById('axesNoise')!, {}, context)
+    await flushPromises()
+
+    type Stored = { procedures: { axesNoise: Array<{ outcome: string }> } }
+    expect((database.value as Stored).procedures.axesNoise[0]!.outcome).toBe('running')
+    expect(calibration.outcomeOf(calibration.latestEntry('axesNoise')!)).toBe('running')
+    // Running is not having run: nothing is current until it completes.
+    expect(calibration.lastRunAt('axesNoise')).toBeNull()
+
+    say('// ok')
+    await finish()
+    await run
+    await flushPromises()
+    expect((database.value as Stored).procedures.axesNoise[0]!.outcome).toBe('done')
+    expect(calibration.lastRunAt('axesNoise')).not.toBeNull()
+  })
+
+  it('reads a provisional entry with no live run behind it as interrupted', async () => {
+    const at = Date.now() - 60_000
+    const { calibration } = setup({
+      value: {
+        version: 1,
+        procedures: { axesNoise: [{ at, values: {}, rows: [], outcome: 'running' }] },
+      },
+    })
+    await calibration.loadLog()
+
+    const entry = calibration.latestEntry('axesNoise')!
+    expect(entry.outcome).toBe('running')
+    expect(calibration.outcomeOf(entry)).toBe('interrupted')
+    expect(calibration.lastRunAt('axesNoise')).toBeNull()
+  })
+
+  it('does not count a failed run as the last run', async () => {
+    const { calibration, fail } = setup()
+    const run = calibration.run(procedureById('axesNoise')!, {}, context)
+    await flushPromises()
+    await fail()
+    await expect(run).resolves.toBe(false)
+
+    expect(calibration.latestEntry('axesNoise')?.outcome).toBe('failed')
+    expect(calibration.lastRunAt('axesNoise')).toBeNull()
+  })
+
+  it('ends a run when Klipper leaves ready, rather than waiting for an answer that never comes', async () => {
+    const availability = useAvailabilityStore()
+    const { calibration } = setup()
+    availability.printerSnapshotSynchronized()
+    const run = calibration.run(procedureById('axesNoise')!, {}, context)
+    await flushPromises()
+    expect(calibration.activeRun).not.toBeNull()
+
+    availability.handleKlipperNotification('notify_klippy_shutdown')
+    await expect(run).resolves.toBe(false)
+
+    expect(calibration.activeRun).toBeNull()
+    expect(calibration.runFor('axesNoise')?.interrupted).toBe(true)
+    expect(calibration.latestEntry('axesNoise')?.outcome).toBe('interrupted')
+    expect(calibration.lastRunAt('axesNoise')).toBeNull()
+  })
+
+  it('forgets everything on a printer switch, whether or not the page ever started the store', async () => {
+    const { calibration, finish, switchPrinter } = setup()
+    const run = calibration.run(procedureById('axesNoise')!, {}, context)
+    await flushPromises()
+    await finish()
+    await run
+    expect(calibration.lastRunAt('axesNoise')).not.toBeNull()
+
+    switchPrinter()
+
+    expect(calibration.lastRunAt('axesNoise')).toBeNull()
+    expect(calibration.runFor('axesNoise')).toBeNull()
   })
 })
 
@@ -540,14 +706,35 @@ describe('result actions', () => {
   })
 
   it('leaves a staged value to SAVE_CONFIG rather than writing it into the file', async () => {
-    vi.spyOn(useQuickConfigStore(), 'persistOption').mockResolvedValue({
-      status: 'refused',
-      reason: 'pending',
-    })
+    const persist = vi.spyOn(useQuickConfigStore(), 'persistOption')
     const printer = usePrinterStore()
+    printer.saveConfigPendingItems = {
+      input_shaper: { shaper_type_x: 'mzv', shaper_freq_x: '48.2' },
+    }
     const save = vi.spyOn(printer, 'saveConfig').mockResolvedValue(true)
     expect(await useCalibrationStore().runAction({ ...shaper, restart: true })).toBe('restarting')
     expect(save).toHaveBeenCalledOnce()
+    // The file writer is never asked about a staged option: SAVE_CONFIG is what writes it.
+    expect(persist).not.toHaveBeenCalled()
+  })
+
+  /*
+   * SAVE_CONFIG writes what Klipper staged. A shaper the reader chose over
+   * the one Klipper recommended cannot be written by it, and saving would
+   * silently keep Klipper's under the chosen one's name.
+   */
+  it('refuses to save a value Klipper staged differently, rather than saving Klipper’s', async () => {
+    const persist = vi.spyOn(useQuickConfigStore(), 'persistOption')
+    const printer = usePrinterStore()
+    printer.saveConfigPendingItems = {
+      input_shaper: { shaper_type_x: 'ei', shaper_freq_x: '61.0' },
+    }
+    const save = vi.spyOn(printer, 'saveConfig').mockResolvedValue(true)
+    expect(await useCalibrationStore().runAction({ ...shaper, restart: true })).toBe(
+      'stagedDiffers',
+    )
+    expect(save).not.toHaveBeenCalled()
+    expect(persist).not.toHaveBeenCalled()
   })
 
   it('stops at the first refused option rather than writing half a shaper', async () => {
@@ -556,6 +743,106 @@ describe('result actions', () => {
       .mockResolvedValue({ status: 'refused', reason: 'autosave' })
     expect(await useCalibrationStore().runAction(shaper)).toBe('refused')
     expect(persist).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('forgetting one run', () => {
+  it('removes it on every browser, and a merge never brings it back', async () => {
+    const database: Database = { value: undefined }
+    const { calibration, finish } = setup(database)
+    const run = calibration.run(procedureById('axesNoise')!, {}, context)
+    await flushPromises()
+    say('// Axes noise for x-axis accelerometer: 1.0 (x), 2.0 (y), 3.0 (z)')
+    await finish()
+    await run
+    await flushPromises()
+    const at = calibration.latestEntry('axesNoise')!.at
+
+    calibration.forgetEntry('axesNoise', at)
+    await flushPromises()
+    expect(calibration.historyFor('axesNoise')).toHaveLength(0)
+    expect(calibration.runFor('axesNoise')).toBeNull()
+    type Stored = { procedures: { axesNoise?: unknown[] }; forgotten: { axesNoise?: number[] } }
+    expect((database.value as Stored).procedures.axesNoise ?? []).toHaveLength(0)
+    expect((database.value as Stored).forgotten.axesNoise).toEqual([at])
+
+    // Another browser still holding the run writes it back; the tombstone wins.
+    database.value = {
+      version: 1,
+      procedures: { axesNoise: [{ at, values: {}, rows: [], outcome: 'measured' }] },
+      forgotten: { axesNoise: [at] },
+    }
+    await calibration.loadLog()
+    expect(calibration.historyFor('axesNoise')).toHaveLength(0)
+  })
+})
+
+describe('what a run sends', () => {
+  it('sends a levelling command with its words, and the bare one through the card’s path', async () => {
+    const { calibration, finish } = setup()
+    const printer = usePrinterStore()
+    const leveling = vi.spyOn(printer, 'runLeveling').mockResolvedValue(true)
+    const gcode = vi.spyOn(printer, 'sendGcode').mockResolvedValue(true)
+    const withDirection = calibration.run(
+      procedureById('screwsTilt')!,
+      { DIRECTION: 'CW' },
+      { ...context, hasSection: (name) => name === 'screws_tilt_adjust' },
+    )
+    await flushPromises()
+    await finish()
+    await withDirection
+    expect(gcode).toHaveBeenCalledWith(
+      'SCREWS_TILT_CALCULATE DIRECTION=CW',
+      'calibration',
+      expect.anything(),
+    )
+    expect(leveling).not.toHaveBeenCalled()
+
+    const bare = calibration.run(procedureById('screwsTilt')!, { DIRECTION: '' }, context)
+    await flushPromises()
+    await finish()
+    await bare
+    expect(leveling).toHaveBeenCalledWith('screwsTiltAdjust')
+  })
+
+  it('reads a paper test closed with nothing as aborted, not failed', async () => {
+    const { calibration, finish } = setup()
+    useAvailabilityStore().printerSnapshotSynchronized()
+    const manualProbe = useManualProbeStore()
+    const run = calibration.run(procedureById('probeZOffset')!, {}, context)
+    await flushPromises()
+    manualProbe.isActive = true
+    await finish()
+    manualProbe.isActive = false
+    await expect(run).resolves.toBe(false)
+
+    expect(calibration.runFor('probeZOffset')?.aborted).toBe(true)
+    expect(calibration.latestEntry('probeZOffset')?.outcome).toBe('aborted')
+    expect(calibration.lastRunAt('probeZOffset')).toBeNull()
+  })
+
+  it('waits for a staging that lands after the paper test closed', async () => {
+    const { calibration, finish } = setup()
+    useAvailabilityStore().printerSnapshotSynchronized()
+    const printer = usePrinterStore()
+    const manualProbe = useManualProbeStore()
+    const run = calibration.run(
+      procedureById('beacon')!,
+      {},
+      {
+        ...context,
+        hasCommand: (name) => name === 'BEACON_CALIBRATE',
+      },
+    )
+    await flushPromises()
+    manualProbe.isActive = true
+    await finish()
+    manualProbe.isActive = false
+    await flushPromises()
+    // Beacon scans for a while after ACCEPT, then stages its model.
+    printer.saveConfigPendingItems = { beacon: { model: 'default' } }
+    await expect(run).resolves.toBe(true)
+    expect(calibration.resultFor('beacon')?.outcome).toBe('staged')
   })
 })
 

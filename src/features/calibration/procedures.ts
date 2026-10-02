@@ -132,7 +132,8 @@ export interface ProcedureParameter {
   options?: (context: ProcedureContext) => readonly ProcedureOption[]
   required?: boolean
   min?: number
-  max?: number
+  /** A fixed ceiling, or one read from the printer — a heater's own `max_temp`. */
+  max?: number | ((context: ProcedureContext, values: ProcedureValues) => number | undefined)
 }
 
 export interface ProcedureHeater {
@@ -220,7 +221,18 @@ export interface ProcedureResultRow {
  * of them.
  */
 export type ProcedureAction =
-  | { kind: 'gcode'; id: string; label: ProcedureText; command: string }
+  | {
+      kind: 'gcode'
+      id: string
+      label: ProcedureText
+      command: string
+      /**
+       * A step of the run itself rather than something to do with its result —
+       * the next sample of a drift calibration — so it is offered only on the
+       * run that is open and never kept with the log entry.
+       */
+      transient?: boolean
+    }
   | {
       kind: 'persist'
       id: string
@@ -231,6 +243,7 @@ export type ProcedureAction =
       removes?: readonly string[]
       /** Restart Klipper once written, so the file's values are the ones running. */
       restart?: boolean
+      transient?: boolean
     }
 
 /**
@@ -269,6 +282,18 @@ export interface ProcedureResult {
 }
 
 export type ProcedureValues = Readonly<Record<string, string>>
+
+export type ProcedureHelper = 'manualProbe' | 'bedScrews'
+
+/** The helper a procedure opens on this machine, if any. */
+export function procedureHelper(
+  procedure: CalibrationProcedure,
+  context: ProcedureContext,
+): ProcedureHelper | null {
+  const helper = procedure.helper
+  if (helper === undefined) return null
+  return typeof helper === 'function' ? helper(context) : helper
+}
 
 /** A settings snapshot taken when a run starts, so "before" survives the save that follows it. */
 export type ProcedureSnapshot = Readonly<Record<string, string>>
@@ -338,9 +363,18 @@ export interface CalibrationProcedure {
   /**
    * The interactive helper the command opens and leaves waiting: Klipper's
    * manual probe for a paper test, or the bed screws walk. The run lasts
-   * until the helper closes rather than until the command returns.
+   * until the helper closes rather than until the command returns. A
+   * function where it depends on the machine: a mesh or a delta calibration
+   * on a printer without a probe is a paper test at every point.
    */
-  helper?: 'manualProbe' | 'bedScrews'
+  helper?: ProcedureHelper | ((context: ProcedureContext) => ProcedureHelper | null)
+  /**
+   * Commands that continue the run after its own command returned — the next
+   * sample of a drift calibration, and the paper test each one opens. Sent
+   * after the run finished, any other command ends what the run may still
+   * claim as its output and its staging; these do not.
+   */
+  followUps?: readonly string[]
   /**
    * For a command that opens its helper more than once — axis twist
    * compensation's paper test at every point — whether the lines say the last
@@ -426,14 +460,38 @@ function steppers(context: ProcedureContext): string[] {
 
 const accelerometerSections = ['adxl345', 'lis2dw', 'lis3dh', 'mpu9250', 'icm20948', 'bmi160']
 
-function accelerometers(context: ProcedureContext): string[] {
+/** The accelerometer sections the config has; none of them has a status object to say whether the chip answers. */
+export function accelerometers(context: ProcedureContext): string[] {
   return context.sections.filter((section) =>
     accelerometerSections.some((kind) => section === kind || section.startsWith(`${kind} `)),
   )
 }
 
+/** CoreXY or CoreXZ, including Kalico's `limited_` variants, which the belt guide reads the same way. */
 function isCoreKinematics(context: ProcedureContext): boolean {
-  return /^corex[yz]/i.test(context.kinematics ?? '')
+  return /^(limited_)?corex[yz]/i.test(context.kinematics ?? '')
+}
+
+/**
+ * The probe sections `PROBE_CALIBRATE` and its `z_offset` belong to. The
+ * scanning probes are not here: Beacon, Cartographer and the eddy probes
+ * calibrate through their own commands, listed as their own procedures.
+ */
+const zOffsetSections = ['probe', 'bltouch', 'smart_effector', 'dockable_probe']
+
+function zOffsetSection(context: ProcedureContext): string | null {
+  return zOffsetSections.find((section) => context.hasSection(section)) ?? null
+}
+
+/** Whether the file has the section at all, whatever Klipper read from it. */
+function sectionWritten(context: ProcedureContext, section: string): boolean {
+  return context.written(section) !== null || context.hasSection(section)
+}
+
+/** The hottest a heater may be asked for, from its own `max_temp`. */
+function heaterMaximum(context: ProcedureContext, heater: string | undefined): number | undefined {
+  const value = heater ? context.settings(heater)?.max_temp : undefined
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined
 }
 
 function heaterCommandName(objectName: string): string {
@@ -517,6 +575,10 @@ const beltSimilarityPattern = /Belts estimated similarity: ([\d.]+)%/
 const mechanicalHealthPattern = /Mechanical health: (.+)$/
 /** Shake&Tune's `vibrations_computation.py`. */
 const vibrationSymmetryPattern = /Machine estimated vibration symmetry: ([\d.]+)%/
+/** `temperature_probe.py`: one line per sample taken, with the temperature the next waits for. */
+const driftSamplePattern =
+  /collected sample (\d+)\/(\d+) at temp ([-\d.]+)C, next sample scheduled at temp ([-\d.]+)C/
+const driftEndedPattern = /calibration aborted|SAVE_CONFIG/
 
 /**
  * What a run staged for `SAVE_CONFIG`, read from what Klipper reports as
@@ -638,15 +700,76 @@ export function parseVibrations(
   return { rows, outcome: 'measured' }
 }
 
-/** The shaper `[input_shaper]` is configured with, as "mzv 52.4 Hz · ei 38.2 Hz". */
+/**
+ * The shaper `[input_shaper]` is configured with, as "x mzv 52.4 Hz · y ei
+ * 38.2 Hz" — from the file's own lines, not from `configfile.settings`, which
+ * reports Klipper's defaults (`mzv`, 0 Hz) for a bare section as though they
+ * were written there.
+ */
 function configuredShapers(context: ProcedureContext): string | null {
+  const written = context.written('input_shaper')
+  if (written === null) return null
   const parts = ['x', 'y'].flatMap((axis) => {
-    const type = settingText(context, 'input_shaper', `shaper_type_${axis}`)
-    const freq = settingText(context, 'input_shaper', `shaper_freq_${axis}`)
+    const type = written[`shaper_type_${axis}`] ?? written.shaper_type
+    const freq = written[`shaper_freq_${axis}`] ?? written.shaper_freq
     return type && freq ? [`${axis} ${type} ${freq} Hz`] : []
   })
   return parts.length > 0 ? parts.join(' · ') : null
 }
+
+/** The option as the file writes it, said for the list; null where no line sets it. */
+function writtenText(context: ProcedureContext, section: string, option: string): string | null {
+  const value = context.written(section)?.[option]
+  return typeof value === 'string' && value.trim() !== '' ? value.trim() : null
+}
+
+/**
+ * A probe drift calibration's progress: how many samples it has, the
+ * temperature of the last and the one the next waits for. The run is a
+ * sequence the reader drives — the next sample, then completing it — so
+ * while it is open its result offers those steps, as steps rather than as
+ * things to keep with the log.
+ */
+export function parseProbeDrift(lines: readonly string[]): ProcedureResult | null {
+  if (lines.length === 0) return null
+  const sample = lastMatch(lines, driftSamplePattern)
+  const ended = allLines(lines).some((line) => driftEndedPattern.test(line))
+  if (!sample)
+    return ended ? outcomeOnly(lines) : { rows: [], outcome: 'measured', actions: driftActions }
+  const rows: ProcedureResultRow[] = [
+    { label: key('calibration.result.samples'), after: `${sample[1]}/${sample[2]}` },
+    { label: key('calibration.result.sampleTemperature'), after: `${sample[3]} °C` },
+  ]
+  if (ended) {
+    return { rows, outcome: mentionsSaveConfig(lines) ? 'staged' : 'measured' }
+  }
+  rows.push({ label: key('calibration.result.nextTemperature'), after: `${sample[4]} °C` })
+  return { rows, outcome: 'measured', actions: driftActions }
+}
+
+const driftActions: readonly ProcedureAction[] = [
+  {
+    kind: 'gcode',
+    id: 'drift-next',
+    label: key('calibration.result.driftNext'),
+    command: 'TEMPERATURE_PROBE_NEXT',
+    transient: true,
+  },
+  {
+    kind: 'gcode',
+    id: 'drift-complete',
+    label: key('calibration.result.driftComplete'),
+    command: 'TEMPERATURE_PROBE_COMPLETE',
+    transient: true,
+  },
+  {
+    kind: 'gcode',
+    id: 'drift-abort',
+    label: key('calibration.result.driftAbort'),
+    command: 'TEMPERATURE_PROBE_ABORT',
+    transient: true,
+  },
+]
 
 export function parseZOffset(
   lines: readonly string[],
@@ -1052,6 +1175,8 @@ export function parseAxesMap(
               }),
               section: chip,
               changes: [{ option: 'axes_map', value: detected }],
+              // The chip reads its map at start-up; a line written and not loaded measures nothing.
+              restart: true,
             },
           ]
         : [],
@@ -1087,6 +1212,11 @@ export function parseBedTilt(
   }
 }
 
+/**
+ * `endstop_phase.py` reports a phase for every stepper it tracked, and
+ * stages one only when the command named a stepper; a report of all of them
+ * stages nothing, so the outcome follows what Klipper said about SAVE_CONFIG.
+ */
 export function parseEndstopPhase(lines: readonly string[]): ProcedureResult | null {
   const rows: ProcedureResultRow[] = []
   for (const line of allLines(lines)) {
@@ -1094,7 +1224,7 @@ export function parseEndstopPhase(lines: readonly string[]): ProcedureResult | n
     if (match) rows.push({ label: literal(match[1]!), after: `${match[2]}/${match[3]}` })
   }
   if (rows.length === 0) return outcomeOnly(lines)
-  return { rows, outcome: 'staged' }
+  return { rows, outcome: mentionsSaveConfig(lines) ? 'staged' : 'measured' }
 }
 
 function parsePressureAdvance(
@@ -1154,6 +1284,21 @@ const stepperParameter = (required: boolean): ProcedureParameter => ({
   ],
 })
 
+/**
+ * `AUTOTUNE_TMC` is a mux command keyed on STEPPER: sent bare it fails with
+ * "missing STEPPER", and sent for a stepper without an `[autotune_tmc …]`
+ * section it is refused, so the choice is the sections the plugin has.
+ */
+const autotuneStepperParameter: ProcedureParameter = {
+  key: 'STEPPER',
+  kind: 'select',
+  label: 'calibration.param.stepper',
+  required: true,
+  initial: (context) => namesWithPrefix(context, 'autotune_tmc')[0] ?? '',
+  options: (context) =>
+    namesWithPrefix(context, 'autotune_tmc').map((name) => ({ value: name, label: literal(name) })),
+}
+
 const chipParameter = (prefix: string): ProcedureParameter => ({
   key: 'CHIP',
   kind: 'select',
@@ -1178,6 +1323,10 @@ function defaultTarget(heater: ProcedureHeater | undefined): string {
  */
 
 const always = () => true
+
+/** Without a probe, Klipper's probing helpers stop at every point for a paper test. */
+const paperTestWithoutProbe = (context: ProcedureContext): ProcedureHelper | null =>
+  context.hasProbe ? null : 'manualProbe'
 
 export const calibrationProcedures: readonly CalibrationProcedure[] = [
   // Axes & frame
@@ -1265,8 +1414,13 @@ export const calibrationProcedures: readonly CalibrationProcedure[] = [
     id: 'endstopPhase',
     stage: 'axes',
     command: 'ENDSTOP_PHASE_CALIBRATE',
-    available: (context) => context.hasSection('endstop_phase'),
-    requires: ['notPrinting'],
+    /*
+     * `[endstop_phase]` reads no option, so `configfile.settings` never lists
+     * the bare section; the file has to be asked. A homed printer is the real
+     * precondition — the module reports the phases it saw while homing.
+     */
+    available: (context) => sectionWritten(context, 'endstop_phase'),
+    requires: ['homed', 'notPrinting'],
     effects: [],
     duration: 'seconds',
     staleAfterDays: null,
@@ -1278,12 +1432,13 @@ export const calibrationProcedures: readonly CalibrationProcedure[] = [
     id: 'tmcAutotune',
     stage: 'axes',
     command: 'AUTOTUNE_TMC',
-    available: (context) => context.hasCommand('AUTOTUNE_TMC'),
+    available: (context) =>
+      context.hasCommand('AUTOTUNE_TMC') && namesWithPrefix(context, 'autotune_tmc').length > 0,
     requires: ['notPrinting'],
     effects: [],
     duration: 'seconds',
     staleAfterDays: null,
-    params: [stepperParameter(false)],
+    params: [autotuneStepperParameter],
     build: (values) => buildWithWords('AUTOTUNE_TMC', values, ['STEPPER']),
     parse: (lines) => outcomeOnly(lines),
   },
@@ -1291,7 +1446,9 @@ export const calibrationProcedures: readonly CalibrationProcedure[] = [
     id: 'skewCorrection',
     stage: 'axes',
     command: 'SET_SKEW',
-    available: (context) => context.hasSection('skew_correction'),
+    // The bare section reads no option either; `SET_SKEW` exists only once it loaded.
+    available: (context) =>
+      sectionWritten(context, 'skew_correction') || context.hasCommand('SET_SKEW'),
     requires: [],
     effects: [],
     duration: 'interactive',
@@ -1443,133 +1600,6 @@ export const calibrationProcedures: readonly CalibrationProcedure[] = [
     },
   },
   {
-    id: 'probeZOffset',
-    stage: 'bed',
-    command: 'PROBE_CALIBRATE',
-    available: (context) => context.hasSection('probe') || context.hasSection('bltouch'),
-    requires: ['homed', 'notPrinting', 'zeroedForZ'],
-    effects: ['moves', 'probes'],
-    duration: 'interactive',
-    helper: 'manualProbe',
-    staleAfterDays: 180,
-    build: () => 'PROBE_CALIBRATE',
-    snapshot: (_values, context) => ({
-      z_offset:
-        settingText(context, 'probe', 'z_offset') ??
-        settingText(context, 'bltouch', 'z_offset') ??
-        '',
-    }),
-    parse: parseZOffset,
-    current: (context) => {
-      const offset =
-        settingText(context, 'probe', 'z_offset') ?? settingText(context, 'bltouch', 'z_offset')
-      return offset === null ? null : `z_offset ${offset}`
-    },
-  },
-  {
-    id: 'axisTwist',
-    stage: 'bed',
-    command: 'AXIS_TWIST_COMPENSATION_CALIBRATE',
-    available: (context) => context.hasSection('axis_twist_compensation') && context.hasProbe,
-    requires: ['homed', 'notPrinting'],
-    effects: ['moves', 'probes'],
-    duration: 'interactive',
-    helper: 'manualProbe',
-    /*
-     * One paper test per point, each opened by the last one's ACCEPT; the
-     * module says when the last has been taken, or that an ABORT ended it.
-     */
-    helperDone: (lines) =>
-      allLines(lines).some((line) => /Calibration complete|calibration aborted/i.test(line)),
-    staleAfterDays: null,
-    params: [
-      {
-        key: 'AXIS',
-        kind: 'select',
-        label: 'calibration.param.axis',
-        initial: () => '',
-        options: (context) => [
-          { value: '', label: literal('X') },
-          // Y needs its own start, end and crossing coordinate, which only some configs carry.
-          ...(settingText(context, 'axis_twist_compensation', 'calibrate_start_y') === null
-            ? []
-            : [{ value: 'Y', label: literal('Y') }]),
-        ],
-      },
-      {
-        key: 'SAMPLE_COUNT',
-        kind: 'number',
-        label: 'calibration.param.samples',
-        initial: () => '',
-        placeholder: () => '3',
-        min: 2,
-        max: 20,
-      },
-    ],
-    build: (values) =>
-      buildWithWords('AXIS_TWIST_COMPENSATION_CALIBRATE', values, ['AXIS', 'SAMPLE_COUNT']),
-    parse: (lines) => outcomeOnly(lines),
-  },
-  {
-    id: 'autoZ',
-    stage: 'bed',
-    command: 'CALIBRATE_Z',
-    available: (context) => context.hasCommand('CALIBRATE_Z'),
-    requires: ['homed', 'notPrinting', 'zeroedForZ'],
-    effects: ['moves', 'probes'],
-    duration: 'minute',
-    staleAfterDays: null,
-    build: () => 'CALIBRATE_Z',
-    parse: (lines) => outcomeOnly(lines),
-  },
-  {
-    id: 'probeDrift',
-    stage: 'bed',
-    command: 'TEMPERATURE_PROBE_CALIBRATE',
-    available: (context) => namesWithPrefix(context, 'temperature_probe').length > 0,
-    requires: ['homed', 'notPrinting'],
-    effects: ['moves', 'probes', 'heats'],
-    duration: 'minutes',
-    staleAfterDays: null,
-    params: [
-      {
-        key: 'PROBE',
-        kind: 'select',
-        label: 'calibration.param.probe',
-        required: true,
-        initial: (context) => namesWithPrefix(context, 'temperature_probe')[0] ?? '',
-        options: (context) =>
-          namesWithPrefix(context, 'temperature_probe').map((name) => ({
-            value: name,
-            label: literal(name),
-          })),
-      },
-      {
-        key: 'TARGET',
-        kind: 'number',
-        label: 'calibration.param.target',
-        unit: 'dashboard.temperatureUnit',
-        required: true,
-        initial: () => '',
-        min: 1,
-        max: 150,
-      },
-      {
-        key: 'STEP',
-        kind: 'number',
-        label: 'calibration.param.step',
-        unit: 'calibration.unit.degrees',
-        initial: () => '',
-        placeholder: () => '2',
-        min: 1,
-        max: 20,
-      },
-    ],
-    build: (values) =>
-      buildWithWords('TEMPERATURE_PROBE_CALIBRATE', values, ['PROBE', 'TARGET', 'STEP']),
-    parse: (lines) => outcomeOnly(lines),
-  },
-  {
     id: 'screwPositions',
     stage: 'bed',
     command: 'screw1 · screw2 · …',
@@ -1656,6 +1686,9 @@ export const calibrationProcedures: readonly CalibrationProcedure[] = [
     duration: 'minute',
     staleAfterDays: 90,
     build: () => 'BED_TILT_CALIBRATE',
+    helper: paperTestWithoutProbe,
+    helperDone: (lines) =>
+      allLines(lines).some((line) => /The above parameters have been applied/.test(line)),
     snapshot: (_values, context) => ({
       x_adjust: settingText(context, 'bed_tilt', 'x_adjust') ?? '',
       y_adjust: settingText(context, 'bed_tilt', 'y_adjust') ?? '',
@@ -1673,7 +1706,149 @@ export const calibrationProcedures: readonly CalibrationProcedure[] = [
     duration: 'minutes',
     staleAfterDays: null,
     build: () => 'DELTA_CALIBRATE',
+    helper: paperTestWithoutProbe,
+    helperDone: (lines) =>
+      allLines(lines).some((line) => /The SAVE_CONFIG command will update/.test(line)),
     parse: (lines) => outcomeOnly(lines),
+  },
+  {
+    id: 'axisTwist',
+    stage: 'bed',
+    command: 'AXIS_TWIST_COMPENSATION_CALIBRATE',
+    available: (context) => context.hasSection('axis_twist_compensation') && context.hasProbe,
+    requires: ['homed', 'notPrinting'],
+    effects: ['moves', 'probes'],
+    duration: 'interactive',
+    helper: 'manualProbe',
+    /*
+     * One paper test per point, each opened by the last one's ACCEPT; the
+     * module says when the last has been taken, or that an ABORT ended it.
+     */
+    helperDone: (lines) =>
+      allLines(lines).some((line) => /Calibration complete|calibration aborted/i.test(line)),
+    staleAfterDays: null,
+    params: [
+      {
+        key: 'AXIS',
+        kind: 'select',
+        label: 'calibration.param.axis',
+        initial: () => '',
+        options: (context) => [
+          { value: '', label: literal('X') },
+          // Y needs its own start, end and crossing coordinate, which only some configs carry.
+          ...(settingText(context, 'axis_twist_compensation', 'calibrate_start_y') === null
+            ? []
+            : [{ value: 'Y', label: literal('Y') }]),
+        ],
+      },
+      {
+        key: 'SAMPLE_COUNT',
+        kind: 'number',
+        label: 'calibration.param.samples',
+        initial: () => '',
+        placeholder: () => '3',
+        min: 2,
+        max: 20,
+      },
+    ],
+    build: (values) =>
+      buildWithWords('AXIS_TWIST_COMPENSATION_CALIBRATE', values, ['AXIS', 'SAMPLE_COUNT']),
+    parse: (lines) => outcomeOnly(lines),
+  },
+  {
+    id: 'probeZOffset',
+    stage: 'bed',
+    command: 'PROBE_CALIBRATE',
+    available: (context) => zOffsetSection(context) !== null,
+    requires: ['homed', 'notPrinting', 'zeroedForZ'],
+    effects: ['moves', 'probes'],
+    duration: 'interactive',
+    helper: 'manualProbe',
+    staleAfterDays: 180,
+    build: () => 'PROBE_CALIBRATE',
+    snapshot: (_values, context) => {
+      const section = zOffsetSection(context)
+      return { z_offset: section === null ? '' : (settingText(context, section, 'z_offset') ?? '') }
+    },
+    parse: parseZOffset,
+    current: (context) => {
+      const section = zOffsetSection(context)
+      const offset = section === null ? null : settingText(context, section, 'z_offset')
+      return offset === null ? null : `z_offset ${offset}`
+    },
+  },
+  {
+    id: 'autoZ',
+    stage: 'bed',
+    command: 'CALIBRATE_Z',
+    available: (context) => context.hasCommand('CALIBRATE_Z'),
+    requires: ['homed', 'notPrinting', 'zeroedForZ'],
+    effects: ['moves', 'probes'],
+    duration: 'minute',
+    staleAfterDays: null,
+    build: () => 'CALIBRATE_Z',
+    parse: (lines) => outcomeOnly(lines),
+  },
+  {
+    id: 'probeDrift',
+    stage: 'bed',
+    command: 'TEMPERATURE_PROBE_CALIBRATE',
+    available: (context) => namesWithPrefix(context, 'temperature_probe').length > 0,
+    requires: ['homed', 'notPrinting'],
+    effects: ['moves', 'probes', 'heats'],
+    /*
+     * A paper test first, then a sample each time the reader asks for one as
+     * the probe warms, then `TEMPERATURE_PROBE_COMPLETE`: the result offers
+     * those steps, and the commands they send stay the run's own.
+     */
+    duration: 'interactive',
+    helper: 'manualProbe',
+    followUps: [
+      'TEMPERATURE_PROBE_NEXT',
+      'TEMPERATURE_PROBE_COMPLETE',
+      'TEMPERATURE_PROBE_ABORT',
+      'ACCEPT',
+      'ABORT',
+      'TESTZ',
+    ],
+    staleAfterDays: null,
+    params: [
+      {
+        key: 'PROBE',
+        kind: 'select',
+        label: 'calibration.param.probe',
+        required: true,
+        initial: (context) => namesWithPrefix(context, 'temperature_probe')[0] ?? '',
+        options: (context) =>
+          namesWithPrefix(context, 'temperature_probe').map((name) => ({
+            value: name,
+            label: literal(name),
+          })),
+      },
+      {
+        key: 'TARGET',
+        kind: 'number',
+        label: 'calibration.param.target',
+        unit: 'dashboard.temperatureUnit',
+        required: true,
+        initial: () => '',
+        min: 1,
+        max: 150,
+      },
+      {
+        key: 'STEP',
+        kind: 'number',
+        label: 'calibration.param.step',
+        unit: 'calibration.unit.degrees',
+        initial: () => '',
+        placeholder: () => '2',
+        min: 1,
+        max: 20,
+      },
+    ],
+    build: (values) =>
+      buildWithWords('TEMPERATURE_PROBE_CALIBRATE', values, ['PROBE', 'TARGET', 'STEP']),
+    parse: (lines) => parseProbeDrift(lines),
   },
   {
     id: 'bedMesh',
@@ -1710,6 +1885,8 @@ export const calibrationProcedures: readonly CalibrationProcedure[] = [
         count === '' ? null : `PROBE_COUNT=${count}`,
       ])
     },
+    helper: paperTestWithoutProbe,
+    helperDone: (lines) => allLines(lines).some((line) => /Mesh Bed Leveling Complete/.test(line)),
     snapshot: (_values, context) => {
       const mesh = context.mesh()
       return { profile: mesh?.profile ?? '', range: millimetres(mesh?.range ?? null) }
@@ -1766,13 +1943,15 @@ export const calibrationProcedures: readonly CalibrationProcedure[] = [
         required: true,
         initial: (context) => defaultTarget(context.heaters[0]),
         min: 1,
-        max: 999,
+        // The heater's own ceiling: Klipper refuses a target past `max_temp`, so Run does too.
+        max: (context, values) => heaterMaximum(context, values.HEATER) ?? 999,
       },
     ],
     build: (values, context) => {
       const heater = context.heaters.find((candidate) => candidate.objectName === values.HEATER)
       const target = Number(values.TARGET)
-      if (!heater || !Number.isFinite(target) || target <= 0 || target > 999) return null
+      const ceiling = heaterMaximum(context, values.HEATER) ?? 999
+      if (!heater || !Number.isFinite(target) || target <= 0 || target > ceiling) return null
       const command = heater.kind === 'mpc' ? 'MPC_CALIBRATE' : 'PID_CALIBRATE'
       return `${command} HEATER=${heaterCommandName(heater.objectName)} TARGET=${Math.round(target)}`
     },
@@ -2148,10 +2327,11 @@ export const calibrationProcedures: readonly CalibrationProcedure[] = [
         context.liveSmoothTime === null ? '' : String(context.liveSmoothTime),
     }),
     parse: parsePressureAdvance,
-    current: (context) =>
-      context.livePressureAdvance === null
-        ? null
-        : `pressure_advance ${context.livePressureAdvance}`,
+    // The list says "in the file", so it is the file's line, not the value running now.
+    current: (context) => {
+      const advance = writtenText(context, 'extruder', 'pressure_advance')
+      return advance === null ? null : `pressure_advance ${advance}`
+    },
   },
   {
     id: 'tuningTower',
@@ -2170,10 +2350,10 @@ export const calibrationProcedures: readonly CalibrationProcedure[] = [
     duration: 'interactive',
     staleAfterDays: null,
     panel: 'tuningTower',
-    current: (context) =>
-      context.livePressureAdvance === null
-        ? null
-        : `pressure_advance ${context.livePressureAdvance}`,
+    current: (context) => {
+      const advance = writtenText(context, 'extruder', 'pressure_advance')
+      return advance === null ? null : `pressure_advance ${advance}`
+    },
   },
   {
     id: 'nonlinearPressureAdvance',

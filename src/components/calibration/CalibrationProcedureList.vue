@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 
 import AppSelect from '@/components/AppSelect.vue'
 import CalibrationCard from '@/components/calibration/CalibrationCard.vue'
+import { useNow } from '@/composables/useNow'
 import { useProcedureContext } from '@/composables/useProcedureContext'
 import { useProcedureText } from '@/composables/useProcedureText'
 import {
@@ -33,21 +34,24 @@ const calibration = useCalibrationStore()
 const context = useProcedureContext()
 const { lastRun, text } = useProcedureText()
 
-const now = Date.now()
+const now = useNow()
 
 /** How many of a logged result's values the row has room to say. */
 const valueLimit = 3
 
 /**
- * The value line: what the last logged run found, else what the file says.
- * The log wins because it is what this printer was actually measured at; the
- * file is what it was set to, which the list can say for a procedure that has
- * never run here.
+ * The value line: what the last completed run found, else what the file
+ * says. The log wins because it is what this printer was actually measured
+ * at; the file is what it was set to, which the list can say for a procedure
+ * that has never run here. A failed run found nothing, so the one before it
+ * is still the measurement.
  */
 function valueFor(procedure: CalibrationProcedure): string | null {
-  const latest = calibration.historyFor(procedure.id).at(-1)
+  const latest = [...calibration.historyFor(procedure.id)]
+    .reverse()
+    .find((entry) => calibration.outcomeOf(entry) !== 'failed' && entry.rows.length > 0)
   const found = latest?.rows.filter((row) => row.after !== '') ?? []
-  if (latest && latest.outcome !== 'failed' && found.length > 0) {
+  if (latest && found.length > 0) {
     const shown = procedure.listRows
       ? procedure.listRows.flatMap((name) =>
           found.filter((row) => 'key' in row.label && row.label.key === name),
@@ -62,13 +66,34 @@ function valueFor(procedure: CalibrationProcedure): string | null {
   return current === null ? null : t('calibration.bench.current', { value: current })
 }
 
+/**
+ * The row's one line about its last run. A run that failed, or that the page
+ * never saw finish, is said as such rather than as a date that reads like a
+ * success — and it does not make the procedure current, so a row whose only
+ * run failed still reads as never run.
+ */
+function lastFor(procedure: CalibrationProcedure): { text: string; stale: boolean } {
+  const latest = calibration.latestEntry(procedure.id)
+  const outcome = latest ? calibration.outcomeOf(latest) : null
+  if (latest && (outcome === 'failed' || outcome === 'interrupted')) {
+    return {
+      text: t(`calibration.bench.${outcome}`, { when: lastRun(latest.at, now.value) }),
+      stale: true,
+    }
+  }
+  const at = calibration.lastRunAt(procedure.id)
+  const stale = at === null ? false : isProcedureStale(procedure, at, now.value)
+  const when = lastRun(at, now.value)
+  return { text: stale ? t('calibration.bench.stale', { when }) : when, stale }
+}
+
 const rows = computed(() =>
   props.procedures.map((procedure) => {
-    const at = calibration.lastRunAt(procedure.id)
+    const last = lastFor(procedure)
     return {
       procedure,
-      last: lastRun(at, now),
-      stale: at === null ? false : isProcedureStale(procedure, at, now),
+      last: last.text,
+      stale: last.stale,
       running: calibration.activeRun?.procedureId === procedure.id,
       recorded: hasRunRecord(procedure),
       value: valueFor(procedure),
@@ -109,7 +134,7 @@ const options = computed(() =>
               v-else-if="row.recorded"
               class="calibration-procedure__last"
               :class="{ 'calibration-procedure__last--stale': row.stale }"
-              >{{ row.stale ? t('calibration.bench.stale', { when: row.last }) : row.last }}</span
+              >{{ row.last }}</span
             >
           </span>
           <span class="calibration-procedure__description">{{

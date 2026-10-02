@@ -3,13 +3,16 @@ import { computed, type ComputedRef } from 'vue'
 import { useProcedureContext } from '@/composables/useProcedureContext'
 import { probeBedPosition } from '@/features/bedMesh/probeRun'
 import {
+  accelerometers,
   initialProcedureValues,
   procedureById,
   type ProcedureRequirement,
 } from '@/features/calibration/procedures'
 import { probeReferencePoint } from '@/features/calibration/screws'
+import { useAvailabilityStore } from '@/stores/availability'
 import { useBedMeshStore } from '@/stores/bedMesh'
-import { useCalibrationStore } from '@/stores/calibration'
+import { useCalibrationStore, type CalibrationRun } from '@/stores/calibration'
+import { useMachineSystemStore } from '@/stores/machineSystem'
 import { usePrinterStore } from '@/stores/printer'
 import { usePrinterConfigStore } from '@/stores/printerConfig'
 
@@ -22,12 +25,32 @@ export interface RequirementFix {
   run: () => Promise<boolean>
 }
 
+/**
+ * Which of the requirement's sentences describes it. `configured` is met
+ * without having been shown: the config names the part, nothing has asked it
+ * yet since Klipper last started.
+ */
+export type RequirementWording =
+  'met' | 'unmet' | 'configured' | 'boardConnected' | 'boardDisconnected'
+
 export interface RequirementState {
   requirement: ProcedureRequirement
   met: boolean
+  wording: RequirementWording
+  /** What the sentence names: the accelerometer board, where there is one. */
+  params?: Record<string, string>
   /** The one action that meets it, where there is one to offer. */
   fix: RequirementFix | null
 }
+
+/**
+ * What Klipper prints when an accelerometer is not there to answer: a chip
+ * that identifies wrong or not at all, a read that returns nothing, or the
+ * MCU the chip hangs off gone — which is how a USB accelerometer board
+ * unplugged mid-sitting shows up.
+ */
+const accelerometerFaultPattern =
+  /Invalid \w+ id|Unable to (?:read|query)|Lost communication with MCU|No accelerometer|accelerometer .*(?:not|no) /i
 
 /** Clearance for a move over the bed, so a nozzle parked low is lifted before it travels. */
 const referenceClearanceZ = 10
@@ -42,9 +65,11 @@ const referenceClearanceZ = 10
 export function useProcedureRequirements(): ComputedRef<
   Record<ProcedureRequirement, RequirementState>
 > {
+  const availability = useAvailabilityStore()
   const bedMesh = useBedMeshStore()
   const calibration = useCalibrationStore()
   const context = useProcedureContext()
+  const machineSystem = useMachineSystemStore()
   const printer = usePrinterStore()
   const printerConfig = usePrinterConfigStore()
 
@@ -96,16 +121,83 @@ export function useProcedureRequirements(): ComputedRef<
   }
 
   /*
-   * Answered once this session, and answered well: a query that failed is
-   * the evidence this requirement exists to surface. Before any query, a
-   * configured `[resonance_tester]` is taken at its word, since the printer
-   * was set up around the chip and asking every reader to prove it first
-   * would be a step nobody asked for.
+   * Klipper has no status object that says whether an accelerometer answers,
+   * so the evidence is what the chip did when last asked — and only since
+   * Klipper last came up: a restart re-enumerates the board the chip hangs
+   * off, so a verdict from before it describes hardware that may have been
+   * plugged in or pulled since. The newest run of this Klipper session that
+   * needed the chip decides: a query that answered, or any resonance run
+   * that finished, is the chip answering; a query that failed, or a run that
+   * failed with a chip fault in its output, is the chip not answering. With
+   * no such run yet, a configured chip is taken at its word — the printer was
+   * set up around it, and asking every reader to prove it first would be a
+   * step nobody asked for — but said as configured, not as answering.
    */
-  const accelerometer = computed(() => {
-    const query = calibration.runFor('accelerometerQuery')
-    if (query && !query.running && query.succeeded !== null) return query.succeeded
-    return context.value.hasSection('resonance_tester')
+  function needsAccelerometer(run: CalibrationRun): boolean {
+    if (run.procedureId === 'accelerometerQuery') return true
+    return procedureById(run.procedureId)?.requires.includes('accelerometer') ?? false
+  }
+
+  /**
+   * The MCU an accelerometer section hangs off, from the pin that names it:
+   * `cs_pin: btt_lis2dw:gpio9` is a chip on a board called `btt_lis2dw`, an
+   * `i2c_mcu` names it outright, and a bare pin is the main `mcu`.
+   */
+  function boardOf(section: string): string {
+    const settings = context.value.settings(section)
+    const i2c = settings?.i2c_mcu
+    if (typeof i2c === 'string' && i2c.trim() !== '') return i2c.trim()
+    const cs = settings?.cs_pin
+    if (typeof cs === 'string' && cs.includes(':')) {
+      return cs
+        .trim()
+        .replace(/^[!^~]+/, '')
+        .split(':')[0]!
+    }
+    return 'mcu'
+  }
+
+  /**
+   * What Klipper says about the boards the chips sit on: a USB accelerometer
+   * board is its own `is_non_critical` MCU, and `non_critical_disconnected`
+   * is Klipper's own word for it being unplugged while everything else runs.
+   * A chip on the main board has no such signal, and says nothing here.
+   */
+  const boards = computed(() =>
+    accelerometers(context.value).flatMap((section) => {
+      const name = boardOf(section)
+      if (name === 'mcu') return []
+      const module = machineSystem.mcuModules.find((candidate) => candidate.id === `mcu ${name}`)
+      if (!module) return []
+      return [{ section, name, disconnected: module.isDisconnected === true }]
+    }),
+  )
+
+  const accelerometer = computed<{
+    met: boolean
+    wording: RequirementWording
+    params?: Record<string, string>
+  }>(() => {
+    const unplugged = boards.value.find((board) => board.disconnected)
+    if (unplugged) {
+      return { met: false, wording: 'boardDisconnected', params: { board: unplugged.name } }
+    }
+    const session = availability.klipperSession
+    const evidence = [...calibration.runs.values()]
+      .filter((run) => run.session === session && !run.running && run.succeeded !== null)
+      .filter(needsAccelerometer)
+      .sort((left, right) => right.startedAt - left.startedAt)
+    for (const run of evidence) {
+      if (run.succeeded) return { met: true, wording: 'met' }
+      if (run.procedureId === 'accelerometerQuery') return { met: false, wording: 'unmet' }
+      const output = calibration.linesFor(run.procedureId, run.subject).join('\n')
+      if (accelerometerFaultPattern.test(output)) return { met: false, wording: 'unmet' }
+    }
+    const board = boards.value[0]
+    if (board) return { met: true, wording: 'boardConnected', params: { board: board.name } }
+    const configured =
+      accelerometers(context.value).length > 0 || context.value.hasSection('resonance_tester')
+    return configured ? { met: true, wording: 'configured' } : { met: false, wording: 'unmet' }
   })
 
   async function checkAccelerometer(): Promise<boolean> {
@@ -131,16 +223,25 @@ export function useProcedureRequirements(): ComputedRef<
     return printer.sendGcode('SET_GCODE_OFFSET Z=0\nBED_MESH_CLEAR', 'calibration')
   }
 
+  const wordingOf = (met: boolean): RequirementWording => (met ? 'met' : 'unmet')
+
   return computed(() => ({
     homed: {
       requirement: 'homed',
       met: homed.value,
+      wording: wordingOf(homed.value),
       fix: { id: 'home', pending: printer.pendingCommands.home, run: () => printer.homeAxes() },
     },
-    notPrinting: { requirement: 'notPrinting', met: !printer.hasActivePrint, fix: null },
+    notPrinting: {
+      requirement: 'notPrinting',
+      met: !printer.hasActivePrint,
+      wording: wordingOf(!printer.hasActivePrint),
+      fix: null,
+    },
     probeInBed: {
       requirement: 'probeInBed',
       met: probeInBed.value,
+      wording: wordingOf(probeInBed.value),
       fix:
         referencePoint.value === null
           ? null
@@ -148,7 +249,9 @@ export function useProcedureRequirements(): ComputedRef<
     },
     accelerometer: {
       requirement: 'accelerometer',
-      met: accelerometer.value,
+      met: accelerometer.value.met,
+      wording: accelerometer.value.wording,
+      ...(accelerometer.value.params ? { params: accelerometer.value.params } : {}),
       fix: {
         id: 'checkAccelerometer',
         pending: calibration.activeRun?.procedureId === 'accelerometerQuery',
@@ -158,6 +261,7 @@ export function useProcedureRequirements(): ComputedRef<
     zeroedForZ: {
       requirement: 'zeroedForZ',
       met: zeroedForZ.value,
+      wording: wordingOf(zeroedForZ.value),
       fix: { id: 'zeroForZ', pending: printer.pendingCommands.calibration, run: zeroForZ },
     },
   }))

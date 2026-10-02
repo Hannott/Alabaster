@@ -402,6 +402,7 @@ const history = computed(() => [...calibration.historyFor('axisRotation')].rever
       :targets="targets"
       log-id="axisRotation"
       :log-values="logValues"
+      :disabled="method === 'measure' && !moved"
     />
 
     <div v-if="history.length > 0" class="calibration-history">

@@ -153,7 +153,11 @@ describe('config', () => {
     )
     expect(matchesStart(readNpaConfig(start), 'direct')).toBe(true)
     expect(matchesStart(readNpaConfig(start), 'bowden')).toBe(false)
-    expect(matchesStart(readNpaConfig({ ...start, pressure_advance: 0.04 }), 'direct')).toBe(false)
+    // The line has to be in the file: settings report a default pressure_advance for every extruder.
+    expect(matchesStart(readNpaConfig({ ...start, pressure_advance: 0.04 }), 'direct')).toBe(true)
+    expect(
+      matchesStart(readNpaConfig(start, { ...start, pressure_advance: '0.04' }), 'direct'),
+    ).toBe(false)
   })
 })
 

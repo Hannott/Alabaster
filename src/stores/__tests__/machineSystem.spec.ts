@@ -666,12 +666,13 @@ describe('machine system store', () => {
     expect(machine.memoryUsage).toBe(50)
     expect(machine.systemUptime).toBeGreaterThanOrEqual(7200)
 
+    // The MCU status watch is the shared one Calibration also holds, taken last.
     expect(subscribedMethods).toEqual([
       'notify_proc_stat_update',
-      'notify_status_update',
       'notify_service_state_changed',
       'notify_update_response',
       'notify_update_refreshed',
+      'notify_status_update',
     ])
 
     machine.stop()

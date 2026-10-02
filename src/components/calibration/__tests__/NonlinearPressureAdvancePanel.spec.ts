@@ -24,10 +24,17 @@ const directStart = {
 }
 
 function seed(extruder: Record<string, unknown>): void {
-  usePrinterConfigStore(pinia).settings = {
+  const config = usePrinterConfigStore(pinia)
+  config.settings = {
     extruder: { nozzle_diameter: 0.4, ...extruder },
     pa_test: { height: 50 },
     printer: { max_accel: 5000 },
+  }
+  // The file's own lines, which decide whether a `pressure_advance` line is there to remove.
+  config.loadedConfig = {
+    extruder: Object.fromEntries(
+      Object.entries(extruder).map(([key, value]) => [key, String(value)]),
+    ),
   }
 }
 

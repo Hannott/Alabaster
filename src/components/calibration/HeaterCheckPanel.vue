@@ -46,26 +46,40 @@ function shown(value: unknown): string | null {
   return null
 }
 
+/** What is staged for an option, whatever case Klipper spelled it in — `pid_Kp`, not `pid_kp`. */
+function stagedFor(staged: Record<string, string | undefined>, option: string): unknown {
+  const match = Object.keys(staged).find((name) => name.toLowerCase() === option)
+  return match === undefined ? undefined : staged[match]
+}
+
 const heaters = computed(() =>
   context.value.heaters.map((heater) => {
     const verify = printerConfig.section(`verify_heater ${heater.objectName}`)
+    /*
+     * Klipper loads a `verify_heater` for every heater and reports its
+     * defaults in `configfile.settings` as though set, so whether the file
+     * has a line is the file's to answer.
+     */
+    const verifyWritten = context.value.written(`verify_heater ${heater.objectName}`)
     const own = printerConfig.section(heater.objectName)
     const staged = context.value.pendingItems()[heater.objectName] ?? {}
     return {
       ...heater,
       model: modelOptions[heater.kind].map((option) => {
         const file = shown(own?.[option])
-        const pending = shown(staged[option])
+        const pending = shown(stagedFor(staged, option))
         return pending !== null && pending !== file
           ? { option, value: pending, replaces: file ?? '—' }
           : { option, value: file, replaces: null }
       }),
       verify: verifyOptions.map((option) => {
         const value = shown(verify?.[option])
+        const written = verifyWritten?.[option] !== undefined
         return {
           option,
-          value: value ?? String(verifyDefault(heater.objectName, option)),
-          isDefault: value === null,
+          value:
+            written && value !== null ? value : String(verifyDefault(heater.objectName, option)),
+          isDefault: !written,
         }
       }),
     }

@@ -51,10 +51,11 @@ const logged = computed(() => {
   })
 })
 
+/* The file's own line, not `configfile.settings`: a bare section reads as `mzv` there without saying so. */
 function inFile(axis: 'x' | 'y', name: string): boolean {
-  const settings = printerConfig.section('input_shaper')
-  const configured = settings?.[`shaper_type_${axis}`] ?? settings?.shaper_type
-  return typeof configured === 'string' && configured.toLowerCase() === name
+  const written = printerConfig.loadedConfig.input_shaper
+  const configured = written?.[`shaper_type_${axis}`] ?? written?.shaper_type
+  return typeof configured === 'string' && configured.trim().toLowerCase() === name
 }
 
 const decimal = computed(

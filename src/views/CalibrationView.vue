@@ -21,6 +21,7 @@ import {
 } from '@/features/calibration/stages'
 import { useCalibrationStore } from '@/stores/calibration'
 import { useEndstopsStore } from '@/stores/endstops'
+import { useMachineSystemStore } from '@/stores/machineSystem'
 import { useMacrosStore } from '@/stores/macros'
 import { usePrinterConfigStore } from '@/stores/printerConfig'
 import { useRunoutSensorsStore } from '@/stores/runoutSensors'
@@ -57,6 +58,7 @@ import { useTelemetryStore } from '@/stores/telemetry'
 const { t } = useI18n({ useScope: 'global' })
 const calibration = useCalibrationStore()
 const endstops = useEndstopsStore()
+const machineSystem = useMachineSystemStore()
 const macros = useMacrosStore()
 const printerConfig = usePrinterConfigStore()
 const runoutSensors = useRunoutSensorsStore()
@@ -69,14 +71,23 @@ const telemetry = useTelemetryStore()
  * the user looks at another stage would make the readings on the axes stage
  * cold the moment they came back to it.
  */
+/*
+ * The MCU list is held for the readiness band: a USB accelerometer board is
+ * its own MCU, and whether it is talking is what says the chip is there.
+ */
+let releaseMcus: (() => void) | null = null
+
 onMounted(() => {
   endstops.start()
   calibration.start()
+  releaseMcus = machineSystem.watchMcus()
 })
 
 onBeforeUnmount(() => {
   endstops.stop()
   calibration.stop()
+  releaseMcus?.()
+  releaseMcus = null
 })
 
 /**

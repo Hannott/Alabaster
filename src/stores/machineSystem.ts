@@ -310,11 +310,10 @@ export const useMachineSystemStore = defineStore('machineSystem', () => {
   let stopPrinterChangeReset: (() => void) | null = null
   let nextOutputLineId = 1
   let stopProcStatsNotifications: (() => void) | null = null
-  let stopMcuStatusNotifications: (() => void) | null = null
+  let releaseMcuWatch: (() => void) | null = null
   let stopServiceStateNotifications: (() => void) | null = null
   let stopUpdateResponseNotifications: (() => void) | null = null
   let stopUpdateRefreshedNotifications: (() => void) | null = null
-  let stopAvailabilityWatch: WatchStopHandle | null = null
   let clockTimer: ReturnType<typeof setInterval> | null = null
   let started = false
 
@@ -767,6 +766,51 @@ export const useMachineSystemStore = defineStore('machineSystem', () => {
     }
   }
 
+  /*
+   * The MCU list and its `non_critical_disconnected` signal, held for as long
+   * as anybody asks: the Machine page for its modules, and Calibration for
+   * whether the board an accelerometer hangs off is talking. A USB
+   * accelerometer board is configured `is_non_critical`, so Klipper stays
+   * ready when it is unplugged — this flag is the only thing that says so.
+   */
+  let mcuWatchers = 0
+  let stopMcuWatchNotifications: (() => void) | null = null
+  let stopMcuWatchReady: WatchStopHandle | null = null
+
+  function watchMcus(): () => void {
+    mcuWatchers += 1
+    if (mcuWatchers === 1) {
+      try {
+        stopMcuWatchNotifications = moonraker.onNotification(
+          'notify_status_update',
+          handleMcuStatusNotification,
+        )
+      } catch {
+        stopMcuWatchNotifications = null
+      }
+      stopMcuWatchReady = watch(
+        () => availability.isKlipperReady,
+        (isReady, wasReady) => {
+          if (isReady && wasReady === false) void refreshMcuModules()
+        },
+      )
+      if (availability.isKlipperReady) void refreshMcuModules()
+    }
+    let released = false
+    return () => {
+      if (released) return
+      released = true
+      mcuWatchers -= 1
+      if (mcuWatchers > 0) return
+      stopMcuWatchNotifications?.()
+      stopMcuWatchNotifications = null
+      stopMcuWatchReady?.()
+      stopMcuWatchReady = null
+      mcuRefreshRevision += 1
+      void moonraker.removeObjectSubscription(machineMcuSubscriptionKey)
+    }
+  }
+
   async function refreshMcuModules(): Promise<void> {
     const refreshRevision = ++mcuRefreshRevision
     try {
@@ -947,10 +991,6 @@ export const useMachineSystemStore = defineStore('machineSystem', () => {
         'notify_proc_stat_update',
         handleProcStatsNotification,
       )
-      stopMcuStatusNotifications = moonraker.onNotification(
-        'notify_status_update',
-        handleMcuStatusNotification,
-      )
       stopServiceStateNotifications = moonraker.onNotification(
         'notify_service_state_changed',
         handleServiceStateNotification,
@@ -966,8 +1006,6 @@ export const useMachineSystemStore = defineStore('machineSystem', () => {
     } catch {
       stopProcStatsNotifications?.()
       stopProcStatsNotifications = null
-      stopMcuStatusNotifications?.()
-      stopMcuStatusNotifications = null
       stopServiceStateNotifications?.()
       stopServiceStateNotifications = null
       stopUpdateResponseNotifications?.()
@@ -975,12 +1013,7 @@ export const useMachineSystemStore = defineStore('machineSystem', () => {
       stopUpdateRefreshedNotifications?.()
       stopUpdateRefreshedNotifications = null
     }
-    stopAvailabilityWatch = watch(
-      () => availability.isKlipperReady,
-      (isReady, wasReady) => {
-        if (isReady && wasReady === false) void refreshMcuModules()
-      },
-    )
+    releaseMcuWatch = watchMcus()
   }
 
   function stop(): void {
@@ -988,22 +1021,18 @@ export const useMachineSystemStore = defineStore('machineSystem', () => {
     started = false
     stopProcStatsNotifications?.()
     stopProcStatsNotifications = null
-    stopMcuStatusNotifications?.()
-    stopMcuStatusNotifications = null
     stopServiceStateNotifications?.()
     stopServiceStateNotifications = null
     stopUpdateResponseNotifications?.()
     stopUpdateResponseNotifications = null
     stopUpdateRefreshedNotifications?.()
     stopUpdateRefreshedNotifications = null
-    stopAvailabilityWatch?.()
-    stopAvailabilityWatch = null
+    releaseMcuWatch?.()
+    releaseMcuWatch = null
     stopPrinterChangeReset?.()
     stopPrinterChangeReset = null
     if (clockTimer) clearInterval(clockTimer)
     clockTimer = null
-    mcuRefreshRevision += 1
-    void moonraker.removeObjectSubscription(machineMcuSubscriptionKey)
   }
 
   return {
@@ -1011,6 +1040,7 @@ export const useMachineSystemStore = defineStore('machineSystem', () => {
     procStats,
     updates,
     mcuModules,
+    watchMcus,
     serialDevices,
     usbDevices,
     canbusInterfaces,

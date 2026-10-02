@@ -170,8 +170,20 @@ export const useShakeTuneStore = defineStore('shakeTune', () => {
     }
   }
 
+  /*
+   * A change that lands while a refresh is in flight is not lost: five
+   * directory reads on a Pi outlast the 120 ms debounce, and Shake&Tune
+   * writes its files in a burst, so the notification for the final PNG
+   * routinely arrived mid-read and was dropped — the run's graph row and the
+   * panel's auto-select then waited for some unrelated file event.
+   */
+  let refreshAgain = false
+
   async function refresh(): Promise<void> {
-    if (isLoading.value) return
+    if (isLoading.value) {
+      refreshAgain = true
+      return
+    }
     const current = ++generation
     isLoading.value = true
     try {
@@ -188,6 +200,10 @@ export const useShakeTuneStore = defineStore('shakeTune', () => {
       ) as Record<ShakeTuneCategory, ShakeTuneResult[]>
     } finally {
       if (current === generation) isLoading.value = false
+      if (refreshAgain) {
+        refreshAgain = false
+        void refresh()
+      }
     }
   }
 

@@ -49,7 +49,13 @@ const timeFormatter = computed(() => createTimeFormatter(locale.value))
     </p>
     <p v-else-if="endstops.failed" class="calibration-notice" role="status">
       <AppIcon name="warning" class="size-4 shrink-0" aria-hidden="true" />
-      <span>{{ t('calibration.endstops.failed') }}</span>
+      <span>{{
+        t(endstops.hasReadings ? 'calibration.endstops.failed' : 'calibration.endstops.failedEmpty')
+      }}</span>
+    </p>
+    <!-- Each reading carries the time it was taken, not only once it has gone stale. -->
+    <p v-else-if="endstops.readAt" class="calibration-panel__hint">
+      {{ t('calibration.endstops.readAt', { time: timeFormatter.format(endstops.readAt) }) }}
     </p>
 
     <ul v-if="endstops.hasReadings" class="calibration-endstops">
@@ -68,6 +74,9 @@ const timeFormatter = computed(() => createTimeFormatter(locale.value))
         </span>
       </li>
     </ul>
-    <p v-else class="calibration-panel__hint">{{ t('calibration.endstops.empty') }}</p>
+    <!-- A refused read says nothing about the endstops, so it is not said as "none". -->
+    <p v-else-if="!endstops.failed" class="calibration-panel__hint">
+      {{ t('calibration.endstops.empty') }}
+    </p>
   </CalibrationCard>
 </template>

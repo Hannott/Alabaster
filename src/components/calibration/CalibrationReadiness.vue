@@ -60,7 +60,7 @@ const hasStaged = computed(() => printer.saveConfigPending || stagedCount.value 
       :class="state.met ? 'calibration-pill--met' : 'calibration-pill--unmet'"
     >
       <AppIcon :name="state.met ? 'check' : 'warning'" class="size-4 shrink-0" aria-hidden="true" />
-      {{ t(`calibration.requirement.${state.requirement}.${state.met ? 'met' : 'unmet'}`) }}
+      {{ t(`calibration.requirement.${state.requirement}.${state.wording}`, state.params ?? {}) }}
     </span>
     <span v-if="hasStaged" class="calibration-pill">
       <AppIcon name="save" class="size-4 shrink-0" aria-hidden="true" />

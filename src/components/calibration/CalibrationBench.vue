@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, type Component } from 'vue'
 
 import AxisRotationPanel from '@/components/calibration/AxisRotationPanel.vue'
 import CalibrationProcedureList from '@/components/calibration/CalibrationProcedureList.vue'
@@ -18,8 +18,29 @@ import SkewCorrectionPanel from '@/components/calibration/SkewCorrectionPanel.vu
 import TuningTowerPanel from '@/components/calibration/TuningTowerPanel.vue'
 import { useCalibrationSelection } from '@/composables/useCalibrationSelection'
 import { useProcedureContext } from '@/composables/useProcedureContext'
-import { proceduresForStage, type CalibrationProcedure } from '@/features/calibration/procedures'
+import {
+  proceduresForStage,
+  type CalibrationProcedure,
+  type ProcedureId,
+  type ProcedurePanel,
+} from '@/features/calibration/procedures'
 import type { CalibrationStageId } from '@/features/calibration/stages'
+
+/** The guided panel each `panel:` entry in the registry renders as. */
+const panelComponents: Record<ProcedurePanel, Component> = {
+  endstops: EndstopsPanel,
+  axisRotation: AxisRotationPanel,
+  runoutSensors: RunoutSensorsPanel,
+  heaterCheck: HeaterCheckPanel,
+  rotationDistance: RotationDistancePanel,
+  nonlinearPressureAdvance: NonlinearPressureAdvancePanel,
+  sensorlessHoming: SensorlessHomingPanel,
+  skewCorrection: SkewCorrectionPanel,
+  probeXyOffset: ProbeXyOffsetPanel,
+  screwPositions: ScrewPositionsPanel,
+  loadCell: LoadCellPanel,
+  tuningTower: TuningTowerPanel,
+}
 
 /**
  * One stage of Calibration: what the procedures here need, the procedures
@@ -70,6 +91,30 @@ const selected = computed(() => {
   if (chosen) return chosen
   return procedures.value[0] ?? null
 })
+
+/*
+ * One dynamic child for `KeepAlive`, which keeps one instance per component:
+ * the generic workspace across every procedure it serves, and each guided
+ * panel across the procedures opened in between. A `v-if`/`v-else` pair
+ * inside `KeepAlive` is the shape Vue's runtime trips over on unmount.
+ */
+const workComponent = computed<Component | null>(() => {
+  if (!selected.value) return null
+  return selected.value.panel
+    ? panelComponents[selected.value.panel]
+    : CalibrationProcedureWorkspace
+})
+
+const workProps = computed<Record<string, unknown>>(() => {
+  if (!selected.value || selected.value.panel) return {}
+  return {
+    procedure: selected.value,
+    procedures: procedures.value,
+    skipConfirm: props.skipConfirm,
+    onSkip: () => emit('skip'),
+    onSelect: (id: ProcedureId) => selection.selectProcedure(props.stage, id),
+  }
+})
 </script>
 
 <template>
@@ -86,30 +131,18 @@ const selected = computed(() => {
       </div>
 
       <div v-if="selected" class="calibration-bench__column calibration-bench__column--work">
-        <EndstopsPanel v-if="selected.panel === 'endstops'" />
-        <AxisRotationPanel v-else-if="selected.panel === 'axisRotation'" />
-        <RunoutSensorsPanel v-else-if="selected.panel === 'runoutSensors'" />
-        <HeaterCheckPanel v-else-if="selected.panel === 'heaterCheck'" />
-        <RotationDistancePanel v-else-if="selected.panel === 'rotationDistance'" />
-        <NonlinearPressureAdvancePanel v-else-if="selected.panel === 'nonlinearPressureAdvance'" />
-        <SensorlessHomingPanel v-else-if="selected.panel === 'sensorlessHoming'" />
-        <SkewCorrectionPanel v-else-if="selected.panel === 'skewCorrection'" />
-        <ProbeXyOffsetPanel v-else-if="selected.panel === 'probeXyOffset'" />
-        <ScrewPositionsPanel v-else-if="selected.panel === 'screwPositions'" />
-        <LoadCellPanel v-else-if="selected.panel === 'loadCell'" />
-        <TuningTowerPanel v-else-if="selected.panel === 'tuningTower'" />
         <!--
-          One instance across procedures, not one per procedure: the values a
-          reader typed are kept per procedure inside it while the page is open.
+          Kept alive across procedures, not remounted: a guided panel holds
+          what the reader typed and recorded — a skew's lengths, a tower's
+          height, the two positions an offset is measured between — and
+          opening another row to check something lost all of it. The generic
+          workspace keeps its values per procedure itself; the panels are kept
+          whole. The stage's own remount (see CalibrationView) still clears
+          them when the reader moves to another stage.
         -->
-        <CalibrationProcedureWorkspace
-          v-else
-          :procedure="selected"
-          :procedures="procedures"
-          :skip-confirm="skipConfirm"
-          @skip="emit('skip')"
-          @select="selection.selectProcedure(stage, $event)"
-        />
+        <KeepAlive>
+          <component :is="workComponent" v-bind="workProps" />
+        </KeepAlive>
       </div>
 
       <div class="calibration-bench__column calibration-bench__column--live">

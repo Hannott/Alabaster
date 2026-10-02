@@ -18,6 +18,8 @@ import {
   parsePid,
   parsePositionEndstop,
   parseProbeAccuracy,
+  parseProbeDrift,
+  procedureHelper,
   parseRetries,
   parseScrews,
   parseScrewsStatus,
@@ -88,7 +90,13 @@ describe('the procedure registry', () => {
     ])
   })
 
-  it('verifies the probe before it sets or levels anything, and maps the bed last', () => {
+  /*
+   * Klipper's own order: the probe is verified first, the bed is levelled
+   * before the Z offset is taken (levelling moves the bed under the probe,
+   * which a Z offset taken before it would no longer describe), and the mesh
+   * comes last, over a bed that is level and a probe whose offset is right.
+   */
+  it('verifies the probe, levels, then sets the Z offset, and maps the bed last', () => {
     const printer = context({
       sections: ['probe', 'screws_tilt_adjust', 'quad_gantry_level', 'bed_mesh'],
       hasProbe: true,
@@ -96,10 +104,10 @@ describe('the procedure registry', () => {
     expect(ids('bed', printer)).toEqual([
       'probeAccuracy',
       'probeXyOffset',
-      'probeZOffset',
       'screwPositions',
       'screwsTilt',
       'quadGantryLevel',
+      'probeZOffset',
       'bedMesh',
     ])
   })
@@ -134,6 +142,53 @@ describe('the procedure registry', () => {
     ])
     expect(ids('extrusion', everything)).toContain('tuningTower')
     expect(ids('axes', context())).not.toContain('skewCorrection')
+  })
+
+  /*
+   * `[endstop_phase]` and `[skew_correction]` read no option, so Klipper never
+   * lists the bare section in `configfile.settings`: the file is what says
+   * whether they are there, and the command Klipper registered once it loaded.
+   */
+  it('finds the sections Klipper reads nothing from through the file, or the command', () => {
+    const inFile = context({
+      sections: ['stepper_x'],
+      written: (section) =>
+        section === 'endstop_phase' || section === 'skew_correction' ? {} : null,
+    })
+    expect(ids('axes', inFile)).toContain('endstopPhase')
+    expect(ids('axes', inFile)).toContain('skewCorrection')
+    const loaded = context({ sections: ['stepper_x'], hasCommand: (name) => name === 'SET_SKEW' })
+    expect(ids('axes', loaded)).toContain('skewCorrection')
+    expect(ids('axes', loaded)).not.toContain('endstopPhase')
+  })
+
+  it('offers TMC autotune for the steppers the plugin has a section for, one at a time', () => {
+    const tuned = context({
+      sections: ['stepper_x', 'stepper_y', 'autotune_tmc stepper_x'],
+      hasCommand: (name) => name === 'AUTOTUNE_TMC',
+    })
+    const procedure = procedureById('tmcAutotune')!
+    expect(procedure.available(tuned)).toBe(true)
+    expect(procedure.params![0]!.options!(tuned).map((option) => option.value)).toEqual([
+      'stepper_x',
+    ])
+    expect(procedure.build!({ STEPPER: 'stepper_x' }, tuned)).toBe('AUTOTUNE_TMC STEPPER=stepper_x')
+    // Without a section there is nothing the plugin would accept; the row is not offered.
+    expect(
+      procedure.available(
+        context({ sections: ['stepper_x'], hasCommand: (name) => name === 'AUTOTUNE_TMC' }),
+      ),
+    ).toBe(false)
+  })
+
+  it('offers the Z offset for every probe PROBE_CALIBRATE serves', () => {
+    const effector = context({
+      sections: ['smart_effector'],
+      settings: (section) => (section === 'smart_effector' ? { z_offset: 1.2 } : null),
+      hasProbe: true,
+    })
+    expect(ids('bed', effector)).toContain('probeZOffset')
+    expect(procedureById('probeZOffset')!.current?.(effector)).toBe('z_offset 1.2')
   })
 
   it('keeps the tuning tower for retraction under a nonlinear pressure advance model', () => {
@@ -491,6 +546,65 @@ describe('reading results', () => {
     expect(parseEndstopPhase(['// stepper_z: trigger_phase=12/64'])?.rows[0]?.after).toBe('12/64')
   })
 
+  /* A report of every stepper stages nothing; only a named stepper's phase is staged. */
+  it('says an endstop phase is staged only when Klipper offered SAVE_CONFIG', () => {
+    const report = ['// stepper_z: trigger_phase=12/64 (range 10 to 14)']
+    expect(parseEndstopPhase(report)?.outcome).toBe('measured')
+    expect(
+      parseEndstopPhase([
+        ...report,
+        '// The SAVE_CONFIG command will update the printer config file with these parameters',
+      ])?.outcome,
+    ).toBe('staged')
+  })
+
+  it('follows a probe drift calibration sample by sample, and offers its next steps while it is open', () => {
+    const first = parseProbeDrift([
+      '// temperature_probe probe: collected sample 1/10 at temp 31.20C, next sample scheduled at temp 33.20C',
+    ])!
+    expect(first.rows.map((row) => row.after)).toEqual(['1/10', '31.20 °C', '33.20 °C'])
+    expect(first.actions?.map((action) => action.id)).toEqual([
+      'drift-next',
+      'drift-complete',
+      'drift-abort',
+    ])
+    expect(first.actions?.every((action) => action.transient)).toBe(true)
+    const done = parseProbeDrift([
+      '// temperature_probe probe: collected sample 3/10 at temp 35.10C, next sample scheduled at temp 37.10C',
+      '// The SAVE_CONFIG command will update the printer config file with these parameters',
+    ])!
+    expect(done.outcome).toBe('staged')
+    expect(done.actions).toBeUndefined()
+    expect(done.rows).toHaveLength(2)
+  })
+
+  it('opens a paper test for the mesh, tilt and delta calibrations only without a probe', () => {
+    const withProbe = context({ hasProbe: true })
+    const withoutProbe = context({ hasProbe: false })
+    for (const id of ['bedMesh', 'bedTilt', 'deltaCalibrate'] as const) {
+      expect(procedureHelper(procedureById(id)!, withProbe)).toBeNull()
+      expect(procedureHelper(procedureById(id)!, withoutProbe)).toBe('manualProbe')
+    }
+    expect(procedureHelper(procedureById('probeZOffset')!, withProbe)).toBe('manualProbe')
+  })
+
+  it('caps a heater model’s target at the heater’s own max_temp', () => {
+    const ctx = context({
+      heaters: [{ objectName: 'extruder', label: 'Hotend', kind: 'pid' }],
+      settings: (section) => (section === 'extruder' ? { max_temp: 280 } : null),
+    })
+    const target = procedureById('heaterModel')!.params!.find((p) => p.key === 'TARGET')!
+    expect(typeof target.max === 'function' ? target.max(ctx, { HEATER: 'extruder' }) : null).toBe(
+      280,
+    )
+    expect(
+      procedureById('heaterModel')!.build!({ HEATER: 'extruder', TARGET: '300' }, ctx),
+    ).toBeNull()
+    expect(procedureById('heaterModel')!.build!({ HEATER: 'extruder', TARGET: '240' }, ctx)).toBe(
+      'PID_CALIBRATE HEATER=extruder TARGET=240',
+    )
+  })
+
   it('says a run staged something when Klipper mentions SAVE_CONFIG, and nothing before output arrives', () => {
     const buzz = procedureById('deltaCalibrate')!
     expect(buzz.parse!([], {}, {}, context())).toBeNull()
@@ -611,6 +725,19 @@ describe('what the printer is set to', () => {
           extruder: { rotation_distance: 22.678 },
         })[section] ?? null,
       livePressureAdvance: 0.045,
+      // "In the file" is the file's line: `settings` carries defaults a bare section never wrote.
+      written: (section) =>
+        (
+          ({
+            input_shaper: {
+              shaper_type_x: 'mzv',
+              shaper_freq_x: '52.4',
+              shaper_type_y: 'ei',
+              shaper_freq_y: '38.2',
+            },
+            extruder: { pressure_advance: '0.045' },
+          }) as Record<string, Record<string, string>>
+        )[section] ?? null,
     })
     expect(procedureById('probeZOffset')!.current?.(ctx)).toBe('z_offset -0.85')
     expect(procedureById('shaperCalibrate')!.current?.(ctx)).toBe('x mzv 52.4 Hz · y ei 38.2 Hz')
@@ -618,6 +745,13 @@ describe('what the printer is set to', () => {
     expect(procedureById('zEndstop')!.current?.(ctx)).toBe('position_endstop 0.5')
     expect(procedureById('rotationDistance')!.current?.(ctx)).toBe('rotation_distance 22.678')
     expect(procedureById('pressureAdvance')!.current?.(ctx)).toBe('pressure_advance 0.045')
+    // A bare [input_shaper] reads as mzv at 0 Hz in settings; the list says nothing instead.
+    const bare = context({
+      sections: ['input_shaper'],
+      settings: () => ({ shaper_type_x: 'mzv', shaper_freq_x: 0 }),
+      written: () => ({}),
+    })
+    expect(procedureById('shaperCalibrate')!.current?.(bare)).toBeNull()
     expect(procedureById('probeZOffset')!.current?.(context())).toBeNull()
   })
 

@@ -12,6 +12,7 @@ import {
   type Reference,
   type ScrewTarget,
 } from '@/features/calibration/toolheadPoints'
+import { useMoonrakerStore } from '@/stores/moonraker'
 import { usePrinterStore } from '@/stores/printer'
 import { usePrinterConfigStore } from '@/stores/printerConfig'
 
@@ -64,9 +65,19 @@ export interface RecordingScrew {
   reference: Reference | null
 }
 
+/*
+ * A recording describes one printer's bed; registered once, on first use,
+ * since the list is module state rather than a store's.
+ */
+let resetsOnPrinterChange = false
+
 export function useScrewRecording(target: Ref<ScrewTarget>) {
   const printer = usePrinterStore()
   const printerConfig = usePrinterConfigStore()
+  if (!resetsOnPrinterChange) {
+    resetsOnPrinterChange = true
+    useMoonrakerStore().onPrinterChange(resetScrewRecording)
+  }
 
   const offset = computed(() =>
     printerConfig.hasProbe ? printerConfig.probeOffset : { x: 0, y: 0 },
@@ -104,10 +115,15 @@ export function useScrewRecording(target: Ref<ScrewTarget>) {
     })
   })
 
+  /*
+   * The toolhead's own position, not the G-code position: a `SET_GCODE_OFFSET`
+   * left from a print shifts the second, and the screws are where the machine
+   * stands, which is what `[screws_tilt_adjust]` and `[bed_screws]` move to.
+   */
   const toolhead = computed<BedPoint | null>(() => {
     const homed = printer.motion.homedAxes.toLowerCase()
     if (!homed.includes('x') || !homed.includes('y')) return null
-    const [x, y] = printer.motion.position
+    const [x, y] = printer.toolheadPosition
     return typeof x === 'number' && typeof y === 'number' ? { x, y } : null
   })
 

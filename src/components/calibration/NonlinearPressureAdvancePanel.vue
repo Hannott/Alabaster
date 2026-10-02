@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 import AppButton from '@/components/AppButton.vue'
 import AppField from '@/components/AppField.vue'
 import CalibrationCard from '@/components/calibration/CalibrationCard.vue'
+import CalibrationRequirements from '@/components/calibration/CalibrationRequirements.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import DisclosureReveal from '@/components/DisclosureReveal.vue'
 import { useActionGuard } from '@/composables/useActionGuard'
@@ -43,6 +44,7 @@ import {
   type NpaSuggestion,
   type NpaTower,
 } from '@/features/calibration/nonlinearPressureAdvance'
+import { procedureById } from '@/features/calibration/procedures'
 import {
   paTestChanges,
   paTestOptions,
@@ -81,7 +83,9 @@ const { when } = useProcedureText()
 const { availability: klipperAvailability } = useAvailability('klipper')
 
 const entries = computed(() => calibration.historyFor('nonlinearPressureAdvance'))
-const config = computed(() => readNpaConfig(printerConfig.section('extruder')))
+const config = computed(() =>
+  readNpaConfig(printerConfig.section('extruder'), printerConfig.loadedConfig.extruder ?? null),
+)
 const towerHeight = computed(() => {
   const height = Number(printerConfig.section('pa_test')?.height)
   return Number.isFinite(height) && height > 0 ? height : defaultTowerHeight
@@ -271,10 +275,11 @@ const printed = ref<NpaTower | null>(null)
 async function printTower(): Promise<void> {
   const tower = activeTower.value
   if (script.value === null || tower === null) return
-  printed.value = null
+  // Said when the tower is sent, not when the macro returns: that is when it has finished printing.
+  printed.value = tower
   writeOutcome.value = null
-  if (await printer.sendGcode(script.value, 'calibration', { timeoutMs: null })) {
-    printed.value = tower
+  if (!(await printer.sendGcode(script.value, 'calibration', { timeoutMs: null }))) {
+    printed.value = null
   }
 }
 
@@ -558,6 +563,8 @@ const writeDisabled = computed(
     <p class="calibration-workspace__description">
       {{ t('calibration.procedure.nonlinearPressureAdvance.detail') }}
     </p>
+
+    <CalibrationRequirements :requires="procedureById('nonlinearPressureAdvance')!.requires" />
 
     <fieldset class="calibration-choice">
       <legend class="calibration-choice__legend">{{ t('calibration.npa.path') }}</legend>

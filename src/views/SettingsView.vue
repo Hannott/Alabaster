@@ -519,7 +519,7 @@ const confirmationGroups: readonly ConfirmationGroup[] = [
     titleKey: 'confirmations.groups.farm',
     keys: ['farmCancelPrint', 'farmPowerOff', 'farmStartPrint'],
   },
-  { titleKey: 'confirmations.groups.bedMesh', keys: ['deleteMeshProfile'] },
+  { titleKey: 'confirmations.groups.bedMesh', keys: ['deleteMeshProfile', 'forgetCalibrationRun'] },
   { titleKey: 'confirmations.groups.calibration', keys: ['clearPressureAdvanceReadings'] },
   { titleKey: 'confirmations.groups.dashboard', keys: ['deleteSavedLayout'] },
   // One group for both console surfaces: the card's header action and the page's
