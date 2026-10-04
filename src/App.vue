@@ -18,6 +18,7 @@ import { useAvailability } from '@/composables/useAvailability'
 import { useConsoleFont } from '@/composables/useConsoleFont'
 import { useConsoleWeight } from '@/composables/useConsoleWeight'
 import { useContextMenuGuard } from '@/composables/useContextMenuGuard'
+import { useDecimalComma } from '@/composables/useDecimalComma'
 import { useFont } from '@/composables/useFont'
 import { useHiddenDestinations } from '@/composables/useHiddenDestinations'
 import { useMinimalisticSidebar } from '@/composables/useMinimalisticSidebar'
@@ -115,6 +116,7 @@ const serverCapabilities = useServerCapabilitiesStore()
 const serverWarnings = useServerWarningsStore()
 
 useContextMenuGuard()
+useDecimalComma()
 useSelectValueOnFocus()
 
 /*
