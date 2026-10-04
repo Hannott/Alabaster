@@ -1625,6 +1625,9 @@
       "stepValueLabel": "{group}, verdi {index}",
       "stepRemoveLabel": "Fjern verdi {index} fra {group}",
       "stepAdd": "Legg til verdi",
+      "jogSpeedTitle": "Jogghastighet",
+      "jogSpeedPlanar": "X og Y",
+      "jogSpeedVertical": "Z",
       "zOffsetAdjust": "Juster Z-offset med {amount} {unit} — {direction}",
       "zDirection": {
         "raise": {

@@ -3,6 +3,7 @@ import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { computed, ref } from 'vue'
 import { beforeEach, describe, expect, it } from 'vitest'
 
+import AppField from '@/components/AppField.vue'
 import MovementQuickSettings from '@/components/dashboard/modules/MovementQuickSettings.vue'
 import MovementSettingsPane from '@/components/dashboard/modules/MovementSettingsPane.vue'
 import { dashboardModuleContextKey } from '@/dashboard/context'
@@ -85,10 +86,30 @@ describe('MovementSettingsPane', () => {
     expect(
       wrapper.findAll('.step-group .settings-row__label').map((label) => label.text()),
       // `min / center / max` is gone — the bed plan answers that question now.
-    ).toEqual(['X and Y step size', 'Z step size', 'Z offset step'])
+    ).toEqual(['X and Y step size', 'Z step size', 'Z offset step', 'Jog speed'])
 
     expect(stepValues(wrapper, 'X and Y step size')).toEqual(['1', '10', '100'])
     expect(stepValues(wrapper, 'Z step size')).toEqual(['0.1', '1', '10'])
+  })
+
+  it('stores a jog speed per axis group and refuses one that is not positive', async () => {
+    const { wrapper, config } = mountPane()
+    await flushPromises()
+
+    const fields = wrapper
+      .findAllComponents(AppField)
+      .filter((f) => (f.props() as { unit?: string }).unit === 'mm/s')
+    expect(fields).toHaveLength(2)
+
+    fields[0]?.vm.$emit('commit', 150)
+    fields[1]?.vm.$emit('commit', 5)
+    expect(config.value.jogSpeedPlanar).toBe(150)
+    expect(config.value.jogSpeedVertical).toBe(5)
+
+    fields[0]?.vm.$emit('commit', 0)
+    fields[1]?.vm.$emit('commit', null)
+    expect(config.value.jogSpeedPlanar).toBe(150)
+    expect(config.value.jogSpeedVertical).toBe(5)
   })
 
   it('commits an edited value to the card configuration as a list', async () => {

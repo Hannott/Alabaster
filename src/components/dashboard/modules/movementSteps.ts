@@ -1,4 +1,4 @@
-import { configNumberList, configString } from '@/dashboard/context'
+import { configNumber, configNumberList, configString } from '@/dashboard/context'
 
 /**
  * Movement's step values, shared by the card and its settings pane so the two
@@ -99,6 +99,28 @@ export function readOffsetSteps(config: Record<string, unknown>): number[] {
     legacyOffsetSteps,
     defaultOffsetSteps,
   )
+}
+
+/**
+ * What a jog button sends as its feed rate, in mm/s. Z is an order of
+ * magnitude slower than X and Y because a leadscrew or a bed on rails cannot
+ * take the planar speed; these are the speeds `moveAxis` hardcoded before the
+ * setting existed, so an untouched card jogs exactly as it always did.
+ */
+export const defaultJogSpeeds = { planar: 100, vertical: 10 } as const
+
+export function readJogSpeeds(config: Record<string, unknown>): {
+  planar: number
+  vertical: number
+} {
+  const read = (key: string, fallback: number): number => {
+    const value = configNumber(config, key, fallback)
+    return value > 0 ? value : fallback
+  }
+  return {
+    planar: read('jogSpeedPlanar', defaultJogSpeeds.planar),
+    vertical: read('jogSpeedVertical', defaultJogSpeeds.vertical),
+  }
 }
 
 export const zOffsetUnits = ['micrometre', 'millimetre'] as const

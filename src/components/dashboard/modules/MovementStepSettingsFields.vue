@@ -1,12 +1,14 @@
 <script setup lang="ts">
-import { computed, nextTick, reactive, watch } from 'vue'
+import { computed, nextTick, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import AppButton from '@/components/AppButton.vue'
+import AppField from '@/components/AppField.vue'
 import AppIcon from '@/components/AppIcon.vue'
 import QuickSettingToggle from '@/components/dashboard/QuickSettingToggle.vue'
 import {
   offsetMagnitude,
+  readJogSpeeds,
   readOffsetSteps,
   readPlanarSteps,
   readVerticalSteps,
@@ -199,6 +201,22 @@ const stepGroups = computed<StepGroup[]>(() => [
   },
 ])
 
+const jogSpeeds = computed(() => readJogSpeeds(config.value))
+const jogSpeedRevision = ref(0)
+
+/**
+ * An empty or non-positive entry is refused rather than stored, and the field
+ * is rebuilt so it shows the committed speed again — nothing about the model
+ * changed, so it could not put the old number back itself.
+ */
+function commitJogSpeed(key: 'jogSpeedPlanar' | 'jogSpeedVertical', value: number | null): void {
+  if (value === null || !Number.isFinite(value) || value <= 0) {
+    jogSpeedRevision.value++
+    return
+  }
+  updateConfig({ [key]: Math.min(value, 1000) })
+}
+
 /**
  * The offset scales preview in the chosen unit rather than through the locale
  * formatter, so the pane and the card agree about what `.005` versus `5` even
@@ -269,6 +287,34 @@ const offsetPreview = computed(() =>
       </p>
     </div>
   </template>
+
+  <div v-if="mode === 'pane'" class="step-group">
+    <span class="settings-row__label">{{ t('dashboard.movement.jogSpeedTitle') }}</span>
+    <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
+      <AppField
+        :key="`jogSpeedPlanar-${jogSpeedRevision}`"
+        label-pos="front"
+        :label="t('dashboard.movement.jogSpeedPlanar')"
+        :model-value="jogSpeeds.planar"
+        :unit="t('dashboard.movement.feedrateUnit')"
+        :min="1"
+        :max="1000"
+        :step="10"
+        @commit="commitJogSpeed('jogSpeedPlanar', $event)"
+      />
+      <AppField
+        :key="`jogSpeedVertical-${jogSpeedRevision}`"
+        label-pos="front"
+        :label="t('dashboard.movement.jogSpeedVertical')"
+        :model-value="jogSpeeds.vertical"
+        :unit="t('dashboard.movement.feedrateUnit')"
+        :min="1"
+        :max="1000"
+        :step="1"
+        @commit="commitJogSpeed('jogSpeedVertical', $event)"
+      />
+    </div>
+  </div>
 
   <div v-if="quick.visible('zOffsetUnit')" class="settings-row">
     <span class="settings-row__label">{{ t('dashboard.movement.zOffsetUnitLabel') }}</span>

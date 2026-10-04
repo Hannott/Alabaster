@@ -1241,11 +1241,15 @@ export const usePrinterStore = defineStore('printer', () => {
     return sendGcode(requested === '' ? 'G28' : `G28 ${requested.split('').join(' ')}`, 'home')
   }
 
-  function moveAxis(axis: 'X' | 'Y' | 'Z', distance: number): Promise<boolean> {
+  /** `speed` is mm/s; omitted, an axis moves at the speed it always has. */
+  function moveAxis(axis: 'X' | 'Y' | 'Z', distance: number, speed?: number): Promise<boolean> {
     if (!Number.isFinite(distance) || distance === 0 || Math.abs(distance) > 100) {
       return Promise.resolve(false)
     }
-    const feedrate = axis === 'Z' ? 600 : 6000
+    if (speed !== undefined && (!Number.isFinite(speed) || speed <= 0 || speed > 1000)) {
+      return Promise.resolve(false)
+    }
+    const feedrate = Math.round((speed ?? (axis === 'Z' ? 10 : 100)) * 60)
     return sendGcode(
       `SAVE_GCODE_STATE NAME=_alabaster_movement\nG91\nG1 ${axis}${distance} F${feedrate}\nRESTORE_GCODE_STATE NAME=_alabaster_movement`,
       'move',

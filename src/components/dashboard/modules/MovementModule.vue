@@ -16,6 +16,7 @@ import {
   descending,
   offsetValue,
   readOffsetSteps,
+  readJogSpeeds,
   readPlanarSteps,
   readVerticalSteps,
   signedOffsetStep,
@@ -153,6 +154,11 @@ function scaleFor<T extends string>(key: string, fallback: T, valid: readonly T[
 const planarSteps = computed(() => readPlanarSteps(config.value))
 const verticalSteps = computed(() => readVerticalSteps(config.value))
 const offsetSteps = computed(() => readOffsetSteps(config.value))
+const jogSpeeds = computed(() => readJogSpeeds(config.value))
+
+function jogSpeed(axis: Axis): number {
+  return axis === 'Z' ? jogSpeeds.value.vertical : jogSpeeds.value.planar
+}
 const offsetUnit = computed<ZOffsetUnit>(() => scaleFor('zOffsetUnit', 'micrometre', zOffsetUnits))
 /**
  * The steps row is sized by its widest label rather than by a column count, so
@@ -994,7 +1000,7 @@ function screwInstruction(screw: (typeof screwResults.value)[number]): string {
                   class="jog-button"
                   :disabled="printer.pendingCommands.move || homing || !isHomed(axis)"
                   :aria-label="jogLabel(axis, lowSign(axis) * step)"
-                  @click="printer.moveAxis(axis, lowSign(axis) * step)"
+                  @click="printer.moveAxis(axis, lowSign(axis) * step, jogSpeed(axis))"
                 />
               </div>
 
@@ -1022,7 +1028,7 @@ function screwInstruction(screw: (typeof screwResults.value)[number]): string {
                   class="jog-button"
                   :disabled="printer.pendingCommands.move || homing || !isHomed(axis)"
                   :aria-label="jogLabel(axis, -lowSign(axis) * step)"
-                  @click="printer.moveAxis(axis, -lowSign(axis) * step)"
+                  @click="printer.moveAxis(axis, -lowSign(axis) * step, jogSpeed(axis))"
                 />
               </div>
             </div>

@@ -1625,6 +1625,9 @@
       "stepValueLabel": "{group}, value {index}",
       "stepRemoveLabel": "Remove {group} value {index}",
       "stepAdd": "Add value",
+      "jogSpeedTitle": "Jog speed",
+      "jogSpeedPlanar": "X and Y",
+      "jogSpeedVertical": "Z",
       "zOffsetAdjust": "Adjust Z offset by {amount} {unit} — {direction}",
       "zDirection": {
         "raise": {

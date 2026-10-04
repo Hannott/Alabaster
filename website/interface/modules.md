@@ -216,7 +216,8 @@ toolhead.
   combined X and Y home button can be added beside it, for machines where
   re-homing Z is slow or disruptive.
 - **Jogging**: Step sizes are configurable in millimetres. Add, edit, or
-  remove values.
+  remove values. Jog speed is set separately for X and Y and for Z, in mm/s;
+  the defaults are 100 and 10.
 - **Motors off**: Asks for confirmation first, since the printer forgets its
   position.
 - **Park positions**: Center and front.

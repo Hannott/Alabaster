@@ -154,13 +154,13 @@ describe('MovementModule', () => {
     ])
 
     await rows[0]?.findAll('button').at(0)?.trigger('click')
-    expect(moveAxis).toHaveBeenLastCalledWith('X', -100)
+    expect(moveAxis).toHaveBeenLastCalledWith('X', -100, 100)
 
     await rows[0]?.findAll('button').at(6)?.trigger('click')
-    expect(moveAxis).toHaveBeenLastCalledWith('X', 100)
+    expect(moveAxis).toHaveBeenLastCalledWith('X', 100, 100)
 
     await rows[2]?.findAll('button').at(4)?.trigger('click')
-    expect(moveAxis).toHaveBeenLastCalledWith('Z', 0.1)
+    expect(moveAxis).toHaveBeenLastCalledWith('Z', 0.1, 10)
   })
 
   it('states the not-homed precondition once for the card, not once per control', async () => {
@@ -1251,7 +1251,7 @@ describe('MovementModule', () => {
     expect(zRow?.findAll('button').map((button) => button.text())).toEqual(jog)
     expect(zRow?.findAll('button').at(0)?.attributes('aria-label')).toContain('lower bed')
     await zRow?.findAll('button').at(0)?.trigger('click')
-    expect(moveAxis).toHaveBeenLastCalledWith('Z', low)
+    expect(moveAxis).toHaveBeenLastCalledWith('Z', low, 10)
 
     for (const legend of wrapper.findAll('.trim__legend')) {
       expect(legend.text()).toContain('lower bed')

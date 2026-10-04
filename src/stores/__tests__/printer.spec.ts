@@ -162,6 +162,23 @@ describe('printer store', () => {
     expect(rpcCall).not.toHaveBeenCalled()
   })
 
+  it('sends a jog at the requested speed in mm/min and refuses an unusable one', async () => {
+    const moonraker = useMoonrakerStore()
+    const rpcCall = vi.spyOn(moonraker, 'rpcCall').mockResolvedValue('ok' as never)
+    const printer = usePrinterStore()
+
+    await expect(printer.moveAxis('Z', 1, 5)).resolves.toBe(true)
+    expect(rpcCall).toHaveBeenCalledWith('printer.gcode.script', {
+      script:
+        'SAVE_GCODE_STATE NAME=_alabaster_movement\nG91\nG1 Z1 F300\nRESTORE_GCODE_STATE NAME=_alabaster_movement',
+    })
+
+    rpcCall.mockClear()
+    await expect(printer.moveAxis('X', 1, 0)).resolves.toBe(false)
+    await expect(printer.moveAxis('X', 1, 5000)).resolves.toBe(false)
+    expect(rpcCall).not.toHaveBeenCalled()
+  })
+
   it('echoes any mutating command sent outside the console, except a jog', async () => {
     const moonraker = useMoonrakerStore()
     vi.spyOn(moonraker, 'rpcCall').mockResolvedValue('ok' as never)
