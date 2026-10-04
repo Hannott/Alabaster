@@ -73,6 +73,12 @@ describe('AppField', () => {
     expect((wrapper.get('input').element as HTMLInputElement).value).toBe('60')
   })
 
+  it('asks a phone keyboard for an Enter key rather than Next', () => {
+    // Android's "Next" moves focus without an Enter keydown, so a field
+    // followed by another one could never commit — see the template comment.
+    expect(mountField().get('input').attributes('enterkeyhint')).toBe('done')
+  })
+
   it('shows an optional leading icon before the label, at every label position', () => {
     expect(mountField().find('.app-field__label-icon').exists()).toBe(false)
 

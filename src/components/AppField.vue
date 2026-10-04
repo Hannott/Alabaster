@@ -455,6 +455,11 @@ function resetToConfigured(): void {
         of range" once per box on the way. jsdom does not sanitise a number
         input's value, so no mounted test can catch this — `AppField.spec.ts`
         pins the order in the source instead.
+
+        `enterkeyhint` is what makes Enter a commit on a phone at all. Without
+        it, Android labels the key "Next" on any field followed by another one,
+        and Chrome answers that key by moving focus without sending an Enter
+        keydown — so no field on a card of several could ever be committed.
       -->
       <input
         :type="type"
@@ -468,6 +473,7 @@ function resetToConfigured(): void {
         :readonly="readonly"
         :disabled="disabled"
         :tabindex="readonly ? -1 : undefined"
+        enterkeyhint="done"
         :aria-label="accessibleName"
         autocomplete="off"
         data-1p-ignore

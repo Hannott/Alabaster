@@ -281,6 +281,7 @@ function resetToConfigured(): void {
           :max="max"
           :step="step"
           :disabled="disabled"
+          enterkeyhint="done"
           autocomplete="off"
           data-1p-ignore
           data-lpignore="true"
