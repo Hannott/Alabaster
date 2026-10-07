@@ -26,7 +26,7 @@ interface MacroEntry {
   name: string
   label: string
   isMissing: boolean
-  isRunning: boolean
+  isLocked: boolean
   params: MacroParameter[]
   colorVariable: string | null
 }
@@ -110,7 +110,7 @@ const displayEntries = computed<ListEntry[]>(() =>
         name: entry,
         label: formatMacroLabel(entry),
         isMissing: macros.isMissing(entry),
-        isRunning: macros.isRunning(entry),
+        isLocked: macros.isLocked(entry),
         params: macroParamsFromSettings(printerConfig.settings, entry),
         colorVariable: macroColorVariable(entry, colors.value),
       }
@@ -165,7 +165,7 @@ const gridStyle = computed(() => {
             v-else
             :label="entry.label"
             :is-missing="entry.isMissing"
-            :is-running="entry.isRunning"
+            :is-locked="entry.isLocked"
             :params="entry.params"
             :color-variable="entry.colorVariable"
             :disabled="isSurfaceOpen"

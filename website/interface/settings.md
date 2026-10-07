@@ -177,7 +177,8 @@ or Kalico when the update manager does not manage the firmware.
 
 ## Commands
 
-Keep jogging, extruding, and changing values while the printer is busy. With
+Keep jogging, extruding, running macros, and changing values while the
+printer is busy. With
 **Queue each press**, the default, every press is sent straight away and the
 printer runs them in order as soon as it is free, so five Z steps pressed
 during a heat-up all happen once it finishes. A command is never reported as

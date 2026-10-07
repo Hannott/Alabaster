@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { computed, ref, watch, type WatchStopHandle } from 'vue'
 
 import { useAvailabilityStore } from '@/stores/availability'
+import { useCommandPreferencesStore } from '@/stores/commandPreferences'
 import { createGuardedLoad } from '@/stores/guardedLoad'
 import { useMoonrakerStore } from '@/stores/moonraker'
 import { usePrinterStore } from '@/stores/printer'
@@ -88,7 +89,16 @@ export const useMacrosStore = defineStore('macros', () => {
   const hasDiscovered = ref(false)
   const isLoading = ref(false)
   const failed = ref(false)
-  const runningMacros = ref<ReadonlySet<string>>(new Set())
+  const commandPreferences = useCommandPreferencesStore()
+  /**
+   * How many sends of each macro are waiting, by name. A count rather than a
+   * set because, while presses queue, the same macro can be sent again before
+   * the first run has answered, and only the last one out may clear it.
+   */
+  const runningMacros = ref<ReadonlyMap<string, number>>(new Map())
+  // Bumped on a printer switch, so a run sent to the printer just left cannot
+  // decrement the new printer's counts when it settles.
+  let generation = 0
   const lastError = ref<string | null>(null)
   let stopAvailabilityWatch: WatchStopHandle | null = null
   let stopPrinterChangeReset: (() => void) | null = null
@@ -99,6 +109,24 @@ export const useMacrosStore = defineStore('macros', () => {
 
   function isRunning(name: string): boolean {
     return runningMacros.value.has(name.trim().toUpperCase())
+  }
+
+  /**
+   * What a macro control reads to decide `disabled` and `pending`. A macro is
+   * repeatable like a jog: while the reader queues presses, a second press is
+   * sent and Klipper runs it after the first. Only while they have chosen to
+   * wait for each command does a running macro lock its own button.
+   */
+  function isLocked(name: string): boolean {
+    return commandPreferences.dispatch === 'wait' && isRunning(name)
+  }
+
+  function adjustRunning(macro: string, delta: number): void {
+    const next = new Map(runningMacros.value)
+    const count = (next.get(macro) ?? 0) + delta
+    if (count > 0) next.set(macro, count)
+    else next.delete(macro)
+    runningMacros.value = next
   }
 
   function isMissing(name: string): boolean {
@@ -142,17 +170,16 @@ export const useMacrosStore = defineStore('macros', () => {
    */
   async function run(name: string, params?: Readonly<Record<string, string>>): Promise<boolean> {
     const macro = name.trim().toUpperCase()
-    if (macro === '' || runningMacros.value.has(macro)) return false
-    runningMacros.value = new Set(runningMacros.value).add(macro)
+    if (macro === '' || isLocked(macro)) return false
+    const runGeneration = generation
+    adjustRunning(macro, 1)
     lastError.value = null
     try {
       const succeeded = await printer.sendMacro(buildMacroScript(macro, params))
       if (!succeeded) lastError.value = macro
       return succeeded
     } finally {
-      const remaining = new Set(runningMacros.value)
-      remaining.delete(macro)
-      runningMacros.value = remaining
+      if (runGeneration === generation) adjustRunning(macro, -1)
     }
   }
 
@@ -172,7 +199,8 @@ export const useMacrosStore = defineStore('macros', () => {
     discovered.value = []
     allMacroNames.value = new Set()
     hasDiscovered.value = false
-    runningMacros.value = new Set()
+    generation += 1
+    runningMacros.value = new Map()
     lastError.value = null
     failed.value = false
   }
@@ -209,6 +237,7 @@ export const useMacrosStore = defineStore('macros', () => {
     lastError,
     runningMacros,
     isRunning,
+    isLocked,
     isMissing,
     hasMacro,
     refresh,

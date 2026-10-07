@@ -803,7 +803,7 @@ const readoutValue = computed(() =>
           :key="macro.name"
           mono
           :class="{ 'macro-control__run--missing': macro.isMissing }"
-          :disabled="macro.isMissing || macros.isRunning(macro.name) || printer.isPrinting"
+          :disabled="macro.isMissing || macros.isLocked(macro.name) || printer.isPrinting"
           :title="
             macro.isMissing
               ? t('dashboard.macros.missing', { macro: macro.label })

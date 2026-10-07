@@ -1,6 +1,7 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { useCommandPreferencesStore } from '@/stores/commandPreferences'
 import { useConsoleStore } from '@/stores/console'
 import { buildMacroScript, formatMacroLabel, macroNamesFrom, useMacrosStore } from '@/stores/macros'
 import { useMoonrakerStore } from '@/stores/moonraker'
@@ -128,7 +129,30 @@ describe('macros store', () => {
     expect(macros.lastError).toBeNull()
   })
 
-  it('ignores a repeated run while the macro is still executing', async () => {
+  it('sends a repeated run while the first still executes, so Klipper runs both in order', async () => {
+    const moonraker = useMoonrakerStore()
+    const releases: Array<() => void> = []
+    const rpcCall = vi
+      .spyOn(moonraker, 'rpcCall')
+      .mockImplementation(
+        () => new Promise((resolve) => releases.push(() => resolve('ok'))) as never,
+      )
+
+    const macros = useMacrosStore()
+    const first = macros.run('CALIBRATE_MESH')
+    const second = macros.run('CALIBRATE_MESH')
+
+    expect(rpcCall).toHaveBeenCalledTimes(2)
+    expect(macros.isLocked('CALIBRATE_MESH')).toBe(false)
+    releases[1]?.()
+    await second
+    expect(macros.isRunning('CALIBRATE_MESH')).toBe(true)
+    releases[0]?.()
+    expect(await first).toBe(true)
+    expect(macros.isRunning('CALIBRATE_MESH')).toBe(false)
+  })
+
+  it('ignores a repeated run while the macro executes, when the reader waits for each command', async () => {
     const moonraker = useMoonrakerStore()
     let release: (() => void) | undefined
     vi.spyOn(moonraker, 'rpcCall').mockImplementation(
@@ -137,11 +161,12 @@ describe('macros store', () => {
           release = () => resolve('ok')
         }) as never,
     )
+    useCommandPreferencesStore().setDispatch('wait')
 
     const macros = useMacrosStore()
     const first = macros.run('CALIBRATE_MESH')
 
-    expect(macros.isRunning('CALIBRATE_MESH')).toBe(true)
+    expect(macros.isLocked('CALIBRATE_MESH')).toBe(true)
     expect(await macros.run('CALIBRATE_MESH')).toBe(false)
 
     release?.()

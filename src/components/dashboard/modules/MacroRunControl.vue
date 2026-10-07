@@ -18,7 +18,7 @@ import type { MacroParameter } from '@/dashboard/macroParams'
 const props = defineProps<{
   label: string
   isMissing: boolean
-  isRunning: boolean
+  isLocked: boolean
   params: readonly MacroParameter[]
   /** A CSS color reference (`var(--color-data-*)`), or null for no accent. */
   colorVariable: string | null
@@ -87,8 +87,8 @@ function send(values: Record<string, string>): void {
         'macro-control__run--missing': isMissing,
         'macro-control__run--accent': hasAccent,
       }"
-      :pending="isRunning"
-      :aria-busy="isRunning || undefined"
+      :pending="isLocked"
+      :aria-busy="isLocked || undefined"
       :disabled="isMissing || disabled"
       :title="runTitle"
       :aria-label="runTitle"
@@ -104,7 +104,7 @@ function send(values: Record<string, string>): void {
       class="macro-control__params"
       :class="{ 'macro-control__params--accent': hasAccent }"
       icon="down"
-      :pending="isRunning"
+      :pending="isLocked"
       aria-haspopup="dialog"
       :aria-expanded="panel !== null"
       :title="t('dashboard.macros.openParams', { macro: label })"

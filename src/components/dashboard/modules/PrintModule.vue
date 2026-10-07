@@ -1038,7 +1038,7 @@ function requestPause(): void {
                 variant="quiet"
                 icon-only
                 icon="layerNext"
-                :disabled="macros.isRunning('SET_PAUSE_NEXT_LAYER')"
+                :disabled="macros.isLocked('SET_PAUSE_NEXT_LAYER')"
                 :aria-label="t('dashboard.print.pauseNextLayer')"
                 :title="t('dashboard.print.pauseNextLayer')"
                 @click="requestPauseNextLayer"
