@@ -513,7 +513,7 @@ describe('reading results', () => {
         '// Machine axis X -> +y (angle error: 4.4 degrees)',
         '// Machine axis Z -> -x (angle error: 31.6 degrees)',
         '// ==> Detected axes_map: unable to determine correctly! (Same accelerometer axis detected for multiple machine axes!)',
-        '// Your current axes_map doesn\'t match! Please update your configuration to unabletodeterminecorrectly!.',
+        "// Your current axes_map doesn't match! Please update your configuration to unabletodeterminecorrectly!.",
       ],
       { accel_chip: 'adxl345', axes_map: '-x,-z,-y' },
     )
