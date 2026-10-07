@@ -5,7 +5,6 @@ import { useAvailabilityStore } from '@/stores/availability'
 import { createGuardedLoad } from '@/stores/guardedLoad'
 import { useMoonrakerStore } from '@/stores/moonraker'
 import { usePrinterStore } from '@/stores/printer'
-import { useToastsStore } from '@/stores/toasts'
 import { titleCaseIdentifier } from '@/utils/identifierCase'
 
 const macroObjectPrefix = 'gcode_macro '
@@ -84,7 +83,6 @@ export const useMacrosStore = defineStore('macros', () => {
   const availability = useAvailabilityStore()
   const moonraker = useMoonrakerStore()
   const printer = usePrinterStore()
-  const toasts = useToastsStore()
   const discovered = ref<string[]>([])
   const allMacroNames = ref<ReadonlySet<string>>(new Set())
   const hasDiscovered = ref(false)
@@ -137,10 +135,9 @@ export const useMacrosStore = defineStore('macros', () => {
 
   /**
    * Dispatch goes through the printer store's `sendMacro` — the path that
-   * echoes into the console before dispatch and carries no local deadline, so
-   * a heat soak stays pending for as long as it actually runs instead of
-   * being reported dead at the transport's sixty-second default. Only a genuine
-   * refusal from Klipper sets `lastError`, and it is never retried
+   * echoes into the console before dispatch, lists the macro among the queued
+   * commands, and reports a failure. A heat soak stays pending for as long as
+   * it actually runs. A failure sets `lastError`, and it is never retried
    * automatically.
    */
   async function run(name: string, params?: Readonly<Record<string, string>>): Promise<boolean> {
@@ -149,12 +146,9 @@ export const useMacrosStore = defineStore('macros', () => {
     runningMacros.value = new Set(runningMacros.value).add(macro)
     lastError.value = null
     try {
-      await printer.sendMacro(buildMacroScript(macro, params))
-      return true
-    } catch (error) {
-      lastError.value = macro
-      toasts.pushError(error)
-      return false
+      const succeeded = await printer.sendMacro(buildMacroScript(macro, params))
+      if (!succeeded) lastError.value = macro
+      return succeeded
     } finally {
       const remaining = new Set(runningMacros.value)
       remaining.delete(macro)

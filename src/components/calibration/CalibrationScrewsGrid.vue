@@ -34,7 +34,7 @@ const canMove = computed(
     klipperAvailability.value.isAvailable &&
     !printer.hasActivePrint &&
     calibration.activeRun === null &&
-    !printer.pendingCommands.move,
+    !printer.lockedCommands.move,
 )
 
 function turnText(screw: ScrewReading): string {
@@ -79,7 +79,7 @@ function turnText(screw: ScrewReading): string {
         icon="move"
         :label="t('calibration.screws.goTo')"
         :disabled="!canMove"
-        :pending="printer.pendingCommands.move"
+        :pending="printer.lockedCommands.move"
         @click="printer.moveTo({ x: cell.screw.x, y: cell.screw.y })"
       />
     </li>

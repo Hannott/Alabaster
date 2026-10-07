@@ -154,8 +154,6 @@ describe('NonlinearPressureAdvancePanel', () => {
     expect(sendGcode).toHaveBeenCalledWith(
       'RUN_PA_TEST NOZZLE=0.4 TARGET_TEMP=210 BED_TEMP=60 TESTPARAM=1',
       'calibration',
-      // The tower heats and prints before the macro returns; no local deadline cuts it short.
-      { timeoutMs: null },
     )
   })
 
@@ -188,7 +186,6 @@ describe('NonlinearPressureAdvancePanel', () => {
     expect(sendGcode).toHaveBeenCalledWith(
       'RUN_PA_TEST NOZZLE=0.4 TARGET_TEMP=210 BED_TEMP=60 TESTPARAM=1 PA_VALUE=0.135 PA_RANGE=0.045',
       'calibration',
-      { timeoutMs: null },
     )
   })
 

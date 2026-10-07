@@ -624,7 +624,7 @@ const readoutValue = computed(() =>
       entry
       can-reset
       :reset-value="100"
-      :disabled="printer.pendingCommands.extrusion"
+      :disabled="printer.lockedCommands.extrusion"
       @commit="commitExtrusionFactor"
     />
 
@@ -771,7 +771,7 @@ const readoutValue = computed(() =>
         <div class="extruder-feed__actions">
           <AppButton
             size="sm"
-            :disabled="!canManualExtrude || printer.pendingCommands.extrude"
+            :disabled="!canManualExtrude || printer.lockedCommands.extrude"
             icon="up"
             :label="t('dashboard.extruder.retract')"
             @click="printer.extrudeFilament(-length, sentFeedrate)"
@@ -779,7 +779,7 @@ const readoutValue = computed(() =>
           <AppButton
             size="sm"
             variant="primary"
-            :disabled="!canManualExtrude || printer.pendingCommands.extrude"
+            :disabled="!canManualExtrude || printer.lockedCommands.extrude"
             icon="down"
             :label="t('dashboard.extruder.extrude')"
             @click="printer.extrudeFilament(length, sentFeedrate)"
@@ -853,7 +853,7 @@ const readoutValue = computed(() =>
           :unit="t(field.unitKey)"
           :min="0"
           :step="field.step"
-          :disabled="printer.pendingCommands.retraction"
+          :disabled="printer.lockedCommands.retraction"
           v-bind="retractionResetProps(field)"
           align="end"
           steppers
@@ -936,7 +936,7 @@ const readoutValue = computed(() =>
           size="sm"
           :label="t('dashboard.extruder.applyAdvance')"
           type="submit"
-          :disabled="printer.pendingCommands.pressureAdvance"
+          :disabled="printer.lockedCommands.pressureAdvance"
         />
         <AppButton
           v-if="canKeepAdvance"

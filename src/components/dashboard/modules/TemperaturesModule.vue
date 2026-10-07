@@ -722,7 +722,7 @@ const hasJobLoaded = computed(() => printer.hasActivePrint)
                 size="sm"
                 mono
                 :label="signedNudge(-nudgeStep)"
-                :disabled="printer.pendingCommands.temperature"
+                :disabled="printer.lockedCommands.temperature"
                 :aria-label="
                   t('dashboard.temperature.targetAdjust', {
                     heater: sensorLabel(sensor),
@@ -741,7 +741,7 @@ const hasJobLoaded = computed(() => printer.hasActivePrint)
                 size="sm"
                 mono
                 :label="signedNudge(nudgeStep)"
-                :disabled="printer.pendingCommands.temperature"
+                :disabled="printer.lockedCommands.temperature"
                 :aria-label="
                   t('dashboard.temperature.targetAdjust', {
                     heater: sensorLabel(sensor),
@@ -762,7 +762,7 @@ const hasJobLoaded = computed(() => printer.hasActivePrint)
                 size="sm"
                 icon="power"
                 :label="t('dashboard.temperature.off')"
-                :disabled="printer.pendingCommands.temperature || hasJobLoaded"
+                :disabled="printer.lockedCommands.temperature || hasJobLoaded"
                 :aria-label="
                   hasJobLoaded
                     ? t('dashboard.temperature.quickOffBlocked', { heater: sensorLabel(sensor) })
@@ -807,14 +807,14 @@ const hasJobLoaded = computed(() => printer.hasActivePrint)
           :key="`${index}-${preset.name}`"
           size="sm"
           :label="preset.name"
-          :disabled="printer.pendingCommands.temperature || hasJobLoaded"
+          :disabled="printer.lockedCommands.temperature || hasJobLoaded"
           :title="hasJobLoaded ? t('dashboard.temperature.presetBlocked') : presetTitle(preset)"
           @click="applyPreset(preset)"
         />
         <AppButton
           size="sm"
           class="ms-auto"
-          :disabled="printer.pendingCommands.temperature || !hasAnyActiveTarget || hasJobLoaded"
+          :disabled="printer.lockedCommands.temperature || !hasAnyActiveTarget || hasJobLoaded"
           :title="
             hasJobLoaded
               ? t('dashboard.temperature.cooldownBlocked')

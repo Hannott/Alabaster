@@ -9,6 +9,7 @@ import AppButton from '@/components/AppButton.vue'
 import AppIcon, { type AppIconName } from '@/components/AppIcon.vue'
 import BedScrewsDialog from '@/components/BedScrewsDialog.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
+import HeaderCommandQueue from '@/components/HeaderCommandQueue.vue'
 import HeaderMenu from '@/components/HeaderMenu.vue'
 import ManualProbeDialog from '@/components/ManualProbeDialog.vue'
 import PrinterFaultNotice from '@/components/PrinterFaultNotice.vue'
@@ -838,6 +839,8 @@ async function discardPendingConfig(): Promise<void> {
             <AppIcon :name="estopIconName" class="size-6" aria-hidden="true" />
             {{ t('dashboard.emergencyStop') }}
           </button>
+
+          <HeaderCommandQueue />
 
           <HeaderMenu
             :label="t('header.notifications.label')"

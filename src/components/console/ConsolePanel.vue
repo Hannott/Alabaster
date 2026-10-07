@@ -230,7 +230,7 @@ function requestClearHistory(): void {
           :commands="commands"
           :get-macro-params="getMacroParams"
           :disabled="!klipper.isAvailable.value"
-          :pending="printer.pendingCommands.console"
+          :pending="printer.lockedCommands.console"
           @send="gcodeConsole.sendConsoleCommand($event)"
         />
       </div>

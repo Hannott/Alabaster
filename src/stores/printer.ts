@@ -11,6 +11,7 @@ import type {
 } from '@/services/moonraker'
 import {
   isPrintableGcodeFilename,
+  MoonrakerDisconnectedError,
   moonrakerThumbnailUrl,
   uploadMoonrakerFile,
 } from '@/services/moonraker'
@@ -19,11 +20,14 @@ import { configBoolean } from '@/dashboard/context'
 import { useAvailabilityStore } from '@/stores/availability'
 import { createCommandRunner } from '@/stores/commandRunner'
 import { useBedMeshStore } from '@/stores/bedMesh'
+import { useCommandPreferencesStore } from '@/stores/commandPreferences'
+import { useCommandQueueStore } from '@/stores/commandQueue'
 import { useConsoleStore } from '@/stores/console'
 import { useDashboardLayoutStore } from '@/stores/dashboardLayout'
 import { useMoonrakerStore } from '@/stores/moonraker'
 import { usePrintersStore } from '@/stores/printers'
 import { useTelemetryStore } from '@/stores/telemetry'
+import { useToastsStore } from '@/stores/toasts'
 // Discovery owns which methods exist; this store owns the command each one sends.
 import { usePrinterConfigStore, type LevelingMethod } from '@/stores/printerConfig'
 import { isRecord } from '@/utils/records'
@@ -201,6 +205,65 @@ export const printerCommandKeys = [
 ] as const
 
 export type PrinterCommandKey = (typeof printerCommandKeys)[number]
+
+/**
+ * The keys whose second press means "do it again": a jog, an extrusion, a
+ * value set again. While the reader has chosen to queue presses
+ * (`commandPreferences.dispatch === 'queue'`), these stay live while an
+ * earlier send waits, and every press goes to Klipper, which runs them in
+ * order. Every other key is exclusive in both modes, because its lock is about
+ * meaning rather than waiting: a second Accept lands on the next screw, a
+ * second procedure starts from a state nobody saw, and a second home is a full
+ * extra cycle while the machine is still finding its zero. A new key is
+ * exclusive unless it is added here.
+ */
+export const repeatableCommandKeys: ReadonlySet<PrinterCommandKey> = new Set([
+  'move',
+  'extrude',
+  'zOffset',
+  'temperature',
+  'fan',
+  'speed',
+  'extrusion',
+  'pin',
+  'limits',
+  'pressureAdvance',
+  'retraction',
+  'console',
+])
+
+/** The surface named beside a queued script, by the key that sent it. */
+const commandOriginKeys: Partial<Record<PrinterCommandKey, string>> = {
+  home: 'dashboard.modules.movement',
+  move: 'dashboard.modules.movement',
+  zOffset: 'dashboard.modules.movement',
+  motorsOff: 'dashboard.modules.movement',
+  temperature: 'dashboard.modules.temperatures',
+  calibrateHeater: 'dashboard.modules.temperatures',
+  extrude: 'dashboard.modules.extruder',
+  pressureAdvance: 'dashboard.modules.extruder',
+  retraction: 'dashboard.modules.extruder',
+  fan: 'dashboard.modules.controls',
+  pin: 'dashboard.modules.controls',
+  speed: 'dashboard.modules.machine',
+  extrusion: 'dashboard.modules.machine',
+  limits: 'dashboard.modules.machine',
+  console: 'dashboard.modules.console',
+  clearPrint: 'dashboard.modules.print',
+  excludeObject: 'dashboard.modules.print',
+  saveConfig: 'navigation.configuration',
+  macroVariable: 'navigation.configuration',
+}
+const defaultCommandOriginKey = 'navigation.calibration'
+const macroOriginKey = 'dashboard.modules.macros'
+
+/** Klipper went away before answering — the header already says so, so nothing else should. */
+class KlipperLeftError extends Error {
+  constructor() {
+    super('Klipper stopped before answering')
+    this.name = 'KlipperLeftError'
+  }
+}
 
 /**
  * A manual probe step: a relative distance in millimetres, or one of Klipper's
@@ -514,6 +577,32 @@ export const usePrinterStore = defineStore('printer', () => {
   const activities = ref<PrinterActivity[]>([])
   const commands = createCommandRunner<PrinterCommandKey>(printerCommandKeys)
   const { pendingCommands, lastCommandError, lastCommandErrorMessage } = commands
+  const commandQueue = useCommandQueueStore()
+  const commandPreferences = useCommandPreferencesStore()
+  const toasts = useToastsStore()
+  /**
+   * What a control reads to decide `disabled`, in place of `pendingCommands`:
+   * a repeatable key in flight locks its control only while the reader has
+   * chosen to wait for each command; an exclusive key always does. Reading
+   * `pendingCommands` for that would disable a jog the store would accept.
+   */
+  const lockedCommands = computed(
+    () =>
+      Object.fromEntries(
+        printerCommandKeys.map((key) => [
+          key,
+          pendingCommands[key] &&
+            (!repeatableCommandKeys.has(key) || commandPreferences.dispatch === 'wait'),
+        ]),
+      ) as Record<PrinterCommandKey, boolean>,
+  )
+  /**
+   * A `G28` from any surface — the Home button, the console, a macro — is in
+   * flight. Homing scripts this store builds end in `M400`, so this stays true
+   * until the machine has physically stopped, not just until the script's last
+   * move was queued.
+   */
+  const isHoming = computed(() => commandQueue.isHoming)
   const disposers: Array<() => void> = []
   let stopAvailabilityWatch: WatchStopHandle | null = null
   let stopPrinterChangeReset: (() => void) | null = null
@@ -1165,15 +1254,67 @@ export const usePrinterStore = defineStore('printer', () => {
   }
 
   /**
-   * `G28`, in any letter case and with or without axis letters, can legitimately
-   * run past the transport's default deadline — a slow probe or multiple homing
-   * samples can take longer than the sixty-second default, and Klipper answers
-   * `printer.gcode.script` only once the move finishes. Checked against every
-   * line of the script, not just the first, so a homing command combined with
-   * other G-code on one console send still gets the exemption.
+   * Resolves `'left'` once Klipper stops being ready. G-code carries no local
+   * deadline — Moonraker never drops a request for waiting, so any deadline
+   * short enough to notice a fault also reports a command still queued behind
+   * a heat soak as failed, and re-arms its control so a second press doubles
+   * it. What bounds a request instead is the socket closing (the transport
+   * rejects everything pending) or Klipper leaving: Moonraker answers a request
+   * in flight when Klipper goes down, but a Klipper that stops without
+   * dropping its connection may never.
    */
-  function isHomingScript(script: string): boolean {
-    return script.split('\n').some((line) => /^g28(\s|$)/i.test(line.trim()))
+  function untilKlipperLeaves(): { promise: Promise<'left'>; stop: () => void } {
+    let stopWatch: WatchStopHandle | null = null
+    const promise = new Promise<'left'>((resolve) => {
+      stopWatch = watch(
+        () => availability.isKlipperReady,
+        (ready) => {
+          if (!ready) resolve('left')
+        },
+      )
+    })
+    return { promise, stop: () => stopWatch?.() }
+  }
+
+  /**
+   * Sends one script and keeps it in `commandQueue` until it settles. Rejects
+   * with `KlipperLeftError` when Klipper leaves first; see `untilKlipperLeaves`.
+   */
+  async function dispatchScript(script: string, originKey: string): Promise<void> {
+    const entryId = commandQueue.add(script, originKey)
+    const klipperLeaves = untilKlipperLeaves()
+    const request = moonraker.rpcCall('printer.gcode.script', { script }, { timeoutMs: null })
+    // A request that loses the race may still reject later; nobody is listening by then.
+    request.catch(() => undefined)
+    try {
+      const outcome = await Promise.race([
+        request.then(() => 'answered' as const),
+        klipperLeaves.promise,
+      ])
+      if (outcome === 'left') throw new KlipperLeftError()
+    } finally {
+      klipperLeaves.stop()
+      commandQueue.settle(entryId)
+    }
+  }
+
+  /**
+   * Decides which failures of a sent script become their own toast. A socket
+   * that dropped while the script waited takes every waiting script with it, so
+   * those collapse into one summary; Klipper leaving is already the header's
+   * news. Only a script that was actually sent on a live connection counts as
+   * lost — one refused because the socket was already down is an ordinary
+   * failure the reader should see.
+   */
+  function claimDispatchError(wasConnected: boolean) {
+    return (error: unknown): boolean => {
+      if (error instanceof KlipperLeftError) return true
+      if (error instanceof MoonrakerDisconnectedError && wasConnected) {
+        commandQueue.noteLost()
+        return true
+      }
+      return false
+    }
   }
 
   /**
@@ -1191,54 +1332,67 @@ export const usePrinterStore = defineStore('printer', () => {
    * every arrow click, so echoing it would read as the console flooding with
    * housekeeping rather than commands.
    *
+   * A repeatable key (`repeatableCommandKeys`) sends again while an earlier
+   * send waits when the reader has chosen to queue presses; every other send
+   * is refused while its key is in flight.
+   *
    * Exposed on the store because the console prompt dispatches through it too
    * — its `sendConsoleCommand` lives in the console store, and giving the
    * prompt a second exit point would be the two views disagreeing all over
-   * again. `isHomingScript` is checked here rather than only in `homeAxes`, so
-   * `G28` typed straight into the console gets the same exemption as the
-   * Movement card's own button — the deadline firing mid-home reports a false
-   * failure no matter which control sent it.
+   * again.
    */
-  async function sendGcode(
-    script: string,
-    key: PrinterCommandKey,
-    options?: { timeoutMs: null },
-  ): Promise<boolean> {
+  async function sendGcode(script: string, key: PrinterCommandKey): Promise<boolean> {
     const command = script.trim()
     if (!command) return false
+    if (lockedCommands.value[key]) return false
     if (key !== 'move') gcodeConsole.echoCommand(command)
-    const timeoutOptions = options ?? (isHomingScript(command) ? { timeoutMs: null } : undefined)
-    return runCommand(key, () =>
-      timeoutOptions === undefined
-        ? moonraker.rpcCall('printer.gcode.script', { script: command })
-        : moonraker.rpcCall('printer.gcode.script', { script: command }, timeoutOptions),
+    const wasConnected = moonraker.isConnected
+    return runCommand(
+      key,
+      () => dispatchScript(command, commandOriginKeys[key] ?? defaultCommandOriginKey),
+      { concurrent: !lockedCommands.value[key], claimError: claimDispatchError(wasConnected) },
     )
   }
 
   /**
-   * The macro path stands beside `sendGcode` rather than going through it, for
-   * two reasons that are both about a macro being arbitrary user G-code. Its
-   * duration belongs to the printer — a heat soak outlives any local deadline,
-   * and a deadline firing mid-run reports a false failure and re-arms the
-   * button against a macro that is still executing — so the request opts out
-   * exactly the way calibration, leveling, and `BED_MESH_CALIBRATE` already
-   * do. And more than one macro can legitimately be pending at once, which
-   * `runCommand`'s one-pending-per-key gate cannot express; the macros store
-   * tracks per-macro pending itself. The echo still lands before dispatch,
-   * like every script, so the live console never disagrees with Moonraker's
-   * own `gcode_store` about what was sent.
+   * The macro path stands beside `sendGcode` rather than going through it,
+   * because more than one macro can legitimately be pending at once, which
+   * `runCommand`'s per-key gate cannot express; the macros store tracks
+   * per-macro pending itself, and reports a failure itself the way `runCommand`
+   * would. It still goes through `dispatchScript`, so a macro waiting behind a
+   * heat soak is listed like any other script and is bounded the same way. The
+   * echo still lands before dispatch, like every script, so the live console
+   * never disagrees with Moonraker's own `gcode_store` about what was sent.
    */
-  async function sendMacro(script: string): Promise<void> {
+  async function sendMacro(script: string): Promise<boolean> {
     const command = script.trim()
-    if (!command) return
+    if (!command) return false
     gcodeConsole.echoCommand(command)
-    await moonraker.rpcCall('printer.gcode.script', { script: command }, { timeoutMs: null })
+    const claim = claimDispatchError(moonraker.isConnected)
+    try {
+      await dispatchScript(command, macroOriginKey)
+      return true
+    } catch (error) {
+      if (!claim(error)) toasts.pushError(error)
+      return false
+    }
   }
 
-  /** `sendGcode` itself detects `G28` and skips the transport's local deadline — see `isHomingScript`. */
+  /**
+   * `M400` after the home, because Klipper answers a script once it has *run*,
+   * and the last moves of most homing sequences are only queued by then —
+   * `[safe_z_home]`'s Z hop and return, the closing lift of a
+   * `[homing_override]`. Without it the reply, and with it every Movement
+   * control's lock, arrived while the gantry was still travelling. `M400`
+   * holds the reply until the motion queue has drained, so Klipper itself says
+   * when the machine has stopped.
+   */
   function homeAxes(axes?: string): Promise<boolean> {
     const requested = (axes ?? '').toUpperCase().replace(/[^XYZ]/g, '')
-    return sendGcode(requested === '' ? 'G28' : `G28 ${requested.split('').join(' ')}`, 'home')
+    return sendGcode(
+      `${requested === '' ? 'G28' : `G28 ${requested.split('').join(' ')}`}\nM400`,
+      'home',
+    )
   }
 
   /** `speed` is mm/s; omitted, an axis moves at the speed it always has. */
@@ -1279,13 +1433,6 @@ export const usePrinterStore = defineStore('printer', () => {
     return sendGcode('TURN_OFF_HEATERS', 'temperature')
   }
 
-  /**
-   * PID_CALIBRATE and MPC_CALIBRATE run for minutes while the heater settles,
-   * and Klipper only answers `printer.gcode.script` once the macro finishes —
-   * so this opts out of the transport's local deadline the same way the
-   * update manager's long-running calls do, rather than failing a calibration
-   * that is still legitimately running on the printer.
-   */
   function calibrateHeater(kind: 'pid' | 'mpc', heater: string, target: number): Promise<boolean> {
     if (!Number.isFinite(target) || target <= 0 || target > 999) return Promise.resolve(false)
     const heaterName = heater.startsWith('heater_generic ') ? heater.slice(15) : heater
@@ -1293,7 +1440,6 @@ export const usePrinterStore = defineStore('printer', () => {
     return sendGcode(
       `${command} HEATER=${heaterName} TARGET=${Math.round(target)}`,
       'calibrateHeater',
-      { timeoutMs: null },
     )
   }
 
@@ -1301,7 +1447,7 @@ export const usePrinterStore = defineStore('printer', () => {
    * Persists calibration results (and any other pending config change) and
    * restarts Klipper. Klipper answers the gcode script once queued and
    * restarts afterward, the same sequencing `firmware_restart` already relies
-   * on, so this needs no special timeout handling.
+   * on.
    */
   function saveConfig(): Promise<boolean> {
     return sendGcode('SAVE_CONFIG', 'saveConfig')
@@ -1365,19 +1511,17 @@ export const usePrinterStore = defineStore('printer', () => {
    * Ends the probe at the height it is standing at, which is what the whole
    * dialog exists to do — Klipper hands the position to whatever started the
    * helper, so this is where a `[probe] z_offset` or a Z endstop position comes
-   * from. Both this and `abortManualProbe` opt out of the transport deadline:
-   * the completion callback resumes whatever started the probe, which can be an
-   * arbitrary user macro with a heat soak or a bed mesh still to run, and a
-   * deadline firing mid-run would report a false failure for work that is
-   * still going.
+   * from. The completion callback resumes whatever started the probe, which
+   * can be an arbitrary user macro with a heat soak or a bed mesh still to run,
+   * so the reply can be minutes away.
    */
   function acceptManualProbe(): Promise<boolean> {
-    return sendGcode('ACCEPT', 'manualProbeFinish', { timeoutMs: null })
+    return sendGcode('ACCEPT', 'manualProbeFinish')
   }
 
   /** Ends the probe without recording anything. Klipper's `ABORT`. */
   function abortManualProbe(): Promise<boolean> {
-    return sendGcode('ABORT', 'manualProbeFinish', { timeoutMs: null })
+    return sendGcode('ABORT', 'manualProbeFinish')
   }
 
   /**
@@ -1389,14 +1533,13 @@ export const usePrinterStore = defineStore('printer', () => {
    * `ACCEPT` and `ABORT` are the same words a manual probe uses, and that is
    * safe rather than ambiguous: Klipper registers them per helper and only one
    * helper can be waiting at a time, so whichever is running is the one that
-   * answers. All three opt out of the transport deadline for the reason the
-   * probe's own two do — Klipper answers once it has moved the toolhead up,
-   * over and down to the next screw, and on the last screw once the whole
-   * procedure has finished lifting away.
+   * answers. Klipper answers once it has moved the toolhead up, over and down
+   * to the next screw, and on the last screw once the whole procedure has
+   * finished lifting away.
    */
   function answerBedScrew(answer: 'accept' | 'adjusted' | 'abort'): Promise<boolean> {
     const command = answer === 'accept' ? 'ACCEPT' : answer === 'adjusted' ? 'ADJUSTED' : 'ABORT'
-    return sendGcode(command, 'bedScrews', { timeoutMs: null })
+    return sendGcode(command, 'bedScrews')
   }
 
   function disableMotors(): Promise<boolean> {
@@ -1433,13 +1576,8 @@ export const usePrinterStore = defineStore('printer', () => {
     )
   }
 
-  /**
-   * Probing every point takes minutes, and Klipper answers the script only
-   * once it finishes, so this opts out of the transport's local deadline the
-   * same way heater calibration does.
-   */
   function runLeveling(method: LevelingMethod): Promise<boolean> {
-    return sendGcode(levelingCommands[method], 'leveling', { timeoutMs: null })
+    return sendGcode(levelingCommands[method], 'leveling')
   }
 
   function setGenericFanSpeed(objectName: string, percent: number): Promise<boolean> {
@@ -1544,12 +1682,6 @@ export const usePrinterStore = defineStore('printer', () => {
    * never into `printer.cfg` — for the temperature mismatch warning to read
    * later.
    */
-  /**
-   * Probing every point takes minutes and Klipper answers the script only once it
-   * finishes, so this opts out of the transport's local deadline exactly as
-   * leveling and heater calibration do. Without it the deadline fires part way
-   * through a perfectly healthy calibration and reports a failed command.
-   */
   async function calibrateBedMesh(profile?: string, probeCount?: string): Promise<boolean> {
     const name = profile?.trim() ?? ''
     const count = probeCount?.trim().replace(/\s+/g, '') ?? ''
@@ -1559,7 +1691,7 @@ export const usePrinterStore = defineStore('printer', () => {
       ...(name === '' ? [] : [`PROFILE="${name}"`]),
       ...(count === '' ? [] : [`PROBE_COUNT=${count}`]),
     ]
-    const succeeded = await sendGcode(words.join(' '), 'bedMesh', { timeoutMs: null })
+    const succeeded = await sendGcode(words.join(' '), 'bedMesh')
     if (succeeded) {
       bedMesh.recordCalibration(telemetry.bed.temperature)
       bedMesh.commitProfileTemperature('', name === '' ? 'default' : name)
@@ -1672,6 +1804,7 @@ export const usePrinterStore = defineStore('printer', () => {
     activities.value = []
     // A command sent to the printer we just left can never report back here.
     commands.reset()
+    commandQueue.clear()
   }
 
   function start(): void {
@@ -1726,6 +1859,8 @@ export const usePrinterStore = defineStore('printer', () => {
     activities,
     addActivity,
     pendingCommands,
+    lockedCommands,
+    isHoming,
     lastCommandError,
     lastCommandErrorMessage,
     progress,

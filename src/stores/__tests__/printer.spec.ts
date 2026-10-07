@@ -3,16 +3,22 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type {
   JsonRpcNotification,
+  MoonrakerServerInfo,
   NotificationHandler,
   ObjectSnapshotHandler,
 } from '@/services/moonraker'
+import { MoonrakerDisconnectedError } from '@/services/moonraker'
+import { useAvailabilityStore } from '@/stores/availability'
 import { useBedMeshStore } from '@/stores/bedMesh'
+import { useCommandPreferencesStore } from '@/stores/commandPreferences'
+import { useCommandQueueStore } from '@/stores/commandQueue'
 import { useConsoleStore } from '@/stores/console'
 import { useDashboardLayoutStore } from '@/stores/dashboardLayout'
 import { useMoonrakerStore } from '@/stores/moonraker'
 import { parseScrewsTiltResults, usePrinterStore } from '@/stores/printer'
 import { usePrinterConfigStore } from '@/stores/printerConfig'
 import { useTelemetryStore } from '@/stores/telemetry'
+import { useToastsStore } from '@/stores/toasts'
 
 describe('printer store', () => {
   beforeEach(() => {
@@ -151,10 +157,14 @@ describe('printer store', () => {
 
     await expect(printer.moveAxis('X', 10)).resolves.toBe(false)
     expect(rpcCall).toHaveBeenCalledOnce()
-    expect(rpcCall).toHaveBeenCalledWith('printer.gcode.script', {
-      script:
-        'SAVE_GCODE_STATE NAME=_alabaster_movement\nG91\nG1 X10 F6000\nRESTORE_GCODE_STATE NAME=_alabaster_movement',
-    })
+    expect(rpcCall).toHaveBeenCalledWith(
+      'printer.gcode.script',
+      {
+        script:
+          'SAVE_GCODE_STATE NAME=_alabaster_movement\nG91\nG1 X10 F6000\nRESTORE_GCODE_STATE NAME=_alabaster_movement',
+      },
+      { timeoutMs: null },
+    )
     expect(printer.lastCommandError).toBe('move')
 
     rpcCall.mockClear()
@@ -168,10 +178,14 @@ describe('printer store', () => {
     const printer = usePrinterStore()
 
     await expect(printer.moveAxis('Z', 1, 5)).resolves.toBe(true)
-    expect(rpcCall).toHaveBeenCalledWith('printer.gcode.script', {
-      script:
-        'SAVE_GCODE_STATE NAME=_alabaster_movement\nG91\nG1 Z1 F300\nRESTORE_GCODE_STATE NAME=_alabaster_movement',
-    })
+    expect(rpcCall).toHaveBeenCalledWith(
+      'printer.gcode.script',
+      {
+        script:
+          'SAVE_GCODE_STATE NAME=_alabaster_movement\nG91\nG1 Z1 F300\nRESTORE_GCODE_STATE NAME=_alabaster_movement',
+      },
+      { timeoutMs: null },
+    )
 
     rpcCall.mockClear()
     await expect(printer.moveAxis('X', 1, 0)).resolves.toBe(false)
@@ -244,15 +258,23 @@ describe('printer store', () => {
     const printer = usePrinterStore()
 
     await expect(printer.applyZOffset('probe')).resolves.toBe(true)
-    expect(rpcCall).toHaveBeenCalledWith('printer.gcode.script', {
-      script: 'Z_OFFSET_APPLY_PROBE',
-    })
+    expect(rpcCall).toHaveBeenCalledWith(
+      'printer.gcode.script',
+      {
+        script: 'Z_OFFSET_APPLY_PROBE',
+      },
+      { timeoutMs: null },
+    )
 
     rpcCall.mockClear()
     await expect(printer.applyZOffset('endstop')).resolves.toBe(true)
-    expect(rpcCall).toHaveBeenCalledWith('printer.gcode.script', {
-      script: 'Z_OFFSET_APPLY_ENDSTOP',
-    })
+    expect(rpcCall).toHaveBeenCalledWith(
+      'printer.gcode.script',
+      {
+        script: 'Z_OFFSET_APPLY_ENDSTOP',
+      },
+      { timeoutMs: null },
+    )
   })
 
   /**
@@ -312,15 +334,13 @@ describe('printer store', () => {
   })
 
   /**
-   * The defect this guards: a slow probe or multiple homing samples can take
-   * longer than the transport's default sixty-second deadline, and Klipper
-   * answers `printer.gcode.script` only once the move finishes — so a homing
-   * command sent under the default deadline reports a false failure part way
-   * through a perfectly healthy home. `homeAxes` is one caller, but the same
-   * exemption has to apply to `G28` typed straight into the console, since
-   * that goes through the same `sendGcode` with no options of its own.
+   * Klipper answers `G28` once the script has run, and the last moves of most
+   * homing sequences — `[safe_z_home]`'s hop and return, a `[homing_override]`
+   * closing lift — are only queued by then. The reply, and every Movement lock
+   * tied to it, arrived while the gantry was still travelling. `M400` holds the
+   * reply until the motion queue has drained.
    */
-  it('homes without the transport local deadline, no matter which control sent it', async () => {
+  it('homes with M400 so the reply waits until the machine has stopped', async () => {
     const moonraker = useMoonrakerStore()
     const rpcCall = vi.spyOn(moonraker, 'rpcCall').mockResolvedValue('ok' as never)
     const printer = usePrinterStore()
@@ -328,7 +348,7 @@ describe('printer store', () => {
     await expect(printer.homeAxes()).resolves.toBe(true)
     expect(rpcCall).toHaveBeenCalledWith(
       'printer.gcode.script',
-      { script: 'G28' },
+      { script: 'G28\nM400' },
       { timeoutMs: null },
     )
 
@@ -336,25 +356,148 @@ describe('printer store', () => {
     await expect(printer.homeAxes('xz')).resolves.toBe(true)
     expect(rpcCall).toHaveBeenCalledWith(
       'printer.gcode.script',
-      { script: 'G28 X Z' },
+      { script: 'G28 X Z\nM400' },
       { timeoutMs: null },
     )
+  })
 
-    // The console prompt reaches `printer.gcode.script` through `sendGcode`
-    // too, with no options of its own — the exemption has to come from the
-    // script text, not from a flag only the button passes.
-    rpcCall.mockClear()
-    await expect(printer.sendGcode('g28', 'console')).resolves.toBe(true)
+  /**
+   * A home is a home whichever surface sent it: `G28` typed into the console
+   * locks Home and the jog rows exactly as the Movement card's own button
+   * does, and the lock lasts until the reply arrives.
+   */
+  it('reports homing while any G28 is in flight, including one typed into the console', async () => {
+    const moonraker = useMoonrakerStore()
+    let answer: (value: unknown) => void = () => undefined
+    vi.spyOn(moonraker, 'rpcCall').mockImplementation(
+      () => new Promise((resolve) => (answer = resolve)) as never,
+    )
+    const printer = usePrinterStore()
+
+    const sent = printer.sendGcode('g28 x', 'console')
+    expect(printer.isHoming).toBe(true)
+    answer('ok')
+    await expect(sent).resolves.toBe(true)
+    expect(printer.isHoming).toBe(false)
+  })
+
+  /**
+   * The defect behind removing the deadline: a jog queued behind a heat soak
+   * was reported failed at sixty seconds while it was still waiting, and the
+   * re-armed button let a second press double the move. G-code now carries no
+   * local deadline at all.
+   */
+  it('sends every G-code script without a local deadline', async () => {
+    const moonraker = useMoonrakerStore()
+    const rpcCall = vi.spyOn(moonraker, 'rpcCall').mockResolvedValue('ok' as never)
+    const printer = usePrinterStore()
+
+    await expect(printer.sendGcode('M117 hello', 'console')).resolves.toBe(true)
     expect(rpcCall).toHaveBeenCalledWith(
       'printer.gcode.script',
-      { script: 'g28' },
+      { script: 'M117 hello' },
       { timeoutMs: null },
     )
+  })
 
-    // An unrelated command keeps the default deadline.
+  it('queues a repeatable press while its earlier send waits, unless the reader chose to wait', async () => {
+    const moonraker = useMoonrakerStore()
+    const answers: Array<(value: unknown) => void> = []
+    const rpcCall = vi
+      .spyOn(moonraker, 'rpcCall')
+      .mockImplementation(() => new Promise((resolve) => answers.push(resolve)) as never)
+    const printer = usePrinterStore()
+    const queue = useCommandQueueStore()
+
+    const first = printer.moveAxis('Z', -0.1)
+    const second = printer.moveAxis('Z', -0.1)
+    expect(rpcCall).toHaveBeenCalledTimes(2)
+    expect(printer.lockedCommands.move).toBe(false)
+    expect(queue.entries).toHaveLength(2)
+    answers.forEach((answer) => answer('ok'))
+    await expect(Promise.all([first, second])).resolves.toEqual([true, true])
+    expect(queue.entries).toHaveLength(0)
+
+    useCommandPreferencesStore().setDispatch('wait')
     rpcCall.mockClear()
-    await expect(printer.sendGcode('M117 hello', 'console')).resolves.toBe(true)
-    expect(rpcCall).toHaveBeenCalledWith('printer.gcode.script', { script: 'M117 hello' })
+    answers.length = 0
+    const waited = printer.moveAxis('Z', -0.1)
+    expect(printer.lockedCommands.move).toBe(true)
+    await expect(printer.moveAxis('Z', -0.1)).resolves.toBe(false)
+    expect(rpcCall).toHaveBeenCalledTimes(1)
+    answers[0]?.('ok')
+    await expect(waited).resolves.toBe(true)
+  })
+
+  it('never queues a second home, in either mode', async () => {
+    const moonraker = useMoonrakerStore()
+    let answer: (value: unknown) => void = () => undefined
+    const rpcCall = vi
+      .spyOn(moonraker, 'rpcCall')
+      .mockImplementation(() => new Promise((resolve) => (answer = resolve)) as never)
+    const printer = usePrinterStore()
+
+    const first = printer.homeAxes()
+    expect(printer.lockedCommands.home).toBe(true)
+    await expect(printer.homeAxes()).resolves.toBe(false)
+    expect(rpcCall).toHaveBeenCalledOnce()
+    answer('ok')
+    await expect(first).resolves.toBe(true)
+  })
+
+  /**
+   * A dropped socket rejects every waiting script in the same tick. Their
+   * outcome is unknown — Klipper may still run them — so they become one
+   * summary rather than one "failed" toast each.
+   */
+  it('summarises scripts lost to a dropped connection in one toast', async () => {
+    vi.useFakeTimers()
+    try {
+      const moonraker = useMoonrakerStore()
+      moonraker.connectionPhase = 'connected'
+      const rejections: Array<(error: unknown) => void> = []
+      vi.spyOn(moonraker, 'rpcCall').mockImplementation(
+        () => new Promise((_, reject) => rejections.push(reject)) as never,
+      )
+      const printer = usePrinterStore()
+      const toasts = useToastsStore()
+
+      const sends = [printer.moveAxis('X', 1), printer.moveAxis('X', 1), printer.turnOffHeaters()]
+      rejections.forEach((reject) => reject(new MoonrakerDisconnectedError()))
+      await expect(Promise.all(sends)).resolves.toEqual([false, false, false])
+      await vi.runAllTimersAsync()
+
+      expect(toasts.entries).toHaveLength(1)
+      expect(toasts.entries[0]?.message).toContain('3')
+      expect(useCommandQueueStore().entries).toHaveLength(0)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  /**
+   * Without a deadline, what bounds a script is the socket closing or Klipper
+   * leaving. A Klipper that stops without dropping its connection may never
+   * answer, and a script left waiting on it would hold its control forever.
+   * The header already reports the shutdown, so nothing else is said.
+   */
+  it('settles a waiting script without a toast when Klipper leaves', async () => {
+    const moonraker = useMoonrakerStore()
+    const availability = useAvailabilityStore()
+    availability.moonrakerConnected({
+      klippy_connected: true,
+      klippy_state: 'ready',
+    } as MoonrakerServerInfo)
+    availability.printerSnapshotSynchronized()
+    vi.spyOn(moonraker, 'rpcCall').mockImplementation(() => new Promise(() => undefined) as never)
+    const printer = usePrinterStore()
+
+    const sent = printer.sendGcode('M190 S60', 'temperature')
+    availability.setKlipperState('shutdown')
+    await expect(sent).resolves.toBe(false)
+    expect(useToastsStore().entries).toHaveLength(0)
+    expect(useCommandQueueStore().entries).toHaveLength(0)
+    expect(printer.pendingCommands.temperature).toBe(false)
   })
 
   it('calibrates a heater without the transport local deadline, since the macro runs for minutes', async () => {
@@ -390,26 +533,38 @@ describe('printer store', () => {
     printer.buildVolume.maximum = [300, 300, 340]
 
     await expect(printer.moveTo({ x: 150, y: 150 })).resolves.toBe(true)
-    expect(rpcCall).toHaveBeenCalledWith('printer.gcode.script', {
-      script:
-        'SAVE_GCODE_STATE NAME=_alabaster_movement\nG90\nG1 X150.00 Y150.00 F6000\nRESTORE_GCODE_STATE NAME=_alabaster_movement',
-    })
+    expect(rpcCall).toHaveBeenCalledWith(
+      'printer.gcode.script',
+      {
+        script:
+          'SAVE_GCODE_STATE NAME=_alabaster_movement\nG90\nG1 X150.00 Y150.00 F6000\nRESTORE_GCODE_STATE NAME=_alabaster_movement',
+      },
+      { timeoutMs: null },
+    )
 
     // Beyond the volume is clamped rather than refused: the intent is clear.
     rpcCall.mockClear()
     await expect(printer.moveTo({ x: 999, y: -50 })).resolves.toBe(true)
-    expect(rpcCall).toHaveBeenCalledWith('printer.gcode.script', {
-      script:
-        'SAVE_GCODE_STATE NAME=_alabaster_movement\nG90\nG1 X300.00 Y0.00 F6000\nRESTORE_GCODE_STATE NAME=_alabaster_movement',
-    })
+    expect(rpcCall).toHaveBeenCalledWith(
+      'printer.gcode.script',
+      {
+        script:
+          'SAVE_GCODE_STATE NAME=_alabaster_movement\nG90\nG1 X300.00 Y0.00 F6000\nRESTORE_GCODE_STATE NAME=_alabaster_movement',
+      },
+      { timeoutMs: null },
+    )
 
     // A Z-only move uses the slower vertical feedrate, like jogging does.
     rpcCall.mockClear()
     await expect(printer.moveTo({ z: 20 })).resolves.toBe(true)
-    expect(rpcCall).toHaveBeenCalledWith('printer.gcode.script', {
-      script:
-        'SAVE_GCODE_STATE NAME=_alabaster_movement\nG90\nG1 Z20.00 F600\nRESTORE_GCODE_STATE NAME=_alabaster_movement',
-    })
+    expect(rpcCall).toHaveBeenCalledWith(
+      'printer.gcode.script',
+      {
+        script:
+          'SAVE_GCODE_STATE NAME=_alabaster_movement\nG90\nG1 Z20.00 F600\nRESTORE_GCODE_STATE NAME=_alabaster_movement',
+      },
+      { timeoutMs: null },
+    )
 
     rpcCall.mockClear()
     await expect(printer.moveTo({})).resolves.toBe(false)
@@ -443,7 +598,11 @@ describe('printer store', () => {
     const printer = usePrinterStore()
 
     await expect(printer.disableMotors()).resolves.toBe(true)
-    expect(rpcCall).toHaveBeenCalledWith('printer.gcode.script', { script: 'M84' })
+    expect(rpcCall).toHaveBeenCalledWith(
+      'printer.gcode.script',
+      { script: 'M84' },
+      { timeoutMs: null },
+    )
   })
 
   it('saves configuration and restarts without opting out of the local deadline', async () => {
@@ -452,7 +611,11 @@ describe('printer store', () => {
     const printer = usePrinterStore()
 
     await expect(printer.saveConfig()).resolves.toBe(true)
-    expect(rpcCall).toHaveBeenCalledWith('printer.gcode.script', { script: 'SAVE_CONFIG' })
+    expect(rpcCall).toHaveBeenCalledWith(
+      'printer.gcode.script',
+      { script: 'SAVE_CONFIG' },
+      { timeoutMs: null },
+    )
   })
 
   it('only starts files returned by Moonraker', async () => {
@@ -558,8 +721,16 @@ describe('printer store', () => {
 
     endPrint('printing') // a fresh attempt at the same file
     endPrint('complete')
-    expect(rpcCall).toHaveBeenCalledWith('printer.gcode.script', { script: 'M220 S100' })
-    expect(rpcCall).toHaveBeenCalledWith('printer.gcode.script', { script: 'M221 S100' })
+    expect(rpcCall).toHaveBeenCalledWith(
+      'printer.gcode.script',
+      { script: 'M220 S100' },
+      { timeoutMs: null },
+    )
+    expect(rpcCall).toHaveBeenCalledWith(
+      'printer.gcode.script',
+      { script: 'M221 S100' },
+      { timeoutMs: null },
+    )
   })
 
   it('leaves speed and flow alone on every end state by default', () => {
@@ -631,9 +802,13 @@ describe('printer store', () => {
 
     endPrint('printing') // a fresh attempt at the same file
     endPrint('complete')
-    expect(rpcCall).toHaveBeenCalledWith('printer.gcode.script', {
-      script: 'SET_VELOCITY_LIMIT VELOCITY=300',
-    })
+    expect(rpcCall).toHaveBeenCalledWith(
+      'printer.gcode.script',
+      {
+        script: 'SET_VELOCITY_LIMIT VELOCITY=300',
+      },
+      { timeoutMs: null },
+    )
   })
 
   it('leaves the limits alone on every end state by default', () => {
@@ -728,9 +903,13 @@ describe('printer store', () => {
     const printer = usePrinterStore()
 
     await expect(printer.clearPrintStats()).resolves.toBe(true)
-    expect(rpcCall).toHaveBeenCalledWith('printer.gcode.script', {
-      script: 'SDCARD_RESET_FILE',
-    })
+    expect(rpcCall).toHaveBeenCalledWith(
+      'printer.gcode.script',
+      {
+        script: 'SDCARD_RESET_FILE',
+      },
+      { timeoutMs: null },
+    )
   })
 
   it('reports slicer progress only once the printer has sent M73', () => {

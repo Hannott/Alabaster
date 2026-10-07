@@ -155,7 +155,6 @@ async function extrude(): Promise<void> {
         'RESTORE_GCODE_STATE NAME=_alabaster_rotation',
       ].join('\n'),
       'extrude',
-      { timeoutMs: null },
     )
   } finally {
     extruding.value = false
@@ -224,7 +223,7 @@ const history = computed(() =>
           <AppButton
             size="sm"
             :label="t('calibration.rotation.heatAction')"
-            :pending="printer.pendingCommands.temperature"
+            :pending="printer.lockedCommands.temperature"
             :disabled="!klipperAvailability.isAvailable || printer.hasActivePrint"
             @click="printer.setHeaterTarget('extruder', heatTarget)"
           />

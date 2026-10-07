@@ -9,6 +9,7 @@ import DisclosureReveal from '@/components/DisclosureReveal.vue'
 import PageHeading from '@/components/PageHeading.vue'
 import PromptDialog from '@/components/PromptDialog.vue'
 import CamerasCard from '@/components/settings/CamerasCard.vue'
+import CommandsCard from '@/components/settings/CommandsCard.vue'
 import ZMotionCard from '@/components/settings/ZMotionCard.vue'
 import { useConsoleFont, type ConsoleFontChoice } from '@/composables/useConsoleFont'
 import { useConsoleWeight, type ConsoleWeightMode } from '@/composables/useConsoleWeight'
@@ -179,6 +180,7 @@ const categories: readonly { id: SettingsCategory; labelKey: string }[] = [
   { id: 'theme', labelKey: 'theme.eyebrow' },
   { id: 'display', labelKey: 'display.eyebrow' },
   { id: 'editor', labelKey: 'editor.eyebrow' },
+  { id: 'commands', labelKey: 'commands.eyebrow' },
   { id: 'confirmations', labelKey: 'confirmations.eyebrow' },
   { id: 'backup', labelKey: 'backup.eyebrow' },
 ]
@@ -1652,6 +1654,8 @@ const lastSyncedDisplay = computed(() => {
               </label>
             </div>
           </section>
+
+          <CommandsCard v-if="showCategory('commands')" />
 
           <section v-if="showCategory('confirmations')" class="page-card">
             <p class="text-eyebrow text-data-blue">

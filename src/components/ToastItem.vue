@@ -23,7 +23,13 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="toast" role="alert">
-    <p class="toast__message">{{ toast.message }}</p>
+    <p class="toast__message">
+      {{
+        toast.count > 1
+          ? t('toast.repeated', { message: toast.message, count: toast.count })
+          : toast.message
+      }}
+    </p>
     <AppButton
       variant="quiet"
       size="xs"

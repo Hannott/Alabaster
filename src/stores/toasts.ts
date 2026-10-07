@@ -7,6 +7,8 @@ export interface ToastEntry {
   id: string
   message: string
   durationMs: number
+  /** How many identical messages this one stands for; see `push`. */
+  count: number
 }
 
 const defaultDurationMs = 5000
@@ -31,8 +33,19 @@ function errorMessage(error: unknown): string {
 export const useToastsStore = defineStore('toasts', () => {
   const entries = reactive<ToastEntry[]>([])
 
+  /**
+   * A message identical to one still on screen counts against that toast
+   * instead of stacking a copy. Queued presses settle together — five jogs
+   * past the travel limit are refused in one burst — and five identical
+   * toasts say nothing the first did not.
+   */
   function push(message: string, durationMs = defaultDurationMs): void {
-    entries.push({ id: nextId(), message, durationMs })
+    const existing = entries.find((entry) => entry.message === message)
+    if (existing) {
+      existing.count += 1
+      return
+    }
+    entries.push({ id: nextId(), message, durationMs, count: 1 })
   }
 
   /** `error` is whatever a rejected command threw — always an `Error` from `services/moonraker`, but never assumed. */

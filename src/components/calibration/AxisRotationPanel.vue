@@ -171,7 +171,6 @@ async function move(sign: 1 | -1): Promise<void> {
         'RESTORE_GCODE_STATE NAME=_alabaster_axis_rotation',
       ].join('\n'),
       'calibration',
-      { timeoutMs: null },
     )
   } finally {
     moving.value = false

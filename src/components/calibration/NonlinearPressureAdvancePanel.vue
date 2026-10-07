@@ -278,7 +278,7 @@ async function printTower(): Promise<void> {
   // Said when the tower is sent, not when the macro returns: that is when it has finished printing.
   printed.value = tower
   writeOutcome.value = null
-  if (!(await printer.sendGcode(script.value, 'calibration', { timeoutMs: null }))) {
+  if (!(await printer.sendGcode(script.value, 'calibration'))) {
     printed.value = null
   }
 }

@@ -267,29 +267,13 @@ export const useConsoleStore = defineStore('console', () => {
    * so what you typed appears on the bottom row the instant you send it rather
    * than after Klipper answers.
    *
-   * Two things about dispatching from here differ from every card control, and
-   * both come from the same fact: a typed line's duration and effect are not
-   * knowable to the interface.
-   *
-   * **The transport's local deadline is waived.** Klipper answers
-   * `printer.gcode.script` only once the script has finished, and the console is
-   * where `M190 S60`, `BED_MESH_CALIBRATE`, `PROBE_ACCURACY`,
-   * `SCREWS_TILT_CALCULATE` and any hand-written heat-soak macro get typed —
-   * every one of which outlives the sixty-second default and would report a
-   * failure for a printer that is working perfectly. `sendGcode` already waives
-   * it for `G28` on exactly this reasoning, and `sendMacro` waives it for every
-   * macro because a macro is arbitrary user G-code; a line typed at the prompt is
-   * arbitrary user G-code with no name on it, so it takes the same exemption
-   * rather than a guess at which commands are slow.
-   *
-   * **A second command while one is in flight is refused before it is echoed.**
-   * `runCommand`'s one-pending-per-key gate refuses the dispatch either way, but
-   * `sendGcode` echoes first, so going through it anyway wrote a command into the
-   * transcript and the history that never reached the machine. A transcript that
-   * shows a command nobody ran is worse than one that shows a refusal — it is the
-   * inverse of the rule that a *refused* command still echoes, and with the
-   * deadline waived above the window it lies over is no longer bounded by a
-   * minute. The prompt keeps the draft and says it is busy instead; see
+   * **A command the prompt may not send yet is refused before it is echoed.**
+   * While the reader queues presses (`commandPreferences`), each Enter goes
+   * straight to Klipper, which runs typed lines in order. While they have chosen
+   * to wait, a line typed while another is in flight is refused — and refused
+   * here, before the history entry, because going through `sendGcode` anyway
+   * would write a command into the history that never reached the machine. The
+   * prompt keeps the draft and says it is busy instead; see
    * `ConsoleCommandInput.vue`'s pending treatment.
    */
   async function sendConsoleCommand(command: string): Promise<boolean> {
@@ -320,9 +304,9 @@ export const useConsoleStore = defineStore('console', () => {
     // setup time would recurse before either store finished constructing.
     const printer = usePrinterStore()
     // Before the echo, not after it — see this function's own doc comment.
-    if (printer.pendingCommands.console) return false
+    if (printer.lockedCommands.console) return false
     rememberCommand(trimmedCommand)
-    const succeeded = await printer.sendGcode(trimmedCommand, 'console', { timeoutMs: null })
+    const succeeded = await printer.sendGcode(trimmedCommand, 'console')
     // The activity feed is the printer store's; a sent command is one of its
     // entries, so the console reports it there rather than keeping a second feed.
     if (succeeded) printer.addActivity('command', 'dashboard.activity.commandSent', trimmedCommand)

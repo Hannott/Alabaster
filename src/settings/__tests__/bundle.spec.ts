@@ -3,6 +3,8 @@ import { beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
 import { useFont } from '@/composables/useFont'
 import { useWakeLock } from '@/composables/useWakeLock'
+import { useAuthStore } from '@/stores/auth'
+import { useCommandPreferencesStore } from '@/stores/commandPreferences'
 import { useConfirmationsStore } from '@/stores/confirmations'
 import { useDashboardLayoutStore } from '@/stores/dashboardLayout'
 import { useDocumentationSiteStore } from '@/stores/documentationSite'
@@ -103,6 +105,29 @@ describe('settings bundle', () => {
 
     await applySettingsBundle(bundle)
     expect(beltGuide.values).toMatchObject({ toolheadGrams: 800, gantryGrams: 600 })
+  })
+
+  /**
+   * Without login every browser shares one synced slot, and a touchscreen at
+   * the printer and a desktop browser are not one person — so queue-or-wait
+   * travels only with a logged-in user, and stays on the device otherwise.
+   */
+  it('carries the command preferences only while a Moonraker user is logged in', async () => {
+    const preferences = useCommandPreferencesStore()
+    preferences.setDispatch('wait')
+    preferences.setShowQueue(true)
+    expect(collectSettingsBundle().commands).toBeNull()
+
+    useAuthStore().currentUser = { username: 'ada', source: 'moonraker' } as never
+    const bundle = collectSettingsBundle()
+    expect(bundle.commands).toEqual({ dispatch: 'wait', showQueue: true })
+
+    preferences.setDispatch('queue')
+    await applySettingsBundle({ commands: null })
+    expect(preferences.dispatch).toBe('queue')
+    await applySettingsBundle(bundle)
+    expect(preferences.dispatch).toBe('wait')
+    expect(preferences.showQueue).toBe(true)
   })
 
   it('leaves every field untouched when given something that is not a record', async () => {

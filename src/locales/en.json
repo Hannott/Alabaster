@@ -7,7 +7,17 @@
   "toast": {
     "error": "Error: {message}",
     "commandFailedFallback": "Command failed",
+    "repeated": "{message} ({count}×)",
     "dismiss": "Dismiss"
+  },
+  "commandQueue": {
+    "label": "Queued commands: {count}",
+    "title": "Queued commands",
+    "subtitle": "Sent from this browser, waiting for the printer.",
+    "running": "Running",
+    "waiting": "Waiting",
+    "footer": "Queued commands cannot be withdrawn. Emergency stop clears them all.",
+    "lostOnDisconnect": "Queued when the connection dropped: {count}. The printer may still run these."
   },
   "navigation": {
     "label": "Primary navigation",
@@ -3049,6 +3059,21 @@
       "klipper": "Klipper",
       "kalico": "Kalico"
     }
+  },
+  "commands": {
+    "eyebrow": "Commands",
+    "title": "Sending commands",
+    "description": "What a button does while the printer is still busy with an earlier command.",
+    "mode": {
+      "queue": "Queue each press",
+      "wait": "Wait for the printer"
+    },
+    "modeDetail": {
+      "queue": "Buttons stay available. Every press is sent and runs in order once the printer is free.",
+      "wait": "A button stays disabled until the printer has accepted its last command."
+    },
+    "showQueue": "Show queued commands in the header",
+    "showQueueHint": "Only while queueing. Lists commands from this browser the printer has not run yet."
   },
   "formats": {
     "timeLabel": "Time",

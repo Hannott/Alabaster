@@ -149,7 +149,7 @@ useDashboardModuleHeaderAction(
           :history="gcodeConsole.commandHistory"
           :commands="commands"
           :get-macro-params="getMacroParams"
-          :pending="printer.pendingCommands.console"
+          :pending="printer.lockedCommands.console"
           @send="gcodeConsole.sendConsoleCommand($event)"
         />
       </div>

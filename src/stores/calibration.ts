@@ -670,7 +670,7 @@ export const useCalibrationStore = defineStore('calibration', () => {
       const kind = script.startsWith('MPC_CALIBRATE') ? 'mpc' : 'pid'
       return printer.calibrateHeater(kind, values.HEATER ?? '', Number(values.TARGET))
     }
-    return printer.sendGcode(script, 'calibration', { timeoutMs: null })
+    return printer.sendGcode(script, 'calibration')
   }
 
   /**

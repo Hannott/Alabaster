@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { NotificationHandler } from '@/services/moonraker'
 import { useAvailabilityStore } from '@/stores/availability'
 import { useBedMeshStore } from '@/stores/bedMesh'
+import { useCommandPreferencesStore } from '@/stores/commandPreferences'
 import { useConsoleStore } from '@/stores/console'
 import { useMoonrakerStore } from '@/stores/moonraker'
 import { usePrinterStore } from '@/stores/printer'
@@ -117,10 +118,32 @@ describe('console store', () => {
     expect(bedMesh.voyageRequests).toBe(0)
   })
 
-  it('refuses a second command before echoing it, rather than logging one it drops', async () => {
+  it('sends each typed line straight away while presses queue, so Klipper runs them in order', async () => {
+    const moonraker = useMoonrakerStore()
+    const gcodeConsole = useConsoleStore()
+    const dispatched: string[] = []
+    const releases: Array<() => void> = []
+    vi.spyOn(moonraker, 'rpcCall').mockImplementation(((
+      _method: string,
+      params: { script: string },
+    ) => {
+      dispatched.push(params.script)
+      return new Promise((resolve) => releases.push(() => resolve('ok')))
+    }) as never)
+
+    const first = gcodeConsole.sendConsoleCommand('M190 S60')
+    const second = gcodeConsole.sendConsoleCommand('M115')
+    expect(dispatched).toEqual(['M190 S60', 'M115'])
+    expect(gcodeConsole.commandHistory).toEqual(['M190 S60', 'M115'])
+    releases.forEach((release) => release())
+    await expect(Promise.all([first, second])).resolves.toEqual([true, true])
+  })
+
+  it('refuses a second command before echoing it while the reader waits for each one', async () => {
     const moonraker = useMoonrakerStore()
     const gcodeConsole = useConsoleStore()
     const printer = usePrinterStore()
+    useCommandPreferencesStore().setDispatch('wait')
     let release: (() => void) | undefined
     const dispatched: string[] = []
     vi.spyOn(moonraker, 'rpcCall').mockImplementation(((
@@ -136,10 +159,8 @@ describe('console store', () => {
     const first = gcodeConsole.sendConsoleCommand('BED_MESH_CALIBRATE')
     expect(printer.pendingCommands.console).toBe(true)
 
-    // The runner refused this dispatch either way; going through `sendGcode`
-    // anyway echoed it first, so the transcript claimed a command that never
-    // reached the machine — and with the deadline waived, for as long as the
-    // printer takes.
+    // Going through `sendGcode` anyway would write the line into the history
+    // although it never reached the machine.
     await expect(gcodeConsole.sendConsoleCommand('M115')).resolves.toBe(false)
     expect(dispatched).toEqual(['BED_MESH_CALIBRATE'])
     expect(gcodeConsole.consoleEntries.map((entry) => entry.message)).toEqual([

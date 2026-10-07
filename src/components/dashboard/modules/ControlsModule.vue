@@ -179,7 +179,7 @@ function setPinState(pin: ConfiguredOutputPin, isOn: boolean): void {
         :max="100"
         :step="1"
         entry
-        :disabled="printer.pendingCommands.fan"
+        :disabled="printer.lockedCommands.fan"
         @commit="(value) => applyFan(fan, value)"
       />
 
@@ -238,7 +238,7 @@ function setPinState(pin: ConfiguredOutputPin, isOn: boolean): void {
             :icon="pin.icon ?? undefined"
             :aria-label="t('dashboard.controls.pinToggle', { pin: pin.name })"
             :model-value="(pinDrafts[pin.objectName] ?? 0) > 0"
-            :disabled="printer.pendingCommands.pin"
+            :disabled="printer.lockedCommands.pin"
             @update:model-value="(isOn) => setPinState(pin, isOn)"
           />
         </template>

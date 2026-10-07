@@ -1,7 +1,7 @@
 # Settings
 
 Settings holds the options for connecting to your printer and configuring
-Alabaster, organized into ten categories chosen from a rail that stays visible
+Alabaster, organized into eleven categories chosen from a rail that stays visible
 while you scroll. Select a category to show only that card, or select **Show
 all settings** to show every card again.
 
@@ -175,6 +175,30 @@ printer you are connected to. **Match the firmware** follows the firmware
 Moonraker's update manager reports and names the one it found. Choose Klipper
 or Kalico when the update manager does not manage the firmware.
 
+## Commands
+
+Keep jogging, extruding, and changing values while the printer is busy. With
+**Queue each press**, the default, every press is sent straight away and the
+printer runs them in order as soon as it is free, so five Z steps pressed
+during a heat-up all happen once it finishes. A command is never reported as
+failed just because it had to wait.
+
+Choose **Wait for the printer** to have a button stay disabled until the
+printer has accepted its previous command instead.
+
+Either way, homing, calibration steps, and starting or stopping a print are
+sent one at a time. Home stays disabled until the machine has finished moving.
+
+**Show queued commands in the header** adds a button, while queueing, that
+appears when a command has had to wait. It lists the commands this browser
+has sent that the printer has not run yet, in the order it will run them,
+with where each came from and how long it has waited. A queued command
+cannot be withdrawn; the emergency stop clears them all.
+
+If the printer requires a login, these settings follow your account through
+sync. Without a login they stay on this device, so a screen at the printer and
+a computer elsewhere can each keep their own.
+
 ## Confirmations
 
 This card lists every confirmation dialog in Alabaster, grouped by area:
@@ -271,4 +295,5 @@ this device only:
   [Several printers](/guide/printers#where-it-is-all-stored).
 - **Device ergonomics**: the screen-awake setting, whether the sidebar is
   collapsed, and which settings category you last had open.
+- **Commands**, unless the printer requires a login.
 - **Logins and sessions**, which belong to the device you are on.

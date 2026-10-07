@@ -791,11 +791,7 @@ describe('what a run sends', () => {
     await flushPromises()
     await finish()
     await withDirection
-    expect(gcode).toHaveBeenCalledWith(
-      'SCREWS_TILT_CALCULATE DIRECTION=CW',
-      'calibration',
-      expect.anything(),
-    )
+    expect(gcode).toHaveBeenCalledWith('SCREWS_TILT_CALCULATE DIRECTION=CW', 'calibration')
     expect(leveling).not.toHaveBeenCalled()
 
     const bare = calibration.run(procedureById('screwsTilt')!, { DIRECTION: '' }, context)

@@ -180,9 +180,7 @@ async function home(): Promise<void> {
      * reported a stall, and Klipper takes that as the endstop — so the
      * reader's answer is asked for either way.
      */
-    const homed = await printer.sendGcode(attemptScript(driver.value, tried), 'calibration', {
-      timeoutMs: null,
-    })
+    const homed = await printer.sendGcode(attemptScript(driver.value, tried), 'calibration')
     /*
      * A home that ran its whole move without a stall fails, and Klipper says
      * so; that is the answer, so it is recorded rather than asked. Any other

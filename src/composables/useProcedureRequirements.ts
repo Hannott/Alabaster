@@ -230,7 +230,7 @@ export function useProcedureRequirements(): ComputedRef<
       requirement: 'homed',
       met: homed.value,
       wording: wordingOf(homed.value),
-      fix: { id: 'home', pending: printer.pendingCommands.home, run: () => printer.homeAxes() },
+      fix: { id: 'home', pending: printer.isHoming, run: () => printer.homeAxes() },
     },
     notPrinting: {
       requirement: 'notPrinting',
@@ -245,7 +245,7 @@ export function useProcedureRequirements(): ComputedRef<
       fix:
         referencePoint.value === null
           ? null
-          : { id: 'moveOverBed', pending: printer.pendingCommands.move, run: moveOverBed },
+          : { id: 'moveOverBed', pending: printer.lockedCommands.move, run: moveOverBed },
     },
     accelerometer: {
       requirement: 'accelerometer',

@@ -906,9 +906,13 @@ describe('Calibration view', () => {
       .findAll('.calibration-result__actions button')
       .find((button) => button.text() === 'Apply')
     await apply!.trigger('click')
-    expect(rpcCall).toHaveBeenCalledWith('printer.gcode.script', {
-      script: 'SET_INPUT_SHAPER SHAPER_TYPE_X=mzv SHAPER_FREQ_X=48.2',
-    })
+    expect(rpcCall).toHaveBeenCalledWith(
+      'printer.gcode.script',
+      {
+        script: 'SET_INPUT_SHAPER SHAPER_TYPE_X=mzv SHAPER_FREQ_X=48.2',
+      },
+      { timeoutMs: null },
+    )
   })
 
   it('applies the shaper the reader chose, and shows and hides the run’s output', async () => {
@@ -933,9 +937,13 @@ describe('Calibration view', () => {
       .findAll('.calibration-result__actions button')
       .find((button) => button.text() === 'Apply')!
       .trigger('click')
-    expect(rpcCall).toHaveBeenCalledWith('printer.gcode.script', {
-      script: 'SET_INPUT_SHAPER SHAPER_TYPE_X=ei SHAPER_FREQ_X=52',
-    })
+    expect(rpcCall).toHaveBeenCalledWith(
+      'printer.gcode.script',
+      {
+        script: 'SET_INPUT_SHAPER SHAPER_TYPE_X=ei SHAPER_FREQ_X=52',
+      },
+      { timeoutMs: null },
+    )
 
     const toggle = () =>
       view.findAll('.calibration-result button').find((button) => /output/i.test(button.text()))!

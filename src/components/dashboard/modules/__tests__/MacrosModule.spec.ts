@@ -9,6 +9,7 @@ import { i18n } from '@/i18n'
 import { useMacrosStore } from '@/stores/macros'
 import { usePrinterStore } from '@/stores/printer'
 import { usePrinterConfigStore } from '@/stores/printerConfig'
+import { useMoonrakerStore } from '@/stores/moonraker'
 import { useToastsStore } from '@/stores/toasts'
 
 function mountModule(initialConfig: Record<string, unknown> = {}, surfaceOpen = false) {
@@ -265,8 +266,8 @@ describe('MacrosModule', () => {
   })
 
   it('pushes a toast when a macro fails, instead of a permanent card alert', async () => {
-    const { macros, printer, pinia } = mountModule({ macros: ['CALIBRATE_MESH'] })
-    vi.spyOn(printer, 'sendMacro').mockRejectedValue(new Error('Klipper refused'))
+    const { macros, pinia } = mountModule({ macros: ['CALIBRATE_MESH'] })
+    vi.spyOn(useMoonrakerStore(pinia), 'rpcCall').mockRejectedValue(new Error('Klipper refused'))
 
     await macros.run('CALIBRATE_MESH')
     await flushPromises()

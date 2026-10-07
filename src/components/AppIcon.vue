@@ -91,6 +91,7 @@ export type AppIconName =
   | 'print'
   | 'probe'
   | 'processor'
+  | 'queuedCommands'
   | 'ram'
   | 'refresh'
   | 'reset'
@@ -358,6 +359,15 @@ defineProps<{ name: AppIconName }>()
       v-else-if="name === 'jobs'"
       d="M21 14c0 1.4 0 2.1-.273 2.635a2.5 2.5 0 0 1-1.092 1.092C19.1 18 18.4 18 17 18H7c-1.4 0-2.1 0-2.635-.273a2.5 2.5 0 0 1-1.093-1.092C3 16.1 3 15.4 3 14m3 0h12M6 10h12M6 6h12"
     />
+    <!--
+      Drawn for the header's queued-commands button: lines waiting beside a
+      clock. Not `jobs`, which is the print job queue — a different list.
+    -->
+    <g v-else-if="name === 'queuedCommands'">
+      <path d="M4 6h12M4 11h7M4 16h4" />
+      <circle cx="16.5" cy="16" r="4.5" />
+      <path d="M16.5 13.75V16l1.5 1.5" />
+    </g>
     <g v-else-if="name === 'console'">
       <rect x="3" y="4" width="18" height="16" rx="3" />
       <path d="m7 9 3 3-3 3M13 15h4" />

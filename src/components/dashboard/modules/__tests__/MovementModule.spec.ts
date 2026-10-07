@@ -9,6 +9,7 @@ import { dashboardModuleContextKey } from '@/dashboard/context'
 import { i18n } from '@/i18n'
 import { useConfirmationsStore } from '@/stores/confirmations'
 import { useCalibrationStore } from '@/stores/calibration'
+import { useCommandQueueStore } from '@/stores/commandQueue'
 import { useConsoleStore } from '@/stores/console'
 import { useManualProbeStore } from '@/stores/manualProbe'
 import { usePrinterStore } from '@/stores/printer'
@@ -222,7 +223,7 @@ describe('MovementModule', () => {
     // homeAxes() homes sequentially: X and Y already report homed while the
     // overall command — Z is still moving — has not resolved yet.
     printer.motion.homedAxes = 'xy'
-    printer.pendingCommands.home = true
+    const homing = useCommandQueueStore().add('G28\nM400', 'dashboard.modules.movement')
     await flushPromises()
 
     const gated = [
@@ -234,7 +235,7 @@ describe('MovementModule', () => {
     for (const control of gated) expect(control?.attributes('disabled')).toBeDefined()
 
     printer.motion.homedAxes = 'xyz'
-    printer.pendingCommands.home = false
+    useCommandQueueStore().settle(homing)
     await flushPromises()
     for (const control of gated) expect(control?.attributes('disabled')).toBeUndefined()
   })
@@ -397,7 +398,7 @@ describe('MovementModule', () => {
 
     await confirmOpenDialog(wrapper)
     // The bench's own registry entry, so the run is logged and gated like one of its.
-    expect(sendGcode).toHaveBeenCalledWith('PROBE_CALIBRATE', 'calibration', { timeoutMs: null })
+    expect(sendGcode).toHaveBeenCalledWith('PROBE_CALIBRATE', 'calibration')
     expect(useCalibrationStore(pinia).runFor('probeZOffset')).not.toBeNull()
 
     const manualProbe = useManualProbeStore(pinia)

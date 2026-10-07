@@ -12,6 +12,7 @@ import {
 import { i18n } from '@/i18n'
 import { consoleEntryFromCommand, consoleEntryFromResponse } from '@/services/console/transcript'
 import { useAvailabilityStore } from '@/stores/availability'
+import { useCommandPreferencesStore } from '@/stores/commandPreferences'
 import { useConfirmationsStore } from '@/stores/confirmations'
 import { useConsoleStore } from '@/stores/console'
 import { useMoonrakerStore } from '@/stores/moonraker'
@@ -226,8 +227,9 @@ describe('ConsoleModule', () => {
     expect(wrapper.find('.confirm-dialog[open]').exists()).toBe(false)
   })
 
-  it('holds sending while a command is in flight, rather than echoing one it drops', async () => {
+  it('holds sending while a command is in flight in wait mode, rather than echoing one it drops', async () => {
     const { wrapper, printer, gcodeConsole } = mountModule()
+    useCommandPreferencesStore().setDispatch('wait')
     const moonraker = useMoonrakerStore()
     let release: (() => void) | undefined
     const dispatched: string[] = []

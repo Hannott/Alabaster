@@ -308,11 +308,12 @@ const zOffset = computed(() => printer.motion.homingOrigin[2] ?? 0)
 const isMoving = computed(() => printer.motion.liveVelocity > movingAbove)
 /**
  * `homeAxes()` homes sequentially, so Klipper reports an earlier axis as
- * homed while a later one is still moving — `pendingCommands.home` is what
- * actually says the whole command has finished, and every control below
- * needs both: the axis has to be homed, and homing has to be over.
+ * homed while a later one is still moving — `isHoming` is what actually says
+ * the whole home has finished, and every control below needs both: the axis
+ * has to be homed, and homing has to be over. It covers a `G28` sent from the
+ * console too, and lasts until the machine has stopped (see `homeAxes`).
  */
-const homing = computed(() => printer.pendingCommands.home)
+const homing = computed(() => printer.isHoming)
 /**
  * Homing, releasing the motors and running a leveling procedure are all refused
  * while a job is *loaded*, not merely while one is moving — `hasActivePrint`,
@@ -336,7 +337,7 @@ const hasJobLoaded = computed(() => printer.hasActivePrint)
  * command error, which is what they did before.
  */
 const canAdjustOffset = computed(
-  () => isHomed('Z') && !homing.value && !printer.pendingCommands.zOffset,
+  () => isHomed('Z') && !homing.value && !printer.lockedCommands.zOffset,
 )
 
 const parkPositions = computed(() => {
@@ -358,7 +359,7 @@ const parkPositions = computed(() => {
  * while idle would never cause.
  */
 const canMoveToTarget = computed(
-  () => isFullyHomed.value && !homing.value && !printer.pendingCommands.move && !printer.isPrinting,
+  () => isFullyHomed.value && !homing.value && !printer.lockedCommands.move && !printer.isPrinting,
 )
 
 /** One arrow press moves by the same distance a jog button would. */
@@ -411,7 +412,7 @@ function formatAxisReading(axis: Axis, value: number | null): string {
 }
 
 function canEditAxis(axis: Axis): boolean {
-  return isHomed(axis) && !homing.value && !printer.pendingCommands.move && !printer.isPrinting
+  return isHomed(axis) && !homing.value && !printer.lockedCommands.move && !printer.isPrinting
 }
 
 /**
@@ -998,7 +999,7 @@ function screwInstruction(screw: (typeof screwResults.value)[number]): string {
                   mono
                   :label="signedStep(lowSign(axis) * step)"
                   class="jog-button"
-                  :disabled="printer.pendingCommands.move || homing || !isHomed(axis)"
+                  :disabled="printer.lockedCommands.move || homing || !isHomed(axis)"
                   :aria-label="jogLabel(axis, lowSign(axis) * step)"
                   @click="printer.moveAxis(axis, lowSign(axis) * step, jogSpeed(axis))"
                 />
@@ -1008,7 +1009,7 @@ function screwInstruction(screw: (typeof screwResults.value)[number]): string {
                 size="xs"
                 class="jog-pivot"
                 :class="{ 'jog-pivot--homed': isHomed(axis) }"
-                :disabled="printer.pendingCommands.home || hasJobLoaded"
+                :disabled="printer.isHoming || hasJobLoaded"
                 :aria-label="pivotLabel(axis)"
                 :title="pivotTitle(axis)"
                 @click="() => printer.homeAxes(axis)"
@@ -1026,7 +1027,7 @@ function screwInstruction(screw: (typeof screwResults.value)[number]): string {
                   mono
                   :label="signedStep(-lowSign(axis) * step)"
                   class="jog-button"
-                  :disabled="printer.pendingCommands.move || homing || !isHomed(axis)"
+                  :disabled="printer.lockedCommands.move || homing || !isHomed(axis)"
                   :aria-label="jogLabel(axis, -lowSign(axis) * step)"
                   @click="printer.moveAxis(axis, -lowSign(axis) * step, jogSpeed(axis))"
                 />
@@ -1131,7 +1132,7 @@ function screwInstruction(screw: (typeof screwResults.value)[number]): string {
                 size="xs"
                 class="jog-pivot jog-pivot--primary"
                 :aria-label="t('dashboard.movement.homeAll')"
-                :disabled="printer.pendingCommands.home"
+                :disabled="printer.isHoming"
                 @click="() => printer.homeAxes()"
               >
                 <AppIcon name="home" class="size-4 shrink-0" aria-hidden="true" />
@@ -1151,7 +1152,7 @@ function screwInstruction(screw: (typeof screwResults.value)[number]): string {
                   size="xs"
                   class="jog-pivot"
                   :aria-label="t('dashboard.movement.homeXY')"
-                  :disabled="printer.pendingCommands.home"
+                  :disabled="printer.isHoming"
                   @click="() => printer.homeAxes('XY')"
                 >
                   <AppIcon name="home" class="size-4 shrink-0" aria-hidden="true" />
@@ -1295,7 +1296,7 @@ function screwInstruction(screw: (typeof screwResults.value)[number]): string {
             size="xs"
             icon-only
             icon="save"
-            :disabled="printer.pendingCommands.zOffset || zOffset === 0"
+            :disabled="printer.lockedCommands.zOffset || zOffset === 0"
             :aria-label="t('dashboard.movement.zOffsetApply')"
             :title="offsetApplyTitle"
             @click="applyOffset"
@@ -1388,7 +1389,7 @@ function screwInstruction(screw: (typeof screwResults.value)[number]): string {
           entry
           can-reset
           :reset-value="100"
-          :disabled="printer.pendingCommands.speed"
+          :disabled="printer.lockedCommands.speed"
           @commit="commitSpeedFactor"
         />
       </div>

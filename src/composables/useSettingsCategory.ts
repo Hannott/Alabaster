@@ -10,6 +10,7 @@ export type SettingsCategory =
   | 'theme'
   | 'display'
   | 'editor'
+  | 'commands'
   | 'confirmations'
   | 'backup'
 
@@ -23,6 +24,7 @@ const validCategories: readonly SettingsCategory[] = [
   'theme',
   'display',
   'editor',
+  'commands',
   'confirmations',
   'backup',
 ]

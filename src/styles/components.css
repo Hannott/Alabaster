@@ -1427,6 +1427,47 @@ input[type='number']::-webkit-inner-spin-button {
 }
 
 /*
+ * Settings' Commands choice (`CommandsCard.vue`). Copied from the Z motion
+ * option cards rather than shared with them: the two only look alike, and the
+ * Z motion cards carry a schematic column this one has no use for.
+ */
+.commands-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+  gap: 0.5rem;
+}
+
+.commands-option {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 0.75rem;
+  border-color: var(--border-subtle);
+  border-radius: 0.25rem;
+  padding: 0.65rem 0.8rem;
+}
+
+.commands-option__name {
+  display: block;
+  font-weight: 800;
+}
+
+.commands-option__detail {
+  display: block;
+  color: var(--text-muted);
+  font-size: var(--text-hint-size);
+  line-height: 1.4;
+}
+
+/* Under the checkbox's words, not its box — see `.check-row + .module-settings__hint`. */
+.commands-card__hint {
+  margin-block-start: 0.25rem;
+  margin-inline-start: 1.7rem;
+  color: var(--text-muted);
+  font-size: var(--text-hint-size);
+}
+
+/*
  * A setting that only matters while a sibling checkbox above it is on —
  * Movement's "Show during printing" beneath "Show the bed plan" is the first
  * instance. It takes the same indent a hint takes under a check row, `1.7rem`
@@ -7920,6 +7961,113 @@ input.z-axis__slider {
 /* A tint plus the row's own warning icon carry this state — never the tint alone. */
 .header-notice-row--high {
   background: color-mix(in srgb, var(--status-caution-text) 10%, transparent);
+}
+
+/*
+ * The header's queued-commands list (`HeaderCommandQueue.vue`). Wider than the
+ * default menu band, since a row is a G-code script the reader wants to read
+ * to the end of, not a menu label.
+ */
+.header-command-queue__panel {
+  max-inline-size: min(26rem, calc(100vw - 2rem));
+  min-inline-size: min(20rem, calc(100vw - 2rem));
+}
+
+.header-command-queue__count {
+  font-family: var(--font-mono);
+  font-size: var(--text-value-micro-size);
+  font-variant-numeric: tabular-nums;
+}
+
+.header-command-queue__subtitle {
+  padding: 0 0.6rem 0.4rem;
+  color: var(--text-muted);
+  font-size: var(--text-hint-size);
+}
+
+.header-command-queue__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.1rem 0.6rem;
+  padding: 0.45rem 0.6rem;
+}
+
+.header-command-queue__row + .header-command-queue__row {
+  border-top: 1px solid var(--border-subtle);
+}
+
+.header-command-queue__script {
+  overflow: hidden;
+  font-family: var(--font-mono);
+  font-size: var(--text-value-micro-size);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The words carry the state; the accent only repeats it. */
+.header-command-queue__state {
+  color: var(--text-muted);
+  font-size: var(--text-hint-size);
+  font-weight: var(--font-weight-increased);
+  text-align: end;
+}
+
+.header-command-queue__state--running {
+  color: var(--accent-primary);
+}
+
+.header-command-queue__meta {
+  color: var(--text-muted);
+  font-size: var(--text-hint-size);
+}
+
+.header-command-queue__age {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  text-align: end;
+}
+
+.header-command-queue__footer {
+  margin-block-start: 0.3rem;
+  border-top: 1px solid var(--border-subtle);
+  padding: 0.5rem 0.6rem 0.2rem;
+  color: var(--text-muted);
+  font-size: var(--text-hint-size);
+}
+
+/*
+ * On a phone the trigger sits mid-row, beside notifications and power, so a
+ * panel anchored to its own end edge ran 85 px off the left of a 390 px
+ * screen. There the menu stops being the panel's containing block, and the
+ * sticky header — the next positioned ancestor — takes over: the panel opens
+ * under the header and lines up with its inline end instead.
+ */
+@media (max-width: 39.999rem) {
+  .header-command-queue {
+    position: static;
+  }
+
+  .header-command-queue .header-command-queue__panel {
+    inset-inline-end: 1rem;
+  }
+}
+
+/* Opacity only: the button's arrival already moves its neighbours, and that geometry is never animated. */
+.header-command-queue-enter-active,
+.header-command-queue-leave-active {
+  transition: opacity var(--motion-duration-fast) var(--motion-ease-standard);
+}
+
+.header-command-queue-enter-from,
+.header-command-queue-leave-to {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .header-command-queue-enter-active,
+  .header-command-queue-leave-active {
+    transition: none;
+  }
 }
 
 /*

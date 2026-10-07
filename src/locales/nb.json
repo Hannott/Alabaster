@@ -7,7 +7,17 @@
   "toast": {
     "error": "Feil: {message}",
     "commandFailedFallback": "Kommandoen feilet",
+    "repeated": "{message} ({count}×)",
     "dismiss": "Lukk"
+  },
+  "commandQueue": {
+    "label": "Kommandoer i kø: {count}",
+    "title": "Kommandoer i kø",
+    "subtitle": "Sendt fra denne nettleseren, venter på printeren.",
+    "running": "Kjører",
+    "waiting": "Venter",
+    "footer": "Kommandoer i kø kan ikke trekkes tilbake. Nødstopp tømmer hele køen.",
+    "lostOnDisconnect": "I kø da tilkoblingen falt ut: {count}. Printeren kan fortsatt kjøre dem."
   },
   "navigation": {
     "label": "Hovednavigasjon",
@@ -3049,6 +3059,21 @@
       "klipper": "Klipper",
       "kalico": "Kalico"
     }
+  },
+  "commands": {
+    "eyebrow": "Kommandoer",
+    "title": "Sending av kommandoer",
+    "description": "Hva en knapp gjør mens printeren fortsatt er opptatt med en tidligere kommando.",
+    "mode": {
+      "queue": "Legg hvert trykk i kø",
+      "wait": "Vent på printeren"
+    },
+    "modeDetail": {
+      "queue": "Knappene er alltid tilgjengelige. Hvert trykk sendes og kjøres i rekkefølge når printeren er ledig.",
+      "wait": "En knapp er deaktivert til printeren har tatt imot den forrige kommandoen."
+    },
+    "showQueue": "Vis kommandoer i kø i toppfeltet",
+    "showQueueHint": "Bare ved kø. Viser kommandoer fra denne nettleseren som printeren ikke har kjørt ennå."
   },
   "formats": {
     "timeLabel": "Klokkeslett",

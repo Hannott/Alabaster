@@ -33,6 +33,12 @@ import {
   type StoredConfirmations,
 } from '@/stores/confirmations'
 import { normalizeDashboardProfile, useDashboardLayoutStore } from '@/stores/dashboardLayout'
+import { useAuthStore } from '@/stores/auth'
+import {
+  defaultCommandPreferences,
+  useCommandPreferencesStore,
+  type StoredCommandPreferences,
+} from '@/stores/commandPreferences'
 import type { QuickConfigPin } from '@/features/config/quickConfigFields'
 import type { QuickConfigColumns } from '@/features/config/quickConfigLayout'
 import { useQuickConfigStore } from '@/stores/quickConfig'
@@ -113,6 +119,13 @@ export interface SettingsBundle {
    * while nothing has been typed there.
    */
   beltGuide: BeltGuideValues | null
+  /**
+   * Queue-or-wait and the header queue list. Carried only while a Moonraker
+   * user is logged in, and null otherwise: without login every browser shares
+   * one synced slot, and these are one person's habits, not the printer's.
+   * See `stores/commandPreferences.ts`.
+   */
+  commands: StoredCommandPreferences | null
 }
 
 function isGcodeColorMode(value: unknown): value is GcodeColorMode {
@@ -138,6 +151,8 @@ export function collectSettingsBundle(): SettingsBundle {
   const zMotion = useZMotionStore()
   const documentationSite = useDocumentationSiteStore()
   const beltGuide = useBeltGuideStore()
+  const commandPreferences = useCommandPreferencesStore()
+  const auth = useAuthStore()
 
   return {
     version: 1,
@@ -173,6 +188,9 @@ export function collectSettingsBundle(): SettingsBundle {
     zMotion: zMotion.stored,
     documentationSite: documentationSite.stored,
     beltGuide: beltGuide.stored,
+    commands: auth.currentUser
+      ? { dispatch: commandPreferences.dispatch, showQueue: commandPreferences.showQueue }
+      : null,
   }
 }
 
@@ -252,6 +270,7 @@ export async function applySettingsBundle(input: unknown): Promise<void> {
   if (input.zMotion !== undefined) zMotion.replace(input.zMotion)
   if (input.documentationSite !== undefined) documentationSite.replace(input.documentationSite)
   if (input.beltGuide !== undefined) beltGuide.replace(input.beltGuide)
+  if (isRecord(input.commands)) useCommandPreferencesStore().replace(input.commands)
   if (isRecord(input.gcodeViewer)) {
     const viewer = input.gcodeViewer
     if (isGcodeColorMode(viewer.colorMode)) gcodeViewer.setColorMode(viewer.colorMode)
@@ -299,5 +318,6 @@ export function defaultSettingsBundle(): SettingsBundle {
     zMotion: null,
     documentationSite: null,
     beltGuide: null,
+    commands: { ...defaultCommandPreferences },
   }
 }

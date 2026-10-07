@@ -242,7 +242,6 @@ describe('SensorlessHomingPanel', () => {
     expect(sendGcode).toHaveBeenCalledWith(
       'SET_TMC_FIELD STEPPER=stepper_x FIELD=sgthrs VALUE=120\nG4 P2000\nG28 X',
       'calibration',
-      { timeoutMs: null },
     )
     expect(panel.text()).toContain('driver_SGTHRS: 80')
   })

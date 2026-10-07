@@ -1179,10 +1179,11 @@ export interface MoonrakerRpcMethods {
 export interface MoonrakerCallOptions {
   /**
    * Overrides the transport's default request timeout. `null` disables the local
-   * timer entirely, which is required for the update manager: Moonraker answers
-   * `machine.update.refresh` and `machine.update.upgrade` only after the work is
-   * finished, and a fetch across every configured repository routinely outlasts
-   * any timeout short enough to be useful elsewhere. Such a request is still
+   * timer entirely, for a request whose answer only comes once the work is done:
+   * the update manager's `machine.update.refresh` and `machine.update.upgrade`,
+   * and every `printer.gcode.script` — Klipper runs scripts one at a time and
+   * Moonraker never drops one for waiting, so a deadline on G-code reports a
+   * script still queued behind a heat soak as failed. Such a request is still
    * bounded — a closing socket rejects everything still pending.
    */
   timeoutMs?: number | null
