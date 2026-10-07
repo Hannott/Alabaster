@@ -570,6 +570,8 @@ const baseScrewPattern = /^(.+?) \(base\) : x=/
 const detectedAxesMapPattern =
   /Detected axes_map:\s*([-+]?[xyz])\s*,\s*([-+]?[xyz])\s*,\s*([-+]?[xyz])/i
 const existingAxesMapPattern = /existing axes_map \(([^)]*)\)/i
+const undeterminedAxesMapPattern = /Detected axes_map:\s*unable to determine/i
+const axisAngleErrorPattern = /Machine axis [XYZ] -> [-+]?[xyz] \(angle error: ([\d.]+) degrees\)/i
 /** Shake&Tune's `belts_computation.py`, printed for CoreXY and CoreXZ only. */
 const beltSimilarityPattern = /Belts estimated similarity: ([\d.]+)%/
 const mechanicalHealthPattern = /Mechanical health: (.+)$/
@@ -1154,7 +1156,24 @@ export function parseAxesMap(
   before: ProcedureSnapshot,
 ): ProcedureResult | null {
   const match = lastMatch(lines, detectedAxesMapPattern)
-  if (!match) return outcomeOnly(lines)
+  if (!match) {
+    // Shake&Tune still prints "update your configuration to <its verdict>" here, so the
+    // placeholder text would be offered as a value if the verdict were not caught first.
+    if (!lastMatch(lines, undeterminedAxesMapPattern)) return outcomeOnly(lines)
+    const errors = allLines(lines).flatMap((line) => {
+      const angle = axisAngleErrorPattern.exec(line)
+      return angle ? [Number(angle[1])] : []
+    })
+    return {
+      rows: [
+        {
+          label: key('calibration.result.axesMapUndetermined'),
+          after: errors.length > 0 ? `${Math.max(...errors)}°` : '—',
+        },
+      ],
+      outcome: 'measured',
+    }
+  }
   const detected = compactAxesMap(`${match[1]},${match[2]},${match[3]}`)
   const existing = lastMatch(lines, existingAxesMapPattern)?.[1]
   const previous = before.axes_map || existing

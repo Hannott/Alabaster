@@ -543,6 +543,7 @@
       "noise": "Støy, {chip} (x · y · z)",
       "keepInFile": "Behold {option} i filen",
       "writeToSection": "Skriv {option} til [{section}]",
+      "axesMapUndetermined": "Fant ingen axes_map · største vinkelavvik per akse",
       "profile": "Profil",
       "points": "Punkter",
       "bedTemperature": "Sengtemperatur",

@@ -507,6 +507,22 @@ describe('reading results', () => {
     ])
   })
 
+  it('reports an undetermined axes_map without offering to write Shake&Tune’s placeholder', () => {
+    const result = parseAxesMap(
+      [
+        '// Machine axis X -> +y (angle error: 4.4 degrees)',
+        '// Machine axis Z -> -x (angle error: 31.6 degrees)',
+        '// ==> Detected axes_map: unable to determine correctly! (Same accelerometer axis detected for multiple machine axes!)',
+        '// Your current axes_map doesn\'t match! Please update your configuration to unabletodeterminecorrectly!.',
+      ],
+      { accel_chip: 'adxl345', axes_map: '-x,-z,-y' },
+    )
+    expect(result?.rows).toEqual([
+      { label: { key: 'calibration.result.axesMapUndetermined' }, after: '31.6°' },
+    ])
+    expect(result?.actions).toBeUndefined()
+  })
+
   it('offers no axes_map write when it already matches or the chip is unknown', () => {
     const lines = ['// ==> Detected axes_map: -x, -z, -y']
     expect(parseAxesMap(lines, { accel_chip: 'adxl345', axes_map: '-x, -z, -y' })?.actions).toEqual(

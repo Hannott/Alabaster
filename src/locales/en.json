@@ -543,6 +543,7 @@
       "noise": "Noise, {chip} (x · y · z)",
       "keepInFile": "Keep {option} in the file",
       "writeToSection": "Write {option} to [{section}]",
+      "axesMapUndetermined": "No axes_map found · largest axis angle error",
       "profile": "Profile",
       "points": "Points",
       "bedTemperature": "Bed temperature",
