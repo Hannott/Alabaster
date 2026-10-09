@@ -16,6 +16,7 @@ import { useHistoryStore } from '@/stores/history'
 import { useJobQueueStore } from '@/stores/jobQueue'
 import { useMacrosStore } from '@/stores/macros'
 import { useManualProbeStore } from '@/stores/manualProbe'
+import { useMachineSystemStore } from '@/stores/machineSystem'
 import { useMaintenanceStore } from '@/stores/maintenance'
 import { useMoonrakerStore } from '@/stores/moonraker'
 import { usePrinterStore } from '@/stores/printer'
@@ -72,6 +73,9 @@ useAuthStore(pinia).start()
 // than only while that page is mounted.
 useHistoryStore(pinia).start()
 useMaintenanceStore(pinia).start()
+// An update started from another browser opens the console in this one, on
+// whichever page it happens to be.
+useMachineSystemStore(pinia).watchUpdates()
 // Settings/layout sync needs to notice a reconnect and apply a newer synced
 // profile regardless of whether Settings has ever been opened.
 useSettingsSyncStore(pinia).start()

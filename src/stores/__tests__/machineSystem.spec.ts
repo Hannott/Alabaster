@@ -675,8 +675,10 @@ describe('machine system store', () => {
       'notify_status_update',
     ])
 
+    // The update subscriptions outlive the page: another browser's run must
+    // still open the console here after the Machine page is closed.
     machine.stop()
-    expect(dispose).toHaveBeenCalledTimes(5)
+    expect(dispose).toHaveBeenCalledTimes(3)
   })
 
   it('reads a headline state for every source and only offers Update all when one is behind', () => {
@@ -801,6 +803,91 @@ describe('machine system store', () => {
 
     expect(machine.outputLines).toHaveLength(2)
     expect(machine.runningUpdateId).toBe(null)
+    machine.stop()
+  })
+
+  it("follows another client's update run without the Machine page open", async () => {
+    const moonraker = useMoonrakerStore()
+    moonraker.connectionPhase = 'connected'
+    const handlers = captureNotifications(moonraker)
+    const rpcCall = vi
+      .spyOn(moonraker, 'rpcCall')
+      .mockResolvedValue(updateStatus({ alabaster: { version: 'v2' } }) as never)
+    const machine = useMachineSystemStore()
+    machine.watchUpdates()
+    machine.updateFailed = true
+
+    const respond = handlers.get('notify_update_response')
+    respond?.({
+      jsonrpc: '2.0',
+      method: 'notify_update_response',
+      params: [{ application: 'alabaster', proc_id: 3, message: 'Updating...', complete: false }],
+    })
+
+    expect(machine.runningUpdateId).toBe('alabaster')
+    expect(machine.isUpdateManagerBusy).toBe(true)
+    expect(machine.updateFailed).toBe(false)
+
+    respond?.({
+      jsonrpc: '2.0',
+      method: 'notify_update_response',
+      params: [{ application: 'alabaster', proc_id: 3, message: 'Done', complete: true }],
+    })
+    await flushPromises()
+
+    expect(machine.isUpdating).toBe(false)
+    expect(machine.completedUpdateIds.has('alabaster')).toBe(true)
+    // Only the update list is reread; the page's full telemetry load is not.
+    expect(rpcCall.mock.calls.map(([method]) => method)).toEqual(['machine.update.status'])
+    expect(machine.updates.map((update) => update.version)).toEqual(['v2'])
+  })
+
+  it("ends another client's run when Moonraker drops the socket mid-update", async () => {
+    const moonraker = useMoonrakerStore()
+    moonraker.connectionPhase = 'connected'
+    const handlers = captureNotifications(moonraker)
+    const machine = useMachineSystemStore()
+    machine.watchUpdates()
+
+    handlers.get('notify_update_response')?.({
+      jsonrpc: '2.0',
+      method: 'notify_update_response',
+      params: [{ application: 'moonraker', proc_id: 4, message: 'Restarting', complete: false }],
+    })
+    expect(machine.isUpdating).toBe(true)
+
+    moonraker.connectionPhase = 'reconnecting'
+    await nextTick()
+
+    expect(machine.isUpdating).toBe(false)
+    expect(machine.updateInterrupted).toBe(true)
+  })
+
+  it("does not mistake this tab's own run for another client's", async () => {
+    const moonraker = useMoonrakerStore()
+    moonraker.connectionPhase = 'connected'
+    const handlers = captureNotifications(moonraker)
+    const machine = useMachineSystemStore()
+    machine.start()
+    machine.updates = [{ id: 'klipper', displayName: 'Klipper', commits_behind_count: 1 }]
+    vi.spyOn(moonraker, 'rpcCall').mockImplementation(() => new Promise(() => {}) as never)
+    void machine.startUpdate('klipper')
+    await flushPromises()
+
+    const respond = handlers.get('notify_update_response')
+    respond?.({
+      jsonrpc: '2.0',
+      method: 'notify_update_response',
+      params: [{ application: 'klipper', proc_id: 5, message: 'Updating', complete: false }],
+    })
+    respond?.({
+      jsonrpc: '2.0',
+      method: 'notify_update_response',
+      params: [{ application: 'klipper', proc_id: 5, message: 'Done', complete: true }],
+    })
+
+    // Its success is the request's to record, not the notification's.
+    expect(machine.completedUpdateIds.has('klipper')).toBe(false)
     machine.stop()
   })
 

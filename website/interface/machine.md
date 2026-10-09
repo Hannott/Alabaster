@@ -87,6 +87,10 @@ The transcript opens in a window of its own the moment a run starts, with
 room to read the output as it arrives. This is the same `git` or `apt` output
 you would get over SSH.
 
+The window also opens in every other browser connected to the printer, on
+whatever page it is showing, so an update started from a phone is visible on
+the desktop too, and nobody starts a second one mid-run.
+
 While a run is in progress, the window stays open regardless of `Escape`, a
 click outside it, or the close control, so a stalled or failed update can't
 be dismissed and forgotten. Once the run ends, the window closes normally by

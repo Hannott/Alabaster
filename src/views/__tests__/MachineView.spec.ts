@@ -1,7 +1,9 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { enableAutoUnmount, flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { defineComponent, h } from 'vue'
 
+import MachineUpdateConsoleHost from '@/components/MachineUpdateConsoleHost.vue'
 import { i18n } from '@/i18n'
 import MachineView from '@/views/MachineView.vue'
 import { useAvailabilityStore } from '@/stores/availability'
@@ -42,7 +44,12 @@ function mountMachineView() {
   vi.spyOn(machine, 'load').mockResolvedValue()
   vi.spyOn(machine, 'refreshProcStats').mockResolvedValue()
 
-  const wrapper = mount(MachineView, { global: { plugins: [pinia, i18n] } })
+  // The update console is rendered app-wide, so the page is mounted beside it
+  // the way `App.vue` mounts both.
+  const WithConsole = defineComponent({
+    render: () => [h(MachineView), h(MachineUpdateConsoleHost)],
+  })
+  const wrapper = mount(WithConsole, { global: { plugins: [pinia, i18n] } })
   return { machine, wrapper }
 }
 

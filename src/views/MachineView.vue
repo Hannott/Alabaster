@@ -7,7 +7,6 @@ import AppIcon from '@/components/AppIcon.vue'
 import AppStatusField, { type AppStatusFieldTone } from '@/components/AppStatusField.vue'
 import AvailabilityRegion from '@/components/AvailabilityRegion.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
-import MachineUpdateConsoleDialog from '@/components/MachineUpdateConsoleDialog.vue'
 import PageHeading from '@/components/PageHeading.vue'
 import UpdateCommitList from '@/components/UpdateCommitList.vue'
 import UpdateRecoveryDialog from '@/components/UpdateRecoveryDialog.vue'
@@ -420,7 +419,7 @@ function confirmUpdate(): void {
 
 /*
  * The dialog closes as the recovery starts: its progress belongs in the update
- * console popout below, which opens itself the moment `isUpdating` goes true.
+ * console popout, which opens itself the moment `isUpdating` goes true.
  */
 function confirmRecovery(id: string): void {
   investigating.value = null
@@ -477,59 +476,12 @@ function cancelRollback(): void {
 /*
  * The dialog closes as the rollback starts: its progress belongs in the same
  * update console popout every other update action opens, via the shared
- * `isUpdating` watcher below.
+ * `isUpdating` watcher in `MachineUpdateConsoleHost`.
  */
 function confirmRollback(): void {
   const target = pendingRollback.value
   pendingRollback.value = null
   if (target) void machine.rollbackUpdate(target.id)
-}
-
-const isConsoleOpen = ref(false)
-/**
- * Set once a run that completed `alabaster` — Alabaster's own served bundle
- * — ends, and consumed only after the console the reader is still watching
- * is dismissed; see `closeConsole` below. Read from `machine.completedUpdateIds`
- * rather than `!updateFailed && !updateInterrupted`: an **Update all** run
- * that updates Alabaster before failing on Moonraker last (Moonraker
- * restarting drops the socket, which `startAllUpdates` orders it after
- * everything else specifically to isolate) must still reload, since
- * Alabaster's own install did not fail. Klipper needs no equivalent flag —
- * Moonraker already restarts it as part of finishing its own update, the
- * same fact `updateOneConfirmDescription` already tells the reader before
- * the run starts, so prompting again afterward would only invite a second,
- * redundant restart.
- */
-const alabasterReloadDue = ref(false)
-
-/*
- * Opens itself the moment a run starts, the same continuation-of-the-user's-
- * own-gesture behavior as the confirmation dialog it follows — the user just
- * confirmed Update now (or Investigate's own reset/re-clone), so this is not
- * an unprompted popup. It stays open across the whole run and does not force
- * itself back open if the reader dismisses it early; `openConsole` in the
- * Updates panel header reopens it for as long as there is a transcript to see.
- */
-watch(
-  () => machine.isUpdating,
-  (isUpdating, wasUpdating) => {
-    if (isUpdating && !wasUpdating) isConsoleOpen.value = true
-    if (!isUpdating && wasUpdating && machine.completedUpdateIds.has('alabaster')) {
-      alabasterReloadDue.value = true
-    }
-  },
-)
-
-/**
- * The console dialog closing is what triggers the reload, never the run
- * finishing on its own: reloading while the reader is still watching the
- * transcript would discard it out from under them.
- */
-function closeConsole(): void {
-  isConsoleOpen.value = false
-  if (!alabasterReloadDue.value) return
-  alabasterReloadDue.value = false
-  window.location.reload()
 }
 
 watch(
@@ -898,7 +850,7 @@ onBeforeUnmount(() => {
                 :pending="machine.isUpdating"
                 icon="console"
                 :label="t('machine.output.openConsole')"
-                @click="isConsoleOpen = true"
+                @click="machine.isConsoleOpen = true"
               />
               <AppButton
                 variant="quiet"
@@ -1178,15 +1130,6 @@ onBeforeUnmount(() => {
       @confirm="confirmServiceRestart"
       @cancel="cancelServiceRestart"
       @skip="confirmations.setSkip('restartService', true)"
-    />
-
-    <MachineUpdateConsoleDialog
-      :open="isConsoleOpen"
-      :lines="machine.outputLines"
-      :running="machine.isUpdating"
-      :failed="machine.updateFailed || machine.updateInterrupted"
-      @close="closeConsole"
-      @clear="machine.clearUpdateOutput()"
     />
   </section>
 </template>

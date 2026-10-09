@@ -11,6 +11,7 @@ import BedScrewsDialog from '@/components/BedScrewsDialog.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import HeaderCommandQueue from '@/components/HeaderCommandQueue.vue'
 import HeaderMenu from '@/components/HeaderMenu.vue'
+import MachineUpdateConsoleHost from '@/components/MachineUpdateConsoleHost.vue'
 import ManualProbeDialog from '@/components/ManualProbeDialog.vue'
 import PrinterFaultNotice from '@/components/PrinterFaultNotice.vue'
 import SaveConfigDialog from '@/components/SaveConfigDialog.vue'
@@ -1268,6 +1269,11 @@ async function discardPendingConfig(): Promise<void> {
     -->
     <ManualProbeDialog />
     <BedScrewsDialog />
+    <!--
+      Here for the same reason: Moonraker broadcasts an update's output to every
+      client, so a run started from another browser opens its console in this one.
+    -->
+    <MachineUpdateConsoleHost />
 
     <ToastStack />
   </div>

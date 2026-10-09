@@ -304,6 +304,19 @@ export const useMachineSystemStore = defineStore('machineSystem', () => {
    */
   const completedUpdateIds = ref<Set<string>>(new Set())
   const outputLines = ref<MachineUpdateOutputLine[]>([])
+  /**
+   * The update console's visibility lives here rather than on the Machine page
+   * because a run started from another browser opens it wherever this tab
+   * happens to be; `MachineUpdateConsoleHost` in `App.vue` renders it.
+   */
+  const isConsoleOpen = ref(false)
+  /**
+   * Whether `runningUpdateId` was set by another client's run, seen only through
+   * its `notify_update_response` lines. Nothing in this tab is awaiting a request
+   * for it, so the completing notification and a dropped socket are the only
+   * signals that it ended.
+   */
+  let isFollowingRemoteRun = false
   let procStatsEventRevision = 0
   let mcuRefreshRevision = 0
   let serviceStateEventRevision = 0
@@ -500,12 +513,59 @@ export const useMachineSystemStore = defineStore('machineSystem', () => {
     if (!isRecord(payload)) return
     const application = stringValue(payload.application) ?? ''
     if (typeof payload.message === 'string') appendOutput(application, payload.message.trimEnd())
-    if (payload.complete !== true) return
+    if (payload.complete !== true) {
+      if (!isUpdating.value) followRemoteRun(application)
+      return
+    }
 
     // Moonraker owns the lifecycle: an update started from another client ends
     // here too, and the finished versions only exist in a fresh status read.
+    if (isFollowingRemoteRun) {
+      isFollowingRemoteRun = false
+      completedUpdateIds.value = new Set(completedUpdateIds.value).add(application)
+    }
     runningUpdateId.value = null
-    void load()
+    if (started) void load()
+    else void refreshUpdateStatus()
+  }
+
+  /*
+   * Moonraker broadcasts every update's output to every client, so a line
+   * arriving while this tab runs nothing belongs to another client's run.
+   * Following it disables this tab's update controls for its duration — the
+   * host would refuse a second update anyway — and opens the console here too.
+   * `completedUpdateIds` is deliberately not reset: another client's Update all
+   * arrives as consecutive runs, and an `alabaster` early in it must still
+   * trigger the reload once the console is closed.
+   */
+  function followRemoteRun(application: string): void {
+    isFollowingRemoteRun = true
+    updateFailed.value = false
+    updateInterrupted.value = false
+    runningUpdateId.value = application
+  }
+
+  /*
+   * A remote run has no request of its own to reject when Moonraker restarts
+   * mid-update, so the socket dropping is its end-of-work signal — without it
+   * the console, which cannot be closed while a run is in progress, would stay
+   * open for good.
+   */
+  function handleConnectionChange(connected: boolean): void {
+    if (connected || !isFollowingRemoteRun) return
+    isFollowingRemoteRun = false
+    runningUpdateId.value = null
+    updateInterrupted.value = true
+  }
+
+  /** The update list alone, for a run that finished while the Machine page was closed. */
+  async function refreshUpdateStatus(): Promise<void> {
+    if (!moonraker.isConnected) return
+    try {
+      applyUpdateStatus(await moonraker.rpcCall('machine.update.status', {}))
+    } catch {
+      // Opening the Machine page reads it again and reports a failure there.
+    }
   }
 
   function handleUpdateRefreshedNotification(notification: JsonRpcNotification): void {
@@ -973,15 +1033,42 @@ export const useMachineSystemStore = defineStore('machineSystem', () => {
     checkFailed.value = false
     updateFailed.value = false
     completedUpdateIds.value = new Set()
+    isConsoleOpen.value = false
+    isFollowingRemoteRun = false
     pendingServiceNames.value = new Set()
     isLoading.value = false
     error.value = false
   }
 
+  /**
+   * Follows the update manager for the whole session rather than only while the
+   * Machine page is mounted, so an update started from another browser opens the
+   * console in this one wherever it is. Idempotent, and never released by `stop`.
+   */
+  function watchUpdates(): void {
+    if (stopPrinterChangeReset) return
+    stopPrinterChangeReset = moonraker.onPrinterChange(printerChanged)
+    watch(() => moonraker.isConnected, handleConnectionChange)
+    try {
+      stopUpdateResponseNotifications = moonraker.onNotification(
+        'notify_update_response',
+        handleUpdateResponseNotification,
+      )
+      stopUpdateRefreshedNotifications = moonraker.onNotification(
+        'notify_update_refreshed',
+        handleUpdateRefreshedNotification,
+      )
+    } catch {
+      stopUpdateResponseNotifications?.()
+      stopUpdateResponseNotifications = null
+      stopUpdateRefreshedNotifications?.()
+      stopUpdateRefreshedNotifications = null
+    }
+  }
+
   function start(): void {
     if (started) return
     started = true
-    stopPrinterChangeReset = moonraker.onPrinterChange(printerChanged)
     clockNow.value = Date.now()
     clockTimer = setInterval(() => {
       clockNow.value = Date.now()
@@ -995,24 +1082,13 @@ export const useMachineSystemStore = defineStore('machineSystem', () => {
         'notify_service_state_changed',
         handleServiceStateNotification,
       )
-      stopUpdateResponseNotifications = moonraker.onNotification(
-        'notify_update_response',
-        handleUpdateResponseNotification,
-      )
-      stopUpdateRefreshedNotifications = moonraker.onNotification(
-        'notify_update_refreshed',
-        handleUpdateRefreshedNotification,
-      )
     } catch {
       stopProcStatsNotifications?.()
       stopProcStatsNotifications = null
       stopServiceStateNotifications?.()
       stopServiceStateNotifications = null
-      stopUpdateResponseNotifications?.()
-      stopUpdateResponseNotifications = null
-      stopUpdateRefreshedNotifications?.()
-      stopUpdateRefreshedNotifications = null
     }
+    watchUpdates()
     releaseMcuWatch = watchMcus()
   }
 
@@ -1023,14 +1099,8 @@ export const useMachineSystemStore = defineStore('machineSystem', () => {
     stopProcStatsNotifications = null
     stopServiceStateNotifications?.()
     stopServiceStateNotifications = null
-    stopUpdateResponseNotifications?.()
-    stopUpdateResponseNotifications = null
-    stopUpdateRefreshedNotifications?.()
-    stopUpdateRefreshedNotifications = null
     releaseMcuWatch?.()
     releaseMcuWatch = null
-    stopPrinterChangeReset?.()
-    stopPrinterChangeReset = null
     if (clockTimer) clearInterval(clockTimer)
     clockTimer = null
   }
@@ -1056,6 +1126,7 @@ export const useMachineSystemStore = defineStore('machineSystem', () => {
     updateInterrupted,
     completedUpdateIds,
     outputLines,
+    isConsoleOpen,
     cpuUsage,
     memoryUsage,
     systemUptime,
@@ -1076,6 +1147,7 @@ export const useMachineSystemStore = defineStore('machineSystem', () => {
     restartService,
     clearUpdateOutput,
     refreshProcStats,
+    watchUpdates,
     start,
     stop,
   }
