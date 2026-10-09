@@ -367,6 +367,10 @@ The Macros card shows the macros you choose, as buttons.
   An empty field lets the macro apply its own default.
 - **Missing macros are marked** rather than silently dropped, and can be
   hidden once you no longer need to see them.
+- **Run again while it is still running**: Each press is sent, and the
+  printer runs them in order. A button pauses briefly after each press, so
+  an accidental double tap does not run the macro twice. Turn the pause off
+  in the card's settings if you want every tap to count.
 
 ![A Nozzle/Probe macro group on the dashboard, split into Nozzle and Probe headings](/images/modules/nozzle-probe-buttons.png)
 

@@ -29,6 +29,7 @@ const { config, updateConfig } = useDashboardModule('macros')
 const quick = useQuickSettings(config, updateConfig, macrosDefaultQuickKeys, () => props.mode)
 
 const hideMissing = computed(() => configBoolean(config.value, 'hideMissing', false))
+const pressCooldown = computed(() => configBoolean(config.value, 'pressCooldown', true))
 </script>
 
 <template>
@@ -46,6 +47,22 @@ const hideMissing = computed(() => configBoolean(config.value, 'hideMissing', fa
       :label="t('dashboard.macros.hideMissing')"
       :shown="quick.isQuick('hideMissing')"
       @toggle="quick.setQuick('hideMissing', $event)"
+    />
+  </div>
+  <div v-if="quick.visible('pressCooldown')" class="settings-row">
+    <label class="check-row">
+      <input
+        type="checkbox"
+        :checked="pressCooldown"
+        @change="updateConfig({ pressCooldown: !pressCooldown })"
+      />
+      <span>{{ t('dashboard.macros.pressCooldown') }}</span>
+    </label>
+    <QuickSettingToggle
+      v-if="mode === 'pane'"
+      :label="t('dashboard.macros.pressCooldown')"
+      :shown="quick.isQuick('pressCooldown')"
+      @toggle="quick.setQuick('pressCooldown', $event)"
     />
   </div>
 </template>

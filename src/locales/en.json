@@ -1757,6 +1757,7 @@
     },
     "macros": {
       "hideMissing": "Hide macros this printer no longer defines",
+      "pressCooldown": "Pause briefly after each press",
       "allMissing": "Every macro on this card is missing from the printer.",
       "empty": "No macros on the dashboard yet.",
       "choose": "Choose macros",

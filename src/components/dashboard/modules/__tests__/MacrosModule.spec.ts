@@ -74,6 +74,49 @@ describe('MacrosModule', () => {
     expect(wrapper.find('.macro-control__params').exists()).toBe(false)
   })
 
+  /**
+   * Presses queue, so a double tap would run the macro twice. The countdown
+   * starts at the press rather than when the run answers, because a macro can
+   * run for minutes and the tap to catch is the one that followed by accident.
+   */
+  it('refuses a second tap for a moment after each press, until the countdown ends', async () => {
+    vi.useFakeTimers()
+    try {
+      const { macros, wrapper } = mountModule({ macros: ['LOAD_FILAMENT'] })
+      const run = vi.spyOn(macros, 'run').mockReturnValue(new Promise(() => undefined))
+      macros.discovered = ['LOAD_FILAMENT']
+      macros.hasDiscovered = true
+      await flushPromises()
+
+      const button = wrapper.get('.macro-control__run')
+      await button.trigger('click')
+      expect(button.attributes('data-cooldown')).toBe('true')
+      await button.trigger('click')
+      expect(run).toHaveBeenCalledOnce()
+
+      await vi.advanceTimersByTimeAsync(1500)
+      expect(button.attributes('data-cooldown')).toBeUndefined()
+      await button.trigger('click')
+      expect(run).toHaveBeenCalledTimes(2)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('sends every tap when the reader turned the press cooldown off', async () => {
+    const { macros, wrapper } = mountModule({ macros: ['LOAD_FILAMENT'], pressCooldown: false })
+    const run = vi.spyOn(macros, 'run').mockReturnValue(new Promise(() => undefined))
+    macros.discovered = ['LOAD_FILAMENT']
+    macros.hasDiscovered = true
+    await flushPromises()
+
+    const button = wrapper.get('.macro-control__run')
+    await button.trigger('click')
+    await button.trigger('click')
+    expect(button.attributes('data-cooldown')).toBeUndefined()
+    expect(run).toHaveBeenCalledTimes(2)
+  })
+
   it('gives a parameterized macro a caret whose panel prefills defaults and sends values', async () => {
     const { macros, printerConfig, wrapper } = mountModule({ macros: ['CLEAN_NOZZLE'] })
     const run = vi.spyOn(macros, 'run').mockResolvedValue(true)

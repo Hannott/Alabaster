@@ -1757,6 +1757,7 @@
     },
     "macros": {
       "hideMissing": "Skjul makroer skriveren ikke lenger har",
+      "pressCooldown": "Kort pause etter hvert trykk",
       "allMissing": "Alle makroene på dette kortet mangler på skriveren.",
       "empty": "Ingen makroer på dashbordet ennå.",
       "choose": "Velg makroer",

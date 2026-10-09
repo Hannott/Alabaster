@@ -20,6 +20,9 @@ import { formatMacroLabel, useMacrosStore } from '@/stores/macros'
 import { usePrinterConfigStore } from '@/stores/printerConfig'
 import { usePrinterStore } from '@/stores/printer'
 
+/** Long enough to swallow an accidental second tap, short enough not to slow a deliberate one. */
+const macroPressCooldownMs = 1500
+
 interface MacroEntry {
   kind: 'macro'
   key: string
@@ -48,6 +51,10 @@ const printerConfig = usePrinterConfigStore()
 const { config, isSettingsOpen, isSurfaceOpen, openSurface } = useDashboardModule('macros')
 
 const hideMissing = computed(() => configBoolean(config.value, 'hideMissing', false))
+/** See `MacroRunControl`'s `cooldownMs`. On by default, since presses queue by default. */
+const pressCooldownMs = computed(() =>
+  configBoolean(config.value, 'pressCooldown', true) ? macroPressCooldownMs : 0,
+)
 const selection = computed(() => configStringList(config.value, 'macros'))
 const colors = computed(() => configStringMap(config.value, 'colors'))
 const dividerLabels = computed(() => configStringMap(config.value, 'dividerLabels'))
@@ -169,6 +176,7 @@ const gridStyle = computed(() => {
             :params="entry.params"
             :color-variable="entry.colorVariable"
             :disabled="isSurfaceOpen"
+            :cooldown-ms="pressCooldownMs"
             @run="(values) => macros.run(entry.name, values)"
           />
         </template>

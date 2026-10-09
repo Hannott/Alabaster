@@ -27,6 +27,15 @@ const props = defineProps<{
    * can never fire one by accident; the caret stays open so a parameter can
    * still be reviewed. */
   disabled?: boolean
+  /**
+   * A short refusal after each press, in milliseconds; 0 for none. Presses
+   * queue now, so a double tap is two runs of the macro rather than one run
+   * and a refused second press. The countdown starts at the press, not when
+   * the run answers — a macro can run for minutes, and the point is to catch
+   * the tap that followed by accident, not to wait for the printer. It claims
+   * nothing: the label and icon stay, only the bar counts down.
+   */
+  cooldownMs?: number
 }>()
 
 const emit = defineEmits<{ run: [params?: Record<string, string>] }>()
@@ -36,6 +45,7 @@ const { t } = useI18n({ useScope: 'global' })
 const caret = ref<InstanceType<typeof AppButton> | null>(null)
 const caretEl = computed(() => caret.value?.el ?? null)
 const panel = ref<{ x: number; y: number; target: HTMLElement } | null>(null)
+const cooling = ref(false)
 
 // A missing macro's parameters describe a body the printer no longer has, so
 // the caret goes with the run.
@@ -71,9 +81,15 @@ function closePanel(): void {
   caret.value?.focus()
 }
 
+function run(values?: Record<string, string>): void {
+  if ((props.cooldownMs ?? 0) > 0) cooling.value = true
+  if (values === undefined) emit('run')
+  else emit('run', values)
+}
+
 function send(values: Record<string, string>): void {
   closePanel()
-  emit('run', values)
+  run(values)
 }
 </script>
 
@@ -90,9 +106,12 @@ function send(values: Record<string, string>): void {
       :pending="isLocked"
       :aria-busy="isLocked || undefined"
       :disabled="isMissing || disabled"
+      :cooldown="cooling"
+      :cooldown-ms="cooldownMs"
       :title="runTitle"
       :aria-label="runTitle"
-      @click="emit('run')"
+      @click="run()"
+      @cooldown-end="cooling = false"
     >
       <AppIcon v-if="isMissing" name="emergency" class="size-5 shrink-0" aria-hidden="true" />
       <span v-else-if="hasAccent" class="macro-control__accent-dot" aria-hidden="true"></span>

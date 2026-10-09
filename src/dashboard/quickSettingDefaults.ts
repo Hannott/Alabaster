@@ -36,8 +36,12 @@ export const machineDefaultQuickKeys = ['lockDuringPrint'] as const
 /** Controls: two sections a printer may have several of and its owner may never use. */
 export const controlsDefaultQuickKeys = ['showOutputPins', 'showMonitoredFans'] as const
 
-/** Macros: the one setting the card had, since its configuration is otherwise a picker. */
-export const macrosDefaultQuickKeys = ['hideMissing'] as const
+/**
+ * Macros: the one setting the card had, since its configuration is otherwise a
+ * picker, and the press cooldown — the setting someone reaches for the moment
+ * the countdown gets in the way of a deliberate second press.
+ */
+export const macrosDefaultQuickKeys = ['hideMissing', 'pressCooldown'] as const
 
 /**
  * Extruder: the optional sections. What the buttons command stays in the pane.
