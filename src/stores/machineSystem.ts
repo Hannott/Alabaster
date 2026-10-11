@@ -23,6 +23,15 @@ const machineMcuSubscriptionKey = 'alabaster.machine-mcus'
 const methodNotFoundCode = -32601
 /** Enough scrollback to hold a full `apt` or `git` transcript without growing without bound. */
 export const machineUpdateOutputLimit = 500
+
+/**
+ * How another client's update run is checked on when its output goes quiet:
+ * every `stallCheckMs`, once nothing has arrived for `stallAfterMs`, the
+ * update manager is asked whether it is still busy. Quiet is normal — `apt`
+ * can download for minutes without a line — so only Moonraker saying it is
+ * idle ends the run.
+ */
+export const machineUpdateTimings = { stallCheckMs: 30_000, stallAfterMs: 60_000 }
 /**
  * The update manager answers only when the work is done, so these calls opt out
  * of the transport's local deadline instead of failing a refresh that is still
@@ -317,6 +326,8 @@ export const useMachineSystemStore = defineStore('machineSystem', () => {
    * signals that it ended.
    */
   let isFollowingRemoteRun = false
+  let remoteLineAt = 0
+  let remoteStallTimer: ReturnType<typeof setInterval> | null = null
   let procStatsEventRevision = 0
   let mcuRefreshRevision = 0
   let serviceStateEventRevision = 0
@@ -513,6 +524,7 @@ export const useMachineSystemStore = defineStore('machineSystem', () => {
     if (!isRecord(payload)) return
     const application = stringValue(payload.application) ?? ''
     if (typeof payload.message === 'string') appendOutput(application, payload.message.trimEnd())
+    remoteLineAt = Date.now()
     if (payload.complete !== true) {
       if (!isUpdating.value) followRemoteRun(application)
       return
@@ -521,7 +533,7 @@ export const useMachineSystemStore = defineStore('machineSystem', () => {
     // Moonraker owns the lifecycle: an update started from another client ends
     // here too, and the finished versions only exist in a fresh status read.
     if (isFollowingRemoteRun) {
-      isFollowingRemoteRun = false
+      stopFollowing()
       completedUpdateIds.value = new Set(completedUpdateIds.value).add(application)
     }
     runningUpdateId.value = null
@@ -543,6 +555,38 @@ export const useMachineSystemStore = defineStore('machineSystem', () => {
     updateFailed.value = false
     updateInterrupted.value = false
     runningUpdateId.value = application
+    remoteStallTimer ??= setInterval(
+      () => void checkRemoteStall(),
+      machineUpdateTimings.stallCheckMs,
+    )
+  }
+
+  function stopFollowing(): void {
+    isFollowingRemoteRun = false
+    if (remoteStallTimer !== null) clearInterval(remoteStallTimer)
+    remoteStallTimer = null
+  }
+
+  /*
+   * The completing notification can be missed — it is one frame, and this tab
+   * may be reconnecting when it is sent — and the console cannot be closed
+   * while a run is in progress. So a followed run gone quiet asks Moonraker,
+   * which knows whether its update manager is still working.
+   */
+  async function checkRemoteStall(): Promise<void> {
+    if (!isFollowingRemoteRun) return
+    if (Date.now() - remoteLineAt < machineUpdateTimings.stallAfterMs) return
+    if (!moonraker.isConnected) return
+    let status: MoonrakerUpdateStatus
+    try {
+      status = await moonraker.rpcCall('machine.update.status', {})
+    } catch {
+      return
+    }
+    if (!isFollowingRemoteRun || status.busy !== false) return
+    stopFollowing()
+    runningUpdateId.value = null
+    applyUpdateStatus(status)
   }
 
   /*
@@ -553,7 +597,7 @@ export const useMachineSystemStore = defineStore('machineSystem', () => {
    */
   function handleConnectionChange(connected: boolean): void {
     if (connected || !isFollowingRemoteRun) return
-    isFollowingRemoteRun = false
+    stopFollowing()
     runningUpdateId.value = null
     updateInterrupted.value = true
   }
@@ -1034,7 +1078,7 @@ export const useMachineSystemStore = defineStore('machineSystem', () => {
     updateFailed.value = false
     completedUpdateIds.value = new Set()
     isConsoleOpen.value = false
-    isFollowingRemoteRun = false
+    stopFollowing()
     pendingServiceNames.value = new Set()
     isLoading.value = false
     error.value = false

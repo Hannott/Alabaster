@@ -7,6 +7,7 @@ import { useAvailabilityStore } from '@/stores/availability'
 import {
   buildMcuModules,
   machineUpdateOutputLimit,
+  machineUpdateTimings,
   releaseNotesUrl,
   updateAvailability,
   useMachineSystemStore,
@@ -840,6 +841,45 @@ describe('machine system store', () => {
     // Only the update list is reread; the page's full telemetry load is not.
     expect(rpcCall.mock.calls.map(([method]) => method)).toEqual(['machine.update.status'])
     expect(machine.updates.map((update) => update.version)).toEqual(['v2'])
+  })
+
+  it("ends another client's run gone quiet once Moonraker says it is idle, not before", async () => {
+    vi.useFakeTimers()
+    try {
+      const moonraker = useMoonrakerStore()
+      moonraker.connectionPhase = 'connected'
+      const handlers = captureNotifications(moonraker)
+      let busy = true
+      const rpcCall = vi
+        .spyOn(moonraker, 'rpcCall')
+        .mockImplementation(
+          () => Promise.resolve({ ...updateStatus({ klipper: { version: 'v9' } }), busy }) as never,
+        )
+      const machine = useMachineSystemStore()
+      machine.watchUpdates()
+
+      handlers.get('notify_update_response')?.({
+        jsonrpc: '2.0',
+        method: 'notify_update_response',
+        params: [{ application: 'klipper', proc_id: 6, message: 'Fetching', complete: false }],
+      })
+
+      // Quiet but not yet long enough: nothing is asked.
+      await vi.advanceTimersByTimeAsync(machineUpdateTimings.stallCheckMs)
+      expect(rpcCall).not.toHaveBeenCalled()
+
+      // Long enough, but Moonraker is still busy: the run stays.
+      await vi.advanceTimersByTimeAsync(machineUpdateTimings.stallAfterMs)
+      expect(rpcCall).toHaveBeenCalledWith('machine.update.status', {})
+      expect(machine.isUpdating).toBe(true)
+
+      busy = false
+      await vi.advanceTimersByTimeAsync(machineUpdateTimings.stallCheckMs)
+      expect(machine.isUpdating).toBe(false)
+      expect(machine.updates.map((update) => update.version)).toEqual(['v9'])
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it("ends another client's run when Moonraker drops the socket mid-update", async () => {
