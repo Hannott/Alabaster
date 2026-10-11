@@ -442,6 +442,7 @@
       "blocked": {
         "unavailable": "Klipper is not ready.",
         "otherRunning": "Another procedure is running.",
+        "foreignRunning": "A procedure is running from another browser.",
         "requirements": "Meet the conditions above first.",
         "missing": "Fill in every required value.",
         "invalid": "A value cannot be sent as it is."

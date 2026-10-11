@@ -60,6 +60,18 @@ describe('alabaster.cfg', () => {
     }
   })
 
+  it('keeps the runs every browser reads, through the markers the interface sends', () => {
+    // `sharedRuns.ts` subscribes to `runs` and sends ID, KIND, and NAME.
+    expect(macroBody(config, '_ALABASTER_STATE')).toMatch(/^variable_runs: \{\}$/m)
+    const begin = macroBody(config, '_ALABASTER_RUN_BEGIN')
+    for (const parameter of ['ID', 'KIND', 'NAME']) {
+      expect(begin, `_ALABASTER_RUN_BEGIN must read params.${parameter}`).toContain(
+        `params.${parameter}`,
+      )
+    }
+    expect(macroBody(config, '_ALABASTER_RUN_END')).toContain('params.ID')
+  })
+
   it('answers the parameters the pause-at-layer controls send', () => {
     // PrintModule.vue sends ENABLE, LAYER, and MACRO to the first, and
     // ENABLE and MACRO to the second.

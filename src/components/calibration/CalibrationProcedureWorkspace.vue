@@ -184,6 +184,7 @@ const canRun = computed(
 const blockedReason = computed(() => {
   if (isRunning.value || canRun.value) return null
   if (!klipperAvailability.value.isAvailable) return t('calibration.bench.blocked.unavailable')
+  if (calibration.isForeignRunActive) return t('calibration.bench.blocked.foreignRunning')
   if (otherRunning.value) return t('calibration.bench.blocked.otherRunning')
   if (unmet.value.length > 0) return t('calibration.bench.blocked.requirements')
   if (missing.value.length > 0) return t('calibration.bench.blocked.missing')

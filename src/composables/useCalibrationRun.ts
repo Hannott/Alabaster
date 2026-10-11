@@ -36,10 +36,10 @@ export function useCalibrationRun(): {
   const calibration = useCalibrationStore()
   const context = useProcedureContext()
 
-  const busy = computed(() => calibration.activeRun !== null)
+  const busy = computed(() => calibration.isRunActive)
 
   function isRunning(id: ProcedureId): boolean {
-    return calibration.activeRun?.procedureId === id
+    return calibration.runningProcedureId === id
   }
 
   function run(id: ProcedureId, values: Record<string, string> = {}): Promise<boolean> {

@@ -25,6 +25,11 @@ own. `alabaster.cfg` provides them, and the
 [Extruder](/interface/modules#extruder) card uses them to load and unload
 filament.
 
+**Runs visible from every browser.** A macro or calibration started in one
+browser shows as running in every other browser connected to the printer, and
+the Calibration page will not start a second procedure on top of it. Without
+the pack, only the browser that started a run knows about it.
+
 ## Installing it
 
 The [installer](/guide/installation) can install the pack for you: it offers

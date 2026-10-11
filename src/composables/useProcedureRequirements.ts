@@ -254,7 +254,7 @@ export function useProcedureRequirements(): ComputedRef<
       ...(accelerometer.value.params ? { params: accelerometer.value.params } : {}),
       fix: {
         id: 'checkAccelerometer',
-        pending: calibration.activeRun?.procedureId === 'accelerometerQuery',
+        pending: calibration.runningProcedureId === 'accelerometerQuery',
         run: checkAccelerometer,
       },
     },

@@ -6,6 +6,7 @@ import { useCommandPreferencesStore } from '@/stores/commandPreferences'
 import { createGuardedLoad } from '@/stores/guardedLoad'
 import { useMoonrakerStore } from '@/stores/moonraker'
 import { usePrinterStore } from '@/stores/printer'
+import { useSharedRunsStore } from '@/stores/sharedRuns'
 import { titleCaseIdentifier } from '@/utils/identifierCase'
 
 const macroObjectPrefix = 'gcode_macro '
@@ -84,6 +85,7 @@ export const useMacrosStore = defineStore('macros', () => {
   const availability = useAvailabilityStore()
   const moonraker = useMoonrakerStore()
   const printer = usePrinterStore()
+  const sharedRuns = useSharedRunsStore()
   const discovered = ref<string[]>([])
   const allMacroNames = ref<ReadonlySet<string>>(new Set())
   const hasDiscovered = ref(false)
@@ -107,15 +109,18 @@ export const useMacrosStore = defineStore('macros', () => {
 
   const discoveredNames = computed(() => new Set(discovered.value))
 
+  /** Running from this browser or, where the macro pack reports it, from any other. */
   function isRunning(name: string): boolean {
-    return runningMacros.value.has(name.trim().toUpperCase())
+    const macro = name.trim().toUpperCase()
+    return runningMacros.value.has(macro) || sharedRuns.isForeignMacroRunning(macro)
   }
 
   /**
    * What a macro control reads to decide `disabled` and `pending`. A macro is
    * repeatable like a jog: while the reader queues presses, a second press is
    * sent and Klipper runs it after the first. Only while they have chosen to
-   * wait for each command does a running macro lock its own button.
+   * wait for each command does a running macro lock its own button — wherever
+   * it was pressed, since a press here would only wait behind it.
    */
   function isLocked(name: string): boolean {
     return commandPreferences.dispatch === 'wait' && isRunning(name)
@@ -174,12 +179,31 @@ export const useMacrosStore = defineStore('macros', () => {
     const runGeneration = generation
     adjustRunning(macro, 1)
     lastError.value = null
+    const script = buildMacroScript(macro, params)
+    /*
+     * The end marker rides in the same script, so it clears even if this
+     * browser is closed mid-run. A failing macro aborts the script before it,
+     * which is the one case this browser clears it itself.
+     */
+    const sharedId = sharedRuns.claim('macro', macro)
+    const dispatched =
+      sharedId === null
+        ? script
+        : [
+            sharedRuns.beginLine(sharedId, 'macro', macro),
+            script,
+            sharedRuns.endLine(sharedId),
+          ].join('\n')
     try {
-      const succeeded = await printer.sendMacro(buildMacroScript(macro, params))
-      if (!succeeded) lastError.value = macro
+      const succeeded = await printer.sendMacro(script, dispatched)
+      if (!succeeded) {
+        lastError.value = macro
+        if (sharedId !== null) sharedRuns.end(sharedId)
+      }
       return succeeded
     } finally {
       if (runGeneration === generation) adjustRunning(macro, -1)
+      if (sharedId !== null) sharedRuns.release(sharedId)
     }
   }
 

@@ -140,7 +140,7 @@ function canMove(sign: 1 | -1): boolean {
     klipperAvailability.value.isAvailable &&
     unmet.value.length === 0 &&
     !moving.value &&
-    calibration.activeRun === null &&
+    !calibration.isRunActive &&
     !printer.pendingCommands.calibration &&
     (distance.value ?? 0) > 0 &&
     withinLimits(sign)

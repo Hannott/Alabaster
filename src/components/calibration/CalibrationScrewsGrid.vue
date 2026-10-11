@@ -33,7 +33,7 @@ const canMove = computed(
   () =>
     klipperAvailability.value.isAvailable &&
     !printer.hasActivePrint &&
-    calibration.activeRun === null &&
+    !calibration.isRunActive &&
     !printer.lockedCommands.move,
 )
 

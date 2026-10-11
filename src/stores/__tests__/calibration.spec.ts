@@ -10,6 +10,7 @@ import { useConsoleStore } from '@/stores/console'
 import { useMoonrakerStore } from '@/stores/moonraker'
 import { usePrinterStore } from '@/stores/printer'
 import { useQuickConfigStore } from '@/stores/quickConfig'
+import { useSharedRunsStore } from '@/stores/sharedRuns'
 
 const context: ProcedureContext = {
   hasSection: () => true,
@@ -135,6 +136,45 @@ describe('calibration runs', () => {
     )
     await finish()
     await first
+  })
+
+  it('refuses to start while another browser runs a procedure', async () => {
+    const { calibration } = setup()
+    const sharedRuns = useSharedRunsStore()
+    sharedRuns.isSupported = true
+    sharedRuns.runs = [{ id: 'elsewhere', kind: 'calibration', name: 'probeAccuracy' }]
+
+    expect(calibration.runningProcedureId).toBe('probeAccuracy')
+    expect(calibration.isForeignRunActive).toBe(true)
+    expect(calibration.busy).toBe(true)
+    await expect(calibration.run(procedureById('axesNoise')!, {}, context)).resolves.toBe(false)
+  })
+
+  it('marks its own run for every browser, and clears the mark only once the result is logged', async () => {
+    const { calibration, rpcCall, finish } = setup()
+    useMoonrakerStore().connectionPhase = 'connected'
+    useSharedRunsStore().isSupported = true
+
+    const run = calibration.run(procedureById('axesNoise')!, {}, context)
+    await flushPromises()
+    const scripts = () =>
+      rpcCall.mock.calls
+        .filter(([method]) => method === 'printer.gcode.script')
+        .map(([, params]) => (params as { script: string }).script)
+    const begin = scripts().find((script) => script.startsWith('_ALABASTER_RUN_BEGIN'))
+    expect(begin).toMatch(/^_ALABASTER_RUN_BEGIN ID=\w+ KIND=calibration NAME=axesNoise$/)
+    // Another browser sees the run as someone else's; this one never does.
+    expect(calibration.isForeignRunActive).toBe(false)
+
+    await finish()
+    await run
+
+    const id = /ID=(\w+)/.exec(begin!)![1]
+    const methods = rpcCall.mock.calls.map(([method, params]) =>
+      method === 'printer.gcode.script' ? (params as { script: string }).script : method,
+    )
+    expect(methods.at(-1)).toBe(`_ALABASTER_RUN_END ID=${id}`)
+    expect(methods.lastIndexOf('server.database.post_item')).toBeLessThan(methods.length - 1)
   })
 
   it('compares against the settings as they were when the run started', async () => {
