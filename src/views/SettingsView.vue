@@ -737,12 +737,6 @@ async function confirmReset(): Promise<void> {
   await applySettingsBundle(defaultSettingsBundle())
 }
 
-function toggleSync(): void {
-  const entry = printers.activeEntry
-  if (!entry) return
-  void settingsSync.setEnabled(entry.id, !settingsSync.isEnabled)
-}
-
 const pendingForget = ref(false)
 
 function requestForget(): void {
@@ -1829,47 +1823,42 @@ const lastSyncedDisplay = computed(() => {
 
             <div v-if="printers.activeEntry" class="mt-7 border-t border-subtle pt-7">
               <p class="text-group-title">{{ t('backup.sync.title') }}</p>
-              <p class="mt-2 text-sm leading-6 text-muted">
-                {{ t('backup.sync.description') }}
+              <p v-if="!auth.currentUser" class="mt-2 text-sm leading-6 text-muted">
+                {{ t('backup.sync.localOnly') }}
               </p>
+              <template v-else>
+                <p class="mt-2 text-sm leading-6 text-muted">
+                  {{ t('backup.sync.description', { user: auth.currentUser.username }) }}
+                </p>
 
-              <label class="check-row mt-5">
-                <input
-                  type="checkbox"
-                  :checked="settingsSync.isEnabled"
-                  :disabled="!moonraker.isConnected"
-                  @change="toggleSync"
-                />
-                <span>{{ t('backup.sync.toggle') }}</span>
-              </label>
+                <p class="mt-2 text-xs text-muted">
+                  <template v-if="settingsSync.lastCommandErrorMessage">
+                    {{ settingsSync.lastCommandErrorMessage }}
+                  </template>
+                  <template v-else-if="lastSyncedDisplay">
+                    {{ t('backup.sync.lastSynced', { value: lastSyncedDisplay }) }}
+                  </template>
+                  <template v-else>
+                    {{ t('backup.sync.neverSynced') }}
+                  </template>
+                </p>
 
-              <p class="mt-2 text-xs text-muted">
-                <template v-if="settingsSync.lastCommandErrorMessage">
-                  {{ settingsSync.lastCommandErrorMessage }}
-                </template>
-                <template v-else-if="lastSyncedDisplay">
-                  {{ t('backup.sync.lastSynced', { value: lastSyncedDisplay }) }}
-                </template>
-                <template v-else>
-                  {{ t('backup.sync.neverSynced') }}
-                </template>
-              </p>
-
-              <div v-if="settingsSync.isEnabled" class="mt-3 flex flex-wrap gap-3">
-                <AppButton
-                  size="sm"
-                  :label="t('backup.sync.now')"
-                  :disabled="!moonraker.isConnected || settingsSync.pendingCommands.push"
-                  @click="settingsSync.push"
-                />
-                <AppButton
-                  variant="danger-quiet"
-                  size="sm"
-                  :label="t('backup.sync.forget')"
-                  :disabled="!moonraker.isConnected"
-                  @click="requestForget"
-                />
-              </div>
+                <div class="mt-3 flex flex-wrap gap-3">
+                  <AppButton
+                    size="sm"
+                    :label="t('backup.sync.now')"
+                    :disabled="!moonraker.isConnected || settingsSync.pendingCommands.push"
+                    @click="settingsSync.push"
+                  />
+                  <AppButton
+                    variant="danger-quiet"
+                    size="sm"
+                    :label="t('backup.sync.forget')"
+                    :disabled="!moonraker.isConnected"
+                    @click="requestForget"
+                  />
+                </div>
+              </template>
             </div>
           </section>
 

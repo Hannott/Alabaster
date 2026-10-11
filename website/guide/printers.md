@@ -85,16 +85,15 @@ Alabaster stores this in your browser's local storage, on the device you are
 using.
 
 As a result, **another browser or another device starts fresh** unless you
-turn on sync.
+log in.
 
-**Sync settings and layout to this printer**, under
-[Settings → Backup and sync](/interface/settings#sync-to-this-printer), stores
-your settings and that printer's dashboard in the printer's own Moonraker
-database. A phone and a workshop tablet then see the same setup. It is off by
-default; you switch it on per printer.
+Logged in to a Moonraker account, your settings and that printer's dashboard
+are saved to your profile in the printer's own Moonraker database, so a phone
+and a workshop tablet logged in to the same account see the same setup. See
+[Your profile on the printer](/interface/settings#your-profile-on-the-printer).
 
 ::: info The printer list itself never syncs
-Your list of printers stays in the browser, even with sync on. The list
+Your list of printers stays in the browser, even when you are logged in. The list
 decides _which_ printer's database to read, so a printer cannot store the
 answer to how it is found. The list is also the one setting that is
 per-device: a phone on mobile data and a workshop tablet on the LAN may need

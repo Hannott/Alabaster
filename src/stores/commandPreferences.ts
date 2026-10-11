@@ -42,13 +42,9 @@ function read(): StoredCommandPreferences {
 /**
  * What a control does while the printer is still working through an earlier
  * command, and whether the header lists what this browser is waiting on.
- *
- * Always kept in this browser's own storage, and carried by the settings
- * bundle only while a Moonraker user is logged in (`settings/bundle.ts`). On a
- * printer without login every browser shares one synced slot, and a
- * touchscreen at the printer and a desktop across the room are not one person:
- * sharing the slot would let one change how the other's buttons behave. See
- * ADR 0008's "Follows the user, else the device".
+ * Carried by the settings bundle like every other preference, so it follows
+ * the Moonraker user it is synced under — the shared `default` profile on a
+ * printer without login.
  */
 export const useCommandPreferencesStore = defineStore('commandPreferences', () => {
   const initial = read()

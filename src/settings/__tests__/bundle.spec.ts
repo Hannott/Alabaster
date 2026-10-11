@@ -1,9 +1,14 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
+import { useConsoleSettings } from '@/composables/useConsoleSettings'
 import { useFont } from '@/composables/useFont'
+import { useMachineFilePins } from '@/composables/useMachineFilePins'
+import { useMachineFilesSettings } from '@/composables/useMachineFilesSettings'
+import { useHistoryStore } from '@/stores/history'
+import { useMaintenanceStore } from '@/stores/maintenance'
+import { useServerWarningsStore } from '@/stores/serverWarnings'
 import { useWakeLock } from '@/composables/useWakeLock'
-import { useAuthStore } from '@/stores/auth'
 import { useCommandPreferencesStore } from '@/stores/commandPreferences'
 import { useConfirmationsStore } from '@/stores/confirmations'
 import { useDashboardLayoutStore } from '@/stores/dashboardLayout'
@@ -107,22 +112,62 @@ describe('settings bundle', () => {
     expect(beltGuide.values).toMatchObject({ toolheadGrams: 800, gantryGrams: 600 })
   })
 
-  /**
-   * Without login every browser shares one synced slot, and a touchscreen at
-   * the printer and a desktop browser are not one person — so queue-or-wait
-   * travels only with a logged-in user, and stays on the device otherwise.
-   */
-  it('carries the command preferences only while a Moonraker user is logged in', async () => {
+  it('carries the console, file list, history, maintenance, and muted-warning settings', async () => {
+    const consoleSettings = useConsoleSettings()
+    const machineFiles = useMachineFilesSettings()
+    const pins = useMachineFilePins()
+    const history = useHistoryStore()
+    const maintenance = useMaintenanceStore()
+    const serverWarnings = useServerWarningsStore()
+    const pin = {
+      kind: 'file' as const,
+      root: 'config' as const,
+      path: 'printer.cfg',
+      name: 'printer.cfg',
+      size: 1,
+      modified: 1,
+      permissions: 'rw',
+    }
+
+    consoleSettings.update({ compact: true })
+    machineFiles.setSortKey('size')
+    pins.pinFile(pin)
+    history.setPeriod('12m')
+    maintenance.addInterval('Belts', 'printtime', 200)
+    serverWarnings.mute('warning:x')
+    const bundle = collectSettingsBundle()
+
+    consoleSettings.update({ compact: false })
+    machineFiles.setSortKey('name')
+    pins.unpinFile('config', 'printer.cfg')
+    history.setPeriod('30d')
+    maintenance.replaceIntervals([])
+    serverWarnings.replaceMuted([])
+    await applySettingsBundle(JSON.parse(JSON.stringify(bundle)))
+
+    expect(consoleSettings.settings.value.compact).toBe(true)
+    expect(machineFiles.sortKey.value).toBe('size')
+    expect(pins.isPinned('config', 'printer.cfg')).toBe(true)
+    expect(history.period).toBe('12m')
+    expect(maintenance.intervals.map((interval) => interval.name)).toEqual(['Belts'])
+    expect([...serverWarnings.mutedIds]).toEqual(['warning:x'])
+
+    // Reset restores preferences but keeps what the reader made.
+    await applySettingsBundle(defaultSettingsBundle())
+    expect(machineFiles.sortKey.value).toBe('name')
+    expect(pins.isPinned('config', 'printer.cfg')).toBe(true)
+    expect(maintenance.intervals).toHaveLength(1)
+  })
+
+  it('carries the command preferences with or without a logged-in user', async () => {
     const preferences = useCommandPreferencesStore()
     preferences.setDispatch('wait')
     preferences.setShowQueue(true)
-    expect(collectSettingsBundle().commands).toBeNull()
-
-    useAuthStore().currentUser = { username: 'ada', source: 'moonraker' } as never
     const bundle = collectSettingsBundle()
     expect(bundle.commands).toEqual({ dispatch: 'wait', showQueue: true })
 
     preferences.setDispatch('queue')
+    // A bundle written before the field existed leaves the device's own value.
     await applySettingsBundle({ commands: null })
     expect(preferences.dispatch).toBe('queue')
     await applySettingsBundle(bundle)

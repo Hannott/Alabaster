@@ -3408,9 +3408,9 @@
     "resetConfirmTitle": "Tilbakestille innstillinger til standard?",
     "resetConfirmDescription": "Innstillinger for tema, språk, format, bekreftelser og dashbordoppsett tilbakestilles. Skrivere og innlogginger påvirkes ikke.",
     "sync": {
-      "title": "Synkroniser til denne skriveren",
-      "description": "Holder innstillingene over, og denne skriverens dashbordoppsett, i skriverens egen Moonraker-database — slik at de følger deg tilbake hit fra en annen nettleser eller enhet.",
-      "toggle": "Synkroniser innstillinger og oppsett til denne skriveren",
+      "title": "Din profil på denne skriveren",
+      "description": "Innstillinger og dashbordoppsett lagres i profilen til {user} i skriverens Moonraker-database, og følger den innloggingen til alle nettlesere.",
+      "localOnly": "Ikke innlogget: innstillinger og dashbordoppsett lagres bare i denne nettleseren.",
       "lastSynced": "Sist synkronisert {value}",
       "neverSynced": "Ikke synkronisert enda",
       "now": "Synkroniser nå",

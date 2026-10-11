@@ -95,9 +95,17 @@ function repointPinned(root: MachineFileRoot, previousPath: string, nextPath: st
   persist()
 }
 
+/** A settings bundle's copy; an entry that is not a pin is dropped. */
+function replacePinned(input: unknown): void {
+  if (!Array.isArray(input)) return
+  pinnedFiles.value = input.filter(isPinnedMachineFile)
+  persist()
+}
+
 export function useMachineFilePins() {
   return {
     pinnedFiles: readonly(pinnedFiles),
+    replacePinned,
     isPinned,
     pinFile,
     unpinFile,

@@ -8,7 +8,19 @@ import {
   useConsoleWeight,
   type ConsoleWeightMode,
 } from '@/composables/useConsoleWeight'
+import { defaultConsoleSettings, useConsoleSettings } from '@/composables/useConsoleSettings'
 import { useEditorIndent } from '@/composables/useEditorIndent'
+import { useMachineFilePins, type PinnedMachineFile } from '@/composables/useMachineFilePins'
+import {
+  defaultMachineFilesPreferences,
+  useMachineFilesSettings,
+  type MachineFilesPreferences,
+} from '@/composables/useMachineFilesSettings'
+import type { ConsoleSettings } from '@/components/console/ConsoleSettingsFields.vue'
+import { historyPeriods, type HistoryPeriod } from '@/features/history/statistics'
+import { useHistoryStore } from '@/stores/history'
+import { useMaintenanceStore, type MaintenanceInterval } from '@/stores/maintenance'
+import { useServerWarningsStore } from '@/stores/serverWarnings'
 import { useFont } from '@/composables/useFont'
 import { isTextWeightMode, useTextWeight, type TextWeightMode } from '@/composables/useTextWeight'
 import { isThemeMode, useTheme, type ThemeMode } from '@/composables/useTheme'
@@ -33,7 +45,6 @@ import {
   type StoredConfirmations,
 } from '@/stores/confirmations'
 import { normalizeDashboardProfile, useDashboardLayoutStore } from '@/stores/dashboardLayout'
-import { useAuthStore } from '@/stores/auth'
 import {
   defaultCommandPreferences,
   useCommandPreferencesStore,
@@ -77,6 +88,8 @@ export interface GcodeViewerBundle {
   showTravels: boolean
   qualityMode: GcodeQualityMode
   followByDefault: boolean
+  /** Null while the viewer uses the printer's own nozzle diameter. */
+  nozzleDiameter: number | null
 }
 
 export interface SettingsBundle {
@@ -119,13 +132,24 @@ export interface SettingsBundle {
    * while nothing has been typed there.
    */
   beltGuide: BeltGuideValues | null
-  /**
-   * Queue-or-wait and the header queue list. Carried only while a Moonraker
-   * user is logged in, and null otherwise: without login every browser shares
-   * one synced slot, and these are one person's habits, not the printer's.
-   * See `stores/commandPreferences.ts`.
-   */
+  /** Queue-or-wait and the header queue list; null only in a bundle written before they existed. */
   commands: StoredCommandPreferences | null
+  /*
+   * The fields below were added together, so a bundle written before them
+   * carries none of them. Null is "leave as it is" for all of them.
+   */
+  /** The Console page's filters and layout. */
+  console: ConsoleSettings | null
+  /** The Configuration page's file list: what it shows and how it sorts. */
+  machineFiles: MachineFilesPreferences | null
+  /** Files pinned in the Configuration page's file list. */
+  machineFilePins: PinnedMachineFile[] | null
+  /** How far back History looks on the active printer. */
+  historyPeriod: HistoryPeriod | null
+  /** The active printer's maintenance intervals and when each was last done. */
+  maintenanceIntervals: MaintenanceInterval[] | null
+  /** The Moonraker warnings muted on the active printer. */
+  mutedWarnings: string[] | null
 }
 
 function isGcodeColorMode(value: unknown): value is GcodeColorMode {
@@ -152,7 +176,12 @@ export function collectSettingsBundle(): SettingsBundle {
   const documentationSite = useDocumentationSiteStore()
   const beltGuide = useBeltGuideStore()
   const commandPreferences = useCommandPreferencesStore()
-  const auth = useAuthStore()
+  const consoleSettings = useConsoleSettings()
+  const machineFiles = useMachineFilesSettings()
+  const machineFilePins = useMachineFilePins()
+  const history = useHistoryStore()
+  const maintenance = useMaintenanceStore()
+  const serverWarnings = useServerWarningsStore()
 
   return {
     version: 1,
@@ -182,15 +211,20 @@ export function collectSettingsBundle(): SettingsBundle {
       showTravels: gcodeViewer.showTravels.value,
       qualityMode: gcodeViewer.qualityMode.value,
       followByDefault: gcodeViewer.followByDefault.value,
+      nozzleDiameter: gcodeViewer.nozzleDiameterOverride.value,
     },
     quickConfigPins: quickConfig.storedPins,
     quickConfigColumns: quickConfig.storedColumns,
     zMotion: zMotion.stored,
     documentationSite: documentationSite.stored,
     beltGuide: beltGuide.stored,
-    commands: auth.currentUser
-      ? { dispatch: commandPreferences.dispatch, showQueue: commandPreferences.showQueue }
-      : null,
+    commands: { dispatch: commandPreferences.dispatch, showQueue: commandPreferences.showQueue },
+    console: { ...consoleSettings.settings.value },
+    machineFiles: machineFiles.stored(),
+    machineFilePins: machineFilePins.pinnedFiles.value.map((pin) => ({ ...pin })),
+    historyPeriod: history.period,
+    maintenanceIntervals: maintenance.intervals.map((interval) => ({ ...interval })),
+    mutedWarnings: [...serverWarnings.mutedIds],
   }
 }
 
@@ -271,6 +305,20 @@ export async function applySettingsBundle(input: unknown): Promise<void> {
   if (input.documentationSite !== undefined) documentationSite.replace(input.documentationSite)
   if (input.beltGuide !== undefined) beltGuide.replace(input.beltGuide)
   if (isRecord(input.commands)) useCommandPreferencesStore().replace(input.commands)
+  if (isRecord(input.console)) useConsoleSettings().replace(input.console)
+  if (isRecord(input.machineFiles)) useMachineFilesSettings().replace(input.machineFiles)
+  if (Array.isArray(input.machineFilePins))
+    useMachineFilePins().replacePinned(input.machineFilePins)
+  if (
+    typeof input.historyPeriod === 'string' &&
+    (historyPeriods as readonly string[]).includes(input.historyPeriod)
+  ) {
+    useHistoryStore().setPeriod(input.historyPeriod as HistoryPeriod)
+  }
+  if (Array.isArray(input.maintenanceIntervals)) {
+    useMaintenanceStore().replaceIntervals(input.maintenanceIntervals)
+  }
+  if (Array.isArray(input.mutedWarnings)) useServerWarningsStore().replaceMuted(input.mutedWarnings)
   if (isRecord(input.gcodeViewer)) {
     const viewer = input.gcodeViewer
     if (isGcodeColorMode(viewer.colorMode)) gcodeViewer.setColorMode(viewer.colorMode)
@@ -278,6 +326,9 @@ export async function applySettingsBundle(input: unknown): Promise<void> {
     if (isGcodeQualityMode(viewer.qualityMode)) gcodeViewer.setQualityMode(viewer.qualityMode)
     if (typeof viewer.followByDefault === 'boolean') {
       gcodeViewer.setFollowByDefault(viewer.followByDefault)
+    }
+    if (viewer.nozzleDiameter === null || typeof viewer.nozzleDiameter === 'number') {
+      gcodeViewer.setNozzleDiameterOverride(viewer.nozzleDiameter)
     }
   }
 }
@@ -312,6 +363,7 @@ export function defaultSettingsBundle(): SettingsBundle {
       showTravels: false,
       qualityMode: 'auto',
       followByDefault: true,
+      nozzleDiameter: null,
     },
     quickConfigPins: null,
     quickConfigColumns: null,
@@ -319,5 +371,13 @@ export function defaultSettingsBundle(): SettingsBundle {
     documentationSite: null,
     beltGuide: null,
     commands: { ...defaultCommandPreferences },
+    console: { ...defaultConsoleSettings },
+    machineFiles: { ...defaultMachineFilesPreferences },
+    // Reset is about preferences; pins, maintenance records, and muted
+    // warnings are things the reader made, and stay.
+    machineFilePins: null,
+    historyPeriod: '90d',
+    maintenanceIntervals: null,
+    mutedWarnings: null,
   }
 }

@@ -60,8 +60,53 @@ function setSortKey(key: MachineFileSortKey): void {
   localStorage.setItem(sortKeyStorageKey, key)
 }
 
+export interface MachineFilesPreferences {
+  showHiddenFiles: boolean
+  showBackupFiles: boolean
+  showReadOnlyFiles: boolean
+  searchInFileContents: boolean
+  compactRows: boolean
+  sortKey: MachineFileSortKey
+}
+
+export const defaultMachineFilesPreferences: Readonly<MachineFilesPreferences> = {
+  showHiddenFiles: false,
+  showBackupFiles: false,
+  showReadOnlyFiles: true,
+  searchInFileContents: false,
+  compactRows: true,
+  sortKey: 'name',
+}
+
+function stored(): MachineFilesPreferences {
+  return {
+    showHiddenFiles: showHiddenFiles.value,
+    showBackupFiles: showBackupFiles.value,
+    showReadOnlyFiles: showReadOnlyFiles.value,
+    searchInFileContents: searchInFileContents.value,
+    compactRows: compactRows.value,
+    sortKey: sortKey.value,
+  }
+}
+
+/** A settings bundle's copy; a field of the wrong type leaves the current value. */
+function replace(input: unknown): void {
+  if (typeof input !== 'object' || input === null) return
+  const record = input as Record<string, unknown>
+  if (typeof record.showHiddenFiles === 'boolean') setShowHiddenFiles(record.showHiddenFiles)
+  if (typeof record.showBackupFiles === 'boolean') setShowBackupFiles(record.showBackupFiles)
+  if (typeof record.showReadOnlyFiles === 'boolean') setShowReadOnlyFiles(record.showReadOnlyFiles)
+  if (typeof record.searchInFileContents === 'boolean') {
+    setSearchInFileContents(record.searchInFileContents)
+  }
+  if (typeof record.compactRows === 'boolean') setCompactRows(record.compactRows)
+  if (isSortKey(record.sortKey)) setSortKey(record.sortKey)
+}
+
 export function useMachineFilesSettings() {
   return {
+    stored,
+    replace,
     showHiddenFiles: readonly(showHiddenFiles),
     showBackupFiles: readonly(showBackupFiles),
     showReadOnlyFiles: readonly(showReadOnlyFiles),

@@ -103,32 +103,6 @@ describe('printers store', () => {
     expect(second.entries[0]?.refreshToken).toBe('refresh-token-value')
   })
 
-  it('opts a printer into settings/layout sync and back out, reloading the choice', () => {
-    const printers = usePrintersStore()
-    const entry = printers.addPrinter('voron.local:7125')
-
-    expect(printers.setDbSyncEnabled(entry!.id, true)).toBe(true)
-    expect(printers.entries[0]?.dbSyncEnabled).toBe(true)
-
-    setActivePinia(createPinia())
-    const reloaded = usePrintersStore()
-    expect(reloaded.entries[0]?.dbSyncEnabled).toBe(true)
-
-    expect(reloaded.setDbSyncEnabled(entry!.id, false)).toBe(true)
-    expect(reloaded.entries[0]?.dbSyncEnabled).toBeUndefined()
-  })
-
-  it('does not opt a re-added printer back into sync on its own', () => {
-    const printers = usePrintersStore()
-    const entry = printers.addPrinter('voron.local:7125')
-    printers.setDbSyncEnabled(entry!.id, true)
-
-    printers.removePrinter(entry!.id)
-    printers.addPrinter('voron.local:7125')
-
-    expect(printers.entries[0]?.dbSyncEnabled).toBeUndefined()
-  })
-
   it('selects an endpoint already on the list instead of duplicating it', () => {
     const printers = usePrintersStore()
     printers.addPrinter('voron.local:7125')

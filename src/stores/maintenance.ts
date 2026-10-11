@@ -148,6 +148,13 @@ export const useMaintenanceStore = defineStore('maintenance', () => {
     persist()
   }
 
+  /** A settings bundle's copy of this printer's intervals; an entry that is not one is dropped. */
+  function replaceIntervals(input: unknown): void {
+    if (!Array.isArray(input)) return
+    intervals.value = input.filter(isMaintenanceInterval)
+    persist()
+  }
+
   /**
    * `onPrinterChange` fires before `printers.addPrinter` has retargeted
    * `activeId` — reading `activeScopeKeys` here would still answer with the
@@ -188,6 +195,7 @@ export const useMaintenanceStore = defineStore('maintenance', () => {
     addInterval,
     markPerformed,
     deleteInterval,
+    replaceIntervals,
     start,
     stop,
   }

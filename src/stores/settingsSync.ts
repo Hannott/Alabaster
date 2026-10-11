@@ -15,18 +15,27 @@ const namespace = 'alabaster'
 
 const metaStorageKey = 'alabaster.settingsSync.v1'
 
-/** When this browser last pushed or accepted a pull, per printer id — purely a status display, never consulted to decide what to sync. */
-function readLastSyncedAt(printerId: string): string | null {
+/**
+ * When this browser last pushed or accepted a pull, per printer and user:
+ * the status line, and the floor `checkForRemoteUpdate` will not apply an
+ * older profile below. Per user because each user's profile is its own —
+ * one user's last sync says nothing about another's on the same printer.
+ */
+function metaKey(printerId: string, user: string): string {
+  return `${printerId}|${user}`
+}
+
+function readLastSyncedAt(key: string): string | null {
   try {
     const parsed = JSON.parse(window.localStorage.getItem(metaStorageKey) ?? 'null')
-    const value = isRecord(parsed) ? parsed[printerId] : undefined
+    const value = isRecord(parsed) ? parsed[key] : undefined
     return typeof value === 'string' ? value : null
   } catch {
     return null
   }
 }
 
-function writeLastSyncedAt(printerId: string, updatedAt: string | null): void {
+function writeLastSyncedAt(key: string, updatedAt: string | null): void {
   try {
     const parsed = JSON.parse(window.localStorage.getItem(metaStorageKey) ?? '{}')
     const record: Record<string, string> = {}
@@ -35,8 +44,8 @@ function writeLastSyncedAt(printerId: string, updatedAt: string | null): void {
         if (typeof value === 'string') record[id] = value
       }
     }
-    if (updatedAt === null) delete record[printerId]
-    else record[printerId] = updatedAt
+    if (updatedAt === null) delete record[key]
+    else record[key] = updatedAt
     window.localStorage.setItem(metaStorageKey, JSON.stringify(record))
   } catch {
     // A full or unavailable store costs the status line, never the sync itself.
@@ -48,11 +57,12 @@ type SyncCommandKey = (typeof syncCommandKeys)[number]
 
 /**
  * Settings/layout persistence phase 3 — the Moonraker-DB sync seam the
- * Settings plan left open. Opt-in per printer (`printers.ts`'s
- * `dbSyncEnabled`), keyed per user via Moonraker's own login
- * (`auth.currentUser`, `'default'` when nobody is logged in), scoped to the
- * active printer's own database — never a profile that follows a user across
- * different printers. See `docs/architecture/0008-settings-and-layout-sync.md`.
+ * Settings plan left open. Every setting and the dashboard layout are saved to
+ * the logged-in Moonraker user's profile, automatically, in the active
+ * printer's own database — never a profile that follows a user across
+ * different printers. Without a login nothing is synced: each browser keeps
+ * its own settings, so a screen at the printer and a computer elsewhere never
+ * overwrite each other. See `docs/architecture/0008-settings-and-layout-sync.md`.
  *
  * `server.database` is a core Moonraker component, unlike `authorization` or
  * `spoolman` — no `hasComponent` gate guards any call here.
@@ -71,8 +81,11 @@ export const useSettingsSyncStore = defineStore('settingsSync', () => {
   let started = false
   let pushDebounceTimer: ReturnType<typeof setTimeout> | null = null
 
-  const syncKey = computed(() => auth.currentUser?.username ?? 'default')
-  const isEnabled = computed(() => printers.activeEntry?.dbSyncEnabled === true)
+  const syncKey = computed(() => auth.currentUser?.username ?? null)
+  const isEnabled = computed(() => syncKey.value !== null)
+  const activeMetaKey = computed(() =>
+    printers.activeId && syncKey.value !== null ? metaKey(printers.activeId, syncKey.value) : null,
+  )
 
   /**
    * `localStorage` is not itself reactive, so a write bumps this to force
@@ -86,18 +99,18 @@ export const useSettingsSyncStore = defineStore('settingsSync', () => {
   const syncMetaVersion = ref(0)
   const lastSyncedAt = computed<string | null>(() => {
     void syncMetaVersion.value
-    return printers.activeId ? readLastSyncedAt(printers.activeId) : null
+    return activeMetaKey.value ? readLastSyncedAt(activeMetaKey.value) : null
   })
 
   function recordSynced(updatedAt: string): void {
-    if (!printers.activeId) return
-    writeLastSyncedAt(printers.activeId, updatedAt)
+    if (!activeMetaKey.value) return
+    writeLastSyncedAt(activeMetaKey.value, updatedAt)
     syncMetaVersion.value += 1
   }
 
   function clearSynced(): void {
-    if (!printers.activeId) return
-    writeLastSyncedAt(printers.activeId, null)
+    if (!activeMetaKey.value) return
+    writeLastSyncedAt(activeMetaKey.value, null)
     syncMetaVersion.value += 1
   }
 
@@ -108,14 +121,12 @@ export const useSettingsSyncStore = defineStore('settingsSync', () => {
    * synced here yet," not a malformed request.
    */
   async function pull(): Promise<SettingsBundle | null> {
-    if (!moonraker.isConnected) return null
+    const key = syncKey.value
+    if (!moonraker.isConnected || key === null) return null
     let result: SettingsBundle | null = null
     await commands.run('pull', async () => {
       try {
-        const response = await moonraker.rpcCall('server.database.get_item', {
-          namespace,
-          key: syncKey.value,
-        })
+        const response = await moonraker.rpcCall('server.database.get_item', { namespace, key })
         result = isRecord(response.value) ? (response.value as unknown as SettingsBundle) : null
       } catch {
         result = null
@@ -125,47 +136,38 @@ export const useSettingsSyncStore = defineStore('settingsSync', () => {
   }
 
   async function push(): Promise<boolean> {
-    if (!moonraker.isConnected) return false
+    const key = syncKey.value
+    if (!moonraker.isConnected || key === null) return false
     return commands.run('push', async () => {
       const bundle = collectSettingsBundle()
-      await moonraker.rpcCall('server.database.post_item', {
-        namespace,
-        key: syncKey.value,
-        value: bundle,
-      })
+      await moonraker.rpcCall('server.database.post_item', { namespace, key, value: bundle })
       recordSynced(bundle.updatedAt)
     })
   }
 
   async function forget(): Promise<boolean> {
-    if (!moonraker.isConnected) return false
+    const key = syncKey.value
+    if (!moonraker.isConnected || key === null) return false
     return commands.run('forget', async () => {
-      await moonraker.rpcCall('server.database.delete_item', { namespace, key: syncKey.value })
+      await moonraker.rpcCall('server.database.delete_item', { namespace, key })
       clearSynced()
     })
   }
 
-  /** Enabling seeds from whichever side already has something: pull if the printer already holds a profile, otherwise push this browser's current one. */
-  async function syncOnEnable(): Promise<void> {
-    const remote = await pull()
-    if (remote) {
-      await applySettingsBundle(remote)
-      recordSynced(remote.updatedAt)
-    } else {
-      await push()
-    }
-  }
-
-  async function setEnabled(printerId: string, enabled: boolean): Promise<void> {
-    printers.setDbSyncEnabled(printerId, enabled)
-    if (enabled && printerId === printers.activeId) await syncOnEnable()
-  }
-
-  /** A reconnect (or the store starting already connected) may find a newer profile than this browser last applied — never older, and never while a local edit is only queued to push. */
-  async function checkForRemoteUpdate(): Promise<void> {
+  /**
+   * Runs whenever a user's profile becomes reachable — a login, a reconnect, a
+   * printer switch. A user with no profile on this printer yet starts one
+   * from this browser's current settings; an existing one newer than this
+   * browser last applied replaces them, and an older one is left alone, so a
+   * reconnect never rolls back an edit this browser has not pushed yet.
+   */
+  async function syncProfile(): Promise<void> {
     if (!isEnabled.value) return
     const remote = await pull()
-    if (!remote) return
+    if (!remote) {
+      await push()
+      return
+    }
     if (lastSyncedAt.value !== null && remote.updatedAt <= lastSyncedAt.value) return
     await applySettingsBundle(remote)
     recordSynced(remote.updatedAt)
@@ -198,8 +200,8 @@ export const useSettingsSyncStore = defineStore('settingsSync', () => {
 
     disposers.push(
       // Only a real change while sync is live schedules a push — the
-      // transition into being enabled/connected is `setEnabled`'s and
-      // `checkForRemoteUpdate`'s job, not this watcher's.
+      // transition into a reachable profile is `syncProfile`'s job, not
+      // this watcher's.
       watch(
         () => (isEnabled.value && moonraker.isConnected ? comparableSnapshot() : null),
         (value, oldValue) => {
@@ -207,13 +209,13 @@ export const useSettingsSyncStore = defineStore('settingsSync', () => {
         },
       ),
       watch(
-        () => moonraker.isConnected,
-        (connected) => {
-          if (connected) void checkForRemoteUpdate()
+        () => (moonraker.isConnected ? activeMetaKey.value : null),
+        (key) => {
+          if (key !== null) void syncProfile()
         },
+        { immediate: true },
       ),
     )
-    if (moonraker.isConnected) void checkForRemoteUpdate()
     stopPrinterChangeReset = moonraker.onPrinterChange(printerChanged)
   }
 
@@ -237,7 +239,6 @@ export const useSettingsSyncStore = defineStore('settingsSync', () => {
     push,
     pull,
     forget,
-    setEnabled,
     start,
     stop,
   }

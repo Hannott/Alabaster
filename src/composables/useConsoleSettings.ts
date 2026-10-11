@@ -36,29 +36,34 @@ const defaults: ConsoleSettings = {
 }
 
 /** A hand-edited or older payload degrades key by key rather than all at once. */
+function normalize(stored: unknown): ConsoleSettings {
+  if (typeof stored !== 'object' || stored === null) return { ...defaults }
+  const record = stored as Record<string, unknown>
+  const restored = {
+    ...defaults,
+    ...Object.fromEntries(
+      Object.entries(defaults)
+        .filter(([key]) => typeof record[key] === typeof defaults[key as keyof ConsoleSettings])
+        .map(([key]) => [key, record[key]]),
+    ),
+  } as ConsoleSettings
+  // A type check is not enough for a union: any string would survive it, and an
+  // unrecognized position would leave the prompt nowhere.
+  if (restored.inputPosition !== 'top' && restored.inputPosition !== 'bottom') {
+    restored.inputPosition = defaults.inputPosition
+  }
+  return restored
+}
+
 function load(): ConsoleSettings {
   try {
-    const stored: unknown = JSON.parse(window.localStorage.getItem(storageKey) ?? '{}')
-    if (typeof stored !== 'object' || stored === null) return { ...defaults }
-    const record = stored as Record<string, unknown>
-    const restored = {
-      ...defaults,
-      ...Object.fromEntries(
-        Object.entries(defaults)
-          .filter(([key]) => typeof record[key] === typeof defaults[key as keyof ConsoleSettings])
-          .map(([key]) => [key, record[key]]),
-      ),
-    } as ConsoleSettings
-    // A type check is not enough for a union: any string would survive it, and an
-    // unrecognized position would leave the prompt nowhere.
-    if (restored.inputPosition !== 'top' && restored.inputPosition !== 'bottom') {
-      restored.inputPosition = defaults.inputPosition
-    }
-    return restored
+    return normalize(JSON.parse(window.localStorage.getItem(storageKey) ?? '{}'))
   } catch {
     return { ...defaults }
   }
 }
+
+export const defaultConsoleSettings: Readonly<ConsoleSettings> = defaults
 
 const settings = ref<ConsoleSettings>(load())
 
@@ -71,6 +76,11 @@ function update(patch: Partial<ConsoleSettings>): void {
   }
 }
 
+/** A settings bundle's copy, repaired key by key like a stored one. */
+function replace(input: unknown): void {
+  update(normalize(input))
+}
+
 export function useConsoleSettings() {
-  return { settings: computed(() => settings.value), update }
+  return { settings: computed(() => settings.value), update, replace }
 }

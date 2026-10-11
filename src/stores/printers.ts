@@ -19,11 +19,7 @@ import { isRecord } from '@/utils/records'
  *
  * **The list.** It cannot live in Moonraker's database, because it is the
  * answer to "which databases can I reach" — so it stays browser-local even now
- * that per-printer settings sync (`stores/settingsSync.ts`) exists. Sync
- * itself is opt-in per entry (`dbSyncEnabled`), because writing to a printer's
- * database is a step beyond merely connecting to it, and a printer someone
- * else also uses should not have its settings silently overwritten by whoever
- * happens to open Alabaster next.
+ * that per-printer settings sync (`stores/settingsSync.ts`) exists.
  *
  * Ids are derived rather than random, matching `nextInstanceId` for dashboard
  * modules: no clock and no random source, so a stored list and a test read the
@@ -72,17 +68,6 @@ export interface PrinterEntry {
    * same endpoint should resume the session rather than force a fresh login.
    */
   refreshToken?: string
-  /**
-   * Opt-in, per printer: whether Settings/layout sync
-   * (`stores/settingsSync.ts`) is allowed to read and write this printer's
-   * Moonraker database. Off by default. `removePrinter` deletes the whole
-   * entry, this field included, so re-adding the same address starts as a
-   * fresh, un-opted-in printer — a deliberate difference from data scoped by
-   * printer id in *other* stores (dashboard layout, bed-mesh temperatures),
-   * which `removePrinter`'s own doc comment explains is left alone because
-   * it lives outside this record entirely.
-   */
-  dbSyncEnabled?: boolean
 }
 
 /** The host portion of an entry's address, for a printer nobody has named yet. */
@@ -156,7 +141,6 @@ function readEntries(value: unknown): PrinterEntry[] {
       ...(typeof candidate.refreshToken === 'string' && candidate.refreshToken !== ''
         ? { refreshToken: candidate.refreshToken }
         : {}),
-      ...(candidate.dbSyncEnabled === true ? { dbSyncEnabled: true } : {}),
     })
   }
 
@@ -383,21 +367,6 @@ export const usePrintersStore = defineStore('printers', () => {
     return true
   }
 
-  function setDbSyncEnabled(id: string, enabled: boolean): boolean {
-    const index = entries.value.findIndex((entry) => entry.id === id)
-    if (index === -1) return false
-    const entry = entries.value[index]
-    if (!entry) return false
-    const next = [...entries.value]
-    const updated = { ...entry }
-    if (enabled) updated.dbSyncEnabled = true
-    else delete updated.dbSyncEnabled
-    next[index] = updated
-    entries.value = next
-    persist()
-    return true
-  }
-
   /** `null` clears it — logging out, or a refresh token Moonraker has rejected. */
   function setRefreshToken(id: string, token: string | null): boolean {
     const index = entries.value.findIndex((entry) => entry.id === id)
@@ -442,7 +411,6 @@ export const usePrintersStore = defineStore('printers', () => {
     setLabel,
     rememberDiscoveredName,
     setRefreshToken,
-    setDbSyncEnabled,
     removePrinter,
   }
 })

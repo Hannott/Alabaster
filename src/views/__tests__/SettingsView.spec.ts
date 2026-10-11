@@ -981,34 +981,27 @@ describe('SettingsView — backup', () => {
     expect(wrapper.text()).not.toContain('Sync settings and layout to this printer')
   })
 
-  it('enabling sync with nothing stored yet pushes the current bundle', async () => {
-    const printers = usePrintersStore(pinia)
-    const entry = printers.addPrinter('voron.local:7125')!
+  it('says settings stay in this browser until a user logs in, then names whose profile holds them', async () => {
+    usePrintersStore(pinia).addPrinter('voron.local:7125')
     const moonraker = useMoonrakerStore(pinia)
     moonraker.connectionPhase = 'connected'
-    const rpcCall = vi.spyOn(moonraker, 'rpcCall').mockImplementation((method) => {
+    vi.spyOn(moonraker, 'rpcCall').mockImplementation((method) => {
       if (method === 'server.database.get_item') return Promise.reject(new Error('Key not found'))
       if (method === 'server.database.post_item') {
-        return Promise.resolve({ namespace: 'alabaster', key: 'default', value: {} }) as never
+        return Promise.resolve({ namespace: 'alabaster', key: 'ada', value: {} }) as never
       }
-      throw new Error(`unexpected method ${String(method)}`)
+      return Promise.reject(new Error('not needed here'))
     })
 
     const wrapper = await mountView()
-    const toggle = wrapper
-      .findAll('.check-row')
-      .find((row) => row.text() === 'Sync settings and layout to this printer')!
-    await toggle.get('input[type="checkbox"]').trigger('change')
+    expect(wrapper.text()).toContain('kept in this browser only')
+    expect(wrapper.text()).not.toContain('Sync now')
+
+    useAuthStore(pinia).currentUser = { username: 'ada', source: 'moonraker' } as never
     await flushPromises()
 
-    expect(rpcCall).toHaveBeenCalledWith(
-      'server.database.post_item',
-      expect.objectContaining({ namespace: 'alabaster' }),
-    )
-    expect(printers.entries.find((candidate) => candidate.id === entry.id)?.dbSyncEnabled).toBe(
-      true,
-    )
-    expect(wrapper.text()).toContain('Last synced')
+    expect(wrapper.text()).toContain("saved to ada's profile")
+    expect(wrapper.text()).toContain('Sync now')
   })
 
   it('resets settings live, without a reload, once the reset is confirmed', async () => {

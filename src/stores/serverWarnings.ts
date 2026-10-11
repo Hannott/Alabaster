@@ -120,6 +120,13 @@ export const useServerWarningsStore = defineStore('serverWarnings', () => {
     persistMutedIds(printers.activeScopeKeys, mutedIds.value)
   }
 
+  /** A settings bundle's copy of this printer's muted warnings. */
+  function replaceMuted(input: unknown): void {
+    if (!Array.isArray(input)) return
+    mutedIds.value = new Set(readStringList(input))
+    persistMutedIds(printers.activeScopeKeys, mutedIds.value)
+  }
+
   /** Another printer's Moonraker loads its own components and reports its own warnings. */
   function reset(): void {
     notices.value = []
@@ -164,6 +171,7 @@ export const useServerWarningsStore = defineStore('serverWarnings', () => {
     markRead,
     snooze,
     mute,
+    replaceMuted,
     reset,
     start,
     stop,

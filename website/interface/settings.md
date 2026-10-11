@@ -196,10 +196,6 @@ has sent that the printer has not run yet, in the order it will run them,
 with where each came from and how long it has waited. A queued command
 cannot be withdrawn; the emergency stop clears them all.
 
-If the printer requires a login, these settings follow your account through
-sync. Without a login they stay on this device, so a screen at the printer and
-a computer elsewhere can each keep their own.
-
 ## Confirmations
 
 This card lists every confirmation dialog in Alabaster, grouped by area:
@@ -266,35 +262,36 @@ starts out.
 - **Reset to defaults** returns the same settings to their starting values.
   Printers you have added, and any logins, are not affected.
 
-### Sync to this printer
+### Your profile on the printer
 
-**Sync settings and layout to this printer** stores the same settings in the
-printer's own Moonraker database, so they follow you back to this printer
-from another browser or device.
+Log in to a Moonraker account and your settings and dashboard layout follow
+you: they are saved to your account's profile in the printer's own
+database, and every browser where you log in to that printer picks them up.
+Each account has its own profile, so two people sharing a printer do not
+overwrite each other's settings. The first time you log in on a printer, your
+profile starts from the settings in the browser you are using.
 
-This setting is off by default and enabled per printer. Turning it on for one
-printer does not turn it on for another. The card shows when it last synced,
-or that it has not yet synced, and **Sync now** syncs on demand.
+Without a login, nothing is saved to the printer. Each browser keeps its own
+settings, so a screen at the printer and a computer elsewhere can be set up
+differently.
 
-If the printer requires a login, each account gets its own synced copy, so
-two people sharing a printer do not overwrite each other's settings.
-
-**Forget synced data** removes the settings stored in that printer's
-database. It does not change anything in your browser; it clears only the
-printer's copy.
+The card shows when your profile last synced, and **Sync now** syncs on
+demand. **Forget synced data** removes your profile from the printer's
+database without changing anything in your browser.
 
 ## Where preferences are stored
 
-Alabaster stores preferences in your browser's local storage, on the device
-you are using. Sync is off by default, so nothing is written to the printer,
-and another browser or device starts with default settings.
+Alabaster keeps every preference in your browser's local storage, and
+mirrors it to your profile on the printer while you are logged in.
 
-Some settings stay browser-local even with sync on, because they apply to
-this device only:
+Some settings stay in the browser even then, because they are about the
+screen rather than about you:
 
-- **The printer list itself.** See
+- **The printer list itself**, and what depends on it: hidden navigation
+  destinations and the Farm view's camera choices. See
   [Several printers](/guide/printers#where-it-is-all-stored).
 - **Device ergonomics**: the screen-awake setting, whether the sidebar is
-  collapsed, and which settings category you last had open.
-- **Commands**, unless the printer requires a login.
+  collapsed or minimal, whether page headers are shown, which settings
+  category you last had open, and the Configuration page's hidden file list,
+  collapsed tab rows, and full-screen editor.
 - **Logins and sessions**, which belong to the device you are on.

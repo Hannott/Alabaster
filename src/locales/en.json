@@ -3408,9 +3408,9 @@
     "resetConfirmTitle": "Reset settings to their defaults?",
     "resetConfirmDescription": "Theme, language, format, confirmation, and dashboard-layout settings are reset. Printers and logins are not affected.",
     "sync": {
-      "title": "Sync to this printer",
-      "description": "Keeps the settings above, and this printer's dashboard layout, in that printer's own Moonraker database — so they follow you back here from another browser or device.",
-      "toggle": "Sync settings and layout to this printer",
+      "title": "Your profile on this printer",
+      "description": "Settings and the dashboard layout are saved to {user}'s profile in this printer's Moonraker database, and follow that login to any browser.",
+      "localOnly": "Not logged in: settings and the dashboard layout are kept in this browser only.",
       "lastSynced": "Last synced {value}",
       "neverSynced": "Not synced yet",
       "now": "Sync now",

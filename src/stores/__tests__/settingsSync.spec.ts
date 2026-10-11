@@ -1,6 +1,8 @@
 import { createPinia, setActivePinia } from 'pinia'
+import { flushPromises } from '@vue/test-utils'
 import { beforeAll, describe, expect, it, vi } from 'vitest'
 
+import { useAuthStore } from '@/stores/auth'
 import { useMoonrakerStore } from '@/stores/moonraker'
 import { usePrintersStore } from '@/stores/printers'
 
@@ -70,6 +72,10 @@ describe('settings sync store', () => {
     return { moonraker }
   }
 
+  function logIn(username = 'ada'): void {
+    useAuthStore().currentUser = { username, source: 'moonraker' } as never
+  }
+
   it('never calls Moonraker while disconnected', async () => {
     const { moonraker } = setup()
     moonraker.connectionPhase = 'connecting'
@@ -83,54 +89,71 @@ describe('settings sync store', () => {
     expect(rpcCall).not.toHaveBeenCalled()
   })
 
-  it('enabling sync with nothing stored yet pushes the current bundle', async () => {
+  it('keeps every setting in this browser while nobody is logged in', async () => {
     const { moonraker } = setup()
-    const printers = usePrintersStore()
-    const entry = printers.addPrinter('voron.local:7125')!
+    usePrintersStore().addPrinter('voron.local:7125')
+    const rpcCall = vi.spyOn(moonraker, 'rpcCall')
 
+    const settingsSync = useSettingsSyncStore()
+    settingsSync.start()
+    await flushPromises()
+
+    expect(settingsSync.isEnabled).toBe(false)
+    expect(await settingsSync.push()).toBe(false)
+    expect(rpcCall).not.toHaveBeenCalled()
+    settingsSync.stop()
+  })
+
+  it("starts a user's profile from this browser's settings when the printer has none yet", async () => {
+    const { moonraker } = setup()
+    usePrintersStore().addPrinter('voron.local:7125')
+    logIn()
     const rpcCall = vi.spyOn(moonraker, 'rpcCall').mockImplementation((method) => {
       if (method === 'server.database.get_item') return Promise.reject(new Error('Key not found'))
       if (method === 'server.database.post_item') {
-        return Promise.resolve({ namespace: 'alabaster', key: 'default', value: {} }) as never
+        return Promise.resolve({ namespace: 'alabaster', key: 'ada', value: {} }) as never
       }
       throw new Error(`unexpected method ${String(method)}`)
     })
 
     const settingsSync = useSettingsSyncStore()
-    await settingsSync.setEnabled(entry.id, true)
+    settingsSync.start()
+    await flushPromises()
 
     expect(rpcCall).toHaveBeenCalledWith('server.database.get_item', {
       namespace: 'alabaster',
-      key: 'default',
+      key: 'ada',
     })
     expect(rpcCall).toHaveBeenCalledWith(
       'server.database.post_item',
-      expect.objectContaining({ namespace: 'alabaster', key: 'default' }),
+      expect.objectContaining({ namespace: 'alabaster', key: 'ada' }),
     )
     expect(settingsSync.lastSyncedAt).not.toBeNull()
-    expect(printers.entries[0]?.dbSyncEnabled).toBe(true)
+    settingsSync.stop()
   })
 
-  it('enabling sync with an existing remote profile pulls and applies it live', async () => {
+  it("applies a logged-in user's existing profile live", async () => {
     const { moonraker } = setup()
-    const printers = usePrintersStore()
-    const entry = printers.addPrinter('voron.local:7125')!
+    usePrintersStore().addPrinter('voron.local:7125')
     const theme = useTheme()
     theme.setMode('light')
 
     const remote = emptyRemoteBundle()
     vi.spyOn(moonraker, 'rpcCall').mockImplementation((method) => {
       if (method === 'server.database.get_item') {
-        return Promise.resolve({ namespace: 'alabaster', key: 'default', value: remote }) as never
+        return Promise.resolve({ namespace: 'alabaster', key: 'ada', value: remote }) as never
       }
       throw new Error(`unexpected method ${String(method)}`)
     })
 
     const settingsSync = useSettingsSyncStore()
-    await settingsSync.setEnabled(entry.id, true)
+    settingsSync.start()
+    logIn()
+    await flushPromises()
 
     expect(theme.mode.value).toBe('dark')
     expect(settingsSync.lastSyncedAt).toBe(remote.updatedAt)
+    settingsSync.stop()
   })
 
   it('treats a pull RPC error as "nothing synced yet" rather than a failure', async () => {
@@ -149,6 +172,7 @@ describe('settings sync store', () => {
 
   it('surfaces a genuine push failure through the command runner without retrying it', async () => {
     const { moonraker } = setup()
+    logIn()
     vi.spyOn(moonraker, 'rpcCall').mockImplementation((method) => {
       if (method === 'server.database.post_item') return Promise.reject(new Error('write failed'))
       throw new Error(`unexpected method ${String(method)}`)
@@ -177,6 +201,7 @@ describe('settings sync store', () => {
       const moonraker = useMoonrakerStore()
       moonraker.connect('printer-a.local:7125')
       moonraker.connectionPhase = 'connected'
+      logIn()
 
       const pushDeferred = createDeferred<{ namespace: string; key: string; value: unknown }>()
       vi.spyOn(moonraker, 'rpcCall').mockImplementation((method) => {
