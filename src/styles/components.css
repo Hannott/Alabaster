@@ -1811,10 +1811,17 @@ input[type='number']::-webkit-inner-spin-button {
  * visible top instead — see `.settings-rail`. Any future sticky-in-shell
  * element wants the same offset, which is why the value lives here rather
  * than being restated (and eventually contradicted) at each sticky site.
+ *
+ * `--page-shell-pad-top` is always the padding actually applied, and
+ * `--page-shell-pad-top-base` the width's own value it is derived from. A
+ * collapsed page heading halves the first and only the first; when it halved
+ * the padding but left the variable whole, every sticky offset overshot by the
+ * difference and pinned its element half a padding above the visible top.
  */
 .standard-page,
 .workspace-page {
-  --page-shell-pad-top: clamp(1rem, 2vw, 2rem);
+  --page-shell-pad-top-base: clamp(1rem, 2vw, 2rem);
+  --page-shell-pad-top: var(--page-shell-pad-top-base);
   padding: clamp(1rem, 2vw, 2rem);
   padding-top: var(--page-shell-pad-top);
 }
@@ -9729,14 +9736,10 @@ select {
 .standard-page:has(> .page-heading--collapsed),
 .workspace-page:has(> .page-heading--collapsed) {
   /*
-   * Both the physical and the flow-relative property: the base rule sets
-   * `padding-top`, the narrow-width override below sets `padding-block-start`,
-   * and this selector's higher specificity (an extra class plus `:has()`) only
-   * wins over whichever one of the two is actually active at a given width if
-   * both are overridden here.
+   * The variable, not the padding: both width rules already pad by it, and the
+   * sticky offsets that cancel the padding read it too.
    */
-  padding-top: calc(var(--page-shell-pad-top, 0rem) / 2);
-  padding-block-start: calc(var(--page-shell-pad-top, 0rem) / 2);
+  --page-shell-pad-top: calc(var(--page-shell-pad-top-base, 0rem) / 2);
 }
 
 /*
@@ -12671,7 +12674,7 @@ body.machine-editor-fullscreen-open {
    */
   .standard-page,
   .workspace-page {
-    --page-shell-pad-top: 0.75rem;
+    --page-shell-pad-top-base: 0.75rem;
     padding-inline: 0.75rem;
     padding-block-start: var(--page-shell-pad-top);
     padding-block-end: 5rem;
