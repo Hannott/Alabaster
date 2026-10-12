@@ -329,19 +329,33 @@ scan_for_conflicts() {
 }
 
 
-# Clones (once) or leaves the existing clone alone; Moonraker's own
-# `alabaster-config` update_manager entry is what keeps it current after this.
-# Pinned to the version just installed, so the macro pack can never disagree
-# with the app about which release it came from — the exact drift a
-# separately-versioned config repository would risk.
+# Clones (once), or repairs a clone an earlier installer left in a shape
+# Moonraker cannot update; Moonraker's own `alabaster-config` update_manager
+# entry is what keeps it current after this. Pinned to the version just
+# installed, so the macro pack can never disagree with the app about which
+# release it came from — the exact drift a separately-versioned config
+# repository would risk.
 #
-# Tries a partial, sparse clone first — only `klipper/` rather than the whole
-# application source — and falls back to a plain clone on a git old enough
-# not to support that. Returns non-zero only when no clone could be made at
-# all (typically no network), so the caller can fall back further, to the
-# plain copy this release also carries for exactly that case.
+# **The shape is Moonraker's, not git's default.** A `git_repo` entry needs the
+# primary branch checked out, `branch.main.remote` set, and `origin/main`
+# fetched: its validity check refuses a detached HEAD, and its recovery looks
+# the remote up by branch name. Earlier installers cloned the release tag with
+# `--depth 1 --branch <tag>`, which gives none of the three — a detached HEAD,
+# no `main`, and a fetch refspec naming only that tag — so every such install
+# showed "needs attention" and recovery failed with "Failed to find remote for
+# primary branch 'main'". So the clone takes `main`, and `main` is then moved
+# back to the installed release's commit: the same state Moonraker's own stable
+# channel leaves after an update.
+#
+# Partial and sparse — only `klipper/`, and blobs only for what is checked out
+# — rather than shallow, since a shallow clone has no tags for the stable
+# channel to compare against. Falls back to a plain clone on a git too old for
+# that. Returns non-zero only when no clone could be made at all (typically no
+# network), so the caller can fall back further, to the plain copy this
+# release also carries for exactly that case.
 ensure_config_repo() {
     if [ -d "${config_repo_path}/.git" ]; then
+        repair_config_repo
         return 0
     fi
     if [ -e "$config_repo_path" ]; then
@@ -356,17 +370,16 @@ ensure_config_repo() {
     fi
 
     say "Cloning the macro pack (${installed_version:-latest})..."
-    local clone_args=(--depth 1)
-    [ -n "$installed_version" ] && clone_args=(--depth 1 --branch "$installed_version")
-
-    if git clone --filter=blob:none --sparse "${clone_args[@]}" "$CONFIG_REPO_ORIGIN" "$config_repo_path" 2>/dev/null \
+    if git clone --filter=blob:none --sparse --branch main "$CONFIG_REPO_ORIGIN" "$config_repo_path" 2>/dev/null \
         && git -C "$config_repo_path" sparse-checkout set klipper 2>/dev/null; then
+        pin_config_repo
         return 0
     fi
 
     rm -rf "$config_repo_path"
-    if git clone "${clone_args[@]}" "$CONFIG_REPO_ORIGIN" "$config_repo_path" 2>/dev/null; then
+    if git clone --branch main "$CONFIG_REPO_ORIGIN" "$config_repo_path" 2>/dev/null; then
         warn 'Cloned the full repository rather than just klipper/; an older git here does not support partial clones.'
+        pin_config_repo
         return 0
     fi
 
@@ -374,6 +387,50 @@ ensure_config_repo() {
     warn 'Could not clone the macro pack repository. Check your network, then re-run this installer to add it.'
     return 1
 }
+
+# Moves `main` to the installed release. A release that is not on `main` yet
+# leaves it at `main`'s head rather than failing the install.
+pin_config_repo() {
+    [ -n "$installed_version" ] || return 0
+    git -C "$config_repo_path" reset -q --hard "$installed_version" 2>/dev/null \
+        || warn "Release ${installed_version} was not found in the macro pack repository; it is at the latest commit instead."
+}
+
+# Converts a clone an earlier installer made — a detached HEAD on a shallow,
+# single-tag clone — into the shape described above ensure_config_repo,
+# keeping the commit it is on and any edits to alabaster.cfg. A clone already
+# on a branch with a remote is left alone.
+repair_config_repo() {
+    local repo="$config_repo_path"
+    if git -C "$repo" symbolic-ref -q HEAD >/dev/null 2>&1 \
+        && git -C "$repo" config "branch.main.remote" >/dev/null 2>&1; then
+        return 0
+    fi
+
+    if [ "$dry_run" -eq 1 ]; then
+        printf '%s(dry run)%s would repair %s so Moonraker can update it\n' "$C_DIM" "$C_OFF" "$repo"
+        return 0
+    fi
+
+    say 'Repairing the macro pack repository so Moonraker can update it...'
+    git -C "$repo" config remote.origin.fetch '+refs/heads/*:refs/remotes/origin/*'
+    local fetched=0
+    if [ -f "$repo/.git/shallow" ]; then
+        git -C "$repo" fetch -q --tags --unshallow origin 2>/dev/null && fetched=1
+    else
+        git -C "$repo" fetch -q --tags origin 2>/dev/null && fetched=1
+    fi
+    if [ "$fetched" -eq 0 ] || ! git -C "$repo" rev-parse -q --verify origin/main >/dev/null; then
+        warn 'Could not fetch the macro pack repository, so it was not repaired. Check your network, then re-run this installer.'
+        return 0
+    fi
+
+    # `checkout -B` keeps the current commit and the working tree, edits included.
+    git -C "$repo" checkout -q -B main HEAD
+    git -C "$repo" branch -q --set-upstream-to=origin/main main
+    did "Repaired ${repo} so Moonraker can update it"
+}
+
 
 # Puts alabaster.cfg where printer.cfg's [include] expects it, as a symlink
 # into the clone rather than a copy — so editing the file, whether by hand or
