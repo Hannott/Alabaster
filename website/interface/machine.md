@@ -2,50 +2,29 @@
 
 The computer running Klipper, the boards it talks to, and the software on both.
 
-## Host load and resources
+## Host
 
-These figures come from Moonraker in real time, not as a snapshot from when the
-page opened:
+The top of the page reads the computer running Klipper live, not as a snapshot
+from when the page opened: CPU load averaged across all cores, memory in use,
+host temperature, uptime and when it booted, and network bandwidth on the
+interface that carries the printer's address.
 
-- **CPU load**, averaged across all cores.
-- **Memory**, used and free.
-- **Host temperature.**
-- **Network bandwidth.**
-- **Uptime.**
+**On a Raspberry Pi, the page also watches the power supply.** It reports an
+under-voltage while it is happening, and one that happened earlier since boot,
+which is the usual hidden cause of random disconnects and SD card corruption.
 
 If host status cannot be read, the page keeps showing the previously loaded
 figures and says so, instead of blanking out or showing zeros.
 
-## Controller modules
-
-This section lists every MCU Klipper is talking to, with its chip, firmware
-version, load, and frequency.
-
-A board that has dropped off is marked **Disconnected**, rather than showing
-its last-known numbers as current.
-
-## Peripherals
-
-This section lists the serial, USB, and CAN devices attached to the host.
-
-Use it to find the `/dev/serial/by-id/...` path for an `[mcu]` or `[probe]`
-section, or the UUID a CAN-connected toolhead's `canbus_uuid:` line wants,
-without an SSH session. The USB list also confirms that a board is
-enumerating, even before it has been given a tty node. A CAN interface is
-listed even with nothing unclaimed on it, confirming the adapter is working.
-
-There is no notification for a device being plugged in or unplugged. This
-list is read when the page loads, and again when you choose **Refresh**.
-
 ## Services
 
-This section lists the services Moonraker manages. Each row shows its state
-(**Running**, **Stopped**, or **Failed**) and a link to its web interface,
-where it has one.
+This section lists the services Moonraker manages. Klipper's row also says
+what Klippy itself is doing, which can differ from its service being up, and
+Moonraker's row says how many clients are connected to it.
 
-**Most services can be started, stopped, or restarted from their own row.** A
-stopped service offers only Start. A failed service offers Start and Restart.
-A running service offers Stop and Restart. Stopping a service always asks for
+**A service that needs you shows the action it needs.** A failed service
+offers Restart and a stopped one offers Start, right on its row. A running
+service keeps Restart and Stop in its menu. Stopping a service always asks for
 confirmation. Restarting asks for lighter confirmation, since the service
 comes back on its own.
 
@@ -57,6 +36,25 @@ and a link to its web interface, with no Start, Stop, or Restart control.
 Restarting Klipper, restarting Moonraker, and rebooting or shutting down the
 host are also available from the header's power menu, on every page. See
 [Restarting things on purpose](/guide/connecting#restarting-things-on-purpose).
+
+## Hardware
+
+This section lists every MCU Klipper is talking to, with its chip, firmware
+version, and load, then the serial, USB, and CAN devices attached to the host.
+A board that has dropped off is marked **Disconnected**, rather than showing
+its last-known numbers as current.
+
+**Find the path for an `[mcu]` section without an SSH session.** Each serial
+device is named after the board it belongs to, says which `[mcu]` section
+already uses it, and copies its `/dev/serial/by-id/...` path in one click. The
+USB list confirms that a board is enumerating, even before it has been given a
+tty node; USB hubs are folded away, since the board you are looking for is
+never one. A CAN interface is listed even with nothing unclaimed on it,
+confirming the adapter is working, along with the UUID a CAN toolhead's
+`canbus_uuid:` line wants.
+
+There is no notification for a device being plugged in or unplugged. This
+list is read when the page loads, and again when you refresh it.
 
 ## Software updates
 
@@ -72,7 +70,13 @@ Every update source Moonraker reports has its own status:
 never swept into an update-everything run, because the recovery it needs is
 not the same as an install.
 
-**Update all** names every source it will touch before it starts. It also
+**You see where an update goes before you open it.** An available source
+shows the version it moves to and how many commits that is, and a downloaded
+release links straight to its release notes. The panel also says when the
+sources were last checked, whether that check came from this browser, another
+one, or Moonraker's own schedule.
+
+Updating every source at once names every source it will touch before it starts. It also
 warns that Klipper and Moonraker restart as part of their own updates, so the
 printer must not be printing.
 
@@ -121,8 +125,8 @@ recovery below to keep or discard those changes before the next update.
 Moonraker tracks Klipper, Moonraker, and a git-based client by their own git
 history, and can revert any of them to the version before its most recent
 update. Use this if a new version turns out to be the problem. The rollback
-control sits beside the row; Alabaster confirms it the same way it confirms
-an install, requiring the printer not be printing. A source updated from
+names the version it returns to, and Alabaster confirms it the same way it
+confirms an install, requiring the printer not be printing. A source updated from
 packages has no previous version for Moonraker to hold onto, so it does not
 offer this control. Use the recovery flow below instead for a row that
 already needs attention; it does not offer this control either.

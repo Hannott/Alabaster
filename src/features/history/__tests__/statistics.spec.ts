@@ -2,11 +2,13 @@ import { describe, expect, it } from 'vitest'
 
 import {
   bucketGranularityFor,
+  estimateDeviation,
   historyTrend,
   lengthDistribution,
   outcomeBreakdown,
   outcomeMeasureValue,
   periodSince,
+  typicalPrintDuration,
   type HistoryStatsJob,
 } from '@/features/history/statistics'
 
@@ -197,5 +199,35 @@ describe('lengthDistribution', () => {
     for (let index = 1; index < bins.length; index += 1) {
       expect(bins[index]?.lowerBound).toBe(bins[index - 1]?.upperBound)
     }
+  })
+})
+
+describe('typicalPrintDuration', () => {
+  it('takes the median of completed prints and names how many it covered', () => {
+    expect(
+      typicalPrintDuration([
+        job({ printDuration: 600 }),
+        job({ printDuration: 1800 }),
+        job({ printDuration: 60_000 }),
+        job({ outcome: 'cancelled', printDuration: 10 }),
+      ]),
+    ).toEqual({ value: 1800, jobs: 3 })
+  })
+
+  it('reports nothing rather than zero when no print completed', () => {
+    expect(typicalPrintDuration([job({ outcome: 'cancelled' })])).toBeNull()
+  })
+})
+
+describe('estimateDeviation', () => {
+  it('compares completed prints against their own estimate, ignoring jobs without one', () => {
+    const reading = estimateDeviation([
+      { ...job({ printDuration: 1100 }), details: { estimatedTime: 1000 } },
+      { ...job({ printDuration: 1080 }), details: { estimatedTime: 1000 } },
+      { ...job({ printDuration: 900 }), details: { estimatedTime: null } },
+      { ...job({ outcome: 'cancelled', printDuration: 10 }), details: { estimatedTime: 1000 } },
+    ])
+    expect(reading?.jobs).toBe(2)
+    expect(reading?.value).toBeCloseTo(0.09)
   })
 })

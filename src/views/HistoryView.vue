@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, useTemplateRef } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import AppButton from '@/components/AppButton.vue'
@@ -13,18 +13,20 @@ import { useAvailability } from '@/composables/useAvailability'
 import { formatHistoryDuration, formatHistoryFilament } from '@/features/history/format'
 import { historyOutcomeIcon } from '@/features/history/outcome'
 import {
+  estimateDeviation,
   historyPeriods,
   historyTrend,
   lengthDistribution,
   outcomeBreakdown,
   outcomeMeasureValue,
+  typicalPrintDuration,
   type HistoryPeriod,
   type HistoryStatsMeasure,
   type LengthDistributionBin,
   type OutcomeBreakdown,
 } from '@/features/history/statistics'
-import { createDateTimeFormatter } from '@/i18n/formats'
 import { useActionGuard } from '@/composables/useActionGuard'
+import { moonrakerThumbnailUrl } from '@/services/moonraker'
 import { useConfirmationsStore } from '@/stores/confirmations'
 import {
   useHistoryStore,
@@ -34,6 +36,7 @@ import {
 } from '@/stores/history'
 import { useJobQueueStore } from '@/stores/jobQueue'
 import { usePrinterConfigStore } from '@/stores/printerConfig'
+import { useMoonrakerStore } from '@/stores/moonraker'
 import { usePrinterStore } from '@/stores/printer'
 
 const { locale, t } = useI18n({ useScope: 'global' })
@@ -41,11 +44,17 @@ const history = useHistoryStore()
 const printer = usePrinterStore()
 const printerConfig = usePrinterConfigStore()
 const confirmations = useConfirmationsStore()
+const moonraker = useMoonrakerStore()
 /*
  * Reprinting commits the machine to a job; deleting a record destroys one. Same
  * tier, different emphasis, and the escalation is one step from each.
  */
 const reprintGuard = useActionGuard({ tier: 'terminal', emphasis: 'primary', key: 'reprintJob' })
+/**
+ * The same decision as `reprintGuard`, at `quiet` emphasis for the row menu,
+ * where a filled item would outshout every other entry in the list.
+ */
+const menuReprintGuard = useActionGuard({ tier: 'terminal', emphasis: 'quiet', key: 'reprintJob' })
 const deleteJobGuard = useActionGuard({
   tier: 'terminal',
   emphasis: 'danger-quiet',
@@ -59,32 +68,12 @@ onMounted(() => {
   void printer.refreshFiles()
 })
 
-const pageRoot = useTemplateRef<HTMLElement>('pageRoot')
-
-// Optional-called, so an environment without matchMedia still animates
-// rather than silently losing the motion — as `dashboard/reveal.ts` does.
-function prefersReducedMotion(): boolean {
-  return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
-}
-
-/**
- * `.standard-page` is the scroll container, not the window — its own
- * `overflow: auto` is what makes the job list's length scrollable at all —
- * so this scrolls that element rather than `window.scrollTo`, which would be
- * a no-op here.
- */
-function scrollToTop(): void {
-  pageRoot.value?.scrollTo({ top: 0, behavior: prefersReducedMotion() ? 'auto' : 'smooth' })
-}
-
 const numberFormatter = computed(
   () => new Intl.NumberFormat(locale.value, { maximumFractionDigits: 1 }),
 )
 const percentFormatter = computed(
   () => new Intl.NumberFormat(locale.value, { style: 'percent', maximumFractionDigits: 0 }),
 )
-const dateFormatter = computed(() => createDateTimeFormatter(locale.value))
-
 function formatDuration(seconds: number): string {
   return formatHistoryDuration(seconds, t)
 }
@@ -93,27 +82,10 @@ function formatFilament(millimetres: number): string {
   return formatHistoryFilament(millimetres, t, locale.value)
 }
 
-function formatWhen(seconds: number | null): string {
-  if (seconds === null || !Number.isFinite(seconds) || seconds <= 0) return t('history.noValue')
-  return dateFormatter.value.format(seconds * 1000)
-}
-
 function shortName(path: string): string {
   const separator = path.lastIndexOf('/')
   return separator < 0 ? path : path.slice(separator + 1)
 }
-
-/**
- * Computed over the statistics window, never over the job list's own
- * paginated cursor: the rate has to be honest about the population it was
- * drawn from, and a scroll position cannot state one — see the History
- * contract in `docs/design/interface-standards.md`.
- */
-const windowSuccessRateLabel = computed(() =>
-  history.windowSuccessRate === null
-    ? t('history.noValue')
-    : percentFormatter.value.format(history.windowSuccessRate),
-)
 
 const periodOptions: readonly HistoryPeriod[] = historyPeriods
 const measureOptions: readonly HistoryStatsMeasure[] = ['jobs', 'filament', 'time']
@@ -219,6 +191,171 @@ function formatDistributionRange(bin: LengthDistributionBin): string {
   return t('history.stats.distribution.range', { lower, upper: formatDuration(bin.upperBound) })
 }
 
+/**
+ * The one shape every figure on this page renders in: a number set large and
+ * its unit beside it, small. Kept as parts rather than a formatted string so
+ * the unit can be styled without parsing a translation back apart.
+ */
+interface ValuePart {
+  value: string
+  unit: string
+}
+
+function durationParts(seconds: number): ValuePart[] {
+  if (!Number.isFinite(seconds) || seconds <= 0) return [{ value: t('history.noValue'), unit: '' }]
+  const totalMinutes = Math.round(seconds / 60)
+  const hours = Math.floor(totalMinutes / 60)
+  const minutes = totalMinutes % 60
+  const minutePart = { value: String(minutes), unit: t('history.unit.minutes') }
+  return hours > 0
+    ? [{ value: numberFormatter.value.format(hours), unit: t('history.unit.hours') }, minutePart]
+    : [minutePart]
+}
+
+function filamentParts(millimetres: number): ValuePart[] {
+  if (!Number.isFinite(millimetres) || millimetres <= 0) {
+    return [{ value: t('history.noValue'), unit: '' }]
+  }
+  return [
+    { value: numberFormatter.value.format(millimetres / 1000), unit: t('history.unit.metres') },
+  ]
+}
+
+/** Heat-up and pauses: the gap between occupied and printing time, only visible with both. */
+const overheadSeconds = computed(() =>
+  Math.max(0, history.totals.totalTime - history.totals.printTime),
+)
+const overheadShare = computed(() =>
+  history.totals.totalTime > 0
+    ? percentFormatter.value.format(overheadSeconds.value / history.totals.totalTime)
+    : t('history.noValue'),
+)
+
+const windowCompletedCount = computed(
+  () => history.windowJobs.filter((job) => job.outcome === 'completed').length,
+)
+
+const successRateValue = computed(() =>
+  history.windowSuccessRate === null
+    ? t('history.noValue')
+    : String(Math.round(history.windowSuccessRate * 100)),
+)
+
+const typicalPrint = computed(() => typicalPrintDuration(history.windowJobs))
+const estimateReading = computed(() => estimateDeviation(history.windowJobs))
+const signedPercentFormatter = computed(
+  () =>
+    new Intl.NumberFormat(locale.value, {
+      style: 'percent',
+      maximumFractionDigits: 0,
+      signDisplay: 'exceptZero',
+    }),
+)
+const signedNumberFormatter = computed(
+  () =>
+    new Intl.NumberFormat(locale.value, { maximumFractionDigits: 0, signDisplay: 'exceptZero' }),
+)
+
+/*
+ * "Today" and "Yesterday" move at midnight, so the day labels read a clock
+ * that ticks once a minute rather than the time the page happened to render.
+ */
+const now = ref(Date.now())
+let clock: ReturnType<typeof setInterval> | undefined
+onMounted(() => {
+  clock = setInterval(() => (now.value = Date.now()), 60_000)
+})
+onBeforeUnmount(() => clearInterval(clock))
+
+const dayFormatter = computed(
+  () => new Intl.DateTimeFormat(locale.value, { weekday: 'long', day: 'numeric', month: 'long' }),
+)
+const timeFormatter = computed(
+  () => new Intl.DateTimeFormat(locale.value, { hour: '2-digit', minute: '2-digit' }),
+)
+const shortDateTimeFormatter = computed(
+  () =>
+    new Intl.DateTimeFormat(locale.value, {
+      weekday: 'short',
+      day: 'numeric',
+      month: 'short',
+      hour: '2-digit',
+      minute: '2-digit',
+    }),
+)
+
+function jobMoment(job: HistoryJob): number | null {
+  const seconds = job.endedAt ?? job.startedAt
+  return Number.isFinite(seconds) && seconds > 0 ? seconds * 1000 : null
+}
+
+function startOfDay(time: number): number {
+  const date = new Date(time)
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime()
+}
+
+/**
+ * Jobs grouped under the day they ended, newest first as the store already
+ * keeps them. A row then needs only its time of day, which is what made the
+ * old list's "Monday, October 12 2026 12:26 AM" on every row redundant.
+ */
+const jobGroups = computed(() => {
+  const today = startOfDay(now.value)
+  const yesterday = today - 86_400_000
+  const groups: { key: string; label: string; jobs: { job: HistoryJob; time: string }[] }[] = []
+  for (const job of history.jobs) {
+    const moment = jobMoment(job)
+    const day = moment === null ? null : startOfDay(moment)
+    const key = day === null ? 'unknown' : String(day)
+    let group = groups.at(-1)
+    if (!group || group.key !== key) {
+      const label =
+        day === null
+          ? t('history.noValue')
+          : day === today
+            ? t('history.jobs.today')
+            : day === yesterday
+              ? t('history.jobs.yesterday')
+              : dayFormatter.value.format(day)
+      group = { key, label, jobs: [] }
+      groups.push(group)
+    }
+    group.jobs.push({
+      job,
+      time: moment === null ? t('history.noValue') : timeFormatter.value.format(moment),
+    })
+  }
+  return groups
+})
+
+function formatMoment(seconds: number | null): string {
+  if (seconds === null || !Number.isFinite(seconds) || seconds <= 0) return t('history.noValue')
+  return shortDateTimeFormatter.value.format(seconds * 1000)
+}
+
+function thumbnailUrl(job: HistoryJob, path: string | null): string | null {
+  if (!path) return null
+  try {
+    return moonrakerThumbnailUrl(job.filename, path, moonraker.endpoint)
+  } catch {
+    return null
+  }
+}
+
+/** "slicer said 1h 0m, +12%": how far this print ran past its own estimate. */
+function estimateNote(job: HistoryJob): string | null {
+  const estimate = job.details.estimatedTime
+  if (!estimate || job.printDuration <= 0) return null
+  return t('history.jobs.detail.estimate', {
+    estimate: formatDuration(estimate),
+    deviation: signedPercentFormatter.value.format((job.printDuration - estimate) / estimate),
+  })
+}
+
+const measurementFormatter = computed(
+  () => new Intl.NumberFormat(locale.value, { maximumFractionDigits: 2 }),
+)
+
 const canReprint = computed(
   () => moonrakerAvailability.value.isAvailable && !printer.hasActivePrint,
 )
@@ -249,22 +386,18 @@ const deletingJob = ref<HistoryJob | null>(null)
 const reprintingJob = ref<HistoryJob | null>(null)
 
 /**
- * Which job the row list has opened into the detail pane — mirroring Print
- * Files' own `selectedFile`, kept here rather than in the store since it is
- * this page's own view state, not data any other surface reads.
+ * Which job the list has opened beneath its row, kept here rather than in the
+ * store since it is this page's own view state, not data any other surface
+ * reads. Choosing the open job again closes it.
  */
 const selectedJob = ref<HistoryJob | null>(null)
 
-function selectJob(job: HistoryJob): void {
-  selectedJob.value = job
+function toggleJob(job: HistoryJob): void {
+  selectedJob.value = selectedJob.value?.id === job.id ? null : job
   // A confirmation names the job that was on screen when it was earned. Moving
   // to another one mid-cooldown would leave "Added to queue" sitting over a
   // file nobody enqueued.
   queueConfirmed.value = false
-}
-
-function closeJobDetail(): void {
-  selectedJob.value = null
 }
 
 async function confirmDelete(): Promise<void> {
@@ -306,67 +439,350 @@ function requestReprint(job: HistoryJob): void {
       against its bottom edge with no air.
     -->
     <AvailabilityRegion requires="moonraker" class="flex-1">
-      <div class="page-column">
-        <section class="page-card history-totals" :aria-label="t('history.totals.title')">
-          <h2 class="calibration-panel__title">{{ t('history.totals.title') }}</h2>
-          <dl class="history-totals__grid">
-            <div class="history-total">
-              <dt>{{ t('history.totals.jobs') }}</dt>
-              <dd>{{ numberFormatter.format(history.totals.jobs) }}</dd>
+      <section
+        class="machine-status-panel history-lifetime selectable"
+        :aria-label="t('history.totals.title')"
+      >
+        <div class="machine-host__layout">
+          <div class="machine-host__identity">
+            <AppIcon name="history" aria-hidden="true" />
+            <div class="min-w-0">
+              <h2 class="machine-host__name">
+                {{ t('history.totals.headline', { count: history.totals.jobs }) }}
+              </h2>
+              <p class="machine-host__meta">{{ t('history.totals.meta') }}</p>
             </div>
-            <div class="history-total">
-              <dt>{{ t('history.totals.printTime') }}</dt>
-              <dd>{{ formatDuration(history.totals.printTime) }}</dd>
+          </div>
+          <dl class="machine-host__stats">
+            <div class="machine-stat">
+              <dt>
+                <AppIcon name="history" aria-hidden="true" />{{ t('history.totals.printing') }}
+              </dt>
+              <dd class="machine-stat__value">
+                <template v-for="part in durationParts(history.totals.printTime)" :key="part.unit">
+                  <strong>{{ part.value }}</strong
+                  ><span>{{ part.unit }}</span>
+                </template>
+              </dd>
+              <dd class="machine-stat__detail">{{ t('history.totals.printingDetail') }}</dd>
             </div>
             <!--
               Beside print time on purpose: the gap between the two is heat-up
-              and pauses, and it is only visible when both are on the card
-              together.
+              and pauses, and it is only visible when both are on the strip
+              together — which is why the gap is the third cell.
             -->
-            <div class="history-total">
-              <dt>{{ t('history.totals.occupiedTime') }}</dt>
-              <dd>{{ formatDuration(history.totals.totalTime) }}</dd>
+            <div class="machine-stat">
+              <dt>
+                <AppIcon name="history" aria-hidden="true" />{{ t('history.totals.occupied') }}
+              </dt>
+              <dd class="machine-stat__value">
+                <template v-for="part in durationParts(history.totals.totalTime)" :key="part.unit">
+                  <strong>{{ part.value }}</strong
+                  ><span>{{ part.unit }}</span>
+                </template>
+              </dd>
+              <dd class="machine-stat__detail">{{ t('history.totals.occupiedDetail') }}</dd>
             </div>
-            <div class="history-total">
-              <dt>{{ t('history.totals.filament') }}</dt>
-              <dd>{{ formatFilament(history.totals.filamentUsed) }}</dd>
+            <div class="machine-stat">
+              <dt><AppIcon name="pause" aria-hidden="true" />{{ t('history.totals.overhead') }}</dt>
+              <dd class="machine-stat__value">
+                <template v-for="part in durationParts(overheadSeconds)" :key="part.unit">
+                  <strong>{{ part.value }}</strong
+                  ><span>{{ part.unit }}</span>
+                </template>
+              </dd>
+              <dd class="machine-stat__detail">
+                {{ t('history.totals.overheadDetail', { share: overheadShare }) }}
+              </dd>
             </div>
-            <div class="history-total">
-              <dt>{{ t('history.totals.longestPrint') }}</dt>
-              <dd>{{ formatDuration(history.totals.longestPrint) }}</dd>
+            <div class="machine-stat">
+              <dt><AppIcon name="spool" aria-hidden="true" />{{ t('history.totals.filament') }}</dt>
+              <dd class="machine-stat__value">
+                <template
+                  v-for="part in filamentParts(history.totals.filamentUsed)"
+                  :key="part.unit"
+                >
+                  <strong>{{ part.value }}</strong
+                  ><span>{{ part.unit }}</span>
+                </template>
+              </dd>
+              <dd class="machine-stat__detail">{{ t('history.totals.filamentDetail') }}</dd>
+            </div>
+            <div class="machine-stat">
+              <dt>
+                <AppIcon name="layerNext" aria-hidden="true" />{{
+                  t('history.totals.longestPrint')
+                }}
+              </dt>
+              <dd class="machine-stat__value">
+                <template
+                  v-for="part in durationParts(history.totals.longestPrint)"
+                  :key="part.unit"
+                >
+                  <strong>{{ part.value }}</strong
+                  ><span>{{ part.unit }}</span>
+                </template>
+              </dd>
+              <dd class="machine-stat__detail">{{ t('history.totals.longestDetail') }}</dd>
             </div>
             <!--
               Only ever what a `[sensor ...]` section actually declared — a
-              printer with none renders no extra rows at all.
+              printer with none renders no extra cells at all.
             -->
-            <div v-for="total in auxiliaryTotalRows" :key="total.key" class="history-total">
+            <div v-for="total in auxiliaryTotalRows" :key="total.key" class="machine-stat">
               <dt>{{ total.description }}</dt>
-              <dd>{{ total.value }}</dd>
+              <dd class="machine-stat__value">
+                <strong>{{ total.value }}</strong>
+              </dd>
             </div>
           </dl>
-        </section>
+        </div>
+      </section>
 
-        <section class="page-card history-stats" :aria-label="t('history.stats.title')">
-          <header class="calibration-panel__header">
-            <h2 class="calibration-panel__title">{{ t('history.stats.title') }}</h2>
+      <div class="history-grid">
+        <section
+          class="machine-status-panel machine-list-panel history-jobs-panel"
+          aria-labelledby="history-jobs-title"
+        >
+          <header class="machine-panel-heading">
+            <AppIcon name="history" class="size-5 text-action" aria-hidden="true" />
+            <h2 id="history-jobs-title">{{ t('history.jobs.title') }}</h2>
+            <div class="machine-panel-heading__actions">
+              <AppButton
+                size="sm"
+                icon-only
+                :pending="history.isLoading"
+                :icon="history.isLoading ? 'spinner' : 'refresh'"
+                :disabled="!moonrakerAvailability.isAvailable"
+                :aria-label="t('history.jobs.refresh')"
+                :title="t('history.jobs.refresh')"
+                @click="history.refresh()"
+              />
+            </div>
           </header>
 
-          <div class="history-stats__control">
-            <span class="history-stats__control-label">{{ t('history.stats.period.label') }}</span>
-            <div class="segmented" role="group" :aria-label="t('history.stats.period.label')">
+          <p v-if="history.hasJobs" class="machine-panel-summary">
+            {{
+              t('history.jobs.summary', {
+                loaded: history.jobs.length,
+                total: numberFormatter.format(history.totals.jobs),
+              })
+            }}
+          </p>
+
+          <p v-if="history.failed" class="calibration-notice" role="status">
+            <AppIcon name="warning" class="size-4 shrink-0" aria-hidden="true" />
+            <span>{{ t('history.jobs.failed') }}</span>
+          </p>
+
+          <div v-if="history.hasJobs" class="machine-list machine-list--media">
+            <template v-for="group in jobGroups" :key="group.key">
+              <p class="machine-list__label">{{ group.label }}</p>
+              <template v-for="entry in group.jobs" :key="entry.job.id">
+                <HistoryJobRow
+                  :job="entry.job"
+                  :time="entry.time"
+                  :selected="entry.job.id === selectedJob?.id"
+                  :thumbnail-url="thumbnailUrl(entry.job, entry.job.details.thumbnailSmall)"
+                  :can-reprint="canReprint"
+                  :can-queue="canQueueJob"
+                  :can-delete="moonrakerAvailability.isAvailable"
+                  :reprint-guard="menuReprintGuard"
+                  :delete-guard="deleteJobGuard"
+                  @select="toggleJob(entry.job)"
+                  @reprint="requestReprint(entry.job)"
+                  @queue="queueJob(entry.job)"
+                  @remove="requestDelete(entry.job)"
+                />
+                <!--
+                  The open job's details, under its own row rather than in a
+                  pane beside the list: the pane had to be pinned and capped to
+                  stay reachable beside a list fifty rows long, and on a phone
+                  it replaced the list outright. Under the row, it is where the
+                  reader is already looking at every width.
+                -->
+                <div
+                  v-if="entry.job.id === selectedJob?.id"
+                  :id="`history-job-${entry.job.id}`"
+                  class="history-job-expansion"
+                >
+                  <img
+                    v-if="thumbnailUrl(entry.job, entry.job.details.thumbnailLarge)"
+                    :src="thumbnailUrl(entry.job, entry.job.details.thumbnailLarge) ?? undefined"
+                    alt=""
+                  />
+                  <span v-else class="history-job-expansion__placeholder" aria-hidden="true"></span>
+                  <dl class="history-job-facts selectable">
+                    <div>
+                      <dt>{{ t('history.jobs.detail.started') }}</dt>
+                      <dd>{{ formatMoment(entry.job.startedAt) }}</dd>
+                    </div>
+                    <div>
+                      <dt>{{ t('history.jobs.detail.ended') }}</dt>
+                      <dd>{{ formatMoment(entry.job.endedAt) }}</dd>
+                    </div>
+                    <div>
+                      <dt>{{ t('history.jobs.detail.printDuration') }}</dt>
+                      <dd>
+                        {{ formatDuration(entry.job.printDuration) }}
+                        <span v-if="estimateNote(entry.job)">{{
+                          t('machine.updates.detailJoin', {
+                            first: '',
+                            second: estimateNote(entry.job),
+                          })
+                        }}</span>
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>{{ t('history.jobs.detail.occupiedTime') }}</dt>
+                      <dd>
+                        {{ formatDuration(entry.job.totalDuration) }}
+                        <span v-if="entry.job.totalDuration > entry.job.printDuration">{{
+                          t('machine.updates.detailJoin', {
+                            first: '',
+                            second: t('history.jobs.detail.heatUp', {
+                              value: formatDuration(
+                                entry.job.totalDuration - entry.job.printDuration,
+                              ),
+                            }),
+                          })
+                        }}</span>
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>{{ t('history.jobs.detail.filament') }}</dt>
+                      <dd>
+                        {{ formatFilament(entry.job.filamentUsed) }}
+                        <span v-if="entry.job.details.filamentWeight">{{
+                          t('machine.updates.detailJoin', {
+                            first: '',
+                            second: t('history.jobs.detail.weight', {
+                              value: numberFormatter.format(entry.job.details.filamentWeight),
+                            }),
+                          })
+                        }}</span>
+                      </dd>
+                    </div>
+                    <div v-if="entry.job.details.filamentType">
+                      <dt>{{ t('history.jobs.detail.material') }}</dt>
+                      <dd>
+                        {{ entry.job.details.filamentType }}
+                        <span v-if="entry.job.details.filamentName">{{
+                          t('machine.updates.detailJoin', {
+                            first: '',
+                            second: entry.job.details.filamentName,
+                          })
+                        }}</span>
+                      </dd>
+                    </div>
+                    <div v-if="entry.job.details.layerHeight">
+                      <dt>{{ t('history.jobs.detail.layers') }}</dt>
+                      <dd>
+                        {{
+                          t('history.jobs.detail.layerHeight', {
+                            value: measurementFormatter.format(entry.job.details.layerHeight),
+                          })
+                        }}
+                        <span v-if="entry.job.details.objectHeight">{{
+                          t('machine.updates.detailJoin', {
+                            first: '',
+                            second: t('history.jobs.detail.objectHeight', {
+                              value: measurementFormatter.format(entry.job.details.objectHeight),
+                            }),
+                          })
+                        }}</span>
+                      </dd>
+                    </div>
+                    <div v-if="entry.job.details.slicer">
+                      <dt>{{ t('history.jobs.detail.slicer') }}</dt>
+                      <dd>{{ entry.job.details.slicer }}</dd>
+                    </div>
+                    <template
+                      v-for="aux in entry.job.auxiliaryData"
+                      :key="`${aux.provider}-${aux.field}`"
+                    >
+                      <div v-if="formatJobAuxiliary(aux)">
+                        <dt>{{ aux.description || aux.field }}</dt>
+                        <dd>{{ formatJobAuxiliary(aux) }}</dd>
+                      </div>
+                    </template>
+                  </dl>
+                  <div class="history-job-actions">
+                    <AppButton
+                      size="sm"
+                      :guard="reprintGuard"
+                      icon="print"
+                      :label="t('history.jobs.reprint')"
+                      :disabled="!canReprint || !entry.job.fileExists"
+                      :title="entry.job.fileExists ? undefined : t('history.jobs.fileGone')"
+                      @click="requestReprint(entry.job)"
+                    />
+                    <AppButton
+                      size="sm"
+                      :pending="jobQueue.pendingCommands.add"
+                      icon="jobs"
+                      :label="t('history.jobs.detail.addToQueue')"
+                      :disabled="!canQueueJob || !entry.job.fileExists"
+                      :title="entry.job.fileExists ? undefined : t('history.jobs.fileGone')"
+                      :cooldown="queueConfirmed"
+                      :cooldown-ms="1000"
+                      :cooldown-label="t('history.jobs.detail.addedToQueue')"
+                      cooldown-icon="check"
+                      @cooldown-end="queueConfirmed = false"
+                      @click="queueJob(entry.job)"
+                    />
+                    <AppButton
+                      size="sm"
+                      :guard="deleteJobGuard"
+                      icon="trash"
+                      :label="t('history.jobs.delete')"
+                      :disabled="!moonrakerAvailability.isAvailable"
+                      @click="requestDelete(entry.job)"
+                    />
+                  </div>
+                </div>
+              </template>
+            </template>
+            <div v-if="history.hasMore" class="machine-list__fold">
               <AppButton
-                v-for="option in periodOptions"
-                :key="option"
+                variant="quiet"
                 size="sm"
-                mono
-                :aria-pressed="history.period === option"
-                @click="history.setPeriod(option)"
-              >
-                {{ t(`history.stats.period.option.${option}`) }}
-              </AppButton>
+                block
+                :pending="history.isLoading"
+                :label="t('history.jobs.loadMore')"
+                :disabled="history.isLoading"
+                @click="history.loadMore()"
+              />
             </div>
-            <span class="history-stats__population">{{ periodJobCountLabel }}</span>
           </div>
+          <p v-else-if="!history.isLoading" class="machine-panel-empty">
+            {{ t('history.jobs.empty') }}
+          </p>
+        </section>
+
+        <section
+          class="machine-status-panel history-stats-panel"
+          aria-labelledby="history-stats-title"
+        >
+          <header class="machine-panel-heading">
+            <AppIcon name="chartBars" class="size-5 text-action" aria-hidden="true" />
+            <h2 id="history-stats-title">{{ t('history.stats.title') }}</h2>
+            <div class="machine-panel-heading__actions">
+              <div class="segmented" role="group" :aria-label="t('history.stats.period.label')">
+                <AppButton
+                  v-for="option in periodOptions"
+                  :key="option"
+                  size="sm"
+                  mono
+                  :aria-pressed="history.period === option"
+                  @click="history.setPeriod(option)"
+                >
+                  {{ t(`history.stats.period.option.${option}`) }}
+                </AppButton>
+              </div>
+            </div>
+          </header>
+          <p class="machine-panel-summary">{{ periodJobCountLabel }}</p>
 
           <p v-if="history.windowFailed" class="calibration-notice" role="status">
             <AppIcon name="warning" class="size-4 shrink-0" aria-hidden="true" />
@@ -374,66 +790,112 @@ function requestReprint(job: HistoryJob): void {
           </p>
 
           <template v-else-if="history.windowJobs.length > 0">
-            <dl class="history-stats__row">
-              <dt>{{ t('history.stats.successRate', { count: history.windowJobs.length }) }}</dt>
-              <dd>{{ windowSuccessRateLabel }}</dd>
+            <!--
+              Each figure names its population in its own line, per the History
+              contract: the success rate over every job in the window, the two
+              medians over the completed jobs they could be measured on.
+            -->
+            <dl class="machine-host__stats">
+              <div class="machine-stat">
+                <dt>{{ t('history.stats.successRateLabel') }}</dt>
+                <dd class="machine-stat__value">
+                  <strong>{{ successRateValue }}</strong
+                  ><span v-if="history.windowSuccessRate !== null">{{
+                    t('history.unit.percent')
+                  }}</span>
+                </dd>
+                <dd class="machine-stat__detail">
+                  {{
+                    t('history.stats.successRateDetail', {
+                      completed: windowCompletedCount,
+                      count: history.windowJobs.length,
+                    })
+                  }}
+                </dd>
+              </div>
+              <div class="machine-stat">
+                <dt>{{ t('history.stats.typical') }}</dt>
+                <dd class="machine-stat__value">
+                  <template
+                    v-for="part in durationParts(typicalPrint?.value ?? 0)"
+                    :key="part.unit"
+                  >
+                    <strong>{{ part.value }}</strong
+                    ><span>{{ part.unit }}</span>
+                  </template>
+                </dd>
+                <dd v-if="typicalPrint" class="machine-stat__detail">
+                  {{ t('history.stats.typicalDetail', { count: typicalPrint.jobs }) }}
+                </dd>
+              </div>
+              <div class="machine-stat">
+                <dt>{{ t('history.stats.estimate') }}</dt>
+                <dd class="machine-stat__value">
+                  <strong>{{
+                    estimateReading
+                      ? signedNumberFormatter.format(Math.round(estimateReading.value * 100))
+                      : t('history.noValue')
+                  }}</strong
+                  ><span v-if="estimateReading">{{ t('history.unit.percent') }}</span>
+                </dd>
+                <dd v-if="estimateReading" class="machine-stat__detail">
+                  {{ t('history.stats.estimateDetail', { count: estimateReading.jobs }) }}
+                </dd>
+              </div>
             </dl>
 
-            <div class="history-stats__control">
-              <span class="history-stats__control-label">{{
-                t('history.stats.measure.label')
-              }}</span>
-              <div class="segmented" role="group" :aria-label="t('history.stats.measure.label')">
-                <AppButton
-                  v-for="option in measureOptions"
-                  :key="option"
-                  size="sm"
-                  :aria-pressed="measure === option"
-                  @click="measure = option"
-                >
-                  {{ t(`history.stats.measure.${option}`) }}
-                </AppButton>
-              </div>
-            </div>
-
-            <div class="module-table history-outcome-table">
-              <div class="module-table__head">
-                <span>{{ t('history.stats.outcomes.columnOutcome') }}</span>
-                <span class="text-end">{{ t('history.stats.outcomes.columnJobs') }}</span>
-                <span class="text-end">{{ t('history.stats.outcomes.columnShare') }}</span>
-                <span class="text-end">{{ t('history.stats.outcomes.columnFilament') }}</span>
-                <span class="text-end">{{ t('history.stats.outcomes.columnTime') }}</span>
-              </div>
-              <div v-for="entry in outcomeRows" :key="entry.outcome" class="module-table__row">
-                <span class="module-table__name">
-                  <span
-                    class="history-job__outcome"
-                    :class="`history-job__outcome--${entry.outcome}`"
+            <div class="history-stats-section">
+              <div class="history-stats-section__head">
+                <h3 class="text-section-title">{{ t('history.stats.outcomesTitle') }}</h3>
+                <div class="segmented" role="group" :aria-label="t('history.stats.measure.label')">
+                  <AppButton
+                    v-for="option in measureOptions"
+                    :key="option"
+                    size="sm"
+                    :aria-pressed="measure === option"
+                    @click="measure = option"
                   >
-                    <AppIcon
-                      :name="historyOutcomeIcon(entry.outcome)"
-                      class="size-3.5"
-                      aria-hidden="true"
-                    />
-                    {{ t(`history.outcome.${entry.outcome}`) }}
+                    {{ t(`history.stats.measure.${option}`) }}
+                  </AppButton>
+                </div>
+              </div>
+              <div class="module-table history-outcome-table">
+                <div class="module-table__head">
+                  <span>{{ t('history.stats.outcomes.columnOutcome') }}</span>
+                  <span class="text-end">{{ t('history.stats.outcomes.columnJobs') }}</span>
+                  <span class="text-end">{{ t('history.stats.outcomes.columnShare') }}</span>
+                  <span class="text-end">{{ t('history.stats.outcomes.columnFilament') }}</span>
+                  <span class="text-end">{{ t('history.stats.outcomes.columnTime') }}</span>
+                </div>
+                <div v-for="entry in outcomeRows" :key="entry.outcome" class="module-table__row">
+                  <span class="module-table__name">
+                    <span
+                      class="history-job__outcome"
+                      :class="`history-job__outcome--${entry.outcome}`"
+                    >
+                      <AppIcon
+                        :name="historyOutcomeIcon(entry.outcome)"
+                        class="size-3.5"
+                        aria-hidden="true"
+                      />
+                      {{ t(`history.outcome.${entry.outcome}`) }}
+                    </span>
                   </span>
-                </span>
-                <span class="module-table__value">{{ numberFormatter.format(entry.jobs) }}</span>
-                <span class="module-table__value">{{ outcomeShareLabel(entry) }}</span>
-                <span class="module-table__value">{{ formatFilament(entry.filamentUsed) }}</span>
-                <span class="module-table__value">{{ formatDuration(entry.printTime) }}</span>
+                  <span class="module-table__value">{{ numberFormatter.format(entry.jobs) }}</span>
+                  <span class="module-table__value">{{ outcomeShareLabel(entry) }}</span>
+                  <span class="module-table__value">{{ formatFilament(entry.filamentUsed) }}</span>
+                  <span class="module-table__value">{{ formatDuration(entry.printTime) }}</span>
+                </div>
               </div>
             </div>
 
-            <div class="history-stats__trend">
+            <div class="history-stats-section">
               <h3 class="text-section-title">{{ t('history.stats.trend.title') }}</h3>
               <HistoryTrendChart :buckets="trendBuckets" :measure="measure" />
             </div>
 
-            <div v-if="distributionBins.length > 0" class="history-stats__distribution">
-              <h3 class="text-section-title">
-                {{ t('history.stats.distribution.title') }}
-              </h3>
+            <div v-if="distributionBins.length > 0" class="history-stats-section">
+              <h3 class="text-section-title">{{ t('history.stats.distribution.title') }}</h3>
               <ul class="history-distribution">
                 <li
                   v-for="bin in distributionBins"
@@ -450,166 +912,8 @@ function requestReprint(job: HistoryJob): void {
               </ul>
             </div>
           </template>
-          <p v-else-if="!history.windowLoading" class="calibration-panel__hint">
+          <p v-else-if="!history.windowLoading" class="machine-panel-empty">
             {{ t('history.stats.outcomes.empty') }}
-          </p>
-        </section>
-
-        <section class="page-card history-panel" :aria-label="t('history.jobs.title')">
-          <header class="calibration-panel__header">
-            <h2 class="calibration-panel__title">{{ t('history.jobs.title') }}</h2>
-            <AppButton
-              size="xs"
-              :pending="history.isLoading"
-              icon="refresh"
-              :label="t('history.jobs.refresh')"
-              :disabled="!moonrakerAvailability.isAvailable"
-              @click="history.refresh()"
-            />
-          </header>
-
-          <p v-if="history.failed" class="calibration-notice" role="status">
-            <AppIcon name="warning" class="size-4 shrink-0" aria-hidden="true" />
-            <span>{{ t('history.jobs.failed') }}</span>
-          </p>
-
-          <div
-            v-if="history.hasJobs"
-            class="history-jobs-workspace"
-            :class="{ 'history-jobs-workspace--detail-open': selectedJob !== null }"
-          >
-            <div class="history-jobs-browser">
-              <ul class="history-jobs">
-                <li v-for="job in history.jobs" :key="job.id">
-                  <HistoryJobRow
-                    :job="job"
-                    :selected="job.id === selectedJob?.id"
-                    @select="selectJob(job)"
-                  />
-                </li>
-              </ul>
-
-              <div v-if="history.hasMore" class="history-jobs__load-row">
-                <AppButton
-                  size="sm"
-                  :pending="history.isLoading"
-                  :label="t('history.jobs.loadMore')"
-                  :disabled="history.isLoading"
-                  @click="history.loadMore()"
-                />
-                <AppButton
-                  variant="quiet"
-                  size="sm"
-                  icon-only
-                  icon="up"
-                  :aria-label="t('history.jobs.scrollToTop')"
-                  :title="t('history.jobs.scrollToTop')"
-                  @click="scrollToTop"
-                />
-              </div>
-            </div>
-
-            <section
-              v-if="selectedJob"
-              class="history-job-detail"
-              :aria-label="shortName(selectedJob.filename)"
-            >
-              <header class="history-job-detail__header">
-                <h3 class="min-w-0 break-words text-dialog-title">
-                  {{ shortName(selectedJob.filename) }}
-                </h3>
-                <AppButton
-                  variant="quiet"
-                  size="xs"
-                  icon-only
-                  icon="close"
-                  :aria-label="t('history.jobs.detail.close')"
-                  :title="t('history.jobs.detail.close')"
-                  @click="closeJobDetail"
-                />
-              </header>
-
-              <span
-                class="history-job__outcome"
-                :class="`history-job__outcome--${selectedJob.outcome}`"
-              >
-                <AppIcon
-                  :name="historyOutcomeIcon(selectedJob.outcome)"
-                  class="size-3.5"
-                  aria-hidden="true"
-                />
-                {{ t(`history.outcome.${selectedJob.outcome}`) }}
-              </span>
-
-              <dl class="history-job-detail__metadata">
-                <div class="history-job-detail__row">
-                  <dt>{{ t('history.jobs.detail.started') }}</dt>
-                  <dd>{{ formatWhen(selectedJob.startedAt) }}</dd>
-                </div>
-                <div class="history-job-detail__row">
-                  <dt>{{ t('history.jobs.detail.ended') }}</dt>
-                  <dd>{{ formatWhen(selectedJob.endedAt) }}</dd>
-                </div>
-                <div class="history-job-detail__row">
-                  <dt>{{ t('history.jobs.detail.printDuration') }}</dt>
-                  <dd>{{ formatDuration(selectedJob.printDuration) }}</dd>
-                </div>
-                <div class="history-job-detail__row">
-                  <dt>{{ t('history.jobs.detail.occupiedTime') }}</dt>
-                  <dd>{{ formatDuration(selectedJob.totalDuration) }}</dd>
-                </div>
-                <div class="history-job-detail__row">
-                  <dt>{{ t('history.jobs.detail.filament') }}</dt>
-                  <dd>{{ formatFilament(selectedJob.filamentUsed) }}</dd>
-                </div>
-              </dl>
-
-              <ul v-if="selectedJob.auxiliaryData.length > 0" class="history-job-detail__auxiliary">
-                <li
-                  v-for="entry in selectedJob.auxiliaryData"
-                  :key="`${entry.provider}-${entry.field}`"
-                >
-                  {{ formatJobAuxiliary(entry) }}
-                </li>
-              </ul>
-
-              <div class="history-job-detail__actions">
-                <AppButton
-                  block
-                  :guard="reprintGuard"
-                  icon="print"
-                  :label="t('history.jobs.reprint')"
-                  :disabled="!canReprint || !selectedJob.fileExists"
-                  :title="selectedJob.fileExists ? undefined : t('history.jobs.fileGone')"
-                  @click="requestReprint(selectedJob)"
-                />
-                <AppButton
-                  block
-                  :pending="jobQueue.pendingCommands.add"
-                  icon="jobs"
-                  :label="t('history.jobs.detail.addToQueue')"
-                  :disabled="!canQueueJob || !selectedJob.fileExists"
-                  :title="selectedJob.fileExists ? undefined : t('history.jobs.fileGone')"
-                  :cooldown="queueConfirmed"
-                  :cooldown-ms="1000"
-                  :cooldown-label="t('history.jobs.detail.addedToQueue')"
-                  cooldown-icon="check"
-                  @cooldown-end="queueConfirmed = false"
-                  @click="queueJob(selectedJob)"
-                />
-                <AppButton
-                  block
-                  :guard="deleteJobGuard"
-                  icon="trash"
-                  :label="t('history.jobs.delete')"
-                  :disabled="!moonrakerAvailability.isAvailable"
-                  @click="requestDelete(selectedJob)"
-                />
-              </div>
-            </section>
-          </div>
-          <p v-else-if="!history.isLoading" class="calibration-panel__hint">
-            {{ t('history.jobs.empty') }}
           </p>
         </section>
       </div>

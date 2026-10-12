@@ -148,48 +148,30 @@ describe('page layout contract', () => {
   it('contains wide data inside a standard page instead of widening the page', () => {
     expect(styles).toMatch(/\.page-column\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\)/s)
     expect(styles).toMatch(
-      /\.history-totals,\s*\.history-stats,\s*\.history-panel\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\)/s,
+      /\.history-grid\s*\{[^}]*grid-template-columns:\s*minmax\(0, 3fr\) minmax\(0, 2fr\)/s,
     )
-    expect(styles).toMatch(/\.history-jobs\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\)/s)
+    expect(styles).toMatch(
+      /@media \(max-width: 96rem\)\s*\{\s*\.history-grid\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\)/s,
+    )
     expect(styles).toMatch(/\.history-outcome-table\s*\{[^}]*overflow-x:\s*auto/s)
   })
 
   /*
-   * The History contract's pinned detail pane. The pin itself is cheap to get
-   * right; the two things that rot are the cap and the reset, and both fail
-   * quietly — a stale cap hangs the pane's bottom past the fold and takes the
-   * Remove button with it, and a missing reset gives a phone a scrollbar inside
-   * a page that already scrolls.
+   * History used to pin a detail pane beside its job list, and had to cap it
+   * to the scrollport so its Remove button could not end up below the fold.
+   * The job opens beneath its own row now, so neither the pin nor the cap has
+   * anything left to do — and a reintroduced sticky pane would bring that
+   * failure back with it.
    */
-  it('pins the History detail pane against the page shell and caps it to the scrollport', () => {
-    const pane = ruleBody('.history-job-detail')
+  it('opens a History job beneath its own row rather than in a pinned pane', () => {
+    expect(ruleBody('.history-job-expansion')).toContain('grid-column: 2 / -2')
+    expect(styles).not.toContain('.history-job-detail')
+  })
 
-    expect(pane).toContain('position: sticky')
-    // Cancelling the shell's top padding, as every sticky child of a page shell
-    // does — a bare offset pins a padding-width below the visible top.
-    expect(pane).toContain('inset-block-start: calc(1rem - var(--page-shell-pad-top, 0rem))')
-    // Read from `.app-main`, never restated here: the header wraps below 64rem
-    // and the scrollport shrinks with it.
-    expect(pane).toContain(
-      'max-block-size: calc(100dvh - var(--app-header-block-size, 0rem) - 2rem)',
-    )
-    // The cap is only reachable because this was already declared.
-    expect(pane).toContain('overflow-y: auto')
-
-    // The wrapped header publishes its own height, or the cap above is 24px too
-    // generous on every window between 40rem and 64rem wide.
+  it('publishes the wrapped header height the page shells measure against', () => {
     expect(styles).toMatch(
       /@media \(max-width: 63\.999rem\)[\s\S]*?\.app-main\s*\{[^}]*--app-header-block-size:\s*6\.5rem/,
     )
-
-    // Stacked below 40rem the pane replaces the list, so both come off.
-    const stacked = styles.slice(styles.indexOf('@media (max-width: 40rem)'))
-    const stackedPane = stacked.slice(
-      stacked.indexOf('.history-job-detail {'),
-      stacked.indexOf('}', stacked.indexOf('.history-job-detail {')),
-    )
-    expect(stackedPane).toContain('position: static')
-    expect(stackedPane).toContain('max-block-size: none')
   })
 
   /*
@@ -255,26 +237,24 @@ describe('page layout contract', () => {
     }
   })
 
-  it('uses Alabaster resource tiles instead of circular gauge meters', () => {
-    const machine = source('views/MachineView.vue')
+  it('draws CPU and memory as bars in the host strip, not circular gauges', () => {
+    const host = source('components/machine/MachineHostStrip.vue')
     const english = source('locales/en.json')
 
-    expect(machine).toContain('name="processor"')
-    expect(machine).toContain('name="ram"')
+    expect(host).toContain('name="processor"')
+    expect(host).toContain('name="ram"')
     expect(styles).toContain('.machine-meter__track')
     expect(styles).not.toContain('conic-gradient(')
-    expect(english).toContain('"memory": "RAM"')
+    expect(english).toContain('"memory": "Memory"')
   })
 
-  it('keeps host telemetry precise and meter percentages visually stable', () => {
-    const machine = source('views/MachineView.vue')
+  it('keeps host telemetry precise and its readings visually stable', () => {
+    const host = source('components/machine/MachineHostStrip.vue')
     const standard = designDoc('interface-standards.md')
 
-    expect(machine).toContain('minimumFractionDigits: 1')
-    expect(machine).toContain('maximumFractionDigits: 1')
-    expect(styles).toContain('grid-template-columns: minmax(0, 1fr) auto')
-    expect(styles).toContain('text-align: end')
-    expect(styles).toContain('justify-content: center')
+    expect(host).toContain('minimumFractionDigits: 1')
+    expect(host).toContain('maximumFractionDigits: 1')
+    expect(styles).toMatch(/\.machine-stat__value\s*\{[^}]*font-variant-numeric:\s*tabular-nums/s)
     if (standard) {
       expect(standard).toContain('Always retain the trailing zero')
     }
@@ -309,16 +289,13 @@ describe('page layout contract', () => {
   })
 
   it('keeps update rows on the same inline edge as the rest of the panel', () => {
-    // 0.5rem of list padding + the row-group's own inline padding is the 1rem
-    // every other panel row uses. The padding is 1px wider than a literal
-    // 0.5rem split would need -- a leftover from when this row was a bordered
-    // button and the border ate the missing pixel.
-    expect(styles).toMatch(/\.machine-update-list\s*\{[^}]*padding:\s*0\.5rem/s)
+    // A 0.25rem edge track plus the list's 0.75rem column gap is the 1rem
+    // every other panel row uses.
     expect(styles).toMatch(
-      /\.machine-update-row-group\s*\{[^}]*padding:\s*0\.75rem calc\(0\.5rem - 1px\)/s,
+      /\.machine-list\s*\{[^}]*grid-template-columns:\s*0\.25rem [^;]* 0\.25rem;[^}]*column-gap:\s*0\.75rem/s,
     )
     expect(styles).toMatch(/\.machine-panel-heading\s*\{[^}]*padding:\s*0\.8rem 1rem/s)
-    expect(styles).toMatch(/\.machine-module-list > h3\s*\{[^}]*padding:\s*0\.8rem 1rem/s)
+    expect(styles).toMatch(/\.machine-list__label\s*\{[^}]*padding:\s*0\.9rem 1rem 0\.3rem/s)
   })
 
   /*

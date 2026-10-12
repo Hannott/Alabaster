@@ -1,8 +1,10 @@
 import { mount } from '@vue/test-utils'
+import { createPinia, setActivePinia } from 'pinia'
 import { defineComponent, ref, type ComponentPublicInstance } from 'vue'
-import { describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it } from 'vitest'
 
 import HistoryJobRow from '@/components/history/HistoryJobRow.vue'
+import { useActionGuard } from '@/composables/useActionGuard'
 import { i18n } from '@/i18n'
 import type { HistoryJob } from '@/stores/history'
 
@@ -18,14 +20,48 @@ function job(overrides: Partial<HistoryJob> = {}): HistoryJob {
     filamentUsed: 5000,
     fileExists: true,
     auxiliaryData: [],
+    details: {
+      estimatedTime: null,
+      filamentType: 'PLA',
+      filamentName: null,
+      filamentWeight: 8.84,
+      layerHeight: null,
+      objectHeight: null,
+      slicer: null,
+      thumbnailSmall: null,
+      thumbnailLarge: null,
+    },
     ...overrides,
   }
 }
 
+function rowProps(overrides: Partial<HistoryJob> = {}, selected = false) {
+  return {
+    job: job(overrides),
+    selected,
+    thumbnailUrl: null,
+    time: '00:26',
+    canReprint: true,
+    canQueue: true,
+    canDelete: true,
+    reprintGuard: useActionGuard({ tier: 'terminal', emphasis: 'quiet', key: 'reprintJob' }),
+    deleteGuard: useActionGuard({
+      tier: 'terminal',
+      emphasis: 'danger-quiet',
+      key: 'deleteHistoryJob',
+    }),
+  }
+}
+
 describe('HistoryJobRow', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    window.localStorage.clear()
+  })
+
   it('states the outcome as a word beside its icon, never color alone', () => {
     const wrapper = mount(HistoryJobRow, {
-      props: { job: job({ outcome: 'error' }), selected: false },
+      props: rowProps({ outcome: 'error' }),
       global: { plugins: [i18n] },
     })
 
@@ -34,45 +70,58 @@ describe('HistoryJobRow', () => {
     expect(outcome.find('svg').exists()).toBe(true)
   })
 
-  it('shows the file name without its folders, keeping the full path reachable', () => {
-    const wrapper = mount(HistoryJobRow, {
-      props: { job: job(), selected: false },
-      global: { plugins: [i18n] },
-    })
+  it('shows the file name without its folders or extension, keeping the full path reachable', () => {
+    const wrapper = mount(HistoryJobRow, { props: rowProps(), global: { plugins: [i18n] } })
 
-    const name = wrapper.get('.history-job__name')
-    expect(name.text()).toBe('bracket_v3.gcode')
-    expect(name.attributes('title')).toBe('prints/parts/bracket_v3.gcode')
+    expect(wrapper.get('.machine-row__name').text()).toBe('bracket_v3')
+    expect(wrapper.get('.machine-row__detail').attributes('title')).toBe(
+      'prints/parts/bracket_v3.gcode',
+    )
   })
 
-  it('marks the selected row for assistive technology, not only visually', () => {
-    const wrapper = mount(HistoryJobRow, {
-      props: { job: job(), selected: true },
-      global: { plugins: [i18n] },
-    })
+  it('reads the time, the print time, and the weight the slicer planned for a finished print', () => {
+    const wrapper = mount(HistoryJobRow, { props: rowProps(), global: { plugins: [i18n] } })
 
-    expect(wrapper.get('button').attributes('aria-current')).toBe('true')
-    expect(wrapper.get('button').classes()).toContain('selection-row--selected')
+    expect(wrapper.get('.machine-row__meta').text()).toBe('00:26 · 1h 0m · 8.8 g PLA')
   })
 
-  it('reports a job with no usable timestamp rather than rendering an epoch date', () => {
+  it("never borrows the plan's weight for a job that stopped early, and says how it ended", () => {
     const wrapper = mount(HistoryJobRow, {
-      props: { job: job({ startedAt: 0, endedAt: null }), selected: false },
+      props: rowProps({ outcome: 'interrupted', printDuration: 0, filamentUsed: 0 }),
       global: { plugins: [i18n] },
     })
 
-    expect(wrapper.get('.history-job__when').text()).toBe('—')
+    expect(wrapper.get('.machine-row__meta').text()).toBe('00:26 · Interrupted')
+  })
+
+  it('marks the open row for assistive technology, not only visually', () => {
+    const wrapper = mount(HistoryJobRow, {
+      props: rowProps({}, true),
+      global: { plugins: [i18n] },
+    })
+
+    expect(wrapper.get('.history-job__toggle').attributes('aria-expanded')).toBe('true')
+    expect(wrapper.get('.machine-row').classes()).toContain('selection-row--selected')
   })
 
   it('asks the parent to open it rather than deciding for itself', async () => {
-    const wrapper = mount(HistoryJobRow, {
-      props: { job: job(), selected: false },
-      global: { plugins: [i18n] },
-    })
+    const wrapper = mount(HistoryJobRow, { props: rowProps(), global: { plugins: [i18n] } })
 
-    await wrapper.get('button').trigger('click')
+    await wrapper.get('.history-job__toggle').trigger('click')
 
     expect(wrapper.emitted('select')).toHaveLength(1)
+  })
+
+  it('offers print again, queue, and remove from its menu, each asked of the parent', async () => {
+    const wrapper = mount(HistoryJobRow, { props: rowProps(), global: { plugins: [i18n] } })
+
+    await wrapper.get('.machine-row__menu > .button').trigger('click')
+    await wrapper.get('.history-job__queue').trigger('click')
+    expect(wrapper.emitted('queue')).toHaveLength(1)
+
+    await wrapper.get('.machine-row__menu > .button').trigger('click')
+    await wrapper.get('.history-job__remove').trigger('click')
+    expect(wrapper.emitted('remove')).toHaveLength(1)
   })
 
   /**
@@ -85,26 +134,35 @@ describe('HistoryJobRow', () => {
    * function on every parent render, and only declared emit listeners are
    * exempt from the props comparison. So this asserts the property directly.
    */
-  it('does not re-render rows whose own job and selection did not change', async () => {
+  it('does not re-render rows whose own props did not change', async () => {
     const updates: string[] = []
     const jobs = [job({ id: 'a' }), job({ id: 'b' }), job({ id: 'c' })]
     const selectedId = ref('a')
     const unrelated = ref(0)
+    const shared = rowProps()
 
     const host = defineComponent({
       components: { HistoryJobRow },
-      setup: () => ({ jobs, selectedId, unrelated }),
+      setup: () => ({ jobs, selectedId, unrelated, shared }),
       template: `
-        <ul>
-          <li>{{ unrelated }}</li>
-          <li v-for="entry in jobs" :key="entry.id">
-            <HistoryJobRow
-              :job="entry"
-              :selected="entry.id === selectedId"
-              @select="selectedId = entry.id"
-            />
-          </li>
-        </ul>
+        <div>
+          <p>{{ unrelated }}</p>
+          <HistoryJobRow
+            v-for="entry in jobs"
+            :key="entry.id"
+            :job="entry"
+            :selected="entry.id === selectedId"
+            :thumbnail-url="null"
+            time="00:26"
+            :can-reprint="true"
+            :can-queue="true"
+            :can-delete="true"
+            :reprint-guard="shared.reprintGuard"
+            :delete-guard="shared.deleteGuard"
+            @select="selectedId = entry.id"
+            @reprint="unrelated += 0"
+          />
+        </div>
       `,
     })
 
@@ -114,8 +172,8 @@ describe('HistoryJobRow', () => {
         mixins: [
           {
             updated(this: ComponentPublicInstance) {
-              const rowJob = (this.$props as { job?: HistoryJob }).job
-              if (rowJob) updates.push(rowJob.id)
+              const props = this.$props as { job?: HistoryJob; time?: string }
+              if (props.job && props.time !== undefined) updates.push(props.job.id)
             },
           },
         ],

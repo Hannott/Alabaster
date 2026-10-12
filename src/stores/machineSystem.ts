@@ -393,6 +393,10 @@ export const useMachineSystemStore = defineStore('machineSystem', () => {
         update.throttled_state !== undefined
           ? update.throttled_state
           : (previous?.throttled_state ?? null),
+      websocket_connections:
+        update.websocket_connections !== undefined
+          ? update.websocket_connections
+          : (previous?.websocket_connections ?? null),
     }
     if (update.system_uptime !== undefined) {
       const receivedAt = Date.now()
@@ -421,6 +425,12 @@ export const useMachineSystemStore = defineStore('machineSystem', () => {
     }
     if (isRecord(payload.system_memory)) {
       update.system_memory = payload.system_memory as MoonrakerProcStats['system_memory']
+    }
+    if (
+      typeof payload.websocket_connections === 'number' &&
+      Number.isFinite(payload.websocket_connections)
+    ) {
+      update.websocket_connections = payload.websocket_connections
     }
 
     if (Object.keys(update).length === 0) return
@@ -612,10 +622,19 @@ export const useMachineSystemStore = defineStore('machineSystem', () => {
     }
   }
 
+  /**
+   * When the repositories were last re-read, as this tab saw it. Moonraker
+   * reports no refresh time of its own, so this stays null until a check
+   * finishes here or Moonraker announces one -- its own scheduled refresh and
+   * another client's check both arrive as `notify_update_refreshed`.
+   */
+  const lastCheckedAt = ref<number | null>(null)
+
   function handleUpdateRefreshedNotification(notification: JsonRpcNotification): void {
     const payload = notification.params[0]
     if (!isRecord(payload) || !isRecord(payload.version_info)) return
     applyUpdateStatus(payload as unknown as MoonrakerUpdateStatus)
+    lastCheckedAt.value = Date.now()
   }
 
   /**
@@ -634,6 +653,7 @@ export const useMachineSystemStore = defineStore('machineSystem', () => {
         withoutLocalTimeout,
       )
       applyUpdateStatus(status)
+      if (name === undefined) lastCheckedAt.value = Date.now()
       return true
     } catch {
       checkFailed.value = true
@@ -863,6 +883,7 @@ export const useMachineSystemStore = defineStore('machineSystem', () => {
           system_uptime: stats.system_uptime,
           system_memory: stats.system_memory,
           throttled_state: stats.throttled_state,
+          websocket_connections: stats.websocket_connections ?? null,
         })
       }
     } catch {
@@ -1038,6 +1059,7 @@ export const useMachineSystemStore = defineStore('machineSystem', () => {
             system_uptime: statsResult.value.system_uptime,
             system_memory: statsResult.value.system_memory,
             throttled_state: statsResult.value.throttled_state,
+            websocket_connections: statsResult.value.websocket_connections ?? null,
           })
         }
       }
@@ -1164,6 +1186,8 @@ export const useMachineSystemStore = defineStore('machineSystem', () => {
     error,
     checkingUpdateId,
     checkFailed,
+    lastCheckedAt,
+    clockNow,
     runningUpdateId,
     isUpdatingAll,
     updateFailed,

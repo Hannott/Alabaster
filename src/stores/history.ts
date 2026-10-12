@@ -56,6 +56,29 @@ export interface HistoryJob {
   /** Whether the file is still on the printer, so a reprint can be offered. */
   fileExists: boolean
   auxiliaryData: HistoryJobAuxiliaryValue[]
+  /**
+   * What the slicer wrote into the file, as Moonraker recorded it with the
+   * job. Every field is null where the slicer did not say, which is the norm
+   * for a file sliced without metadata or a job older than its metadata.
+   */
+  details: HistoryJobDetails
+}
+
+export interface HistoryJobDetails {
+  /** The slicer's own estimate of print time, in seconds. */
+  estimatedTime: number | null
+  filamentType: string | null
+  filamentName: string | null
+  /** Grams. */
+  filamentWeight: number | null
+  /** Millimetres. */
+  layerHeight: number | null
+  /** Millimetres. */
+  objectHeight: number | null
+  slicer: string | null
+  /** Thumbnail paths relative to the G-code file: the smallest for a row, the largest for its details. */
+  thumbnailSmall: string | null
+  thumbnailLarge: string | null
 }
 
 /** One auxiliary field's lifetime aggregate, alongside the job totals. */
@@ -159,6 +182,37 @@ function readJobAuxiliaryData(data: unknown): HistoryJobAuxiliaryValue[] {
   return output
 }
 
+function positiveOrNull(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : null
+}
+
+function textOrNull(value: unknown): string | null {
+  return typeof value === 'string' && value.trim() !== '' ? value.trim() : null
+}
+
+/**
+ * Rows want the smallest picture that still fills a 40px tile on a 2x screen,
+ * so the list never downloads fifty 300px images; the details want the
+ * largest. Both come from the same list the slicer embedded.
+ */
+function readJobDetails(metadata: MoonrakerHistoryJob['metadata']): HistoryJobDetails {
+  const thumbnails = (Array.isArray(metadata?.thumbnails) ? metadata.thumbnails : [])
+    .filter((thumbnail) => typeof thumbnail?.relative_path === 'string' && thumbnail.width > 0)
+    .sort((a, b) => a.width - b.width)
+  const small = thumbnails.find((thumbnail) => thumbnail.width >= 64) ?? thumbnails.at(-1)
+  return {
+    estimatedTime: positiveOrNull(metadata?.estimated_time),
+    filamentType: textOrNull(metadata?.filament_type),
+    filamentName: textOrNull(metadata?.filament_name),
+    filamentWeight: positiveOrNull(metadata?.filament_weight_total),
+    layerHeight: positiveOrNull(metadata?.layer_height),
+    objectHeight: positiveOrNull(metadata?.object_height),
+    slicer: textOrNull(metadata?.slicer),
+    thumbnailSmall: small?.relative_path ?? null,
+    thumbnailLarge: thumbnails.at(-1)?.relative_path ?? null,
+  }
+}
+
 function readJob(job: MoonrakerHistoryJob): HistoryJob {
   return {
     id: String(job.job_id ?? ''),
@@ -172,6 +226,7 @@ function readJob(job: MoonrakerHistoryJob): HistoryJob {
     filamentUsed: nonNegative(job.filament_used),
     fileExists: job.exists !== false,
     auxiliaryData: readJobAuxiliaryData(job.auxiliary_data),
+    details: readJobDetails(job.metadata),
   }
 }
 

@@ -4,6 +4,7 @@ export type AppIconName =
   | 'add'
   | 'adjust'
   | 'alertOctagon'
+  | 'arrowUpCircle'
   | 'back'
   | 'bell'
   | 'bellAlertTwotone'
@@ -14,6 +15,7 @@ export type AppIconName =
   | 'bulb'
   | 'bulbOn'
   | 'camera'
+  | 'chartBars'
   | 'cameraNoSignal'
   | 'cameraDisabled'
   | 'cameraOff'
@@ -1401,6 +1403,13 @@ defineProps<{ name: AppIconName }>()
       />
     </g>
     <path v-else-if="name === 'up'" d="m7 15 5-5 5 5" />
+    <!-- Three bars on a baseline: History's statistics, drawn for its approved mockup. -->
+    <path v-else-if="name === 'chartBars'" d="M4 20h16M7 16v-5M12 16V6M17 16v-8" />
+    <!-- Tabler's "arrow-up-circle" glyph (MIT licensed) — a source with an update waiting. -->
+    <g v-else-if="name === 'arrowUpCircle'">
+      <circle cx="12" cy="12" r="9" />
+      <path d="m8 12 4-4 4 4M12 8v8" />
+    </g>
     <!-- Material Symbols' "usb-rounded" glyph (Google, Apache 2.0). -->
     <path
       v-else-if="name === 'usb'"

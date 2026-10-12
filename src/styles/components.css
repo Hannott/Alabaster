@@ -1778,10 +1778,10 @@ input[type='number']::-webkit-inner-spin-button {
   /*
    * The header's own height, published rather than repeated, because anything
    * inside a page that pins itself against the page shell's scrolling has to
-   * cap its height against this same number — see `.history-job-detail`. A
-   * pinned element capped against a stale copy of it is an element whose
-   * bottom cannot be scrolled to, which is silent: it looks fine until the
-   * content is long enough to need the part that is now unreachable.
+   * cap its height against this same number. A pinned element capped against a
+   * stale copy of it is an element whose bottom cannot be scrolled to, which is
+   * silent: it looks fine until the content is long enough to need the part
+   * that is now unreachable.
    */
   --app-header-block-size: 5rem;
   display: flex;
@@ -10460,53 +10460,42 @@ select {
   font-weight: 700;
 }
 
+/*
+ * The page is a host strip over three cards of equal height. `align-items:
+ * start` let each card end where its content did (753 / 497 / 254 px on a
+ * real printer), so the row read as three unrelated boxes with a ragged
+ * bottom edge; stretching gives the page one baseline.
+ */
 .machine-system-grid {
   display: grid;
   min-height: 0;
-  grid-template-columns: minmax(18rem, 0.8fr) minmax(24rem, 1.2fr);
-  align-items: start;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: stretch;
   gap: 1rem;
 }
 
-/*
- * Column one stacks the panels that describe the host — System, then
- * Peripherals — so neither competes with Updates for the second column's width.
- */
-.machine-system-column {
-  display: grid;
-  min-width: 0;
-  align-content: start;
-  gap: 1rem;
-}
-
-/*
- * A wide desktop has room for System, Peripherals, and Updates side by side
- * instead of two columns with one of them stacked. `display: contents` drops
- * the column-one wrapper's own box so its two panels rejoin the parent grid
- * as ordinary siblings of Updates, in the same document order — no markup
- * change needed. Each column keeps only a floor (`24rem`, wide enough for a
- * peripheral's full device path) and takes an equal share of the rest as
- * `1fr`, so the row still fills the page edge to edge instead of leaving the
- * leftover width as dead margin.
- */
-@media (min-width: 96rem) {
+@media (max-width: 96rem) {
   .machine-system-grid {
-    grid-template-columns: repeat(3, minmax(24rem, 1fr));
-  }
-
-  .machine-system-column {
-    display: contents;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
+@media (max-width: 64rem) {
+  .machine-system-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.machine-system-page > .availability-region > .availability-region__content {
+  display: grid;
+  gap: 1rem;
+}
+
 /*
- * A container query, not a viewport one: this panel's width is set by
- * whichever track of `.machine-system-grid` it lands in (18rem-ish at the
- * narrow end of the two-column split), not by the window. A viewport
- * breakpoint tuned to the single-column mobile case left the desktop
- * two/three-column range with no fallback at all, so `.machine-host-row`
- * stayed in its row layout at any width and wrapped every word of the host
- * text onto its own line once the CPU/RAM meters took their share.
+ * Every Machine panel is a size container, so its contents answer to the
+ * panel's own width rather than the window's: the host strip spans the page
+ * while each card is a third of it, and a viewport breakpoint cannot tell the
+ * two apart.
  */
 .machine-status-panel {
   container-type: inline-size;
@@ -10517,15 +10506,13 @@ select {
   background: var(--surface-raised);
 }
 
-@container machine-status-panel (max-width: 26rem) {
-  .machine-host-row {
-    flex-direction: column;
-  }
-}
-
+/*
+ * One height for every card's heading, with or without actions beside the
+ * title: a heading without them was 52px beside its 59px neighbours.
+ */
 .machine-panel-heading {
   display: flex;
-  min-height: 3.25rem;
+  min-height: 3.6875rem;
   align-items: center;
   gap: 0.65rem;
   border-bottom: 1px solid var(--border-subtle);
@@ -10542,85 +10529,160 @@ select {
 }
 
 .machine-panel-heading h2,
-.machine-host-name,
-.machine-update-row__name {
+.machine-row__name {
   font-weight: var(--font-weight-increased);
 }
 
-.machine-host-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1.25rem;
-  padding: 1rem;
-  color: var(--text-muted);
-  font-size: var(--text-note-size);
-  line-height: 1.55;
-}
-
-.machine-host-name {
-  color: var(--text-primary);
-  font-size: var(--text-host-identity-size);
-}
-
-.machine-meters {
+/*
+ * The host strip: who the host is on the left, its live readings on the right
+ * as one row of equal cells. Hairlines between cells come from a 1px grid gap
+ * over a border-coloured background, so they stay correct however the cells
+ * wrap at narrower widths. It replaced a paragraph per fact beside two boxed
+ * CPU/RAM tiles, which read as two unrelated styles stacked in one card.
+ */
+/*
+ * The grid sits on an inner element, not on `.machine-host` itself: the panel
+ * is the size container, and a container query only reaches the container's
+ * descendants, so a layout on the panel could never answer to its own width.
+ */
+.machine-host__layout {
   display: grid;
-  flex: 0 0 auto;
-  grid-template-columns: repeat(2, minmax(5.75rem, 1fr));
-  gap: 0.65rem;
+  grid-template-columns: minmax(20rem, 1fr) minmax(0, 3fr);
 }
 
-.machine-meter {
-  min-width: 0;
-  border: 1px solid var(--border-subtle);
-  border-radius: 0.35rem;
-  padding: 0.65rem 0.7rem 0.75rem;
-  background: var(--surface-soft);
-}
-
-.machine-meter__heading {
+.machine-host__identity {
   display: flex;
+  min-width: 0;
   align-items: center;
-  justify-content: center;
-  gap: 0.35rem;
-  color: var(--text-muted);
+  gap: 0.85rem;
+  border-inline-end: 1px solid var(--border-subtle);
+  padding: 1rem;
 }
 
-.machine-meter__heading svg {
-  width: 1.5rem;
-  height: 1.5rem;
+.machine-host__identity > svg {
+  flex: none;
+  width: 2rem;
+  height: 2rem;
   color: var(--action-primary);
 }
 
-.machine-meter__heading span {
-  font-size: var(--text-label-caps-size);
-  text-transform: uppercase;
+.machine-host__name {
+  color: var(--text-primary);
+  font-size: var(--text-host-identity-size);
   font-weight: var(--font-weight-increased);
-  letter-spacing: var(--text-label-caps-tracking);
+  line-height: 1.2;
 }
 
-.machine-meter__value {
+.machine-host__meta {
+  margin-top: 0.3rem;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-field-label-size);
+  line-height: 1.45;
+}
+
+/*
+ * Columns follow the cells actually present: temperature and power are left
+ * out on a host that does not report them, and a fixed six-track template
+ * would leave an empty, border-coloured cell where they were.
+ */
+.machine-host__stats {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
+  gap: 1px;
+  background: var(--border-subtle);
+}
+
+.machine-stat {
+  display: grid;
+  min-width: 0;
+  align-content: center;
+  gap: 0.35rem;
+  background: var(--surface-raised);
+  padding: 0.85rem 1rem;
+}
+
+.machine-stat dt {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--text-muted);
+  font-size: var(--text-label-caps-size);
+  font-weight: var(--font-weight-increased);
+  letter-spacing: var(--text-label-caps-tracking);
+  text-transform: uppercase;
+}
+
+.machine-stat dt svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.machine-stat__value {
+  display: flex;
   align-items: baseline;
-  column-gap: 0.12rem;
-  margin: 0.35rem 0 0.45rem;
+  gap: 0.15rem;
   color: var(--text-primary);
   font-variant-numeric: tabular-nums;
   line-height: 1;
 }
 
-.machine-meter__value strong {
-  min-width: 0;
+.machine-stat__value strong {
   font-size: var(--text-value-large-size);
   font-weight: var(--font-weight-increased);
-  text-align: end;
 }
 
-.machine-meter__value span {
+/* "7 d 20 h": a value after a unit starts a new pair, so it gets a word's space. */
+.machine-stat__value span + strong {
+  margin-inline-start: 0.35rem;
+}
+
+.machine-stat__value span,
+.machine-stat__detail {
   color: var(--text-muted);
   font-size: var(--text-field-label-size);
-  font-weight: var(--font-weight);
+}
+
+.machine-stat__detail {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.machine-stat[data-tone='positive'] .machine-stat__value strong {
+  color: var(--status-available);
+}
+
+.machine-stat[data-tone='caution'] .machine-stat__value strong {
+  color: var(--status-recovering);
+}
+
+@container machine-status-panel (max-width: 70rem) {
+  .machine-host__layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .machine-host__identity {
+    border-inline-end: 0;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+
+  .machine-host__stats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-auto-flow: row;
+  }
+}
+
+@container machine-status-panel (max-width: 30rem) {
+  .machine-host__stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  /* A host without temperature or power leaves an odd cell; it takes the row. */
+  .machine-stat:last-child:nth-child(odd) {
+    grid-column: span 2;
+  }
 }
 
 /*
@@ -10647,76 +10709,69 @@ select {
   transition: clip-path var(--motion-duration-fast) var(--motion-ease-standard);
 }
 
-.machine-module-list {
-  border-top: 1px solid var(--border-subtle);
-}
-
-.machine-module-list > h3 {
-  padding: 0.8rem 1rem;
-  color: var(--text-muted);
-  font-size: var(--text-label-caps-size);
-  font-weight: var(--font-weight-increased);
-  letter-spacing: var(--text-label-caps-tracking);
-  text-transform: uppercase;
-}
-
-.machine-module-row {
-  display: flex;
-  min-height: 3.75rem;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  border-top: 1px solid var(--border-subtle);
-  padding: 0.7rem 1rem;
-}
-
-.machine-module-row h4 {
-  overflow: hidden;
-  color: var(--text-primary);
-  font-size: var(--text-card-title-size);
-  letter-spacing: var(--text-card-title-tracking);
-  font-weight: var(--font-weight-increased);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 /*
- * A peripheral's name is a device path or USB descriptor the reader may need
- * to read in full or copy verbatim — truncating it with an ellipsis hides the
- * half that matters most for telling two similar devices apart. It wraps
- * instead of clipping; the row's own `min-height` is a floor; `flex` already
- * lets it grow for a name that wraps to more than one line.
+ * The list cards do not clip, unlike `.machine-status-panel` by default: each
+ * row's menu is a `HeaderMenu`, and its panel opens below the trigger, so the
+ * last row's menu would be cut at the card edge. Nothing inside these cards
+ * paints into their rounded corners, so the clipping had nothing to do here.
  */
-.machine-peripheral-row h4 {
+.machine-list-panel {
   overflow: visible;
-  overflow-wrap: anywhere;
-  text-overflow: unset;
-  white-space: normal;
 }
 
-.machine-module-chip,
-.machine-module-row p {
+/*
+ * The answer to "is anything waiting?", as a band between the heading and the
+ * list so it reads as the panel's own status rather than as a first row.
+ */
+.machine-panel-summary {
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--surface-soft);
+  padding: 0.6rem 1rem;
   color: var(--text-muted);
-  font-size: var(--text-hint-size);
+  font-size: var(--text-field-label-size);
 }
 
-.machine-module-row p + p {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem;
+/*
+ * One grid for the whole list, with each row a `subgrid` box spanning it, so
+ * the state glyph, the anomalies toggle, the action, and the menu each keep one
+ * edge down every row. A per-row flex container let a row's optional controls
+ * push its status sideways, which made a list of a dozen sources read ragged.
+ * The glyph column is a fixed width rather than `auto`: up-to-date rows leave it
+ * empty, and a list of nothing but up-to-date rows must not pull its names left.
+ *
+ * The inline inset is two `0.25rem` edge tracks rather than row padding. A
+ * subgrid's padding is added to its edge tracks, which a fixed-width glyph track
+ * cannot absorb, so padded rows pushed the glyph over the name; each edge track
+ * plus the column gap beside it sums to the `1rem` the panel heading uses, and
+ * the rows' dividers still run the full width of the panel.
+ */
+.machine-list {
+  display: grid;
+  grid-template-columns: 0.25rem 1.25rem minmax(0, 1fr) auto auto auto 0.25rem;
+  column-gap: 0.75rem;
 }
 
-.machine-module-row p + p span + span::before {
-  content: '·';
-  margin-right: 0.4rem;
+/*
+ * Rows are divided by the panel's own hairline, so a dozen sources read as one
+ * table rather than a stack of floating rows.
+ */
+.machine-row {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+  align-items: center;
+  padding-block: 0.6rem;
 }
 
-.machine-service-list {
+.machine-row:not(:first-child),
+.machine-list__fold {
   border-top: 1px solid var(--border-subtle);
 }
 
-.machine-service-list > h3 {
-  padding: 0.8rem 1rem;
+/* A group label inside a shared list: Controllers, Serial devices, USB devices. */
+.machine-list__label {
+  grid-column: 1 / -1;
+  padding: 0.9rem 1rem 0.3rem;
   color: var(--text-muted);
   font-size: var(--text-label-caps-size);
   font-weight: var(--font-weight-increased);
@@ -10724,82 +10779,83 @@ select {
   text-transform: uppercase;
 }
 
-.machine-service-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
+.machine-list__label:not(:first-child) {
   border-top: 1px solid var(--border-subtle);
-  padding: 0.7rem 1rem;
 }
 
-.machine-service-name {
-  overflow: hidden;
-  color: var(--text-primary);
-  font-size: var(--text-card-title-size);
-  letter-spacing: var(--text-card-title-tracking);
-  font-weight: var(--font-weight-increased);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.machine-service-actions {
-  display: flex;
-  flex: 0 0 auto;
-  align-items: center;
-  gap: 0.5rem;
+.machine-list__label + .machine-row {
+  border-top: 0;
 }
 
 /*
- * Gapped rounded rows are why the list dropped its dividers — a divider
- * between a plain row and a button reads as chrome belonging to neither.
+ * One row height on every card, whether a row has a detail line or not, so
+ * the three lists share a rhythm when they sit side by side.
  */
-.machine-update-list {
+.machine-row {
+  min-height: 3.4375rem;
+}
+
+/* A state that is wrong but has no action of its own: Disconnected, a non-systemd service down. */
+.machine-row__status[data-tone='caution'] {
+  color: var(--status-recovering);
+}
+
+/* Config identifiers (`mcu btt_lis2dw`, a CAN UUID) are shown as written, never title-cased. */
+.machine-row__name.machine-row__name--identifier {
+  text-transform: none;
+}
+
+/*
+ * Every child names its own column: the glyph and the anomalies toggle are
+ * absent from most rows, and auto-placement would otherwise slide the next
+ * child into their tracks.
+ */
+.machine-row__state {
+  grid-column: 2;
+}
+
+.machine-row[data-state='available'] .machine-row__state {
+  color: var(--action-primary);
+}
+
+.machine-row[data-state='attention'] .machine-row__state {
+  color: var(--status-recovering);
+}
+
+.machine-row__detail {
   display: grid;
-  gap: 0.35rem;
-  padding: 0.5rem;
-}
-
-/*
- * One flat flex row: the name/version detail leads (and is the only child
- * that grows, so it is what pushes every control and the status after it to
- * the trailing edge), then the anomalies toggle, rollback, and — only while a
- * source needs attention — the Investigate icon, then the status, then the
- * row's own action button. The list's padding and this element's own inline
- * padding sum to the `1rem` every other panel row uses, so the source names
- * stay on the same edge as the panel heading and the facts above them; the
- * padding is 1px wider than a literal `0.5rem` split would need
- * (`calc(0.5rem - 1px)`) — a leftover from when this row was a bordered
- * button and the border ate the missing pixel, kept rather than earning a
- * one-pixel shift the day it lost that border.
- */
-.machine-update-row-group {
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
-  padding: 0.75rem calc(0.5rem - 1px);
-}
-
-/*
- * The action a row's state implies, trailing the status it acts on — see
- * `MachineView.vue`'s comment on this button for why an install carries
- * `installGuard`, a check collapses to the shared refresh/spinner icon-only
- * pattern (button-system.md's "updates check spinner"), and Investigate never
- * reaches this button at all. Fixed rather than shrinking, so a long
- * displayName never squeezes it into wrapping the way `.machine-update-row__name`'s
- * own ellipsis already handles on that side.
- */
-.machine-update-row__action {
-  flex: 0 0 auto;
-  white-space: nowrap;
-}
-
-.machine-update-row__detail {
-  display: grid;
-  flex: 1 1 auto;
+  grid-column: 3;
   min-width: 0;
-  gap: 0.1rem;
+  gap: 0.15rem;
   text-align: start;
+}
+
+.machine-row__aside {
+  grid-column: 4;
+}
+
+/*
+ * An up-to-date source has no action, so its slot holds a muted check and the
+ * words. The eleven green outlined pills this replaced were the loudest thing in
+ * the list while saying the least.
+ */
+.machine-row__action,
+.machine-row__status {
+  grid-column: 5;
+  justify-self: end;
+  white-space: nowrap;
+}
+
+.machine-row__status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  color: var(--text-muted);
+  font-size: var(--text-field-label-size);
+}
+
+.machine-row__menu {
+  grid-column: 6;
 }
 
 /*
@@ -10808,52 +10864,65 @@ select {
  * below the glyphs, not room text ever used — across a list of a dozen sources
  * that added up to real vertical air.
  */
-.machine-update-row__name,
-.machine-update-row__version,
-.machine-update-row__detail .machine-update-warning {
+.machine-row__name,
+.machine-row__meta {
   overflow: hidden;
   line-height: 1.2;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.machine-update-row__name {
+.machine-row__name {
   color: var(--text-primary);
   font-size: var(--text-row-name-size);
   text-transform: capitalize;
 }
 
-.machine-update-row__version,
-.machine-update-row__detail .machine-update-warning {
+/* Versions and commit counts are identifiers to compare, so they get the mono face. */
+.machine-row__meta {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
   font-size: var(--text-field-label-size);
   font-weight: var(--font-weight);
 }
 
-.machine-update-row__version {
-  color: var(--text-muted);
+/*
+ * A `text-action` deviation, the same one the printer fault notice's section
+ * link carries: its line is already muted, so muted at rest would make the link
+ * indistinguishable from the version beside it, and the underline is the shape
+ * cue where colour could not be one.
+ */
+.machine-row__link {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
 }
 
-.machine-update-warning {
-  color: var(--status-recovering) !important;
+.machine-row__link:hover,
+.machine-row__link:focus-visible {
+  color: var(--text-primary);
+}
+
+.machine-list__fold {
+  grid-column: 1 / -1;
+  padding: 0.35rem 0.5rem;
 }
 
 /*
- * The anomalies toggle's disclosure, a grid sibling of its
- * `.machine-update-row-group` rather than a child of it -- `machine-update-list`'s
- * own `gap` already spaces the two, so this needed no wrapper of its own.
- * `padding-inline` mirrors `.machine-update-row-group`'s own inline padding so
- * a message's text sits under the row's name column rather than the list's
- * outer edge. Plain `--text-muted`, not a status color: Moonraker tolerates
- * these conditions and still updates past them, so nothing here is a warning.
+ * The anomalies toggle's disclosure, a grid item of the list rather than a
+ * child of its row, placed from the name's column so a message's text starts
+ * under the source it belongs to. Plain `--text-muted`, not a status color:
+ * Moonraker tolerates these conditions and still updates past them, so nothing
+ * here is a warning.
  */
-.machine-update-anomalies {
+.machine-list__notes {
   display: grid;
+  grid-column: 3 / -2;
   gap: 0.4rem;
-  padding-block-end: 0.4rem;
-  padding-inline: calc(0.5rem - 1px);
+  padding-block-end: 0.6rem;
 }
 
-.machine-update-anomalies > li {
+.machine-list__notes > li {
   display: flex;
   align-items: start;
   gap: 0.5rem;
@@ -10863,7 +10932,7 @@ select {
   line-height: 1.4;
 }
 
-.machine-update-anomalies svg {
+.machine-list__notes svg {
   flex: 0 0 auto;
   margin-block-start: 0.1rem;
 }
@@ -12694,10 +12763,6 @@ body.machine-editor-fullscreen-open {
     padding-block-end: 5rem;
   }
 
-  .machine-system-grid {
-    grid-template-columns: 1fr;
-  }
-
   /*
    * `.mobile-navigation` floats over this same corner below 64rem
    * (`bottom-3` plus its own padded row, the same clearance the page shells'
@@ -12729,10 +12794,6 @@ body.machine-editor-fullscreen-open {
   }
 
   .page-heading {
-    align-items: start;
-  }
-
-  .machine-host-row {
     align-items: start;
   }
 
@@ -12784,12 +12845,17 @@ body.machine-editor-fullscreen-open {
     flex-wrap: wrap;
   }
 
-  .machine-panel-heading__actions {
+  /*
+   * Only a heading with a labeled control gives its actions a row of their
+   * own: an icon-only refresh stretched across a phone was a full-width bar
+   * carrying one small glyph, and it stays at the title's trailing edge.
+   */
+  .machine-panel-heading__actions:has(.button:not(.button--icon)) {
     margin-inline-start: 0;
     inline-size: 100%;
   }
 
-  .machine-panel-heading__actions .button {
+  .machine-panel-heading__actions .button:not(.button--icon) {
     flex: 1 1 auto;
   }
 }
@@ -12870,138 +12936,257 @@ body.machine-editor-fullscreen-open {
 }
 
 /*
- * History. The lifetime counters, the statistics window built from them, and
- * the list of jobs behind both.
+ * History. A lifetime strip over two cards: the job list, which is long, and
+ * the statistics, which are not. A single 1024px column centred in a 1737px
+ * page left 713px of margin and stacked every section into one 3,800px
+ * scroll; side by side, the statistics stay in view beside the jobs they
+ * describe. Below 96rem the statistics come first, so a phone does not have to
+ * scroll past fifty jobs to reach them. The cards are the Machine page's own
+ * (`.machine-status-panel`, `.machine-list`, `.machine-host__stats`), so the
+ * two pages read as one product.
  */
-.history-totals,
-.history-stats,
-.history-panel {
+.history-view > .availability-region > .availability-region__content {
   display: grid;
-  gap: 0.75rem;
-  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  gap: 1rem;
 }
 
-.history-totals__grid {
+.history-grid {
   display: grid;
-  gap: 0.5rem;
-  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  grid-template-areas: 'jobs stats';
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  align-items: start;
+  gap: 1rem;
 }
 
-.history-total {
-  display: grid;
-  gap: 0.15rem;
-  border: 1px solid var(--border-subtle);
-  border-radius: 0.25rem;
-  padding: 0.5rem 0.65rem;
+.history-grid > .history-jobs-panel {
+  grid-area: jobs;
 }
 
-.history-total dt {
+.history-grid > .history-stats-panel {
+  grid-area: stats;
+}
+
+@media (max-width: 96rem) {
+  .history-grid {
+    grid-template-areas: 'stats' 'jobs';
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Same height as the Machine cards' headings, with or without actions. */
+.history-view .machine-panel-heading {
+  min-height: 3.6875rem;
+}
+
+.history-lifetime .machine-host__stats {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+/*
+ * A list whose rows lead with a picture: the glyph track widens to the
+ * thumbnail. Everything else is the shared row list.
+ */
+.machine-list--media {
+  grid-template-columns: 0.25rem 2.5rem minmax(0, 1fr) auto auto auto 0.25rem;
+}
+
+.machine-row__thumb {
+  grid-column: 2;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 0.3rem;
+  background: var(--surface-soft);
+  object-fit: contain;
+}
+
+/*
+ * A job row lays out its own tracks rather than being a `subgrid` of the
+ * list, because it carries containment, and layout containment turns a
+ * subgrid back into an ordinary grid. The tracks are the list's own seven, so
+ * every child's `grid-column` still lands where the shared row puts it; the
+ * status track has a fixed floor wide enough for "Interrupted", which is what
+ * keeps the column straight down rows that no longer share one.
+ *
+ * "Load more" has no ceiling, so this list is the one place in the product
+ * whose element count is set by how long the user keeps pressing a button.
+ * A thousand rows is 51 000 px of layout and paint for the rows on screen;
+ * skipping the rest is what keeps scrolling and every re-render flat as the
+ * list grows. The intrinsic size is stated rather than guessed, because a
+ * wrong one moves the scrollbar as rows come into view: the name and its line
+ * never wrap, so every row's content box is exactly the thumbnail's 2.5rem —
+ * `contain-intrinsic-block-size` measures the content box, so the row's own
+ * padding and divider are not added to it. `auto` then lets the browser keep
+ * each row's real measured size once it has rendered it.
+ */
+.machine-list--media > .history-job {
+  grid-template-columns: 0.25rem 2.5rem minmax(0, 1fr) auto minmax(6.5rem, auto) auto 0.25rem;
+  column-gap: 0.75rem;
+  content-visibility: auto;
+  contain-intrinsic-block-size: auto 2.5rem;
+}
+
+/*
+ * Containment clips paint to the row, and the row's own menu opens below it,
+ * so a row with its menu open drops containment until the menu closes —
+ * otherwise the panel is cut at the row's edge and reads as hidden behind the
+ * next job.
+ */
+.machine-list--media > .history-job:has(.header-menu__panel) {
+  content-visibility: visible;
+}
+
+/*
+ * The picture and the name are one control, the `file-select` that opens the
+ * job beneath its row. It spans their two tracks as a subgrid, so the row's
+ * shared columns still line up with every other row's while the whole left
+ * half answers a press; the status and the menu stay controls of their own.
+ */
+.history-job__toggle {
+  display: grid;
+  grid-column: 2 / 4;
+  grid-template-columns: subgrid;
+  align-items: center;
+  text-align: start;
+}
+
+.history-job__toggle > .machine-row__thumb {
+  grid-column: 1;
+}
+
+.history-job__toggle > .machine-row__detail {
+  grid-column: 2;
+}
+
+/* The open job's details, under its row and starting at the picture's column. */
+.history-job-expansion {
+  display: grid;
+  grid-column: 2 / -2;
+  grid-template-columns: 7.5rem minmax(0, 1fr);
+  gap: 0.75rem 1.25rem;
+  padding-block: 0.25rem 1rem;
+}
+
+.history-job-expansion > img,
+.history-job-expansion__placeholder {
+  width: 7.5rem;
+  height: 7.5rem;
+  border-radius: 0.4rem;
+  background: var(--surface-soft);
+  object-fit: contain;
+}
+
+.history-job-facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-content: start;
+  gap: 0.6rem 1.5rem;
+}
+
+.history-job-facts dt {
+  color: var(--text-muted);
   font-size: var(--text-label-caps-size);
-  font-weight: var(--font-weight);
+  font-weight: var(--font-weight-increased);
   letter-spacing: var(--text-label-caps-tracking);
   text-transform: uppercase;
-  color: var(--text-muted);
 }
 
-.history-total dd {
-  font-family: var(--font-mono);
-  font-size: var(--text-value-large-size);
-  font-weight: var(--font-weight);
-}
-
-/*
- * The row list and its detail pane split the same way Print Files' own
- * browser and detail pane do — a row picks a job, the pane beside it carries
- * everything that used to be crammed onto the row itself (full duration
- * breakdown, filament, per-job auxiliary readings, reprint and delete). Below
- * the breakpoint the pane replaces the list instead of sitting beside it, the
- * same collapse Print Files uses.
- */
-.history-jobs-workspace {
-  display: flex;
-  align-items: flex-start;
-  min-width: 0;
-  gap: 0.75rem;
-}
-
-.history-jobs-browser {
-  display: grid;
-  min-width: 0;
-  flex: 1 1 auto;
-  align-content: start;
-  gap: 0.5rem;
-}
-
-.history-jobs {
-  display: grid;
-  min-width: 0;
-  gap: 0.35rem;
-  grid-template-columns: minmax(0, 1fr);
-}
-
-.history-jobs__load-row {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-/*
- * Composed on `file-select`, exactly as `print-files-row` is: this adds the
- * grid and nothing else, so a completed job and a print file pick themselves
- * out of a list the same way. Three columns only — outcome, name, date — the
- * duration, filament and auxiliary readings that used to sit here moved to
- * `.history-job-detail`, which is what a click now opens.
- */
-.history-job {
-  display: grid;
-  inline-size: 100%;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 0.65rem;
-  min-height: 2.75rem;
-  padding: calc(0.4rem - var(--selection-row-border)) calc(0.65rem - var(--selection-row-border));
-  /*
-   * "Load more" has no ceiling, so this list is the one place in the product
-   * whose element count is set by how long the user keeps pressing a button.
-   * A thousand rows is 51 000 px of layout and paint for the forty rows on
-   * screen; skipping the rest is what keeps scrolling and every re-render flat
-   * as the list grows.
-   *
-   * The intrinsic size is stated rather than guessed, because a wrong one
-   * moves the scrollbar as rows come into view: the name never wraps
-   * (`.history-job__name` is `nowrap`), so every row is exactly `min-height`
-   * tall, and `contain-intrinsic-block-size` measures the content box — hence
-   * `min-height` minus this rule's own block padding and `selection-row`'s
-   * border, which together are 0.4rem a side, written as the subtraction so
-   * that changing either number keeps them in step. Getting
-   * that wrong is not subtle but it is silent: assuming the border-box height
-   * here added the padding twice and stretched a thousand rows by 13 px each.
-   * `auto` then lets the browser keep each row's real measured size once it
-   * has rendered it, so nothing moves afterwards either.
-   */
-  content-visibility: auto;
-  contain-intrinsic-block-size: auto calc(2.75rem - 0.8rem);
-}
-
-.history-job:hover:not(:disabled) {
-  background-color: var(--surface-raised);
+.history-job-facts dd {
   color: var(--text-primary);
+  font-size: var(--text-row-name-size);
 }
 
-.history-job__name {
-  min-width: 0;
-  overflow: hidden;
-  font-weight: var(--font-weight);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.history-job__when {
-  flex: 0 0 auto;
-  font-family: var(--font-mono);
-  font-size: var(--text-meta-size);
+.history-job-facts dd span {
   color: var(--text-muted);
-  white-space: nowrap;
+  font-size: var(--text-field-label-size);
+}
+
+.history-job-actions {
+  display: flex;
+  flex-wrap: wrap;
+  grid-column: 2;
+  gap: 0.5rem;
+}
+
+/* The statistics card's own sections share the list's 1rem inline edge. */
+.history-stats-section {
+  display: grid;
+  gap: 0.75rem;
+  border-top: 1px solid var(--border-subtle);
+  padding: 1rem;
+}
+
+.history-stats-section__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.history-stats-panel > .machine-host__stats {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-top: 0;
+}
+
+@container machine-status-panel (max-width: 40rem) {
+  .history-lifetime .machine-host__stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .history-job-expansion {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .history-job-expansion > img,
+  .history-job-expansion__placeholder {
+    display: none;
+  }
+
+  .history-job-actions {
+    grid-column: 1;
+  }
+}
+
+@container machine-status-panel (max-width: 30rem) {
+  .history-stats-panel > .machine-host__stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .history-lifetime .machine-stat:last-child:nth-child(odd),
+  .history-stats-panel .machine-stat:last-child:nth-child(odd) {
+    grid-column: span 2;
+  }
+
+  /*
+   * On a phone a job's outcome keeps only its glyph, so the file name gets
+   * the width: the status column is shared by every row, so one visible
+   * "Interrupted" would cost every row its width. The check and the warning
+   * are different shapes, the word stays for assistive technology, and a job
+   * that went wrong says how on its own detail line.
+   */
+  .machine-list--media > .history-job {
+    grid-template-columns: 0.25rem 2.5rem minmax(0, 1fr) auto auto auto 0.25rem;
+  }
+
+  .machine-row__status.history-job__outcome .history-job__outcome-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  /* The share already answers to the measure toggle; the two raw columns wait for a wider screen. */
+  /* Scoped to the panel so it outranks the table's own rule, which comes later in this file. */
+  .history-stats-panel .history-outcome-table {
+    grid-template-columns: minmax(0, 1.4fr) repeat(2, minmax(3.5rem, auto));
+  }
+
+  .history-outcome-table .module-table__head > :nth-child(n + 4),
+  .history-outcome-table .module-table__row > :nth-child(n + 4) {
+    display: none;
+  }
 }
 
 /*
@@ -13024,184 +13209,18 @@ body.machine-editor-fullscreen-open {
   color: var(--text-muted);
 }
 
+/*
+ * A completed job is the norm, so it reads like every other quiet state on
+ * these pages: muted, with its check. Only the outcomes that need a second
+ * look keep a colour, here and in the outcome table alike.
+ */
 .history-job__outcome--completed {
-  color: var(--status-available);
+  color: var(--text-muted);
 }
 
 .history-job__outcome--error,
 .history-job__outcome--interrupted {
   color: var(--status-caution-text);
-}
-
-/*
- * Pinned, because the list it belongs to is as long as the user has pressed
- * "Load older jobs" — so the pane holding the chosen job's figures and its
- * three actions used to scroll away while the rows it was describing kept
- * going. Sticky against `.standard-page`'s own scrolling, the same mechanism
- * `.settings-rail` and `.calibration-stages` use. It needs no z-index and no
- * backdrop, unlike those two: the panes sit side by side and never overlap.
- *
- * **The offset cancels the page shell's top padding**, which is why it is
- * negative. A sticky offset is measured from the scroll container's content
- * edge — inside its own padding — so a bare `1rem` here is 1rem *plus* a page
- * inset that grows with the viewport: measured at 41.6 px on a 1280 px-wide
- * window, which reads as stopping short of the top rather than at it. Both
- * carry a negative offset for exactly this reason.
- *
- * **The height cap is what makes the pin safe rather than a trap.** A pinned
- * box taller than the scrollport stops moving with its own bottom still below
- * the fold, and no amount of scrolling brings it back — which for this pane is
- * the Remove button. Measured: a job with a filename long enough to wrap plus
- * three auxiliary readings is 618 px against a 640 px scrollport on a 720p
- * laptop, so this is the real case and not a precaution. Capping hands the
- * overflow to `overflow-y` above, which was already declared here and had
- * simply never had a constraint to act on. `2rem` is the 1rem above the pane
- * and the 1rem left below it.
- *
- * The cap reads the header's height from `.app-main` rather than restating it,
- * because that number is not one number: `.standard-page` is the scroll region
- * at every width this pane exists at, but the header above it wraps to two
- * rows below 64rem and the scrollport shrinks with it (measured 80 px and 720
- * px against 104 px and 696 px, on the same 800 px-tall window). A single
- * `5rem` here was 8 px of this pane's own bottom border hanging past the fold
- * on every window between 40rem and 64rem wide.
- */
-.history-job-detail {
-  display: flex;
-  inline-size: clamp(16rem, 24vw, 20rem);
-  flex: 0 0 clamp(16rem, 24vw, 20rem);
-  min-height: 0;
-  flex-direction: column;
-  gap: 0.65rem;
-  position: sticky;
-  inset-block-start: calc(1rem - var(--page-shell-pad-top, 0rem));
-  max-block-size: calc(100dvh - var(--app-header-block-size, 0rem) - 2rem);
-  overflow-y: auto;
-  border: 1px solid var(--border-subtle);
-  border-radius: 0.3rem;
-  padding: 0.85rem 1rem 1rem;
-}
-
-.history-job-detail__header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 0.5rem;
-}
-
-.history-job-detail__metadata {
-  display: grid;
-  gap: 0.15rem;
-}
-
-.history-job-detail__row {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 0.75rem;
-  padding: 0.3rem 0;
-  border-block-end: 1px solid var(--border-subtle);
-  font-size: var(--text-meta-size);
-}
-
-.history-job-detail__row dt {
-  color: var(--text-muted);
-}
-
-.history-job-detail__row dd {
-  font-family: var(--font-mono);
-  font-weight: var(--font-weight);
-  text-align: end;
-}
-
-.history-job-detail__auxiliary {
-  display: grid;
-  gap: 0.2rem;
-  font-family: var(--font-mono);
-  font-size: var(--text-meta-size);
-  color: var(--text-muted);
-}
-
-.history-job-detail__actions {
-  display: grid;
-  gap: 0.4rem;
-}
-
-/*
- * Below this width the two panes stack rather than shrink, and the detail
- * pane replaces the row list when a job is selected — the same collapse
- * `print-files-workspace` uses at its own breakpoint. Geometry changes at
- * the breakpoint and is never animated, per ADR 0004.
- */
-@media (max-width: 40rem) {
-  .history-jobs-workspace {
-    display: block;
-  }
-
-  .history-jobs-workspace--detail-open .history-jobs-browser {
-    display: none;
-  }
-
-  /*
-   * Nothing to pin against here: the pane replaces the list rather than
-   * standing beside it, so it is the only thing in the workspace and has no
-   * range to stay put over. The cap goes with the pin, and has to: on a phone
-   * it would be the one thing turning a pane the page could simply scroll into
-   * a pane with its own scrollbar inside a page that also scrolls.
-   */
-  .history-job-detail {
-    inline-size: auto;
-    flex: 1 1 auto;
-    position: static;
-    max-block-size: none;
-  }
-}
-
-/*
- * One control row, reused for the period and (once jobs exist) the measure —
- * a label, a `segmented` track, and — the period row only — the population it
- * resolved to, so the count in the table below it always has a stated bound.
- */
-.history-stats__control {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.history-stats__control-label {
-  font-size: var(--text-label-caps-size);
-  font-weight: var(--font-weight-increased);
-  letter-spacing: var(--text-label-caps-tracking);
-  text-transform: uppercase;
-  color: var(--text-muted);
-}
-
-.history-stats__population {
-  font-size: var(--text-meta-size);
-  color: var(--text-muted);
-}
-
-.history-stats__row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 0.5rem;
-}
-
-.history-stats__row dt {
-  font-size: var(--text-label-caps-size);
-  font-weight: var(--font-weight);
-  letter-spacing: var(--text-label-caps-tracking);
-  text-transform: uppercase;
-  color: var(--text-muted);
-}
-
-.history-stats__row dd {
-  font-family: var(--font-mono);
-  font-size: var(--text-value-size);
-  font-weight: var(--font-weight);
 }
 
 /*
@@ -13221,12 +13240,6 @@ body.machine-editor-fullscreen-open {
   grid-template-columns: minmax(7rem, 1.4fr) repeat(4, minmax(4rem, 1fr));
   overflow-x: auto;
   scrollbar-width: thin;
-}
-
-.history-stats__trend,
-.history-stats__distribution {
-  display: grid;
-  gap: 0.4rem;
 }
 
 .history-trend-wrapper {
@@ -13342,11 +13355,12 @@ body.machine-editor-fullscreen-open {
   gap: 0.3rem;
 }
 
+/* Print length reads at the same size as every other row of figures on the page. */
 .history-distribution__row {
   display: flex;
   justify-content: space-between;
   gap: 0.5rem;
-  font-size: var(--text-meta-size);
+  font-size: var(--text-row-name-size);
 }
 
 .history-distribution__range {
@@ -13447,7 +13461,7 @@ body.machine-editor-fullscreen-open {
  * Unlike Configuration's strips it is sticky, because this page scrolls as a
  * whole (a stage plus the docked console) where Configuration's bands sit in a
  * bounded workspace. The negative offset is the one `.settings-rail` carries,
- * for the reason `.history-job-detail`'s note records; the canvas fill is what
+ * for the reason `.settings-rail`'s note records; the canvas fill is what
  * lets the stage scroll under the band rather than through its labels.
  */
 .calibration-stages {

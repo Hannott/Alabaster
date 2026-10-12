@@ -22,6 +22,17 @@ function job(overrides: Partial<HistoryJob> = {}): HistoryJob {
     filamentUsed: 5000,
     fileExists: true,
     auxiliaryData: [],
+    details: {
+      estimatedTime: null,
+      filamentType: null,
+      filamentName: null,
+      filamentWeight: null,
+      layerHeight: null,
+      objectHeight: null,
+      slicer: null,
+      thumbnailSmall: null,
+      thumbnailLarge: null,
+    },
     ...overrides,
   }
 }
@@ -40,7 +51,7 @@ describe('HistoryView', () => {
     setActivePinia(createPinia())
   })
 
-  it('shows occupied time on the lifetime card, and no longer a success rate there', () => {
+  it('shows occupied time and the heat-up it implies on the lifetime strip, and no success rate there', () => {
     const history = useHistoryStore()
     history.totals = {
       jobs: 10,
@@ -53,9 +64,47 @@ describe('HistoryView', () => {
     }
     const wrapper = mountView()
 
-    const totalsCard = wrapper.get('.history-totals')
-    expect(totalsCard.text()).toContain('Time occupied')
-    expect(totalsCard.text()).not.toContain('Success rate')
+    const strip = wrapper.get('.history-lifetime')
+    expect(strip.text()).toContain('Occupied')
+    // 40,000 s occupied against 36,000 s printing: 1h 7m of heat-up and pauses, 10%.
+    const overhead = strip
+      .findAll('.machine-stat')
+      .find((cell) => cell.text().includes('Heat-up and pauses'))
+    expect(overhead?.get('.machine-stat__value').text().replace(/\s+/g, '')).toBe('1h7m')
+    expect(overhead?.text()).toContain('10% of occupied time')
+    expect(strip.text()).not.toContain('Success rate')
+  })
+
+  it('states the typical print and the estimate gap over the completed jobs they were measured on', () => {
+    const history = useHistoryStore()
+    history.windowJobs = [
+      job({ id: '1', printDuration: 1100, details: { ...job().details, estimatedTime: 1000 } }),
+      job({ id: '2', printDuration: 1300, details: { ...job().details, estimatedTime: 1000 } }),
+      job({ id: '3', printDuration: 2400 }),
+      job({ id: '4', outcome: 'cancelled', printDuration: 50 }),
+    ]
+    const wrapper = mountView()
+
+    const cells = wrapper.findAll('.history-stats-panel .machine-stat')
+    const typical = cells.find((cell) => cell.text().includes('Typical print'))
+    expect(typical?.text()).toContain('Median of 3 completed')
+    const estimate = cells.find((cell) => cell.text().includes('Against estimate'))
+    expect(estimate?.get('.machine-stat__value').text().replace(/\s+/g, '')).toBe('+20%')
+    expect(estimate?.text()).toContain('median of 2')
+  })
+
+  it('groups jobs under the day they ended, so a row only needs its time', () => {
+    const history = useHistoryStore()
+    const now = Math.floor(Date.now() / 1000)
+    history.jobs = [
+      job({ id: '1', filename: 'today.gcode', startedAt: now - 600, endedAt: now }),
+      job({ id: '2', filename: 'old.gcode', startedAt: 1_700_000_000, endedAt: 1_700_003_600 }),
+    ]
+    const wrapper = mountView()
+
+    const labels = wrapper.findAll('.history-jobs-panel .machine-list__label').map((l) => l.text())
+    expect(labels[0]).toBe('Today')
+    expect(labels).toHaveLength(2)
   })
 
   it('renders one outcome row per outcome present, with jobs, share, filament and time', () => {
@@ -148,7 +197,7 @@ describe('HistoryView', () => {
     expect(rows[0]?.text()).toContain('1 jobs')
   })
 
-  it('shows which spool printed a job in the detail pane, once its row is opened', async () => {
+  it('shows which spool printed a job in its details, once its row is opened', async () => {
     const history = useHistoryStore()
     history.jobs = [
       job({
@@ -165,13 +214,13 @@ describe('HistoryView', () => {
     ]
     const wrapper = mountView()
 
-    expect(wrapper.find('.history-job-detail').exists()).toBe(false)
-    await wrapper.get('.history-job').trigger('click')
+    expect(wrapper.find('.history-job-expansion').exists()).toBe(false)
+    await wrapper.get('.history-job__toggle').trigger('click')
 
-    expect(wrapper.get('.history-job-detail__auxiliary').text()).toContain('Spool 3')
+    expect(wrapper.get('.history-job-facts').text()).toContain('Spool 3')
   })
 
-  it('opens the detail pane for the clicked job and closes it from its own button', async () => {
+  it('opens the clicked job beneath its own row, and closes it when chosen again', async () => {
     const history = useHistoryStore()
     history.jobs = [
       job({ id: '1', filename: 'first.gcode' }),
@@ -179,16 +228,18 @@ describe('HistoryView', () => {
     ]
     const wrapper = mountView()
 
-    const rows = wrapper.findAll('.history-job')
-    await rows[1]!.trigger('click')
+    const toggles = wrapper.findAll('.history-job__toggle')
+    await toggles[1]!.trigger('click')
 
-    expect(wrapper.get('.history-job-detail').text()).toContain('second.gcode')
+    const expansion = wrapper.get('.history-job-expansion')
+    expect(expansion.attributes('id')).toBe('history-job-2')
+    expect(toggles[1]!.attributes('aria-expanded')).toBe('true')
 
-    await wrapper.get('[aria-label="Close job details"]').trigger('click')
-    expect(wrapper.find('.history-job-detail').exists()).toBe(false)
+    await toggles[1]!.trigger('click')
+    expect(wrapper.find('.history-job-expansion').exists()).toBe(false)
   })
 
-  it('queues the selected job for printing again from the detail pane', async () => {
+  it('queues the opened job for printing again from its details', async () => {
     useAvailabilityStore().moonrakerConnected({ klippy_connected: true, klippy_state: 'ready' })
     const history = useHistoryStore()
     history.jobs = [job({ filename: 'prints/cube.gcode' })]
@@ -196,7 +247,7 @@ describe('HistoryView', () => {
     const addJob = vi.spyOn(jobQueue, 'addJob').mockResolvedValue(true)
     const wrapper = mountView()
 
-    await wrapper.get('.history-job').trigger('click')
+    await wrapper.get('.history-job__toggle').trigger('click')
     const queueButton = wrapper.findAll('button').find((button) => button.text() === 'Add to queue')
     expect(queueButton).toBeDefined()
     await queueButton?.trigger('click')
@@ -214,7 +265,7 @@ describe('HistoryView', () => {
     vi.spyOn(jobQueue, 'addJob').mockResolvedValue(true)
     const wrapper = mountView()
 
-    await wrapper.findAll('.history-job')[0]!.trigger('click')
+    await wrapper.findAll('.history-job__toggle')[0]!.trigger('click')
     const queueButton = wrapper.findAll('button').find((button) => button.text() === 'Add to queue')
     await queueButton?.trigger('click')
     await flushPromises()
@@ -222,9 +273,9 @@ describe('HistoryView', () => {
     expect(queueButton?.attributes('data-cooldown')).toBe('true')
 
     // A confirmation names the job that was on screen when it was earned.
-    await wrapper.findAll('.history-job')[1]!.trigger('click')
-    expect(queueButton?.text()).toBe('Add to queue')
-    expect(queueButton?.attributes('data-cooldown')).toBeUndefined()
+    await wrapper.findAll('.history-job__toggle')[1]!.trigger('click')
+    const reopened = wrapper.findAll('button').find((button) => button.text() === 'Add to queue')
+    expect(reopened?.attributes('data-cooldown')).toBeUndefined()
   })
 
   it('reads an aggregate auxiliary field back through its sensor declaration', () => {
@@ -246,9 +297,9 @@ describe('HistoryView', () => {
     }
     const wrapper = mountView()
 
-    const totalsCard = wrapper.get('.history-totals')
-    expect(totalsCard.text()).toContain('Energy used')
-    expect(totalsCard.text()).toContain('12,400 Wh')
+    const strip = wrapper.get('.history-lifetime')
+    expect(strip.text()).toContain('Energy used')
+    expect(strip.text()).toContain('12,400 Wh')
   })
 
   it('gives each outcome its own icon shape, not a shared save/warning split', () => {
@@ -275,7 +326,7 @@ describe('HistoryView', () => {
     expect(rows[3]?.get('svg').html()).toContain('cx="12" cy="12" r="9"')
   })
 
-  it('loads more jobs and can scroll back to the top of the page', async () => {
+  it('loads more jobs from the end of the list', async () => {
     const history = useHistoryStore()
     history.jobs = [job()]
     history.hasMore = true
@@ -288,13 +339,6 @@ describe('HistoryView', () => {
     expect(loadMoreButton).toBeDefined()
     await loadMoreButton?.trigger('click')
     expect(loadMore).toHaveBeenCalled()
-
-    const scrollToTopButton = wrapper.get('[aria-label="Back to top"]')
-    const scrollTo = vi.fn()
-    // jsdom does not implement scrollTo; the page root is a plain element.
-    Object.defineProperty(wrapper.get('.standard-page').element, 'scrollTo', { value: scrollTo })
-    await scrollToTopButton.trigger('click')
-    expect(scrollTo).toHaveBeenCalledWith(expect.objectContaining({ top: 0 }))
   })
 
   it('falls back to the field name when its declaration is gone', () => {
@@ -312,6 +356,6 @@ describe('HistoryView', () => {
     }
     const wrapper = mountView()
 
-    expect(wrapper.get('.history-totals').text()).toContain('mystery_reading')
+    expect(wrapper.get('.history-lifetime').text()).toContain('mystery_reading')
   })
 })

@@ -9,7 +9,11 @@ import MachineView from '@/views/MachineView.vue'
 import { useAvailabilityStore } from '@/stores/availability'
 import { useMachineSystemStore } from '@/stores/machineSystem'
 import { useMoonrakerStore } from '@/stores/moonraker'
+import { usePrinterConfigStore } from '@/stores/printerConfig'
 import { useToastsStore } from '@/stores/toasts'
+import { copyToClipboard } from '@/utils/clipboard'
+
+vi.mock('@/utils/clipboard', () => ({ copyToClipboard: vi.fn(async () => true) }))
 
 // A view left mounted keeps reacting to the next test's stores.
 enableAutoUnmount(afterEach)
@@ -53,50 +57,50 @@ function mountMachineView() {
   return { machine, wrapper }
 }
 
+/** Matched on the name alone, since rows sort by state and "Klipper" is a prefix of "KlipperScreen". */
 function rowFor(wrapper: VueWrapper, name: string) {
   const row = wrapper
-    .findAll('.machine-update-row-group')
-    .find((candidate) => candidate.text().includes(name))
+    .findAll('.machine-row')
+    .find((candidate) => candidate.get('.machine-row__name').text() === name)
   if (!row) throw new Error(`No update row for ${name}`)
   return row
 }
 
 function actionButtonFor(wrapper: VueWrapper, name: string) {
-  const group = wrapper
-    .findAll('.machine-update-row-group')
-    .find((candidate) => candidate.text().includes(name))
-  if (!group) throw new Error(`No update row for ${name}`)
-  return group.get('.machine-update-row__action')
+  return rowFor(wrapper, name).get('.machine-row__action')
 }
 
-function investigateButtonFor(wrapper: VueWrapper, name: string) {
-  const group = wrapper
-    .findAll('.machine-update-row-group')
-    .find((candidate) => candidate.text().includes(name))
-  if (!group) throw new Error(`No update row for ${name}`)
-  return group.get('.machine-update-row__investigate')
+/** Check and rollback live in the row's menu, so it is opened first. */
+async function menuItemFor(wrapper: VueWrapper, name: string, itemClass: string) {
+  const row = rowFor(wrapper, name)
+  await row.get('.machine-row__menu > .button').trigger('click')
+  return row.find(`.${itemClass}`)
 }
 
-function rollbackButtonFor(wrapper: VueWrapper, name: string) {
-  const group = wrapper
-    .findAll('.machine-update-row-group')
-    .find((candidate) => candidate.text().includes(name))
-  return group
-    ?.findAll('button')
-    .find((button) => button.classes().includes('machine-update-row__rollback'))
+async function rollbackButtonFor(wrapper: VueWrapper, name: string) {
+  const item = await menuItemFor(wrapper, name, 'machine-row__rollback')
+  return item.exists() ? item : undefined
+}
+
+async function checkButtonFor(wrapper: VueWrapper, name: string) {
+  const item = await menuItemFor(wrapper, name, 'machine-row__check')
+  if (!item.exists()) throw new Error(`No check item for ${name}`)
+  return item
 }
 
 function serviceRowFor(wrapper: VueWrapper, name: string) {
   const row = wrapper
     .findAll('.machine-service-row')
-    .find((candidate) => candidate.find('.machine-service-name').text() === name)
+    .find((candidate) => candidate.get('.machine-row__name').text() === name)
   if (!row) throw new Error(`No service row for ${name}`)
   return row
 }
 
-/** The Start/Stop toggle is always the row's first icon button; Restart, when offered, is the second. */
-function restartButtonFor(wrapper: VueWrapper, name: string) {
-  return serviceRowFor(wrapper, name).findAll('button.button--icon')[1]
+/** A running service's Restart and Stop live in its row's menu, so it is opened first. */
+async function serviceMenuItem(wrapper: VueWrapper, name: string, item: 'restart' | 'stop') {
+  const row = serviceRowFor(wrapper, name)
+  await row.get('.machine-row__menu > .button').trigger('click')
+  return row.find(`.machine-service-row__${item}`)
 }
 
 /** The dialog stays in the DOM while closed, so its copy is not page text. */
@@ -130,7 +134,7 @@ describe('MachineView', () => {
     ]
     await flushPromises()
 
-    expect(headingActionText(wrapper)).not.toContain('Update all')
+    expect(headingActionText(wrapper)).not.toContain('Update ')
 
     machine.updates = [
       ...machine.updates,
@@ -139,7 +143,7 @@ describe('MachineView', () => {
     await flushPromises()
 
     const updateAll = wrapper.get('.machine-panel-heading__actions .button--primary')
-    expect(updateAll.text()).toContain('Update all')
+    expect(updateAll.text()).toContain('Update 1')
     await updateAll.trigger('click')
 
     // An upgrade restarts services, so nothing is sent until the dialog is answered.
@@ -164,14 +168,14 @@ describe('MachineView', () => {
     await flushPromises()
 
     // Nothing here is installable, so the panel must not offer to install anything.
-    expect(headingActionText(wrapper)).not.toContain('Update all')
+    expect(headingActionText(wrapper)).not.toContain('Update ')
 
     const row = rowFor(wrapper, 'KlipperScreen')
-    expect(row.get('.machine-update-status').text()).toBe('Needs attention')
-    // Investigate has its own icon beside the status rather than the row's
-    // trailing action button, which does not render at all for this state.
-    expect(row.find('.machine-update-row__action').exists()).toBe(false)
-    const action = investigateButtonFor(wrapper, 'KlipperScreen')
+    expect(row.text()).toContain('Needs attention')
+    expect(row.get('.machine-row__meta').text()).toBe('— · local changes')
+    // Investigate is the row's one visible action, labeled like an install is.
+    const action = actionButtonFor(wrapper, 'KlipperScreen')
+    expect(action.text()).toBe('Investigate')
     expect(action.attributes('aria-label')).toBe('Investigate KlipperScreen')
 
     await action.trigger('click')
@@ -187,7 +191,7 @@ describe('MachineView', () => {
     ]
     await flushPromises()
 
-    await actionByLabel(wrapper, 'Update all').trigger('click')
+    await actionByLabel(wrapper, 'Update 1').trigger('click')
 
     const dialogText = wrapper.get('.confirm-dialog').text()
     expect(dialogText).toContain('These sources will be updated: moonraker.')
@@ -258,7 +262,7 @@ describe('MachineView', () => {
       },
     ]
     await flushPromises()
-    await investigateButtonFor(wrapper, 'KlipperScreen').trigger('click')
+    await actionButtonFor(wrapper, 'KlipperScreen').trigger('click')
 
     const dialog = wrapper.get('.update-recovery-dialog')
     // Every reported reason is listed, not just the first one.
@@ -295,7 +299,7 @@ describe('MachineView', () => {
     const { machine, wrapper } = mountMachineView()
     machine.updates = [{ id: 'webclient', displayName: 'webclient', corrupt: true }]
     await flushPromises()
-    await investigateButtonFor(wrapper, 'webclient').trigger('click')
+    await actionButtonFor(wrapper, 'webclient').trigger('click')
 
     const dialog = wrapper.get('.update-recovery-dialog')
     // `git reset` cannot repair a corrupt repository, so the mode follows the state.
@@ -315,9 +319,10 @@ describe('MachineView', () => {
     ]
     await flushPromises()
 
-    // An up-to-date source has nothing to install, so its action button checks —
-    // and a check reads the repository, so it is not confirmed.
-    await actionButtonFor(wrapper, 'Klipper').trigger('click')
+    // An up-to-date source has nothing to install, so its check lives in the
+    // row's menu — and a check reads the repository, so it is not confirmed.
+    expect(rowFor(wrapper, 'Klipper').find('.machine-row__action').exists()).toBe(false)
+    await (await checkButtonFor(wrapper, 'Klipper')).trigger('click')
     expect(checkForUpdates).toHaveBeenCalledWith('klipper')
     expect(wrapper.find('.confirm-dialog[open]').exists()).toBe(false)
 
@@ -443,40 +448,60 @@ describe('MachineView', () => {
     }
   })
 
-  it('shows a plain status and names its action button for assistive technology', async () => {
+  it('shows a quiet up-to-date row and names the target of an available one', async () => {
     const { machine, wrapper } = mountMachineView()
     machine.updates = [
       { id: 'klipper', displayName: 'Klipper', remote_version: 'v1', version: 'v1' },
-      { id: 'moonraker', displayName: 'moonraker', commits_behind_count: 3 },
+      {
+        id: 'moonraker',
+        displayName: 'moonraker',
+        configured_type: 'git_repo',
+        version: 'v0.11.0-3',
+        remote_version: 'v0.11.0-6',
+        commits_behind_count: 3,
+      },
     ]
     await flushPromises()
 
-    // The row is plain content now, not a control -- no accessible name of its
-    // own to carry, since it is not a button.
+    // An up-to-date row asks for nothing, so its status is plain text rather
+    // than a control or a coloured pill, and the row carries no accessible
+    // name of its own.
     const current = rowFor(wrapper, 'Klipper')
-    expect(current.get('.machine-update-status').text()).toBe('Up to date')
+    expect(current.get('.machine-row__status').text()).toBe('Up to date')
+    expect(current.find('.machine-row__action').exists()).toBe(false)
     expect(current.attributes('aria-label')).toBeUndefined()
 
-    // A check collapses to an icon, since "check" names nothing a refresh
-    // glyph cannot already say next to a status that already reads "Up to
-    // date" -- its accessible name still carries the fuller, name-including
-    // phrase.
-    const currentAction = actionButtonFor(wrapper, 'Klipper')
-    expect(currentAction.text()).toBe('')
-    expect(currentAction.attributes('aria-label')).toBe('Check Klipper for updates')
-    // Matches the anomalies toggle, rollback, and Investigate's own shape --
-    // `md` `button--quiet button--icon` -- not a bespoke dense size.
-    expect(currentAction.classes()).toEqual(
-      expect.arrayContaining(['button--quiet', 'button--icon']),
-    )
-    expect(currentAction.classes()).not.toContain('button--sm')
-
+    // An available row says what it moves to, so an update can be judged
+    // before its confirmation opens.
     const behind = rowFor(wrapper, 'moonraker')
-    expect(behind.get('.machine-update-status').text()).toBe('Update available')
+    expect(behind.text()).toContain('Update available')
+    expect(behind.get('.machine-row__meta').text()).toBe('v0.11.0-3 → -6 · 3 commits')
     const behindAction = actionButtonFor(wrapper, 'moonraker')
-    expect(behindAction.text()).toBe('Update now')
+    expect(behindAction.text()).toContain('Update')
     expect(behindAction.attributes('aria-label')).toBe('Update moonraker')
     expect(behindAction.classes()).toContain('button--sm')
+  })
+
+  it('lists sources needing a decision first and summarizes the panel in one line', async () => {
+    const { machine, wrapper } = mountMachineView()
+    machine.updates = [
+      { id: 'klipper', displayName: 'Klipper', version: 'v1' },
+      { id: 'moonraker', displayName: 'Moonraker', commits_behind_count: 2 },
+      { id: 'crowsnest', displayName: 'Crowsnest', version: 'v4' },
+      { id: 'KlipperScreen', displayName: 'KlipperScreen', is_dirty: true },
+    ]
+    await flushPromises()
+
+    const names = wrapper.findAll('.machine-row__name').map((name) => name.text())
+    expect(names).toEqual(['KlipperScreen', 'Moonraker', 'Klipper', 'Crowsnest'])
+    expect(wrapper.get('.machine-panel-summary').text()).toBe(
+      '1 update available · 1 needs attention · 2 up to date',
+    )
+    expect(actionByLabel(wrapper, 'Update 1').text()).toContain('Update 1')
+
+    machine.updates = [{ id: 'klipper', displayName: 'Klipper', version: 'v1' }]
+    await flushPromises()
+    expect(wrapper.get('.machine-panel-summary').text()).toBe('All 1 sources up to date')
   })
 
   it('offers the console popout only once there is a transcript, and reports a failed start in the panel', async () => {
@@ -519,9 +544,9 @@ describe('MachineView', () => {
     ]
     await flushPromises()
 
-    expect(rollbackButtonFor(wrapper, 'Klipper')).toBeTruthy()
-    expect(rollbackButtonFor(wrapper, 'system')).toBeUndefined()
-    expect(rollbackButtonFor(wrapper, 'webclient')).toBeUndefined()
+    expect(await rollbackButtonFor(wrapper, 'Klipper')).toBeTruthy()
+    expect(await rollbackButtonFor(wrapper, 'system')).toBeUndefined()
+    expect(await rollbackButtonFor(wrapper, 'webclient')).toBeUndefined()
   })
 
   it('offers an anomalies toggle only when Moonraker reported one and the source is not needing attention', async () => {
@@ -544,19 +569,19 @@ describe('MachineView', () => {
     ]
     await flushPromises()
 
-    expect(wrapper.find('.machine-update-row__anomalies-toggle').exists()).toBe(true)
-    const toggles = wrapper.findAll('.machine-update-row__anomalies-toggle')
+    expect(wrapper.find('.machine-row__aside').exists()).toBe(true)
+    const toggles = wrapper.findAll('.machine-row__aside')
     expect(toggles).toHaveLength(1)
     expect(toggles[0]?.attributes('aria-pressed')).toBe('false')
-    expect(wrapper.find('.machine-update-anomalies').exists()).toBe(false)
+    expect(wrapper.find('.machine-list__notes').exists()).toBe(false)
 
     await toggles[0]?.trigger('click')
     expect(toggles[0]?.attributes('aria-pressed')).toBe('true')
-    const list = wrapper.get('.machine-update-anomalies')
+    const list = wrapper.get('.machine-list__notes')
     expect(list.text()).toContain('Repo not on official remote/branch, expected: origin/master')
 
     await toggles[0]?.trigger('click')
-    expect(wrapper.find('.machine-update-anomalies').exists()).toBe(false)
+    expect(wrapper.find('.machine-list__notes').exists()).toBe(false)
   })
 
   it('confirms a rollback and opens the update console once it starts', async () => {
@@ -570,7 +595,7 @@ describe('MachineView', () => {
     })
     await flushPromises()
 
-    await rollbackButtonFor(wrapper, 'Klipper')?.trigger('click')
+    await (await rollbackButtonFor(wrapper, 'Klipper'))?.trigger('click')
     expect(wrapper.text()).toContain('Roll back Klipper?')
     expect(rollbackUpdate).not.toHaveBeenCalled()
 
@@ -638,7 +663,7 @@ describe('MachineView', () => {
     expect(reload).toHaveBeenCalledOnce()
   })
 
-  it('offers Start or Stop per systemd service, refusing a control for Spoolman', async () => {
+  it("keeps a running service's Restart and Stop in its menu, and shows Start on a stopped one", async () => {
     const { machine, wrapper } = mountMachineView()
     machine.systemInfo = {
       provider: 'systemd_cli',
@@ -648,17 +673,21 @@ describe('MachineView', () => {
     }
     await flushPromises()
 
-    expect(serviceRowFor(wrapper, 'klipper').get('button.button--icon').attributes('title')).toBe(
-      'Stop klipper',
-    )
-    expect(serviceRowFor(wrapper, 'crowsnest').get('button.button--icon').attributes('title')).toBe(
-      'Start crowsnest',
-    )
+    // A running unit asks for nothing, so its row says so in words and keeps
+    // its actions one menu away.
+    const klipper = serviceRowFor(wrapper, 'klipper')
+    expect(klipper.get('.machine-row__status').text()).toBe('Running')
+    expect(klipper.find('.machine-row__action').exists()).toBe(false)
+    expect((await serviceMenuItem(wrapper, 'klipper', 'restart')).exists()).toBe(true)
+    expect(klipper.find('.machine-service-row__stop').exists()).toBe(true)
 
-    // Active offers Restart alongside Stop; a cleanly stopped unit does not,
+    // A stopped one shows the action its state asks for, and has no menu,
     // since Restart would do nothing Start does not already cover.
-    expect(restartButtonFor(wrapper, 'klipper')?.attributes('title')).toBe('Restart klipper')
-    expect(restartButtonFor(wrapper, 'crowsnest')).toBeUndefined()
+    const crowsnest = serviceRowFor(wrapper, 'crowsnest')
+    const start = crowsnest.get('.machine-row__action')
+    expect(start.text()).toBe('Start')
+    expect(start.attributes('title')).toBe('Start crowsnest')
+    expect(crowsnest.find('.machine-row__menu').exists()).toBe(false)
   })
 
   it('offers no Stop for a running Moonraker, since nothing could start it again', async () => {
@@ -672,11 +701,11 @@ describe('MachineView', () => {
     await flushPromises()
 
     // Restart still reaches it -- systemd relaunches it as one operation --
-    // but the plain toggle, which would offer only Stop while active, does not:
-    // Restart is the row's only icon button rather than its second.
-    const buttons = serviceRowFor(wrapper, 'moonraker').findAll('button.button--icon')
-    expect(buttons).toHaveLength(1)
-    expect(buttons[0]?.attributes('title')).toBe('Restart moonraker')
+    // but Stop, which nothing could undo, is withheld from the menu.
+    expect((await serviceMenuItem(wrapper, 'moonraker', 'restart')).exists()).toBe(true)
+    expect(serviceRowFor(wrapper, 'moonraker').find('.machine-service-row__stop').exists()).toBe(
+      false,
+    )
   })
 
   it('confirms a restart, milder than a stop but still guarded', async () => {
@@ -690,7 +719,7 @@ describe('MachineView', () => {
     const restartService = vi.spyOn(machine, 'restartService').mockResolvedValue(true)
     await flushPromises()
 
-    await restartButtonFor(wrapper, 'crowsnest')?.trigger('click')
+    await (await serviceMenuItem(wrapper, 'crowsnest', 'restart')).trigger('click')
     expect(wrapper.text()).toContain('Restart crowsnest?')
     expect(restartService).not.toHaveBeenCalled()
 
@@ -717,17 +746,34 @@ describe('MachineView', () => {
 
     // Starting a stopped unit is corrective, not consequential, so it runs
     // straight away with no dialog.
-    await serviceRowFor(wrapper, 'crowsnest').get('button.button--icon').trigger('click')
+    await serviceRowFor(wrapper, 'crowsnest').get('.machine-row__action').trigger('click')
     expect(startService).toHaveBeenCalledWith('crowsnest')
 
     // Stopping klipper is confirmed the same way any other service's Stop is —
     // this is not the print-derived `restartKlipper`/`firmwareRestart` guard.
-    await serviceRowFor(wrapper, 'klipper').get('button.button--icon').trigger('click')
+    await (await serviceMenuItem(wrapper, 'klipper', 'stop')).trigger('click')
     expect(wrapper.text()).toContain('Stop klipper?')
     expect(stopService).not.toHaveBeenCalled()
 
     await wrapper.get('.confirm-dialog[open] .button--danger').trigger('click')
     expect(stopService).toHaveBeenCalledWith('klipper')
+  })
+
+  it('names a failed service first in its summary and offers Restart on its row', async () => {
+    const { machine, wrapper } = mountMachineView()
+    machine.systemInfo = {
+      provider: 'systemd_cli',
+      distribution: { name: 'Debian', version: '13', codename: 'trixie' },
+      available_services: ['klipper', 'crowsnest'],
+      service_state: { crowsnest: { active_state: 'failed' } },
+    }
+    await flushPromises()
+
+    const panel = wrapper.get('[aria-labelledby="machine-services-title"]')
+    expect(panel.get('.machine-panel-summary').text()).toBe('1 failed · 1 running')
+    const crowsnest = serviceRowFor(wrapper, 'crowsnest')
+    expect(crowsnest.attributes('data-state')).toBe('attention')
+    expect(crowsnest.get('.machine-row__action').text()).toContain('Restart')
   })
 
   it('reports a refused service action as a toast rather than inline', async () => {
@@ -745,7 +791,7 @@ describe('MachineView', () => {
     })
     await flushPromises()
 
-    await serviceRowFor(wrapper, 'crowsnest').get('button.button--icon').trigger('click')
+    await (await serviceMenuItem(wrapper, 'crowsnest', 'stop')).trigger('click')
     await wrapper.get('.confirm-dialog[open] .button--danger').trigger('click')
     await flushPromises()
 
@@ -753,16 +799,57 @@ describe('MachineView', () => {
     expect(toasts.entries.some((entry) => entry.message.includes('refused'))).toBe(true)
   })
 
-  describe('peripherals', () => {
+  describe('host strip', () => {
+    it('names an under-voltage the host is suffering now, in words as well as colour', async () => {
+      const { machine, wrapper } = mountMachineView()
+      machine.procStats = {
+        cpu_temp: 48,
+        network: {},
+        system_cpu_usage: { cpu: 12 },
+        system_uptime: 90_000,
+        system_memory: { total: 4_000_000, available: 3_000_000, used: 1_000_000 },
+        throttled_state: { bits: 0x50005, flags: [] },
+        websocket_connections: 3,
+      }
+      await flushPromises()
+
+      const power = wrapper.findAll('.machine-stat').find((stat) => stat.text().includes('Power'))
+      expect(power?.attributes('data-tone')).toBe('caution')
+      expect(power?.text()).toContain('Low')
+      expect(power?.text()).toContain('Under-voltage now')
+    })
+
+    it('leaves the power cell out on a host that reports no throttle state', async () => {
+      const { machine, wrapper } = mountMachineView()
+      machine.procStats = {
+        cpu_temp: null,
+        network: {},
+        system_cpu_usage: { cpu: 12 },
+        system_uptime: 90_000,
+        system_memory: { total: 4_000_000, available: 3_000_000, used: 1_000_000 },
+        throttled_state: null,
+      }
+      await flushPromises()
+
+      const labels = wrapper.findAll('.machine-stat dt').map((label) => label.text())
+      expect(labels).not.toContain('Power')
+      expect(labels).not.toContain('Temperature')
+    })
+  })
+
+  describe('hardware', () => {
     it('stays hidden when nothing has been detected', async () => {
       const { wrapper } = mountMachineView()
       await flushPromises()
 
-      expect(wrapper.text()).not.toContain('Peripherals')
+      expect(wrapper.find('[aria-labelledby="machine-hardware-title"]').exists()).toBe(false)
     })
 
-    it('lists serial and USB devices once detected, each with the identifying field a config would use', async () => {
+    it('names a serial device by its board, says which mcu uses it, and copies its full path', async () => {
       const { machine, wrapper } = mountMachineView()
+      usePrinterConfigStore().settings = {
+        mcu: { serial: '/dev/serial/by-id/usb-Klipper_stm32f446xx_180042000651343437343531-if00' },
+      }
       machine.serialDevices = [
         {
           device_type: 'usb',
@@ -770,28 +857,53 @@ describe('MachineView', () => {
           device_name: 'ttyACM0',
           driver_name: 'cdc_acm',
           path_by_hardware: null,
-          path_by_id: '/dev/serial/by-id/usb-Klipper_stm32f446xx-if00',
+          path_by_id: '/dev/serial/by-id/usb-Klipper_stm32f446xx_180042000651343437343531-if00',
           usb_location: '1:5',
-        },
-      ]
-      machine.usbDevices = [
-        {
-          device_num: 5,
-          bus_num: 1,
-          vendor_id: '1d50',
-          product_id: '614e',
-          usb_location: '1:5',
-          manufacturer: 'Klipper',
-          product: '3d-Printer Firmware',
-          serial: null,
-          description: 'Klipper 3d-Printer Firmware',
         },
       ]
       await flushPromises()
 
-      expect(wrapper.text()).toContain('Peripherals')
-      expect(wrapper.text()).toContain('/dev/serial/by-id/usb-Klipper_stm32f446xx-if00')
-      expect(wrapper.text()).toContain('Klipper 3d-Printer Firmware')
+      const row = wrapper.get('.machine-serial-row')
+      expect(row.get('.machine-row__name').text()).toBe('Klipper stm32f446xx')
+      expect(row.get('.machine-row__meta').text()).toBe('/dev/ttyACM0 · used by mcu')
+
+      await row.get('.machine-row__action').trigger('click')
+      await flushPromises()
+      expect(copyToClipboard).toHaveBeenCalledWith(
+        '/dev/serial/by-id/usb-Klipper_stm32f446xx_180042000651343437343531-if00',
+      )
+      expect(row.get('.machine-row__action').text()).toBe('Copied')
+    })
+
+    it('folds USB hubs away behind a count, since the board a reader wants is never one', async () => {
+      const { machine, wrapper } = mountMachineView()
+      const usb = (device_num: number, description: string, deviceClass: string) => ({
+        device_num,
+        bus_num: 1,
+        vendor_id: '1d6b',
+        product_id: '0002',
+        usb_location: `1:${device_num}`,
+        manufacturer: null,
+        product: null,
+        serial: null,
+        description,
+        class: deviceClass,
+      })
+      machine.usbDevices = [
+        usb(1, 'Linux Foundation 2.0 root hub', 'Hub'),
+        usb(18, 'OpenMoko, Inc. Klipper 3d-Printer Firmware', 'Communications'),
+      ]
+      await flushPromises()
+
+      const names = () =>
+        wrapper.findAll('.machine-usb-row .machine-row__name').map((n) => n.text())
+      expect(names()).toEqual(['OpenMoko, Inc. Klipper 3d-Printer Firmware'])
+      expect(wrapper.get('.machine-usb-row .machine-row__meta').text()).toBe('bus 1 · device 18')
+
+      const fold = wrapper.get('.machine-list__fold .button')
+      expect(fold.text()).toBe('+ 1 hub')
+      await fold.trigger('click')
+      expect(names()).toContain('Linux Foundation 2.0 root hub')
     })
 
     it('lists an unassigned CAN UUID, and shows an interface with nothing pending as its own row', async () => {
@@ -807,7 +919,7 @@ describe('MachineView', () => {
       ]
       await flushPromises()
 
-      expect(wrapper.text()).toContain('Peripherals')
+      expect(wrapper.text()).toContain('Hardware')
       expect(wrapper.text()).toContain('11AABBCCDD')
       expect(wrapper.text()).toContain('can1')
       expect(wrapper.text()).toContain('No unassigned nodes')
@@ -829,7 +941,7 @@ describe('MachineView', () => {
       const refreshPeripherals = vi.spyOn(machine, 'refreshPeripherals').mockResolvedValue()
       await flushPromises()
 
-      // Icon-only, the same refresh/spinner shape as the Repository updates
+      // Icon-only, the same refresh/spinner shape as the Software updates
       // panel's own Check for updates control, so it is found by aria-label
       // rather than visible text.
       await wrapper.get('[aria-label="Refresh"]').trigger('click')

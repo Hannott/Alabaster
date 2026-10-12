@@ -311,6 +311,17 @@ describe('switching to another printer', () => {
         filamentUsed: 1,
         fileExists: true,
         auxiliaryData: [],
+        details: {
+          estimatedTime: null,
+          filamentType: null,
+          filamentName: null,
+          filamentWeight: null,
+          layerHeight: null,
+          objectHeight: null,
+          slicer: null,
+          thumbnailSmall: null,
+          thumbnailLarge: null,
+        },
       },
     ]
     maintenance.addInterval('Belt tension', 'printtime', 100)

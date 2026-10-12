@@ -7,18 +7,20 @@ Requires Moonraker's `history` component. Without it the page is not shown.
 
 ## Lifetime totals
 
-Five numbers, for the whole life of the printer:
+Every job Moonraker logged, and five numbers for the whole life of the
+printer:
 
-| Total         |                                                             |
-| ------------- | ----------------------------------------------------------- |
-| Jobs recorded | Every job Moonraker logged.                                 |
-| Time printing | Time spent printing.                                        |
-| Time occupied | Including heating, homing, and everything around the print. |
-| Filament used | In metres.                                                  |
-| Longest print | The single longest job.                                     |
+| Total              |                                                             |
+| ------------------ | ----------------------------------------------------------- |
+| Printing           | Time spent printing.                                        |
+| Occupied           | Including heating, homing, and everything around the print. |
+| Heat-up and pauses | The difference between the two, and its share of the time.  |
+| Filament           | In metres.                                                  |
+| Longest print      | The single longest job.                                     |
 
-The gap between **time printing** and **time occupied** is the overhead
-around each print.
+**See how much of the printer's time goes to waiting.** Heat-up and pauses is
+the overhead around every print, worked out for you rather than left as a
+subtraction.
 
 ## Statistics
 
@@ -27,6 +29,12 @@ time**), measured in **jobs, filament, or time**.
 
 The header shows how many jobs are in the window, and whether that window is
 complete for the period.
+
+**Know what a typical print costs you, and how far to trust the slicer.**
+Beside the success rate, the statistics show your typical print time and how
+much longer prints run than the slicer estimated. Both are medians over the
+completed jobs in the period, so one very long print does not skew them, and
+each says how many jobs it was measured on.
 
 ![Statistics for a 30-day window: outcome table, trend chart, and print length distribution](/images/history/statistics-trend.png)
 
@@ -58,20 +66,24 @@ not set.
 
 The distribution of how long your prints run: what the printer is used for.
 
-## Completed jobs
+## Jobs
 
-The full list, newest first, with **Load older jobs** at the end. It pages on
+The full list, newest first and grouped by day, with **Load older jobs** at
+the end. It pages on
 what was returned rather than a count, so nothing is skipped at a boundary.
 
 Pages you have loaded stay loaded. A print starting or finishing adds it to the
 top of the list you already have, so paging back through a long history is not
 undone by the printer finishing a job while you read.
 
-Each row shows its file, outcome, and when it ran. Click a job to see its
-duration and filament used, and the spool it came from, for jobs that used a
-Spoolman spool.
+**Recognise a job at a glance.** Each row shows the slicer's thumbnail, the
+time it finished, how long it printed, and how much filament it used. Open a
+job to see the rest without leaving the list: when it started and ended, how
+its print time compared with the slicer's estimate, how long it spent heating,
+the material and layer height, and the spool it came from, for jobs that used
+a Spoolman spool.
 
-Three actions per job:
+Three actions per job, from the opened job or from the row's menu:
 
 - **Print again**: Starts the same file now. Asks for confirmation first. If
   the file is no longer on the printer, it says so instead of failing when

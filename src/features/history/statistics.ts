@@ -324,3 +324,48 @@ export function lengthDistribution(jobs: readonly HistoryStatsJob[]): LengthDist
   }
   return bins
 }
+
+/** A median and the number of jobs it was taken over, so a label can name its population. */
+export interface MedianReading {
+  value: number
+  jobs: number
+}
+
+function median(values: number[]): number {
+  const sorted = [...values].sort((a, b) => a - b)
+  const middle = Math.floor(sorted.length / 2)
+  return sorted.length % 2 === 1
+    ? (sorted[middle] as number)
+    : ((sorted[middle - 1] as number) + (sorted[middle] as number)) / 2
+}
+
+/**
+ * The typical completed print, in seconds — the same population and the same
+ * middle edge `lengthDistribution` draws, so the two can never disagree. A
+ * median rather than a mean: one 17-hour print should not make a printer of
+ * 40-minute parts look like it runs for hours.
+ */
+export function typicalPrintDuration(jobs: readonly HistoryStatsJob[]): MedianReading | null {
+  const durations = jobs
+    .filter((job) => job.outcome === 'completed' && job.printDuration > 0)
+    .map((job) => job.printDuration)
+  return durations.length === 0 ? null : { value: median(durations), jobs: durations.length }
+}
+
+/**
+ * How far completed prints ran past the slicer's own estimate, as a fraction
+ * (0.08 is 8% longer). Only completed jobs whose file carried an estimate
+ * count: a cancelled job stopped early by definition, and a job without an
+ * estimate has nothing to be compared against.
+ */
+export function estimateDeviation(
+  jobs: readonly (HistoryStatsJob & { details?: { estimatedTime: number | null } })[],
+): MedianReading | null {
+  const deviations: number[] = []
+  for (const job of jobs) {
+    const estimate = job.details?.estimatedTime ?? null
+    if (job.outcome !== 'completed' || job.printDuration <= 0 || !estimate) continue
+    deviations.push((job.printDuration - estimate) / estimate)
+  }
+  return deviations.length === 0 ? null : { value: median(deviations), jobs: deviations.length }
+}

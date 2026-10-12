@@ -340,6 +340,8 @@ export interface MoonrakerSystemInfo {
     total_memory: number
     memory_units: string
   }
+  /** Present on a host booting from an SD card; `capacity` is already formatted, such as `116.5 GiB`. */
+  sd_info?: { capacity?: string; product_name?: string } | null
   distribution: {
     name: string
     version: string
@@ -395,6 +397,8 @@ export interface MoonrakerUsbDevice {
   product: string | null
   serial: string | null
   description: string | null
+  /** The USB device class as a name (`Hub`, `Communications`), or null where Moonraker reports none. */
+  class?: string | null
 }
 
 /**
@@ -418,6 +422,8 @@ export interface MoonrakerProcStats {
   system_uptime: number
   system_memory: { total: number; available: number; used: number }
   throttled_state: { bits: number; flags: string[] } | null
+  /** Open WebSocket connections to Moonraker: this browser, other browsers, KlipperScreen, plugins. */
+  websocket_connections?: number | null
 }
 
 /** One upstream commit a repository has not applied yet. */
@@ -436,6 +442,8 @@ export interface MoonrakerUpdateEntry {
   name?: string
   version?: string
   remote_version?: string
+  /** The version `machine.update.rollback` would return a `git_repo`/`web` source to. */
+  rollback_version?: string
   /**
    * The GitHub account and repository a `web` or `zip` source downloads its
    * releases from — the `repo:` option split at its slash.
