@@ -194,6 +194,56 @@ describe('MovementModule', () => {
     expect(homeAxes).toHaveBeenCalledWith('Z')
   })
 
+  it('shows an axis as homed once its own home is done, while the rest of the home goes on', async () => {
+    const { printer, wrapper } = mountModule()
+    printer.motion.homedAxes = ''
+    await flushPromises()
+    const homing = useCommandQueueStore().add('G28\nM400', 'dashboard.modules.movement')
+    await flushPromises()
+    const homed = () =>
+      wrapper
+        .findAll('.jog-pivot:not(.jog-pivot--primary)')
+        .map((pivot) => pivot.classes().includes('jog-pivot--homed'))
+
+    // Klipper reports an axis homed as soon as its homing starts.
+    printer.motion.homedAxes = 'x'
+    await flushPromises()
+    expect(homed()).toEqual([false, false, false])
+
+    // Y starting means X has finished.
+    printer.motion.homedAxes = 'xy'
+    await flushPromises()
+    expect(homed()).toEqual([true, false, false])
+
+    printer.motion.homedAxes = 'xyz'
+    await flushPromises()
+    expect(homed()).toEqual([true, true, false])
+    // Still disabled, whatever the colour.
+    for (const pivot of wrapper.findAll('.jog-pivot')) {
+      expect(pivot.attributes('disabled')).toBeDefined()
+    }
+
+    useCommandQueueStore().settle(homing)
+    await flushPromises()
+    expect(homed()).toEqual([true, true, true])
+  })
+
+  it('keeps an axis the home does not touch shown as homed', async () => {
+    const { printer, wrapper } = mountModule()
+    printer.motion.homedAxes = 'xy'
+    await flushPromises()
+    useCommandQueueStore().add('G28 Z\nM400', 'dashboard.modules.movement')
+    printer.motion.homedAxes = 'xyz'
+    await flushPromises()
+
+    const pivots = wrapper.findAll('.jog-pivot:not(.jog-pivot--primary)')
+    expect(pivots.map((pivot) => pivot.classes().includes('jog-pivot--homed'))).toEqual([
+      true,
+      true,
+      false,
+    ])
+  })
+
   it('gates every motion control on homing, and enables them once homed', async () => {
     const { printer, wrapper } = mountModule({ leveling: ['screwsTiltAdjust'] })
     printer.buildVolume.minimum = [0, 0, 0]

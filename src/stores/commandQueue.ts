@@ -23,6 +23,21 @@ export function isHomingScript(script: string): boolean {
 }
 
 /**
+ * The axes a script homes, upper-case. A bare `G28` homes every axis, which is
+ * how Klipper reads it too.
+ */
+export function homedAxesOf(script: string): Set<string> {
+  const axes = new Set<string>()
+  for (const raw of script.split('\n')) {
+    const line = raw.trim()
+    if (!/^g28(\s|$)/i.test(line)) continue
+    const named = line.slice(3).toUpperCase().match(/[XYZ]/g)
+    for (const axis of named ?? ['X', 'Y', 'Z']) axes.add(axis)
+  }
+  return axes
+}
+
+/**
  * One line for the list. `SAVE_GCODE_STATE`/`RESTORE_GCODE_STATE` are dropped:
  * a jog wraps its move in that pair, nobody typed it, and left in it pushes the
  * move itself past the end of the row.
@@ -59,6 +74,14 @@ export const useCommandQueueStore = defineStore('commandQueue', () => {
   let lostFlush: ReturnType<typeof setTimeout> | null = null
 
   const isHoming = computed(() => entries.value.some((entry) => entry.homing))
+  /** Every axis a pending home from this browser will home. */
+  const homingAxes = computed(() => {
+    const axes = new Set<string>()
+    for (const entry of entries.value) {
+      if (entry.homing) for (const axis of homedAxesOf(entry.script)) axes.add(axis)
+    }
+    return axes
+  })
 
   function add(script: string, originKey: string): number {
     const id = nextId++
@@ -94,5 +117,5 @@ export const useCommandQueueStore = defineStore('commandQueue', () => {
     entries.value = []
   }
 
-  return { entries, isHoming, add, settle, noteLost, clear }
+  return { entries, isHoming, homingAxes, add, settle, noteLost, clear }
 })

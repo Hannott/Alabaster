@@ -33,6 +33,7 @@ import {
 } from '@/dashboard/context'
 import { useActionGuard } from '@/composables/useActionGuard'
 import { levelingProcedureIds, useCalibrationRun } from '@/composables/useCalibrationRun'
+import { useCommandQueueStore } from '@/stores/commandQueue'
 import { useConsoleStore } from '@/stores/console'
 import { useManualProbeStore } from '@/stores/manualProbe'
 import { parseScrewsTiltResults, usePrinterStore } from '@/stores/printer'
@@ -62,6 +63,7 @@ const axisLabelKeys: Record<Axis, string> = {
 
 const { locale, t } = useI18n({ useScope: 'global' })
 const printer = usePrinterStore()
+const commandQueue = useCommandQueueStore()
 // The leveling transcript is read off the console store's raw lines.
 const gcodeConsole = useConsoleStore()
 const printerConfig = usePrinterConfigStore()
@@ -383,6 +385,39 @@ function isHomed(axis: Axis): boolean {
 }
 
 /**
+ * The axes Klipper started reporting as homed during the current home, in the
+ * order it did. Klipper marks an axis homed as its homing *starts* (`homing.py`
+ * sets the start position with `homing_axes`, so the seek toward the endstop
+ * is allowed), so an axis appearing here means it is underway, not finished.
+ */
+const homedDuringHome = ref<Axis[]>([])
+watch(homing, (isHoming) => {
+  if (isHoming) homedDuringHome.value = []
+})
+watch(homedAxes, (now, before) => {
+  if (!homing.value) return
+  const appeared = axes.filter((axis) => now.includes(axis) && !before.includes(axis))
+  if (appeared.length > 0) homedDuringHome.value = [...homedDuringHome.value, ...appeared]
+})
+
+/**
+ * What a home button shows. An axis the home does not touch keeps its colour
+ * throughout, and so does one the home has finished: Klipper homes X, Y, then
+ * Z, so a requested axis is done once a later requested axis has started. The
+ * axis underway, and any not yet reached, read as not homed until it is.
+ * Every button stays disabled for the whole home either way.
+ */
+function showsHomed(axis: Axis): boolean {
+  if (!isHomed(axis)) return false
+  const requested = commandQueue.homingAxes
+  if (!homing.value || !requested.has(axis)) return true
+  const position = axes.indexOf(axis)
+  return homedDuringHome.value.some(
+    (other) => requested.has(other) && axes.indexOf(other) > position,
+  )
+}
+
+/**
  * Both position arrays are indexed by a plain number, so a variable index
  * reads as possibly `undefined` even though every axis has an entry.
  */
@@ -528,7 +563,7 @@ function axisLabel(axis: Axis): string {
  */
 function pivotLabel(axis: Axis): string {
   if (hasJobLoaded.value) return t('dashboard.movement.homeAxisBlocked', { axis })
-  return isHomed(axis)
+  return showsHomed(axis)
     ? t('dashboard.movement.homeAxisHomed', { axis })
     : t('dashboard.movement.homeAxisNotHomed', { axis })
 }
@@ -1008,7 +1043,7 @@ function screwInstruction(screw: (typeof screwResults.value)[number]): string {
               <AppButton
                 size="xs"
                 class="jog-pivot"
-                :class="{ 'jog-pivot--homed': isHomed(axis) }"
+                :class="{ 'jog-pivot--homed': showsHomed(axis) }"
                 :disabled="printer.isHoming || hasJobLoaded"
                 :aria-label="pivotLabel(axis)"
                 :title="pivotTitle(axis)"
@@ -1016,7 +1051,7 @@ function screwInstruction(screw: (typeof screwResults.value)[number]): string {
               >
                 <AppIcon name="home" class="size-4 shrink-0" aria-hidden="true" />
                 <span>{{ axis }}</span>
-                <span v-if="!isHomed(axis)" class="jog-pivot__dot" aria-hidden="true"></span>
+                <span v-if="!showsHomed(axis)" class="jog-pivot__dot" aria-hidden="true"></span>
               </AppButton>
 
               <div class="jog-steps">
