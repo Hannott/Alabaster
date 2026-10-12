@@ -166,7 +166,7 @@ const canHome = computed(
     !printer.hasActivePrint &&
     !homing.value &&
     awaiting.value === null &&
-    !calibration.isRunActive &&
+    calibration.activeRun === null &&
     !printer.pendingCommands.calibration,
 )
 

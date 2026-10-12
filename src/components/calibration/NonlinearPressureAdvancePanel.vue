@@ -261,7 +261,7 @@ const printBlocked = computed(
   () =>
     !klipperAvailability.value.isAvailable ||
     printer.hasActivePrint ||
-    calibration.isRunActive ||
+    calibration.activeRun !== null ||
     script.value === null,
 )
 const printed = ref<NpaTower | null>(null)

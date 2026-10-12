@@ -109,7 +109,7 @@ const canSend = computed(
     klipperAvailability.value.isAvailable &&
     !printer.hasActivePrint &&
     busy.value === null &&
-    !calibration.isRunActive &&
+    calibration.activeRun === null &&
     !printer.pendingCommands.calibration,
 )
 

@@ -25,7 +25,6 @@ import { useRunoutSensorsStore } from '@/stores/runoutSensors'
 import { useSensorsStore } from '@/stores/sensors'
 import { useServerWarningsStore } from '@/stores/serverWarnings'
 import { useSettingsSyncStore } from '@/stores/settingsSync'
-import { useSharedRunsStore } from '@/stores/sharedRuns'
 import { useSpoolStore } from '@/stores/spool'
 import { useTelemetryStore } from '@/stores/telemetry'
 import { useWebcamsStore } from '@/stores/webcams'
@@ -43,9 +42,6 @@ usePrinterStore(pinia).start()
 useConsoleStore(pinia).start()
 useWebcamsStore(pinia).start()
 usePrinterConfigStore(pinia).start()
-// Which macros and calibrations are running from any browser, for the macro
-// buttons and the Calibration page to show wherever they are opened.
-useSharedRunsStore(pinia).start()
 useMacrosStore(pinia).start()
 useJobQueueStore(pinia).start()
 useBedMeshStore(pinia).start()

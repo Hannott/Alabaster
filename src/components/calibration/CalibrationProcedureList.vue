@@ -94,7 +94,7 @@ const rows = computed(() =>
       procedure,
       last: last.text,
       stale: last.stale,
-      running: calibration.runningProcedureId === procedure.id,
+      running: calibration.activeRun?.procedureId === procedure.id,
       recorded: hasRunRecord(procedure),
       value: valueFor(procedure),
     }

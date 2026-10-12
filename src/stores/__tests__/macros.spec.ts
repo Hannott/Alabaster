@@ -5,7 +5,6 @@ import { useCommandPreferencesStore } from '@/stores/commandPreferences'
 import { useConsoleStore } from '@/stores/console'
 import { buildMacroScript, formatMacroLabel, macroNamesFrom, useMacrosStore } from '@/stores/macros'
 import { useMoonrakerStore } from '@/stores/moonraker'
-import { useSharedRunsStore } from '@/stores/sharedRuns'
 
 describe('macro discovery', () => {
   it('keeps operator macros and drops helpers, overrides, and print controls', () => {
@@ -173,56 +172,6 @@ describe('macros store', () => {
     release?.()
     expect(await first).toBe(true)
     expect(macros.isRunning('CALIBRATE_MESH')).toBe(false)
-  })
-
-  it('brackets a run with the pack markers so every browser sees it, echoing only the macro', async () => {
-    const moonraker = useMoonrakerStore()
-    moonraker.connectionPhase = 'connected'
-    const rpcCall = vi.spyOn(moonraker, 'rpcCall').mockResolvedValue('ok' as never)
-    useSharedRunsStore().isSupported = true
-
-    const macros = useMacrosStore()
-    expect(await macros.run('load_filament', { LENGTH: '50' })).toBe(true)
-
-    const script = (rpcCall.mock.calls[0]?.[1] as { script: string }).script
-    const [begin, body, end] = script.split('\n')
-    expect(begin).toMatch(/^_ALABASTER_RUN_BEGIN ID=(\w+) KIND=macro NAME=LOAD_FILAMENT$/)
-    expect(body).toBe('LOAD_FILAMENT LENGTH=50')
-    // The end marker rides in the same script, so a closed browser still clears it.
-    expect(end).toBe(`_ALABASTER_RUN_END ID=${/ID=(\w+)/.exec(begin!)![1]}`)
-    expect(useConsoleStore().consoleLines).toEqual(['LOAD_FILAMENT LENGTH=50'])
-  })
-
-  it('clears its own marker when the macro fails, since the script stopped before the end marker', async () => {
-    const moonraker = useMoonrakerStore()
-    moonraker.connectionPhase = 'connected'
-    const rpcCall = vi
-      .spyOn(moonraker, 'rpcCall')
-      .mockRejectedValueOnce(new Error('macro failed'))
-      .mockResolvedValue('ok' as never)
-    useSharedRunsStore().isSupported = true
-
-    expect(await useMacrosStore().run('PURGE')).toBe(false)
-
-    const id = /ID=(\w+)/.exec((rpcCall.mock.calls[0]?.[1] as { script: string }).script)![1]
-    expect(rpcCall).toHaveBeenLastCalledWith(
-      'printer.gcode.script',
-      { script: `_ALABASTER_RUN_END ID=${id}` },
-      { timeoutMs: null },
-    )
-  })
-
-  it("shows another browser's run as running, and locks it only for a reader who waits", () => {
-    const sharedRuns = useSharedRunsStore()
-    sharedRuns.isSupported = true
-    sharedRuns.runs = [{ id: 'elsewhere', kind: 'macro', name: 'PURGE' }]
-    const macros = useMacrosStore()
-
-    expect(macros.isRunning('purge')).toBe(true)
-    expect(macros.isLocked('PURGE')).toBe(false)
-
-    useCommandPreferencesStore().setDispatch('wait')
-    expect(macros.isLocked('PURGE')).toBe(true)
   })
 
   it('reports a failed discovery without claiming macros are missing', async () => {

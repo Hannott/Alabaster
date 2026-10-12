@@ -203,7 +203,7 @@ const canMove = computed(
     toolhead.value !== null &&
     klipperAvailability.value.isAvailable &&
     !printer.hasActivePrint &&
-    !calibration.isRunActive &&
+    calibration.activeRun === null &&
     !printer.lockedCommands.move &&
     !bedScrews.isActive &&
     !manualProbe.isActive,

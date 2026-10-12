@@ -61,10 +61,7 @@ and whether it moves the toolhead, heats, or probes.
   started: the Movement card's **Level bed** and **Calibrate Z**, the bed mesh
   card's **Calibrate**, and a heater model from the Temperatures card run the
   same calibration this page does, are logged with it, and hold each other's
-  buttons while they run. With the [macro pack](/guide/macros) installed,
-  that holds across browsers too: a calibration started on a phone holds the
-  desktop's buttons, and its result appears in the desktop's history when it
-  finishes.
+  buttons while they run.
 - **The result** lists what the calibration found next to what the printer had
   before, and says where it went: staged for `SAVE_CONFIG`, applied until
   Klipper restarts, or measured only. A calibration that stages values

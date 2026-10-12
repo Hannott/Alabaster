@@ -27,7 +27,6 @@ import { useMoonrakerStore } from '@/stores/moonraker'
 import { usePrinterStore } from '@/stores/printer'
 import { useQuickConfigStore } from '@/stores/quickConfig'
 import { useShakeTuneStore } from '@/stores/shakeTune'
-import { useSharedRunsStore } from '@/stores/sharedRuns'
 
 /**
  * How a logged run ended. `running` is the provisional entry written when a
@@ -354,7 +353,6 @@ export const useCalibrationStore = defineStore('calibration', () => {
   const shakeTune = useShakeTuneStore()
   const manualProbe = useManualProbeStore()
   const bedScrews = useBedScrewsStore()
-  const sharedRuns = useSharedRunsStore()
 
   const runs = reactive(new Map<string, CalibrationRun>())
   const log = ref<CalibrationLog>({})
@@ -364,24 +362,8 @@ export const useCalibrationStore = defineStore('calibration', () => {
   let loadGeneration = 0
   let started = false
   let stopConnectionWatch: (() => void) | null = null
-  let stopForeignRunWatch: (() => void) | null = null
 
   const activeRun = computed(() => [...runs.values()].find((run) => run.running) ?? null)
-
-  /**
-   * The procedure running on this printer, whether this browser started it or
-   * another one did. `activeRun` is only ever this browser's own, with the
-   * output and result that go with it; another browser's run is known only by
-   * its procedure, and holds the machine all the same.
-   */
-  const runningProcedureId = computed<ProcedureId | null>(() => {
-    if (activeRun.value) return activeRun.value.procedureId
-    const foreign = sharedRuns.foreignCalibration
-    return foreign && procedureById(foreign.name) ? (foreign.name as ProcedureId) : null
-  })
-  const isRunActive = computed(() => runningProcedureId.value !== null)
-  /** Whether the run holding the machine was started in another browser. */
-  const isForeignRunActive = computed(() => activeRun.value === null && isRunActive.value)
 
   /**
    * A guided panel's helper that Klipper has open — the load cell's
@@ -390,7 +372,7 @@ export const useCalibrationStore = defineStore('calibration', () => {
    */
   const openHelper = ref<string | null>(null)
   /** Whether the machine is spoken for, by a run or by an open helper. */
-  const busy = computed(() => isRunActive.value || openHelper.value !== null)
+  const busy = computed(() => activeRun.value !== null || openHelper.value !== null)
 
   function setHelperOpen(id: string, open: boolean): void {
     if (open) openHelper.value = id
@@ -644,7 +626,7 @@ export const useCalibrationStore = defineStore('calibration', () => {
    * before the command returns — a page reloaded mid-run used to leave no
    * trace, and its Run button came back while the printer was still at work.
    */
-  function recordRun(run: CalibrationRun): Promise<void> {
+  function recordRun(run: CalibrationRun): void {
     const result = resultOfRun(run)
     const entry: CalibrationLogEntry = {
       at: run.startedAt,
@@ -665,7 +647,7 @@ export const useCalibrationStore = defineStore('calibration', () => {
       ...log.value,
       [run.procedureId]: [...entries, entry].slice(-entriesPerProcedure),
     }
-    return writeLog()
+    void writeLog()
   }
 
   function dispatch(
@@ -701,7 +683,7 @@ export const useCalibrationStore = defineStore('calibration', () => {
     values: ProcedureValues,
     context: ProcedureContext,
   ): Promise<boolean> {
-    if (isRunActive.value || !procedure.build) return false
+    if (activeRun.value !== null || !procedure.build) return false
     const script = procedure.build(values, context)
     if (script === null) return false
     const subject = procedureSubject(procedure, values)
@@ -731,16 +713,7 @@ export const useCalibrationStore = defineStore('calibration', () => {
     }
     const key = runKey(procedure.id, subject)
     runs.set(key, record)
-    void recordRun(record)
-    /*
-     * Sent ahead of the run rather than inside its script: most procedures go
-     * through a printer-store method that builds its own, and one that opens
-     * a helper is still running after its command answers. The end marker is
-     * therefore this browser's to send, once the run's log entry is written,
-     * so another browser that reloads the log on seeing it go finds the result.
-     */
-    const sharedId = sharedRuns.claim('calibration', procedure.id)
-    if (sharedId !== null) sharedRuns.begin(sharedId, 'calibration', procedure.id)
+    recordRun(record)
     const watchesGraphs = shakeTuneProcedures.has(procedure.id)
     if (watchesGraphs) shakeTune.start()
     const leaving = untilKlipperLeaves()
@@ -787,11 +760,7 @@ export const useCalibrationStore = defineStore('calibration', () => {
       current.succeeded = succeeded && !aborted
       current.interrupted = leaving.left
       current.finishedEntryId = lastEntryId()
-      await recordRun(current)
-    }
-    if (sharedId !== null) {
-      sharedRuns.end(sharedId)
-      sharedRuns.release(sharedId)
+      recordRun(current)
     }
     return current?.succeeded ?? false
   }
@@ -954,7 +923,7 @@ export const useCalibrationStore = defineStore('calibration', () => {
           outcome: logged.outcome as ProcedureOutcome,
           rows: logged.rows,
         })
-        if (shape !== loggedShape(resultOfRun(current))) void recordRun(current)
+        if (shape !== loggedShape(resultOfRun(current))) recordRun(current)
       }
     },
   )
@@ -968,7 +937,7 @@ export const useCalibrationStore = defineStore('calibration', () => {
     const current = runs.get(runKey(id, subject))
     if (!current || current.running || current.succeeded !== true) return
     current.answers = [...rows]
-    void recordRun(current)
+    recordRun(current)
   }
 
   /**
@@ -1100,12 +1069,6 @@ export const useCalibrationStore = defineStore('calibration', () => {
       },
       { immediate: true },
     )
-    // Another browser logs its run as it starts and again once it has a
-    // result, so its beginning and its end are when this one rereads the log.
-    stopForeignRunWatch = watch(
-      () => sharedRuns.foreignCalibration?.id ?? null,
-      () => void loadLog(),
-    )
   }
 
   function stop(): void {
@@ -1113,16 +1076,11 @@ export const useCalibrationStore = defineStore('calibration', () => {
     started = false
     stopConnectionWatch?.()
     stopConnectionWatch = null
-    stopForeignRunWatch?.()
-    stopForeignRunWatch = null
   }
 
   return {
     runs,
     activeRun,
-    runningProcedureId,
-    isRunActive,
-    isForeignRunActive,
     busy,
     setHelperOpen,
     log,

@@ -442,7 +442,6 @@
       "blocked": {
         "unavailable": "Klipper er ikke klar.",
         "otherRunning": "En annen prosedyre kjører.",
-        "foreignRunning": "En prosedyre kjører fra en annen nettleser.",
         "requirements": "Oppfyll betingelsene over først.",
         "missing": "Fyll inn alle påkrevde verdier.",
         "invalid": "En verdi kan ikke sendes slik den er."

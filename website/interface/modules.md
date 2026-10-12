@@ -371,11 +371,6 @@ The Macros card shows the macros you choose, as buttons.
   printer runs them in order. A button pauses briefly after each press, so
   an accidental double tap does not run the macro twice. Turn the pause off
   in the card's settings if you want every tap to count.
-- **Running from another browser**: With the [macro pack](/guide/macros)
-  installed, a macro started in another browser counts as running here too.
-  If you have chosen to wait for the printer in
-  [Settings](/interface/settings#commands), its button stays disabled until
-  that run finishes.
 
 ![A Nozzle/Probe macro group on the dashboard, split into Nozzle and Probe headings](/images/modules/nozzle-probe-buttons.png)
 

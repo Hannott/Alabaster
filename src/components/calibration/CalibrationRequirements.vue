@@ -34,7 +34,9 @@ const { availability: klipperAvailability } = useAvailability('klipper')
  */
 const canFix = computed(
   () =>
-    klipperAvailability.value.isAvailable && !printer.hasActivePrint && !calibration.isRunActive,
+    klipperAvailability.value.isAvailable &&
+    !printer.hasActivePrint &&
+    calibration.activeRun === null,
 )
 
 const fixIcons: Partial<Record<RequirementFixId, 'home' | 'move'>> = {

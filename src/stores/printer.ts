@@ -1280,12 +1280,8 @@ export const usePrinterStore = defineStore('printer', () => {
    * Sends one script and keeps it in `commandQueue` until it settles. Rejects
    * with `KlipperLeftError` when Klipper leaves first; see `untilKlipperLeaves`.
    */
-  async function dispatchScript(
-    script: string,
-    originKey: string,
-    listedAs: string = script,
-  ): Promise<void> {
-    const entryId = commandQueue.add(listedAs, originKey)
+  async function dispatchScript(script: string, originKey: string): Promise<void> {
+    const entryId = commandQueue.add(script, originKey)
     const klipperLeaves = untilKlipperLeaves()
     const request = moonraker.rpcCall('printer.gcode.script', { script }, { timeoutMs: null })
     // A request that loses the race may still reject later; nobody is listening by then.
@@ -1367,17 +1363,14 @@ export const usePrinterStore = defineStore('printer', () => {
    * heat soak is listed like any other script and is bounded the same way. The
    * echo still lands before dispatch, like every script, so the live console
    * never disagrees with Moonraker's own `gcode_store` about what was sent.
-   * `dispatched` is what actually goes to Klipper when it differs from the
-   * macro the reader pressed — the macros store brackets a run with the pack's
-   * markers, which are bookkeeping and neither echoed nor listed.
    */
-  async function sendMacro(script: string, dispatched: string = script): Promise<boolean> {
+  async function sendMacro(script: string): Promise<boolean> {
     const command = script.trim()
     if (!command) return false
     gcodeConsole.echoCommand(command)
     const claim = claimDispatchError(moonraker.isConnected)
     try {
-      await dispatchScript(dispatched.trim(), macroOriginKey, command)
+      await dispatchScript(command, macroOriginKey)
       return true
     } catch (error) {
       if (!claim(error)) toasts.pushError(error)
