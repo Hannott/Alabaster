@@ -8,6 +8,10 @@ WORKDIR /app
 # tools stay out of the image so it starts in a second or two.
 RUN pip install --no-cache-dir aiohttp==3.11.11 pillow==11.1.0
 
+# Encodes the simulated timelapses into real MP4s, so playback and seeking can
+# be tried as well as the list. Only the instances given TIMELAPSES use it.
+RUN apk add --no-cache ffmpeg
+
 COPY fake_moonraker.py ./
 
 EXPOSE 7125

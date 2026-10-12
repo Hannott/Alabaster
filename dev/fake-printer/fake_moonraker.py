@@ -23,6 +23,8 @@ import json
 import math
 import os
 import random
+import shutil
+import subprocess
 import time
 from dataclasses import dataclass, field
 from typing import Any, Callable
@@ -73,6 +75,10 @@ class Config:
     `cors_domains` does. Set to `none` to reproduce the refused-origin column
     without touching a real printer's configuration."""
     cors: str = os.environ.get("CORS", "all").strip().lower()
+    """How many rendered timelapses to pretend the timelapse component has made.
+    Zero leaves the component out entirely, as on a printer without it."""
+    timelapses: int = env_int("TIMELAPSES", 0)
+    timelapse_dir: str = os.environ.get("TIMELAPSE_DIR", "/tmp/timelapse")
 
 
 CONFIG = Config()
@@ -354,6 +360,107 @@ def render_thumbnail() -> bytes:
 
 
 # --------------------------------------------------------------------------
+# Timelapse
+# --------------------------------------------------------------------------
+
+TIMELAPSE_PARTS = [
+    ("cable_clip", (230, 159, 0)),
+    ("gridfinity_bin_2x1", (86, 180, 233)),
+    ("fan_duct_v4", (0, 158, 115)),
+    ("hinge_a", (213, 94, 0)),
+    ("case_lid", (204, 121, 167)),
+    ("benchy", (240, 228, 66)),
+    ("spacer_x8", (0, 114, 178)),
+    ("bracket_left", (230, 159, 0)),
+]
+
+
+def render_timelapse_frame(part: str, color: tuple[int, int, int], progress: float) -> Image.Image:
+    """One frame of a print growing on the bed: what a layer-by-layer timelapse
+    of the real thing looks like from a fixed camera, minus the printer."""
+    width, height = 640, 360
+    image = Image.new("RGB", (width, height), (14, 16, 22))
+    draw = ImageDraw.Draw(image)
+    for y in range(height):
+        shade = int(14 + (y / height) * 22)
+        draw.line([(0, y), (width, y)], fill=(shade, shade + 2, shade + 8))
+
+    bed_top = 290
+    draw.polygon([(70, bed_top), (570, bed_top), (620, 340), (20, 340)], fill=(40, 46, 58))
+    part_height = int(progress * 150)
+    left, right = 250, 390
+    if part_height > 0:
+        draw.rectangle([left, bed_top - part_height, right, bed_top], fill=color)
+        for layer_y in range(bed_top, bed_top - part_height, -6):
+            draw.line([(left, layer_y), (right, layer_y)], fill=tuple(max(0, c - 40) for c in color))
+    nozzle_y = bed_top - part_height - 26
+    nozzle_x = left + int((math.sin(progress * 40) + 1) / 2 * (right - left))
+    draw.rectangle([nozzle_x - 22, nozzle_y - 40, nozzle_x + 22, nozzle_y - 6], fill=(70, 76, 90))
+    draw.polygon([(nozzle_x - 6, nozzle_y - 6), (nozzle_x + 6, nozzle_y - 6), (nozzle_x, nozzle_y)], fill=(200, 160, 60))
+    draw.text((24, 22), f"{CONFIG.name}  ·  {part}", fill=(225, 230, 240))
+    draw.text((24, 40), f"layer {max(1, int(progress * 120))} / 120", fill=(140, 150, 165))
+    return image
+
+
+def make_timelapses() -> list[dict[str, Any]]:
+    """Renders this instance's timelapses once at start-up, named the way
+    moonraker-timelapse names them, each with its preview still beside it.
+    Without ffmpeg only the stills exist, so nothing is listed as a video."""
+    if CONFIG.timelapses <= 0:
+        return []
+    directory = CONFIG.timelapse_dir
+    os.makedirs(directory, exist_ok=True)
+    ffmpeg = shutil.which("ffmpeg")
+    made: list[dict[str, Any]] = []
+    now = time.time()
+    for index in range(CONFIG.timelapses):
+        part, color = TIMELAPSE_PARTS[index % len(TIMELAPSE_PARTS)]
+        # Spread over the last few days, so the page has more than one day group.
+        recorded = now - 3600 * (2 + index * 9)
+        stamp = time.strftime("%Y%m%d%H%M", time.localtime(recorded))
+        stem = f"timelapse_{part}_{stamp}"
+        frames = 72 + index * 12
+        preview = render_timelapse_frame(part, color, 1.0)
+        preview.save(os.path.join(directory, f"{stem}.jpg"), format="JPEG", quality=80)
+        os.utime(os.path.join(directory, f"{stem}.jpg"), (recorded, recorded))
+        if ffmpeg is None:
+            continue
+        video_path = os.path.join(directory, f"{stem}.mp4")
+        if not os.path.exists(video_path):
+            process = subprocess.Popen(
+                [ffmpeg, "-loglevel", "error", "-y", "-f", "image2pipe", "-framerate", "30",
+                 "-i", "-", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-movflags", "+faststart",
+                 video_path],
+                stdin=subprocess.PIPE,
+            )
+            assert process.stdin is not None
+            for frame in range(frames):
+                buffer = io.BytesIO()
+                render_timelapse_frame(part, color, (frame + 1) / frames).save(buffer, format="JPEG", quality=85)
+                process.stdin.write(buffer.getvalue())
+            process.stdin.close()
+            process.wait()
+        if os.path.exists(video_path):
+            os.utime(video_path, (recorded, recorded))
+            made.append({"stem": stem})
+    return made
+
+
+def timelapse_directory() -> dict[str, Any]:
+    files = []
+    for name in sorted(os.listdir(CONFIG.timelapse_dir)) if os.path.isdir(CONFIG.timelapse_dir) else []:
+        path = os.path.join(CONFIG.timelapse_dir, name)
+        stat = os.stat(path)
+        files.append({"filename": name, "modified": stat.st_mtime, "size": stat.st_size, "permissions": "rw"})
+    return {
+        "dirs": [],
+        "files": files,
+        "disk_usage": {"total": 32_000_000_000, "used": 9_000_000_000, "free": 23_000_000_000},
+        "root_info": {"name": "timelapse", "permissions": "rw"},
+    }
+
+
+# --------------------------------------------------------------------------
 # JSON-RPC
 # --------------------------------------------------------------------------
 
@@ -370,12 +477,16 @@ def server_info() -> dict[str, Any]:
         components.append("power")
     if CONFIG.has_spoolman:
         components.append("spoolman")
+    directories = ["gcodes", "config", "logs"]
+    if CONFIG.timelapses > 0:
+        components.append("timelapse")
+        directories.append("timelapse")
     return {
         "klippy_connected": MACHINE.klippy_state != "disconnected",
         "klippy_state": MACHINE.klippy_state,
         "components": components,
         "failed_components": [],
-        "registered_directories": ["gcodes", "config", "logs"],
+        "registered_directories": directories,
         "warnings": [],
         "websocket_count": len(SUBSCRIBERS),
         "moonraker_version": "v0.9.3-fake",
@@ -536,6 +647,22 @@ def handle_rpc(method: str, params: dict[str, Any], socket: web.WebSocketRespons
             }
             for index, name in enumerate(names)
         ]
+
+    if method == "server.files.get_directory":
+        if CONFIG.timelapses > 0 and str(params.get("path", "")).strip("/") == "timelapse":
+            return timelapse_directory()
+        raise KeyError(method)
+    if method == "server.files.delete_file":
+        path = str(params.get("path", "")).strip("/")
+        root, _, name = path.partition("/")
+        if root != "timelapse" or not name or "/" in name or name.startswith("."):
+            raise KeyError(method)
+        os.remove(os.path.join(CONFIG.timelapse_dir, name))
+        item = {"root": "timelapse", "path": name}
+        asyncio.create_task(
+            broadcast_notification("notify_filelist_changed", [{"action": "delete_file", "item": item}])
+        )
+        return {"item": item, "action": "delete_file"}
 
     if method == "printer.print.pause":
         if machine.state == "printing":
@@ -804,6 +931,16 @@ async def http_stream(request: web.Request) -> web.StreamResponse:
     return response
 
 
+async def http_timelapse_file(request: web.Request) -> web.StreamResponse:
+    """Serves a render or its still. A FileResponse answers range requests,
+    which is what lets a browser seek in the video."""
+    name = request.match_info["name"]
+    path = os.path.join(CONFIG.timelapse_dir, name)
+    if CONFIG.timelapses <= 0 or "/" in name or name.startswith(".") or not os.path.isfile(path):
+        raise web.HTTPNotFound()
+    return web.FileResponse(path, headers=cors_headers())
+
+
 async def http_thumbnail(_: web.Request) -> web.Response:
     return web.Response(body=render_thumbnail(), content_type="image/png", headers=cors_headers())
 
@@ -829,6 +966,7 @@ def build_app() -> web.Application:
             web.get("/server/info", http_server_info),
             web.get("/webcam/stream", http_stream),
             web.get("/webcam/snapshot", http_snapshot),
+            web.get("/server/files/timelapse/{name}", http_timelapse_file),
             # Whatever path the metadata's `relative_path` resolves to.
             web.get("/server/files/gcodes/{path:.*}", http_thumbnail),
         ]
@@ -847,9 +985,11 @@ def build_app() -> web.Application:
 
 if __name__ == "__main__":
     apply_scenario()
+    rendered = make_timelapses()
     print(
         f"fake Moonraker · {CONFIG.name} · scenario={CONFIG.scenario} · port={CONFIG.port} "
-        f"· camera={'on' if CONFIG.has_camera else 'off'} · cors={CONFIG.cors}",
+        f"· camera={'on' if CONFIG.has_camera else 'off'} · cors={CONFIG.cors} "
+        f"· timelapses={len(rendered)}",
         flush=True,
     )
     web.run_app(build_app(), host="0.0.0.0", port=CONFIG.port, print=None)

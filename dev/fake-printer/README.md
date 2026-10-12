@@ -11,9 +11,9 @@ Then add the addresses in **Settings → Printers**:
 
 | Address                         | Pretends to be                                           |
 | ------------------------------- | -------------------------------------------------------- |
-| `ws://localhost:7131/websocket` | Voron 2.4 — printing ABS, camera, queue of 3             |
+| `ws://localhost:7131/websocket` | Voron 2.4 — printing ABS, camera, queue of 3, timelapses |
 | `ws://localhost:7132/websocket` | Prusa MK4 — printing, Spoolman, power switch, queue of 5 |
-| `ws://localhost:7133/websocket` | Ender bench — finished a print, no camera                |
+| `ws://localhost:7133/websocket` | Ender bench — finished a print, no camera, timelapses    |
 | `ws://localhost:7134/websocket` | Enclosure box — paused mid-print, queue held             |
 | `ws://localhost:7135/websocket` | Trident — Klipper shut down, camera still live           |
 | `ws://localhost:7136/websocket` | Locked down — refuses this page's origin                 |
@@ -35,6 +35,12 @@ It answers the JSON-RPC methods Alabaster actually calls, and pushes
 answers `Method not found`, which is what a real Moonraker says for a component
 that is not configured — so an unimplemented call reads as an absent feature
 rather than as a broken server.
+
+With `TIMELAPSES` set, it also pretends to have the timelapse component: that
+many renders, named the way moonraker-timelapse names them and spread over the
+last few days, each a short MP4 of a part growing on the bed with its preview
+still beside it. They are drawn and encoded once when the container starts, and
+the list, playback, download and delete all work against them.
 
 **It is not Klipper.** No G-code is parsed, nothing moves, and no configuration
 is validated. Use it for interface work; use a real printer for anything that
@@ -69,6 +75,7 @@ worked examples.
 | `MATERIAL`      | `PLA`              | Drives the filament row and the temperature targets.                                                                          |
 | `COLOR`         | `E69F00`           | Filament colour, hex without the `#`.                                                                                         |
 | `CORS`          | `all`              | `all`, `none`, or a comma-separated list of allowed origins.                                                                  |
+| `TIMELAPSES`    | `0`                | How many rendered timelapses to offer. Above zero adds the `timelapse` component and root; each is a real MP4 with its still. |
 | `LOG_RPC`       | unset              | Print every JSON-RPC method received. Useful when a column stays empty and you need to know whether the request ever arrived. |
 
 ## Adding more

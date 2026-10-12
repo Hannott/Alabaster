@@ -6,9 +6,9 @@
 #
 # Then add each address in Alabaster under Settings → Printers:
 #
-#   ws://localhost:7131/websocket   Voron 2.4      printing, camera, queue of 3
+#   ws://localhost:7131/websocket   Voron 2.4      printing, camera, queue of 3, 6 timelapses
 #   ws://localhost:7132/websocket   Prusa MK4      printing, spool, power switch
-#   ws://localhost:7133/websocket   Ender bench    idle, no camera
+#   ws://localhost:7133/websocket   Ender bench    idle, no camera, 2 timelapses
 #   ws://localhost:7134/websocket   Bambu-ish      paused mid-print, queue held
 #   ws://localhost:7135/websocket   Trident        Klipper shutdown, camera live
 #   ws://localhost:7136/websocket   Locked down    refuses this page's origin
@@ -37,6 +37,7 @@ services:
       COLOR: '56B4E9'
       PRINT_SECONDS: '1200'
       QUEUE: '3'
+      TIMELAPSES: '6'
 
   mk4:
     <<: *printer
@@ -64,6 +65,7 @@ services:
       COLOR: '009E73'
       CAMERA: 'false'
       QUEUE: '0'
+      TIMELAPSES: '2'
 
   bambu:
     <<: *printer
