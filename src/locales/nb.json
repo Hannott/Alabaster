@@ -1290,16 +1290,28 @@
   },
   "timelapse": {
     "title": "Timelapse",
-    "list": "Timelapse-videoer",
     "refresh": "Oppdater",
     "empty": "Ingen ferdige timelapser ennå.",
     "failed": "Timelapse-mappen kunne ikke leses.",
     "download": "Last ned",
-    "close": "Lukk",
     "delete": "Slett",
     "deleteTitle": "Slette denne timelapsen?",
     "deleteConfirm": "Videoen {name} fjernes fra skriveren.",
-    "noValue": "—"
+    "noValue": "—",
+    "videos": "Videoer",
+    "videoCount": "Ingen videoer | {count} video | {count} videoer",
+    "recorded": "Tatt opp",
+    "length": "Lengde",
+    "size": "Størrelse",
+    "lengthValue": "{minutes}:{seconds}",
+    "frameSize": "{width} × {height}",
+    "sizeValue": "{value} {unit}",
+    "moreActions": "Flere handlinger for {name}",
+    "unit": {
+      "kb": "kB",
+      "mb": "MB",
+      "gb": "GB"
+    }
   },
   "header": {
     "applyConfig": {

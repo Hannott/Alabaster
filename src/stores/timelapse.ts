@@ -15,12 +15,49 @@ import { useMoonrakerStore } from '@/stores/moonraker'
  */
 
 const VIDEO_PATTERN = /\.(mp4|webm|mov|mkv)$/i
+const PREVIEW_PATTERN = /\.(jpe?g|png)$/i
+
+/**
+ * moonraker-timelapse's default output name: `timelapse_<gcode name>_<YYYYMMDDHHMM>`.
+ * A name it was configured to write differently is shown as written.
+ */
+const RENDER_NAME_PATTERN = /^timelapse_(.+)_(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})$/
 
 export interface TimelapseVideo {
   name: string
   path: string
   size: number
   modified: number
+  /** The print the video is of, read from the render's name, or the file name without its extension. */
+  printName: string
+  /** When the print was recorded, from the render's name, else when the file was written. Seconds. */
+  recordedAt: number
+  /** The still the component saves beside each render, if there is one. */
+  preview: string | null
+}
+
+function stem(filename: string): string {
+  return filename.replace(/\.[^.]+$/, '')
+}
+
+function readRenderName(
+  filename: string,
+  modified: number,
+): { printName: string; recordedAt: number } {
+  const match = RENDER_NAME_PATTERN.exec(stem(filename))
+  if (!match) return { printName: stem(filename), recordedAt: modified }
+  const [, printName, year, month, day, hour, minute] = match
+  const recorded = new Date(
+    Number(year),
+    Number(month) - 1,
+    Number(day),
+    Number(hour),
+    Number(minute),
+  ).getTime()
+  return {
+    printName: printName!,
+    recordedAt: Number.isFinite(recorded) ? recorded / 1000 : modified,
+  }
 }
 
 export const useTimelapseStore = defineStore('timelapse', () => {
@@ -40,17 +77,31 @@ export const useTimelapseStore = defineStore('timelapse', () => {
   let stopPrinterChangeReset: (() => void) | null = null
 
   const hasVideos = computed(() => videos.value.length > 0)
+  /**
+   * The video in the player: the one chosen, or the newest until one is, so
+   * the player is never an empty frame while there is something to show.
+   */
   const selected = computed(
-    () => videos.value.find((video) => video.path === selectedPath.value) ?? null,
+    () =>
+      videos.value.find((video) => video.path === selectedPath.value) ?? videos.value[0] ?? null,
   )
+  const totalSize = computed(() => videos.value.reduce((sum, video) => sum + video.size, 0))
 
-  /** A playable URL for `video`, or null if the endpoint cannot form one. */
-  function urlFor(video: TimelapseVideo): string | null {
+  function fileUrl(path: string): string | null {
     try {
-      return moonrakerFileUrl('timelapse', video.path, moonraker.endpoint)
+      return moonrakerFileUrl('timelapse', path, moonraker.endpoint)
     } catch {
       return null
     }
+  }
+
+  /** A playable URL for `video`, or null if the endpoint cannot form one. */
+  function urlFor(video: TimelapseVideo): string | null {
+    return fileUrl(video.path)
+  }
+
+  function previewUrlFor(video: TimelapseVideo): string | null {
+    return video.preview ? fileUrl(video.preview) : null
   }
 
   async function refresh(): Promise<boolean> {
@@ -62,17 +113,25 @@ export const useTimelapseStore = defineStore('timelapse', () => {
       const result = await moonraker.rpcCall('server.files.get_directory', { path: 'timelapse' })
       if (current !== generation) return false
 
-      videos.value = (result?.files ?? [])
+      const files = result?.files ?? []
+      const previews = new Map(
+        files
+          .filter((file) => PREVIEW_PATTERN.test(file.filename))
+          .map((file) => [stem(file.filename), file.filename]),
+      )
+      videos.value = files
         .filter((file) => VIDEO_PATTERN.test(file.filename))
         .map((file) => ({
           name: file.filename,
           path: file.filename,
           size: file.size,
           modified: file.modified,
+          ...readRenderName(file.filename, file.modified),
+          preview: previews.get(stem(file.filename)) ?? null,
         }))
         // Newest first: the timelapse anyone opens this page for is the one from
         // the print that just finished.
-        .sort((left, right) => right.modified - left.modified)
+        .sort((left, right) => right.recordedAt - left.recordedAt)
 
       if (selectedPath.value && !videos.value.some((v) => v.path === selectedPath.value)) {
         selectedPath.value = null
@@ -98,6 +157,12 @@ export const useTimelapseStore = defineStore('timelapse', () => {
     if (!availability.isMoonrakerConnected) return false
     try {
       await moonraker.rpcCall('server.files.delete_file', { path: `timelapse/${video.path}` })
+      // The still belongs to the render; left behind, it is a file nothing lists.
+      if (video.preview) {
+        void moonraker
+          .rpcCall('server.files.delete_file', { path: `timelapse/${video.preview}` })
+          .catch(() => undefined)
+      }
       videos.value = videos.value.filter((entry) => entry.path !== video.path)
       if (selectedPath.value === video.path) selectedPath.value = null
       return true
@@ -166,7 +231,9 @@ export const useTimelapseStore = defineStore('timelapse', () => {
     failed,
     selectedPath,
     selected,
+    totalSize,
     urlFor,
+    previewUrlFor,
     refresh,
     select,
     remove,

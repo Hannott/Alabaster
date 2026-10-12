@@ -1290,16 +1290,28 @@
   },
   "timelapse": {
     "title": "Timelapse",
-    "list": "Timelapse videos",
     "refresh": "Refresh",
     "empty": "No rendered timelapses yet.",
     "failed": "The timelapse folder could not be read.",
     "download": "Download",
-    "close": "Close",
     "delete": "Delete",
     "deleteTitle": "Delete this timelapse?",
     "deleteConfirm": "The video {name} will be removed from the printer.",
-    "noValue": "—"
+    "noValue": "—",
+    "videos": "Videos",
+    "videoCount": "No videos | {count} video | {count} videos",
+    "recorded": "Recorded",
+    "length": "Length",
+    "size": "Size",
+    "lengthValue": "{minutes}:{seconds}",
+    "frameSize": "{width} × {height}",
+    "sizeValue": "{value} {unit}",
+    "moreActions": "More actions for {name}",
+    "unit": {
+      "kb": "kB",
+      "mb": "MB",
+      "gb": "GB"
+    }
   },
   "header": {
     "applyConfig": {

@@ -12909,58 +12909,86 @@ body.machine-editor-fullscreen-open {
 }
 
 /*
- * Timelapse. A list of finished videos with one player above it, rather than a
- * grid of autoplaying thumbnails: the videos are large, and the printer serving
- * them is a Raspberry Pi.
+ * Timelapse. The video being watched beside the list it was picked from, in
+ * the Machine, History and Print files anatomy. Below 96rem the player comes
+ * first, so choosing a video never leaves it off-screen above the list. One
+ * player rather than a grid of autoplaying thumbnails: the videos are large,
+ * and the printer serving them is a Raspberry Pi.
  */
-.timelapse-player,
-.timelapse-panel {
+.timelapse-view > .availability-region > .availability-region__content {
   display: grid;
-  gap: 0.75rem;
+  align-content: start;
+  gap: 1rem;
 }
 
-.timelapse-player__video {
-  inline-size: 100%;
-  max-block-size: 60vh;
-  border-radius: 0.3rem;
-  background: var(--surface-strong);
-}
-
-.timelapse-list {
+.timelapse-grid {
   display: grid;
-  gap: 0.35rem;
+  grid-template-areas: 'player videos';
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  align-items: start;
+  gap: 1rem;
 }
 
-.timelapse-item {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  border: 1px solid var(--border-subtle);
-  border-radius: 0.25rem;
-  padding: 0.5rem 0.65rem;
+.timelapse-grid > .timelapse-player {
+  grid-area: player;
 }
 
-.timelapse-item__open {
-  min-width: 0;
-  flex: 1 1 14rem;
+.timelapse-grid > .timelapse-videos {
+  grid-area: videos;
 }
 
-.timelapse-item__name {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+/* With nothing to play there is no player, and the list takes the row. */
+.timelapse-grid.timelapse-grid--empty {
+  grid-template-areas: 'videos';
+  grid-template-columns: minmax(0, 1fr);
 }
 
-.timelapse-item__facts {
-  display: inline-flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-  font-family: var(--font-mono);
-  font-size: var(--text-meta-size);
-  color: var(--text-muted);
+@media (max-width: 96rem) {
+  .timelapse-grid {
+    grid-template-areas: 'player' 'videos';
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.timelapse-view .machine-panel-heading {
+  min-height: 3.6875rem;
+}
+
+/* The camera's own 16:9 frame, letterboxed on the darkest surface. */
+.timelapse-stage {
+  aspect-ratio: 16 / 9;
+  background: var(--surface-canvas);
+}
+
+.timelapse-stage > video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.timelapse-player > .machine-host__stats {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-top: 1px solid var(--border-subtle);
+}
+
+/* On a phone the file name gets a row of its own. */
+@container machine-status-panel (max-width: 30rem) {
+  .timelapse-player > .machine-host__stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .timelapse-player > .machine-host__stats > .machine-stat:last-child {
+    grid-column: span 2;
+  }
+}
+
+/*
+ * A camera frame fills its cell; a slicer render is shown whole. Compound, so
+ * it outranks the shared thumbnail rule that comes later in this file.
+ */
+.machine-row__thumb.machine-row__thumb--frame {
+  object-fit: cover;
 }
 
 /*
@@ -13100,8 +13128,14 @@ body.machine-editor-fullscreen-open {
  * The details span the whole list so the wash meets the card's edges; the
  * 1rem inline padding is the edge track plus the column gap, so the preview
  * still starts on the row picture's column.
+ *
+ * `--current` is the same wash on a row whose item is shown in another card —
+ * Timelapse's video in the player. The owner wants one look for every row in
+ * these lists rather than the selected-row border there, whose frame read as
+ * heavier than the list around it.
  */
 .machine-row--open,
+.machine-row--current,
 .machine-row-expansion {
   background-image: linear-gradient(
     color-mix(in srgb, var(--action-primary) 12%, transparent),

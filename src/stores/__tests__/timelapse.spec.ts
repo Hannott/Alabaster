@@ -63,6 +63,76 @@ describe('timelapse store', () => {
     expect(timelapse.videos.map((video) => video.name)).toEqual(['print.mp4', 'other.webm'])
   })
 
+  it('names a render after its print and dates it by its own name, with its still', async () => {
+    const moonraker = useMoonrakerStore()
+    vi.spyOn(moonraker, 'rpcCall').mockResolvedValue(
+      listing([
+        // Written later than it was recorded, as a slow render is.
+        { filename: 'timelapse_Cable clip_202610112314.mp4', modified: 2_000_000_000 },
+        { filename: 'timelapse_Cable clip_202610112314.jpg', modified: 2_000_000_000 },
+        { filename: 'renamed by hand.mp4', modified: 1_700_000_000 },
+      ]),
+    )
+    const timelapse = useTimelapseStore()
+
+    await timelapse.refresh()
+
+    const [render, renamed] = timelapse.videos
+    expect(render).toMatchObject({
+      printName: 'Cable clip',
+      recordedAt: new Date(2026, 9, 11, 23, 14).getTime() / 1000,
+      preview: 'timelapse_Cable clip_202610112314.jpg',
+    })
+    // A name the component did not write is shown as written, dated by the file.
+    expect(renamed).toMatchObject({
+      printName: 'renamed by hand',
+      recordedAt: 1_700_000_000,
+      preview: null,
+    })
+    expect(timelapse.totalSize).toBe(2000)
+  })
+
+  it('plays the newest video until another is chosen', async () => {
+    const moonraker = useMoonrakerStore()
+    vi.spyOn(moonraker, 'rpcCall').mockResolvedValue(
+      listing([
+        { filename: 'older.mp4', modified: 10 },
+        { filename: 'newest.mp4', modified: 30 },
+      ]),
+    )
+    const timelapse = useTimelapseStore()
+
+    await timelapse.refresh()
+    expect(timelapse.selected?.name).toBe('newest.mp4')
+
+    timelapse.select('older.mp4')
+    expect(timelapse.selected?.name).toBe('older.mp4')
+  })
+
+  it('deletes the still with its render', async () => {
+    const moonraker = useMoonrakerStore()
+    const rpcCall = vi
+      .spyOn(moonraker, 'rpcCall')
+      .mockResolvedValueOnce(
+        listing([
+          { filename: 'timelapse_part_202610112314.mp4', modified: 30 },
+          { filename: 'timelapse_part_202610112314.jpg', modified: 30 },
+        ]),
+      )
+      .mockResolvedValue({} as never)
+    const timelapse = useTimelapseStore()
+    await timelapse.refresh()
+
+    await timelapse.remove(timelapse.videos[0]!)
+
+    expect(rpcCall).toHaveBeenCalledWith('server.files.delete_file', {
+      path: 'timelapse/timelapse_part_202610112314.mp4',
+    })
+    expect(rpcCall).toHaveBeenCalledWith('server.files.delete_file', {
+      path: 'timelapse/timelapse_part_202610112314.jpg',
+    })
+  })
+
   it('builds a playable URL from the endpoint', async () => {
     const moonraker = useMoonrakerStore()
     vi.spyOn(moonraker, 'rpcCall').mockResolvedValue(listing([{ filename: 'a.mp4', modified: 1 }]))

@@ -167,7 +167,7 @@ describe('page layout contract', () => {
   it('opens a History job or a print file beneath its own row rather than in a side pane', () => {
     expect(styles).toMatch(/\n\.machine-row-expansion\s*\{[^}]*grid-column:\s*1 \/ -1/)
     expect(styles).toMatch(
-      /\.machine-row--open,\s*\.machine-row-expansion\s*\{[^}]*background-image:\s*linear-gradient/,
+      /\.machine-row--open,\s*\.machine-row--current,\s*\.machine-row-expansion\s*\{[^}]*background-image:\s*linear-gradient/,
     )
     expect(styles).not.toContain('.history-job-detail')
     expect(styles).not.toContain('.print-files-detail')
