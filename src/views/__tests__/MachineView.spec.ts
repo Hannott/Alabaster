@@ -387,6 +387,62 @@ describe('MachineView', () => {
     expect(packageDialog.find('.update-recovery-commits').exists()).toBe(false)
   })
 
+  it("shows a release source's notes from GitHub beside the link to its release page", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify([
+          {
+            tag_name: 'v0.9.2',
+            name: 'v0.9.2',
+            html_url: 'https://github.com/Hannott/Alabaster/releases/tag/v0.9.2',
+            published_at: '2026-10-12T00:00:00Z',
+            body: '## Bugfixes\n\n- Fixed the **home** buttons.',
+          },
+          { tag_name: 'v0.9.1', name: 'v0.9.1', body: '## Features\n\n- Something new.' },
+          { tag_name: 'v0.9.0', name: 'v0.9.0', body: 'Already installed.' },
+        ]),
+      ),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+    try {
+      const { machine, wrapper } = mountMachineView()
+      machine.updates = [
+        {
+          id: 'alabaster',
+          displayName: 'Alabaster',
+          configured_type: 'web',
+          owner: 'Hannott',
+          repo_name: 'Alabaster',
+          version: 'v0.9.0',
+          remote_version: 'v0.9.2',
+        },
+      ]
+      await flushPromises()
+
+      await actionButtonFor(wrapper, 'Alabaster').trigger('click')
+      const dialog = wrapper.get('.confirm-dialog')
+      // Wide from the start, so the notes arriving do not resize it.
+      expect(dialog.classes()).toContain('confirm-dialog--wide')
+      await flushPromises()
+
+      expect(fetchMock.mock.calls[0]?.[0]).toBe(
+        'https://api.github.com/repos/Hannott/Alabaster/releases?per_page=30',
+      )
+      expect(dialog.text()).toContain('2 releases will be installed')
+      const releases = dialog.findAll('.release-notes > li')
+      expect(
+        releases.map((release) => release.get('.update-recovery-commit__subject').text()),
+      ).toEqual(['v0.9.2', 'v0.9.1'])
+      expect(releases[0]?.get('strong').text()).toBe('home')
+      expect(dialog.text()).not.toContain('Already installed.')
+      expect(dialog.get('.update-release-notes').attributes('href')).toBe(
+        'https://github.com/Hannott/Alabaster/releases/tag/v0.9.2',
+      )
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
   it('shows a plain status and names its action button for assistive technology', async () => {
     const { machine, wrapper } = mountMachineView()
     machine.updates = [

@@ -8,9 +8,11 @@ import AppStatusField, { type AppStatusFieldTone } from '@/components/AppStatusF
 import AvailabilityRegion from '@/components/AvailabilityRegion.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import PageHeading from '@/components/PageHeading.vue'
+import ReleaseNotesList from '@/components/ReleaseNotesList.vue'
 import UpdateCommitList from '@/components/UpdateCommitList.vue'
 import UpdateRecoveryDialog from '@/components/UpdateRecoveryDialog.vue'
 import { useActionGuard, type ActionGuardResult } from '@/composables/useActionGuard'
+import { fetchReleaseNotes, type ReleaseNote } from '@/features/machine/releaseNotes'
 import type {
   MachineServiceStatus,
   MachineUpdateAvailability,
@@ -365,17 +367,39 @@ const confirmDescription = computed(() =>
  * never both, since a source is only ever one of the two shapes.
  *
  * A `web` or `zip` source is a downloaded release archive, and Moonraker sends
- * no changelog for it at all. Its notes live on the GitHub release it names, so
- * the confirmation links there instead.
+ * no changelog for it at all. Its notes are read from the GitHub releases it
+ * names (`features/machine/releaseNotes.ts`), every release between the
+ * installed version and the available one, and the link to the release page
+ * stays beside them — it is all there is while they load, or when GitHub
+ * cannot be reached.
  */
 const pendingUpdateCommits = computed(() => pendingUpdate.value?.commits_behind ?? [])
 const pendingUpdatePackages = computed(() =>
   pendingUpdateCommits.value.length ? [] : (pendingUpdate.value?.package_list ?? []),
 )
-const hasChangelogDetails = computed(
-  () => pendingUpdateCommits.value.length > 0 || pendingUpdatePackages.value.length > 0,
-)
 const pendingReleaseUrl = computed(() => releaseNotesUrl(pendingUpdate.value))
+const pendingReleaseNotes = ref<ReleaseNote[]>([])
+/*
+ * The release-page link counts too: the notes arrive after the dialog opens,
+ * and taking the wider measure only then would resize the dialog under the
+ * reader.
+ */
+const hasChangelogDetails = computed(
+  () =>
+    pendingUpdateCommits.value.length > 0 ||
+    pendingUpdatePackages.value.length > 0 ||
+    pendingReleaseUrl.value !== null,
+)
+
+watch(pendingUpdate, (update) => {
+  pendingReleaseNotes.value = []
+  if (!update || releaseNotesUrl(update) === null) return
+  const { owner, repo_name: repo, version, remote_version: available } = update
+  if (!owner || !repo || !version || !available) return
+  void fetchReleaseNotes(owner, repo, version, available).then((notes) => {
+    if (notes && pendingUpdate.value?.id === update.id) pendingReleaseNotes.value = notes
+  })
+})
 
 const updatesDisabled = computed(() => !moonraker.isConnected || machine.isUpdateManagerBusy)
 
@@ -1072,6 +1096,12 @@ onBeforeUnmount(() => {
         </ul>
       </template>
       <template v-else-if="pendingReleaseUrl" #details>
+        <template v-if="pendingReleaseNotes.length">
+          <p class="update-recovery-section-note">
+            {{ t('machine.updates.changelogReleases', { count: pendingReleaseNotes.length }) }}
+          </p>
+          <ReleaseNotesList :releases="pendingReleaseNotes" />
+        </template>
         <a
           class="button button--quiet button--sm update-release-notes"
           :href="pendingReleaseUrl"

@@ -2910,6 +2910,7 @@
       "changelogCommits": "{count} commits vil bli lagt til:",
       "changelogPackages": "Disse pakkene vil bli oppgradert:",
       "releaseNotes": "Utgivelsesnotater for {version}",
+      "changelogReleases": "{count} versjon vil bli installert: | {count} versjoner vil bli installert:",
       "updateConfirm": "Start oppdatering",
       "updating": "Oppdaterer",
       "updateFailed": "Oppdateringen kunne ikke startes. Utdataene nedenfor viser hva Moonraker rapporterte.",

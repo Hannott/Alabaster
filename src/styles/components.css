@@ -6599,6 +6599,50 @@ input.z-axis__slider {
   font-family: var(--font-mono);
 }
 
+/*
+ * A release body is longer than a commit subject, so its box is allowed taller
+ * than the commit list's before it scrolls. The headings inside are the
+ * release's own sections (Features, Bugfixes), not the dialog's, so they are
+ * styled text rather than heading elements.
+ */
+.release-notes {
+  max-block-size: 18rem;
+}
+
+.release-notes__heading {
+  margin-block-start: 0.6rem;
+  color: var(--text-primary);
+  font-size: var(--text-note-size);
+  font-weight: var(--font-weight-increased);
+}
+
+.release-notes__list,
+.release-notes__paragraph {
+  margin-block-start: 0.3rem;
+  color: var(--text-muted);
+  font-size: var(--text-note-size);
+  line-height: 1.55;
+}
+
+.release-notes__list {
+  padding-inline-start: 1.1rem;
+  list-style: disc;
+}
+
+.release-notes__list > li + li {
+  margin-block-start: 0.3rem;
+}
+
+.release-notes__code {
+  font-family: var(--font-mono);
+  font-size: var(--text-meta-size);
+}
+
+.release-notes a {
+  color: var(--action-primary);
+  text-decoration: underline;
+}
+
 .update-recovery-messages > li {
   color: var(--text-muted);
   font-family: var(--font-mono);
