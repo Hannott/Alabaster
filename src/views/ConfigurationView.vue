@@ -45,6 +45,7 @@ import {
   type IncludeRewrite,
 } from '@/features/machine/includes'
 import { isConfigSyntaxFile } from '@/features/machine/syntax'
+import type { TabDropPlacement, TabGroup } from '@/features/machine/tabRows'
 import {
   isBackupEntryName,
   isHiddenEntryName,
@@ -122,7 +123,8 @@ const sortKeys = ['name', 'size', 'modified'] as const
 const { indentWidth } = useEditorIndent()
 const { fileHistory, fileHistoryIndex, pushFileHistory, setFileHistoryIndex } =
   useConfigFileHistory()
-const { pinnedFiles, isPinned, pinFile, unpinFile, repointPinned } = useMachineFilePins()
+const { pinnedFiles, isPinned, pinFile, unpinFile, repointPinned, reorderPinned } =
+  useMachineFilePins()
 const search = ref('')
 const uploadInput = ref<HTMLInputElement | null>(null)
 const codeEditor = ref<InstanceType<typeof MachineCodeEditor> | null>(null)
@@ -1273,6 +1275,16 @@ function unpinTab(path: string): void {
   if (file) machineFiles.placeTabFirst(file)
 }
 
+function reorderTab(
+  group: TabGroup,
+  path: string,
+  target: string,
+  placement: TabDropPlacement,
+): void {
+  if (group === 'pinned') reorderPinned(machineFiles.currentRoot, path, target, placement)
+  else machineFiles.moveTab(path, target, placement)
+}
+
 function tabFile(path: string): OpenMachineFile | null {
   return (
     machineFiles.openTabs.find((tab) => tab.file.path === path)?.file ??
@@ -1978,6 +1990,7 @@ onBeforeUnmount(() => {
             @pin="pinTab"
             @unpin="unpinTab"
             @menu="openTabMenu"
+            @reorder="reorderTab"
           >
             <template #tools>
               <!--

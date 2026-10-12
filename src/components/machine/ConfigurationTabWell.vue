@@ -7,7 +7,12 @@ import AppIcon from '@/components/AppIcon.vue'
 import DisclosureReveal from '@/components/DisclosureReveal.vue'
 import HeaderMenu from '@/components/HeaderMenu.vue'
 import ConfigurationTab from '@/components/machine/ConfigurationTab.vue'
-import { collapsedTabRow, packTabRows } from '@/features/machine/tabRows'
+import {
+  collapsedTabRow,
+  packTabRows,
+  type TabDropPlacement,
+  type TabGroup,
+} from '@/features/machine/tabRows'
 import type { MachineFileTab, OpenMachineFile } from '@/stores/machineFiles'
 
 /**
@@ -15,7 +20,8 @@ import type { MachineFileTab, OpenMachineFile } from '@/stores/machineFiles'
  * then every other open file, wrapping onto as many rows as it needs. Scrolling
  * over the well folds those rows down to one or brings them all back; the
  * chevron does the same for a keyboard and a touch screen, which have no wheel
- * to scroll with.
+ * to scroll with. A tab is dragged to a new place within its own group; the
+ * well only reports where it was dropped and the owner of that order stores it.
  */
 const props = defineProps<{
   pinned: readonly OpenMachineFile[]
@@ -33,6 +39,7 @@ const emit = defineEmits<{
   pin: [path: string]
   unpin: [path: string]
   menu: [event: MouseEvent, path: string]
+  reorder: [group: TabGroup, path: string, target: string, placement: TabDropPlacement]
 }>()
 
 defineSlots<{ tools(): unknown }>()
@@ -198,6 +205,117 @@ function onKeydown(event: KeyboardEvent): void {
   element.focus()
 }
 
+/*
+ * Native drag and drop, as everywhere else in Configuration. The dragged tab
+ * stays where it is and a line in the gap shows where it would land, because
+ * the rows are packed from measured widths: moving the tab live would repack
+ * them under the pointer on every crossing. The payload is a type of its own,
+ * not text/plain, so letting go over the editor cannot insert the path into the
+ * file being edited. Pinned and other tabs are separate groups, and a tab only
+ * ever lands inside its own: pinning is the pin control's job, not a drop's.
+ */
+const dragType = 'application/x-alabaster-tab'
+const dragged = ref<{ group: TabGroup; path: string } | null>(null)
+const dropHint = ref<{ group: TabGroup; path: string; placement: TabDropPlacement } | null>(null)
+
+function groupPaths(group: TabGroup): string[] {
+  return group === 'pinned'
+    ? props.pinned.map((file) => file.path)
+    : props.tabs.map((tab) => tab.file.path)
+}
+
+/** A drop beside the tab's own neighbour leaves the order as it is, so it shows no line. */
+function movesTab(
+  group: TabGroup,
+  path: string,
+  target: string,
+  placement: TabDropPlacement,
+): boolean {
+  const order = groupPaths(group)
+  const from = order.indexOf(path)
+  const to = order.indexOf(target)
+  if (from < 0 || to < 0 || from === to) return false
+  return placement === 'before' ? to !== from + 1 : to !== from - 1
+}
+
+function setDropHint(group: TabGroup, path: string, placement: TabDropPlacement): void {
+  const drag = dragged.value
+  const next =
+    drag && movesTab(group, drag.path, path, placement) ? { group, path, placement } : null
+  const current = dropHint.value
+  if (
+    current?.group === next?.group &&
+    current?.path === next?.path &&
+    current?.placement === next?.placement
+  ) {
+    return
+  }
+  dropHint.value = next
+}
+
+function endDrag(): void {
+  dragged.value = null
+  dropHint.value = null
+}
+
+function onDragStart(event: DragEvent, group: TabGroup, path: string): void {
+  dragged.value = { group, path }
+  if (!event.dataTransfer) return
+  // Firefox starts no drag at all without some data on the transfer.
+  event.dataTransfer.setData(dragType, path)
+  event.dataTransfer.effectAllowed = 'move'
+}
+
+function onTabDragOver(event: DragEvent, group: TabGroup, path: string): void {
+  if (dragged.value?.group !== group) return
+  event.preventDefault()
+  if (event.dataTransfer) event.dataTransfer.dropEffect = 'move'
+  const rect = (event.currentTarget as HTMLElement).getBoundingClientRect()
+  setDropHint(group, path, event.clientX < rect.left + rect.width / 2 ? 'before' : 'after')
+}
+
+function onTabDragLeave(event: DragEvent, group: TabGroup, path: string): void {
+  const entered = event.relatedTarget
+  if (entered instanceof Node && (event.currentTarget as Node).contains(entered)) return
+  if (dropHint.value?.group === group && dropHint.value.path === path) dropHint.value = null
+}
+
+function dropOnGroup(event: DragEvent, group: TabGroup): void {
+  const drag = dragged.value
+  if (drag?.group !== group) return
+  event.preventDefault()
+  const hint = dropHint.value
+  endDrag()
+  if (hint) emit('reorder', group, drag.path, hint.path, hint.placement)
+}
+
+/** The empty end of a row takes a tab after the row's last one. */
+function onRowDragOver(event: DragEvent, group: TabGroup, lastPath: string | undefined): void {
+  if (event.target !== event.currentTarget || !lastPath || dragged.value?.group !== group) return
+  event.preventDefault()
+  if (event.dataTransfer) event.dataTransfer.dropEffect = 'move'
+  setDropHint(group, lastPath, 'after')
+}
+
+function onRowDrop(event: DragEvent, group: TabGroup): void {
+  if (event.target === event.currentTarget) dropOnGroup(event, group)
+}
+
+/** Everything a tab needs to take part in a drag, bound onto it in one go. */
+function tabDrag(group: TabGroup, path: string) {
+  const hint = dropHint.value
+  return {
+    draggable: true,
+    dragging: dragged.value?.group === group && dragged.value.path === path,
+    drop: hint?.group === group && hint.path === path ? hint.placement : null,
+    onDragstart: (event: DragEvent) => onDragStart(event, group, path),
+    onDragend: endDrag,
+    onDragover: (event: DragEvent) => onTabDragOver(event, group, path),
+    onDragleave: (event: DragEvent) => onTabDragLeave(event, group, path),
+    onDrop: (event: DragEvent) => dropOnGroup(event, group),
+  }
+}
+
 let resizeObserver: ResizeObserver | null = null
 
 onMounted(() => {
@@ -230,6 +348,8 @@ watch(
         v-if="pinned.length > 0"
         class="document-tabs__row document-tabs__row--pinned"
         :class="{ 'document-tabs__row--divided': firstRow.length > 0 }"
+        @dragover="onRowDragOver($event, 'pinned', pinned.at(-1)?.path)"
+        @drop="onRowDrop($event, 'pinned')"
       >
         <ConfigurationTab
           v-for="file in pinned"
@@ -242,13 +362,19 @@ watch(
           pinned
           :focusable="focusablePath === file.path"
           :disabled="disabled"
+          v-bind="tabDrag('pinned', file.path)"
           @activate="emit('activate', file.path)"
           @close="emit('close', file.path)"
           @unpin="emit('unpin', file.path)"
           @menu="emit('menu', $event, file.path)"
         />
       </div>
-      <div v-if="firstRow.length > 0" class="document-tabs__row">
+      <div
+        v-if="firstRow.length > 0"
+        class="document-tabs__row"
+        @dragover="onRowDragOver($event, 'open', firstRow.at(-1)?.file.path)"
+        @drop="onRowDrop($event, 'open')"
+      >
         <ConfigurationTab
           v-for="tab in firstRow"
           :key="tab.file.path"
@@ -260,6 +386,7 @@ watch(
           :dirty="dirty.has(tab.file.path)"
           :focusable="focusablePath === tab.file.path"
           :disabled="disabled"
+          v-bind="tabDrag('open', tab.file.path)"
           @activate="emit('activate', tab.file.path)"
           @keep="emit('keep', tab.file.path)"
           @close="emit('close', tab.file.path)"
@@ -269,7 +396,13 @@ watch(
       </div>
       <DisclosureReveal :open="!isFolded && laterRows.length > 0">
         <div class="document-tabs__later">
-          <div v-for="(row, rowIndex) in laterRows" :key="rowIndex" class="document-tabs__row">
+          <div
+            v-for="(row, rowIndex) in laterRows"
+            :key="rowIndex"
+            class="document-tabs__row"
+            @dragover="onRowDragOver($event, 'open', row.at(-1)?.file.path)"
+            @drop="onRowDrop($event, 'open')"
+          >
             <ConfigurationTab
               v-for="tab in row"
               :key="tab.file.path"
@@ -281,6 +414,7 @@ watch(
               :dirty="dirty.has(tab.file.path)"
               :focusable="focusablePath === tab.file.path"
               :disabled="disabled"
+              v-bind="tabDrag('open', tab.file.path)"
               @activate="emit('activate', tab.file.path)"
               @keep="emit('keep', tab.file.path)"
               @close="emit('close', tab.file.path)"

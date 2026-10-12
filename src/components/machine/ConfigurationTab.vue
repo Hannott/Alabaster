@@ -23,6 +23,12 @@ const props = defineProps<{
   /** Whether this tab holds the tab list's one stop in the Tab order. */
   focusable?: boolean | undefined
   disabled?: boolean | undefined
+  /** Whether the tab can be picked up and moved; the well owns what a drag does. */
+  draggable?: boolean | undefined
+  /** This tab is the one being carried. */
+  dragging?: boolean | undefined
+  /** The edge a carried tab would land on, drawn as a line in the gap beside it. */
+  drop?: 'before' | 'after' | null | undefined
 }>()
 
 const emit = defineEmits<{
@@ -78,6 +84,9 @@ function onPin(): void {
       'document-tab--dirty': dirty,
       'document-tab--active': active,
       'document-tab--pinned': pinned,
+      'document-tab--dragging': dragging,
+      'document-tab--drop-before': drop === 'before',
+      'document-tab--drop-after': drop === 'after',
     }"
   >
     <button
@@ -94,6 +103,7 @@ function onPin(): void {
       :data-tab-path="path"
       :title="`/${root}/${path}`"
       :disabled="disabled"
+      :draggable="draggable && !disabled"
       @click="emit('activate')"
       @dblclick="emit('keep')"
       @mousedown="onMouseDown"

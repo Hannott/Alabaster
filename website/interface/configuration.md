@@ -88,6 +88,11 @@ Each tab has a pin and a close button that show on hover. A middle click
 closes a tab, and so does Delete on a focused tab. Right-click a tab to close
 the others, close every unpinned tab, or reveal the file in the tree.
 
+Drag a tab to put it where you want it. Pinned tabs and the other tabs are
+ordered separately, so a tab moves within its own group and pinning stays a
+choice you make with the pin. The order of your pinned files is kept, and
+follows you to other browsers when you are logged in to the printer.
+
 The tree follows the file you have open and opens the folders above it.
 Unpin it with the pin above Config and Logs when you want the width for the
 file. It then slides out while you point at Config and Logs and slides away

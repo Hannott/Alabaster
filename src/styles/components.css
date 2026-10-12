@@ -12589,6 +12589,34 @@ body.machine-editor-fullscreen-open {
   flex: 0 0 auto;
 }
 
+/*
+ * A tab being carried keeps its place and dims; the line in the gap beside
+ * another tab is the edge it would land on. The line is a shape, so it reads
+ * without its colour, and it sits in the gap rather than over either tab.
+ */
+.document-tab--dragging {
+  opacity: 0.45;
+}
+
+.document-tab--drop-before::before,
+.document-tab--drop-after::after {
+  content: '';
+  position: absolute;
+  inset-block: 0;
+  inline-size: 2px;
+  border-radius: 1px;
+  background: var(--accent-primary);
+  pointer-events: none;
+}
+
+.document-tab--drop-before::before {
+  inset-inline-start: -0.15rem;
+}
+
+.document-tab--drop-after::after {
+  inset-inline-end: -0.15rem;
+}
+
 .document-tab--dirty .document-tab__select {
   color: var(--status-caution-text);
 }

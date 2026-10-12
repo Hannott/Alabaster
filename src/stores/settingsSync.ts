@@ -2,6 +2,11 @@ import { defineStore } from 'pinia'
 import { computed, ref, watch } from 'vue'
 
 import { i18n } from '@/i18n'
+import {
+  MoonrakerConnectionError,
+  MoonrakerDisconnectedError,
+  MoonrakerRequestTimeoutError,
+} from '@/services/moonraker/errors'
 import { applySettingsBundle, collectSettingsBundle, type SettingsBundle } from '@/settings/bundle'
 import { createCommandRunner } from '@/stores/commandRunner'
 import { useAuthStore } from '@/stores/auth'
@@ -102,6 +107,14 @@ export const useSettingsSyncStore = defineStore('settingsSync', () => {
     return activeMetaKey.value ? readLastSyncedAt(activeMetaKey.value) : null
   })
 
+  /**
+   * The profile this browser has read (or started) and so knows it is not about
+   * to overwrite. A change made before that — a fresh browser's defaults while
+   * the profile could not be reached — is never pushed, because a push writes
+   * the whole bundle, pins included, over whatever the printer held.
+   */
+  const reconciledMetaKey = ref<string | null>(null)
+
   function recordSynced(updatedAt: string): void {
     if (!activeMetaKey.value) return
     writeLastSyncedAt(activeMetaKey.value, updatedAt)
@@ -118,21 +131,42 @@ export const useSettingsSyncStore = defineStore('settingsSync', () => {
    * Moonraker raises an RPC error for a namespace/key that has never been
    * written — every call here uses a fixed, always-valid namespace and key,
    * so any RPC error from `get_item` specifically can only mean "nothing
-   * synced here yet," not a malformed request.
+   * synced here yet," not a malformed request. A request that gets no answer at
+   * all (a timeout, a dropped socket) says nothing about the key, and is its
+   * own outcome: reading it as "nothing synced yet" had the caller write this
+   * browser's settings over a profile it merely could not reach.
    */
-  async function pull(): Promise<SettingsBundle | null> {
+  type RemoteProfile =
+    { state: 'found'; bundle: SettingsBundle } | { state: 'missing' } | { state: 'unreachable' }
+
+  function gotNoAnswer(error: unknown): boolean {
+    return (
+      error instanceof MoonrakerRequestTimeoutError ||
+      error instanceof MoonrakerDisconnectedError ||
+      error instanceof MoonrakerConnectionError
+    )
+  }
+
+  async function readProfile(): Promise<RemoteProfile> {
     const key = syncKey.value
-    if (!moonraker.isConnected || key === null) return null
-    let result: SettingsBundle | null = null
+    if (!moonraker.isConnected || key === null) return { state: 'unreachable' }
+    let result: RemoteProfile = { state: 'unreachable' }
     await commands.run('pull', async () => {
       try {
         const response = await moonraker.rpcCall('server.database.get_item', { namespace, key })
-        result = isRecord(response.value) ? (response.value as unknown as SettingsBundle) : null
-      } catch {
-        result = null
+        result = isRecord(response.value)
+          ? { state: 'found', bundle: response.value as unknown as SettingsBundle }
+          : { state: 'missing' }
+      } catch (error) {
+        result = gotNoAnswer(error) ? { state: 'unreachable' } : { state: 'missing' }
       }
     })
     return result
+  }
+
+  async function pull(): Promise<SettingsBundle | null> {
+    const remote = await readProfile()
+    return remote.state === 'found' ? remote.bundle : null
   }
 
   async function push(): Promise<boolean> {
@@ -142,6 +176,7 @@ export const useSettingsSyncStore = defineStore('settingsSync', () => {
       const bundle = collectSettingsBundle()
       await moonraker.rpcCall('server.database.post_item', { namespace, key, value: bundle })
       recordSynced(bundle.updatedAt)
+      reconciledMetaKey.value = activeMetaKey.value
     })
   }
 
@@ -163,14 +198,17 @@ export const useSettingsSyncStore = defineStore('settingsSync', () => {
    */
   async function syncProfile(): Promise<void> {
     if (!isEnabled.value) return
-    const remote = await pull()
-    if (!remote) {
+    const profileKey = activeMetaKey.value
+    const remote = await readProfile()
+    if (remote.state === 'unreachable') return
+    if (remote.state === 'missing') {
       await push()
       return
     }
-    if (lastSyncedAt.value !== null && remote.updatedAt <= lastSyncedAt.value) return
-    await applySettingsBundle(remote)
-    recordSynced(remote.updatedAt)
+    reconciledMetaKey.value = profileKey
+    if (lastSyncedAt.value !== null && remote.bundle.updatedAt <= lastSyncedAt.value) return
+    await applySettingsBundle(remote.bundle)
+    recordSynced(remote.bundle.updatedAt)
     toasts.push(i18n.global.t('backup.sync.restoredToast'))
   }
 
@@ -205,7 +243,9 @@ export const useSettingsSyncStore = defineStore('settingsSync', () => {
       watch(
         () => (isEnabled.value && moonraker.isConnected ? comparableSnapshot() : null),
         (value, oldValue) => {
-          if (value !== null && oldValue !== null && value !== oldValue) scheduleAutoPush()
+          if (value === null || oldValue === null || value === oldValue) return
+          if (reconciledMetaKey.value !== activeMetaKey.value) return
+          scheduleAutoPush()
         },
       ),
       watch(

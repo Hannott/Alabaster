@@ -136,4 +136,166 @@ describe('useMachineFilePins', () => {
       expect.objectContaining({ root: 'logs', path: 'printer.cfg' }),
     ])
   })
+
+  /*
+   * Pins were lost more than once to a change in the shape of the file entry
+   * they were copied from: a guard that demanded every field dropped every
+   * stored pin, and the empty list was then saved over the real one. A pin is
+   * a root and a path, so nothing else is allowed to decide whether it loads.
+   */
+  describe('what a stored pin needs to load', () => {
+    it('keeps a pin that carries only its root and path', async () => {
+      window.localStorage.setItem(
+        'alabaster.machine.pinnedFiles',
+        JSON.stringify([{ root: 'config', path: 'macros/start.cfg' }]),
+      )
+      const { useMachineFilePins } = await import('@/composables/useMachineFilePins')
+
+      expect(useMachineFilePins().pinnedFiles.value).toEqual([
+        {
+          kind: 'file',
+          root: 'config',
+          path: 'macros/start.cfg',
+          name: 'start.cfg',
+          size: 0,
+          modified: 0,
+          permissions: 'rw',
+        },
+      ])
+    })
+
+    it('keeps a pin whose listing fields are not what they once were', async () => {
+      window.localStorage.setItem(
+        'alabaster.machine.pinnedFiles',
+        JSON.stringify([
+          {
+            kind: 'something-else',
+            root: 'logs',
+            path: 'klippy.log',
+            name: 'klippy.log',
+            size: '10',
+            modified: '2026-01-01',
+            permissions: null,
+            addedByAFutureVersion: true,
+          },
+        ]),
+      )
+      const { useMachineFilePins } = await import('@/composables/useMachineFilePins')
+
+      expect(useMachineFilePins().pinnedFiles.value).toEqual([
+        expect.objectContaining({ root: 'logs', path: 'klippy.log', name: 'klippy.log' }),
+      ])
+    })
+
+    it('still refuses an entry that cannot name a file, and a repeat of one that can', async () => {
+      window.localStorage.setItem(
+        'alabaster.machine.pinnedFiles',
+        JSON.stringify([
+          { root: 'nowhere', path: 'printer.cfg' },
+          { root: 'config', path: '' },
+          { root: 'config' },
+          null,
+          { root: 'config', path: 'printer.cfg' },
+          { root: 'config', path: 'printer.cfg' },
+        ]),
+      )
+      const { useMachineFilePins } = await import('@/composables/useMachineFilePins')
+
+      expect(useMachineFilePins().pinnedFiles.value.map((entry) => entry.path)).toEqual([
+        'printer.cfg',
+      ])
+    })
+
+    it('does not rewrite what it loaded', async () => {
+      const stored = JSON.stringify([{ root: 'config', path: 'printer.cfg' }])
+      window.localStorage.setItem('alabaster.machine.pinnedFiles', stored)
+      const { useMachineFilePins } = await import('@/composables/useMachineFilePins')
+
+      useMachineFilePins()
+
+      expect(window.localStorage.getItem('alabaster.machine.pinnedFiles')).toBe(stored)
+    })
+  })
+
+  describe('a settings bundle replacing the pins', () => {
+    it('takes a list that is genuinely empty', async () => {
+      const { useMachineFilePins } = await import('@/composables/useMachineFilePins')
+      const { pinnedFiles, pinFile, replacePinned } = useMachineFilePins()
+
+      pinFile(pin('printer.cfg'))
+      replacePinned([])
+
+      expect(pinnedFiles.value).toEqual([])
+    })
+
+    it('ignores a list that held entries but none that were readable', async () => {
+      const { useMachineFilePins } = await import('@/composables/useMachineFilePins')
+      const { pinnedFiles, pinFile, replacePinned } = useMachineFilePins()
+
+      pinFile(pin('printer.cfg'))
+      replacePinned([{ nothing: 'usable' }, 42])
+
+      expect(pinnedFiles.value.map((entry) => entry.path)).toEqual(['printer.cfg'])
+    })
+  })
+
+  describe('reordering', () => {
+    async function pinned(...paths: string[]) {
+      const { useMachineFilePins } = await import('@/composables/useMachineFilePins')
+      const pins = useMachineFilePins()
+      for (const path of paths) pins.pinFile(pin(path))
+      return pins
+    }
+
+    const order = (pins: Awaited<ReturnType<typeof pinned>>) =>
+      pins.pinnedFiles.value.map((entry) => entry.path)
+
+    it('moves a pin before or after another', async () => {
+      const pins = await pinned('a.cfg', 'b.cfg', 'c.cfg')
+
+      pins.reorderPinned('config', 'c.cfg', 'a.cfg', 'before')
+      expect(order(pins)).toEqual(['c.cfg', 'a.cfg', 'b.cfg'])
+
+      pins.reorderPinned('config', 'c.cfg', 'b.cfg', 'after')
+      expect(order(pins)).toEqual(['a.cfg', 'b.cfg', 'c.cfg'])
+    })
+
+    it('keeps the order across a reload', async () => {
+      const pins = await pinned('a.cfg', 'b.cfg', 'c.cfg')
+      pins.reorderPinned('config', 'c.cfg', 'a.cfg', 'before')
+
+      vi.resetModules()
+      const { useMachineFilePins } = await import('@/composables/useMachineFilePins')
+
+      expect(useMachineFilePins().pinnedFiles.value.map((entry) => entry.path)).toEqual([
+        'c.cfg',
+        'a.cfg',
+        'b.cfg',
+      ])
+    })
+
+    it('leaves the other root where it is', async () => {
+      const pins = await pinned('a.cfg', 'b.cfg')
+      pins.pinFile(pin('klippy.log', { root: 'logs' }))
+
+      pins.reorderPinned('config', 'b.cfg', 'a.cfg', 'before')
+
+      expect(pins.pinnedFiles.value.map((entry) => `${entry.root}:${entry.path}`)).toEqual([
+        'config:b.cfg',
+        'config:a.cfg',
+        'logs:klippy.log',
+      ])
+    })
+
+    it('writes nothing when the pin would stay where it is', async () => {
+      const pins = await pinned('a.cfg', 'b.cfg')
+      const setItem = vi.spyOn(Storage.prototype, 'setItem')
+
+      pins.reorderPinned('config', 'a.cfg', 'b.cfg', 'before')
+      pins.reorderPinned('config', 'a.cfg', 'a.cfg', 'after')
+      pins.reorderPinned('config', 'a.cfg', 'missing.cfg', 'after')
+
+      expect(setItem).not.toHaveBeenCalled()
+    })
+  })
 })

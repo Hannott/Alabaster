@@ -1,7 +1,8 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { flushPromises } from '@vue/test-utils'
-import { beforeAll, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 
+import { MoonrakerRequestTimeoutError } from '@/services/moonraker/errors'
 import { useAuthStore } from '@/stores/auth'
 import { useMoonrakerStore } from '@/stores/moonraker'
 import { usePrintersStore } from '@/stores/printers'
@@ -154,6 +155,104 @@ describe('settings sync store', () => {
     expect(theme.mode.value).toBe('dark')
     expect(settingsSync.lastSyncedAt).toBe(remote.updatedAt)
     settingsSync.stop()
+  })
+
+  /*
+   * A push writes the whole bundle — pins included — over the user's profile.
+   * A read that got no answer was once taken for "no profile yet", so a browser
+   * whose settings were still defaults wrote them over the real ones.
+   */
+  describe('a profile that could not be reached', () => {
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
+    function timeOut() {
+      return new MoonrakerRequestTimeoutError('server.database.get_item', 5000)
+    }
+
+    it('is left as it is, and nothing is written over it', async () => {
+      const { moonraker } = setup()
+      usePrintersStore().addPrinter('voron.local:7125')
+      logIn()
+      const rpcCall = vi.spyOn(moonraker, 'rpcCall').mockImplementation((method) => {
+        if (method === 'server.database.get_item') return Promise.reject(timeOut())
+        throw new Error(`unexpected method ${String(method)}`)
+      })
+
+      const settingsSync = useSettingsSyncStore()
+      settingsSync.start()
+      await flushPromises()
+
+      expect(rpcCall).not.toHaveBeenCalledWith('server.database.post_item', expect.anything())
+      expect(settingsSync.lastSyncedAt).toBeNull()
+      settingsSync.stop()
+    })
+
+    it('is not written over by the next edit either', async () => {
+      const { moonraker } = setup()
+      usePrintersStore().addPrinter('voron.local:7125')
+      logIn()
+      const rpcCall = vi.spyOn(moonraker, 'rpcCall').mockImplementation((method) => {
+        if (method === 'server.database.get_item') return Promise.reject(timeOut())
+        throw new Error(`unexpected method ${String(method)}`)
+      })
+
+      const settingsSync = useSettingsSyncStore()
+      settingsSync.start()
+      await flushPromises()
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+      useTheme().setMode('light')
+      await flushPromises()
+      await vi.advanceTimersByTimeAsync(5000)
+
+      expect(rpcCall).not.toHaveBeenCalledWith('server.database.post_item', expect.anything())
+      settingsSync.stop()
+    })
+
+    it('is read on the next reconnect, and edits sync again once it has been', async () => {
+      const { moonraker } = setup()
+      usePrintersStore().addPrinter('voron.local:7125')
+      logIn()
+      let reachable = false
+      const rpcCall = vi.spyOn(moonraker, 'rpcCall').mockImplementation((method) => {
+        if (method === 'server.database.get_item') {
+          return reachable
+            ? (Promise.resolve({
+                namespace: 'alabaster',
+                key: 'ada',
+                value: emptyRemoteBundle(),
+              }) as never)
+            : Promise.reject(timeOut())
+        }
+        if (method === 'server.database.post_item') {
+          return Promise.resolve({ namespace: 'alabaster', key: 'ada', value: {} }) as never
+        }
+        throw new Error(`unexpected method ${String(method)}`)
+      })
+
+      const settingsSync = useSettingsSyncStore()
+      settingsSync.start()
+      await flushPromises()
+
+      reachable = true
+      moonraker.connectionPhase = 'connecting'
+      await flushPromises()
+      moonraker.connectionPhase = 'connected'
+      await flushPromises()
+      expect(settingsSync.lastSyncedAt).toBe('2026-01-01T00:00:00.000Z')
+
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+      useTheme().setMode('light')
+      await flushPromises()
+      await vi.advanceTimersByTimeAsync(2000)
+
+      expect(rpcCall).toHaveBeenCalledWith(
+        'server.database.post_item',
+        expect.objectContaining({ namespace: 'alabaster', key: 'ada' }),
+      )
+      settingsSync.stop()
+    })
   })
 
   it('treats a pull RPC error as "nothing synced yet" rather than a failure', async () => {

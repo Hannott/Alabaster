@@ -16,6 +16,7 @@ import {
   resolvedIncludePaths,
   type IncludeRewrite,
 } from '@/features/machine/includes'
+import { moveBeside, type TabDropPlacement } from '@/features/machine/tabRows'
 import {
   fetchMoonrakerTextFile,
   moonrakerFileUrl,
@@ -842,6 +843,15 @@ export const useMachineFilesStore = defineStore('machineFiles', () => {
       { file: existing?.file ?? file, preview: false },
       ...openTabs.value.filter((tab) => tab.file.path !== file.path),
     ]
+  }
+
+  /** Moves a tab next to another, the order a drag in the tab well settles on. */
+  function moveTab(path: string, targetPath: string, placement: TabDropPlacement): void {
+    const moving = openTabs.value.find((tab) => tab.file.path === path)
+    const target = openTabs.value.find((tab) => tab.file.path === targetPath)
+    if (!moving || !target) return
+    const next = moveBeside(openTabs.value, moving, target, placement)
+    if (next !== openTabs.value) openTabs.value = [...next]
   }
 
   async function activateTab(path: string): Promise<boolean> {
@@ -1837,6 +1847,7 @@ export const useMachineFilesStore = defineStore('machineFiles', () => {
     activateTab,
     keepTab,
     placeTabFirst,
+    moveTab,
     closeTab,
     closeTabs,
     expandDirectory,

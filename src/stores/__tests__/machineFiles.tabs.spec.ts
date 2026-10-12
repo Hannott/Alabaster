@@ -131,6 +131,34 @@ describe('machine file tabs', () => {
     expect(machineFiles.currentFile?.path).toBe('b.cfg')
   })
 
+  it('moves a tab next to another without opening or closing anything', async () => {
+    stubFileContents()
+    const { machineFiles } = setup()
+
+    await machineFiles.openFileByPath(file('a.cfg'))
+    await machineFiles.openFileByPath(file('b.cfg'))
+    await machineFiles.openFileByPath(file('c.cfg'))
+
+    machineFiles.moveTab('c.cfg', 'a.cfg', 'before')
+    expect(machineFiles.openTabs.map((tab) => tab.file.path)).toEqual(['c.cfg', 'a.cfg', 'b.cfg'])
+
+    machineFiles.moveTab('c.cfg', 'b.cfg', 'after')
+    expect(machineFiles.openTabs.map((tab) => tab.file.path)).toEqual(['a.cfg', 'b.cfg', 'c.cfg'])
+    expect(machineFiles.currentFile?.path).toBe('c.cfg')
+  })
+
+  it('ignores a move that names a tab that is not open', async () => {
+    stubFileContents()
+    const { machineFiles } = setup()
+
+    await machineFiles.openFileByPath(file('a.cfg'))
+    await machineFiles.openFileByPath(file('b.cfg'))
+    machineFiles.moveTab('a.cfg', 'gone.cfg', 'after')
+    machineFiles.moveTab('gone.cfg', 'a.cfg', 'after')
+
+    expect(machineFiles.openTabs.map((tab) => tab.file.path)).toEqual(['a.cfg', 'b.cfg'])
+  })
+
   it('keeps an unsaved edit when its tab is closed', async () => {
     stubFileContents()
     const { machineFiles } = setup()

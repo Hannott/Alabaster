@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { collapsedTabRow, packTabRows } from '@/features/machine/tabRows'
+import { collapsedTabRow, moveBeside, packTabRows } from '@/features/machine/tabRows'
 
 describe('packTabRows', () => {
   it('fills each row in order before starting the next', () => {
@@ -43,5 +43,32 @@ describe('collapsedTabRow', () => {
 
   it('keeps the active tab even when nothing else fits', () => {
     expect(collapsedTabRow(rows, widths, 5, 50, 5, 20)).toEqual({ visible: [5], folded: 5 })
+  })
+})
+
+describe('moveBeside', () => {
+  const items = ['a', 'b', 'c', 'd']
+
+  it('puts the moved item before or after the target', () => {
+    expect(moveBeside(items, 'd', 'b', 'before')).toEqual(['a', 'd', 'b', 'c'])
+    expect(moveBeside(items, 'a', 'c', 'after')).toEqual(['b', 'c', 'a', 'd'])
+    expect(moveBeside(items, 'b', 'd', 'after')).toEqual(['a', 'c', 'd', 'b'])
+    expect(moveBeside(items, 'c', 'a', 'before')).toEqual(['c', 'a', 'b', 'd'])
+  })
+
+  it('hands back the same list when nothing would move', () => {
+    expect(moveBeside(items, 'b', 'c', 'before')).toBe(items)
+    expect(moveBeside(items, 'c', 'b', 'after')).toBe(items)
+    expect(moveBeside(items, 'b', 'b', 'after')).toBe(items)
+  })
+
+  it('hands back the same list when either item is not in it', () => {
+    expect(moveBeside(items, 'x', 'b', 'before')).toBe(items)
+    expect(moveBeside(items, 'a', 'x', 'after')).toBe(items)
+  })
+
+  it('does not change the list it was given', () => {
+    moveBeside(items, 'd', 'a', 'before')
+    expect(items).toEqual(['a', 'b', 'c', 'd'])
   })
 })

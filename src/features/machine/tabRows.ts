@@ -1,3 +1,26 @@
+/** The two groups a tab can sit in; a drag reorders within one and never crosses to the other. */
+export type TabGroup = 'pinned' | 'open'
+
+export type TabDropPlacement = 'before' | 'after'
+
+/**
+ * `items` with `moving` taken out and put back next to `target`. Returns
+ * `items` itself when that would change nothing, so a drop onto the tab's own
+ * neighbour is not an edit and does not rewrite whatever persists the order.
+ */
+export function moveBeside<T>(
+  items: readonly T[],
+  moving: T,
+  target: T,
+  placement: TabDropPlacement,
+): readonly T[] {
+  if (moving === target || !items.includes(moving) || !items.includes(target)) return items
+  const rest = items.filter((item) => item !== moving)
+  const at = rest.indexOf(target) + (placement === 'before' ? 0 : 1)
+  const next = [...rest.slice(0, at), moving, ...rest.slice(at)]
+  return next.every((item, index) => item === items[index]) ? items : next
+}
+
 /**
  * Splits tabs of the given widths into rows no wider than `available`, in
  * order, the way a wrapping row would. Each row holds at least one tab, so a

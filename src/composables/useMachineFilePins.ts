@@ -1,5 +1,6 @@
 import { readonly, ref } from 'vue'
 
+import { moveBeside, type TabDropPlacement } from '@/features/machine/tabRows'
 import type { MachineFileRoot, OpenMachineFile } from '@/stores/machineFiles'
 
 /**
@@ -18,25 +19,52 @@ function isMachineFileRoot(value: unknown): value is MachineFileRoot {
   return value === 'config' || value === 'logs'
 }
 
-function isPinnedMachineFile(value: unknown): value is PinnedMachineFile {
-  if (typeof value !== 'object' || value === null) return false
+/**
+ * A pin is a root and a path; name, size, modified and permissions are only the
+ * listing it was copied from. Reading by identity is deliberate: a guard that
+ * demanded every field made any change to the file-entry shape drop every
+ * stored pin without a word, and the empty list was then saved and synced over
+ * the user's real one. Whatever is missing is filled in, and an entry is
+ * refused only when it cannot name a file.
+ */
+function toPinnedMachineFile(value: unknown): PinnedMachineFile | null {
+  if (typeof value !== 'object' || value === null) return null
   const entry = value as Record<string, unknown>
-  return (
-    entry.kind === 'file' &&
-    isMachineFileRoot(entry.root) &&
-    typeof entry.path === 'string' &&
-    entry.path.length > 0 &&
-    typeof entry.name === 'string' &&
-    typeof entry.size === 'number' &&
-    typeof entry.modified === 'number' &&
-    typeof entry.permissions === 'string'
-  )
+  if (!isMachineFileRoot(entry.root)) return null
+  if (typeof entry.path !== 'string' || entry.path.length === 0) return null
+  const path = entry.path
+  return {
+    kind: 'file',
+    root: entry.root,
+    path,
+    name:
+      typeof entry.name === 'string' && entry.name.length > 0
+        ? entry.name
+        : path.slice(path.lastIndexOf('/') + 1),
+    size: typeof entry.size === 'number' ? entry.size : 0,
+    modified: typeof entry.modified === 'number' ? entry.modified : 0,
+    permissions: typeof entry.permissions === 'string' ? entry.permissions : 'rw',
+  }
+}
+
+function readPinnedFiles(input: readonly unknown[]): PinnedMachineFile[] {
+  const seen = new Set<string>()
+  const pins: PinnedMachineFile[] = []
+  for (const item of input) {
+    const pin = toPinnedMachineFile(item)
+    if (!pin) continue
+    const key = `${pin.root}:${pin.path}`
+    if (seen.has(key)) continue
+    seen.add(key)
+    pins.push(pin)
+  }
+  return pins
 }
 
 function loadPinnedFiles(): PinnedMachineFile[] {
   try {
     const parsed: unknown = JSON.parse(localStorage.getItem(pinnedFilesStorageKey) ?? '[]')
-    return Array.isArray(parsed) ? parsed.filter(isPinnedMachineFile) : []
+    return Array.isArray(parsed) ? readPinnedFiles(parsed) : []
   } catch {
     return []
   }
@@ -95,10 +123,32 @@ function repointPinned(root: MachineFileRoot, previousPath: string, nextPath: st
   persist()
 }
 
-/** A settings bundle's copy; an entry that is not a pin is dropped. */
+/**
+ * A settings bundle's copy; an entry that is not a pin is dropped. A list that
+ * held entries but yielded no pin at all is unreadable rather than empty, and
+ * is ignored: applying it would erase the pins this browser still has.
+ */
 function replacePinned(input: unknown): void {
   if (!Array.isArray(input)) return
-  pinnedFiles.value = input.filter(isPinnedMachineFile)
+  const next = readPinnedFiles(input)
+  if (input.length > 0 && next.length === 0) return
+  pinnedFiles.value = next
+  persist()
+}
+
+/** Puts a pin next to another of the same root; pins of the other root keep their places. */
+function reorderPinned(
+  root: MachineFileRoot,
+  path: string,
+  targetPath: string,
+  placement: TabDropPlacement,
+): void {
+  const moving = pinnedFiles.value.find((entry) => entry.root === root && entry.path === path)
+  const target = pinnedFiles.value.find((entry) => entry.root === root && entry.path === targetPath)
+  if (!moving || !target) return
+  const next = moveBeside(pinnedFiles.value, moving, target, placement)
+  if (next === pinnedFiles.value) return
+  pinnedFiles.value = [...next]
   persist()
 }
 
@@ -110,5 +160,6 @@ export function useMachineFilePins() {
     pinFile,
     unpinFile,
     repointPinned,
+    reorderPinned,
   }
 }
