@@ -148,6 +148,18 @@ describe('destinations a user may hide', () => {
     expect(isDestinationVisible(destination('machine'), capability, ['machine'])).toBe(true)
   })
 
+  it('shows a destination the printer has not set up when asked to, and nothing more', () => {
+    const noTimelapse = capabilities({ hasComponent: (name) => name !== 'timelapse' })
+    expect(isDestinationVisible(destination('timelapse'), noTimelapse, [])).toBe(false)
+    expect(isDestinationVisible(destination('timelapse'), noTimelapse, [], true)).toBe(true)
+
+    // Saved printers are about this browser, and a hide is the user's own call.
+    const onePrinter = capabilities({ savedPrinters: 1 })
+    expect(isDestinationVisible(destination('farm'), onePrinter, [], true)).toBe(false)
+    const twoPrinters = capabilities({ savedPrinters: 2 })
+    expect(isDestinationVisible(destination('farm'), twoPrinters, ['farm'], true)).toBe(false)
+  })
+
   it('still refuses an unsupported destination whatever the preference says', () => {
     expect(isDestinationVisible(destination('farm'), capabilities({ savedPrinters: 1 }), [])).toBe(
       false,

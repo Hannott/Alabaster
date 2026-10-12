@@ -252,12 +252,27 @@ export function isDestinationSupported(
  * Composed here rather than at the call site for the reason the table exists —
  * gating written where the rail is rendered is gating in two places, and the
  * second one is the one nobody updates when a third condition arrives.
+ *
+ * `showUnsupported` is the override in Settings for looking at a page on a
+ * machine that cannot fill it: it answers yes for every root, component, and
+ * config section. It never reaches the saved-printers requirement, which is a
+ * fact about this browser rather than the printer, or a destination the user
+ * has hidden.
  */
 export function isDestinationVisible(
   destination: NavigationDestination,
   capabilities: MachineCapabilities,
   hidden: readonly NavigationDestinationName[] = [],
+  showUnsupported = false,
 ): boolean {
-  if (!isDestinationSupported(destination, capabilities)) return false
+  const effective: MachineCapabilities = showUnsupported
+    ? {
+        ...capabilities,
+        hasRoot: () => true,
+        hasComponent: () => true,
+        hasConfigSection: () => true,
+      }
+    : capabilities
+  if (!isDestinationSupported(destination, effective)) return false
   return !(destination.hideable === true && hidden.includes(destination.name))
 }

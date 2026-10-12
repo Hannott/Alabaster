@@ -3250,6 +3250,7 @@
     "renameHint": "Leave blank to show its address, {host}, instead.",
     "renameHintDiscovered": "Leave blank to show what the printer calls itself, {name}.",
     "showFarm": "Show the Farm page",
+    "showUnsupported": "Show pages this printer has not set up",
     "renameConfirm": "Rename",
     "removeTitle": "Remove {name}",
     "removeDescription": "Remove {name}? Its dashboard and other settings stay saved, and reappear if you add it again.",

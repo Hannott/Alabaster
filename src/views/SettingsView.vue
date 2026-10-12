@@ -16,6 +16,7 @@ import { useConsoleWeight, type ConsoleWeightMode } from '@/composables/useConso
 import { useEditorIndent } from '@/composables/useEditorIndent'
 import { useFont } from '@/composables/useFont'
 import { useHiddenDestinations } from '@/composables/useHiddenDestinations'
+import { useShowUnsupportedDestinations } from '@/composables/useShowUnsupportedDestinations'
 import { useMinimalisticSidebar } from '@/composables/useMinimalisticSidebar'
 import { usePageHeaders, type PageHeaderVisibility } from '@/composables/usePageHeaders'
 import { useSettingsCategory, type SettingsCategory } from '@/composables/useSettingsCategory'
@@ -426,6 +427,7 @@ function submitAddPrinter(): void {
 }
 
 const hiddenDestinations = useHiddenDestinations()
+const showUnsupportedDestinations = useShowUnsupportedDestinations()
 
 /*
  * Read off the registry rather than restated: the count that earns the
@@ -875,6 +877,16 @@ const lastSyncedDisplay = computed(() => {
                 @change="hiddenDestinations.setVisible('farm', !showsFarmDestination)"
               />
               <span>{{ t('printers.showFarm') }}</span>
+            </label>
+            <label class="check-row" :class="canOfferFarm ? 'mt-3' : 'mt-7'">
+              <input
+                type="checkbox"
+                :checked="showUnsupportedDestinations.enabled.value"
+                @change="
+                  showUnsupportedDestinations.setEnabled(!showUnsupportedDestinations.enabled.value)
+                "
+              />
+              <span>{{ t('printers.showUnsupported') }}</span>
             </label>
 
             <p v-if="printers.entries.length === 0" class="mt-7 text-sm leading-6 text-muted">

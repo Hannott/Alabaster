@@ -33,6 +33,11 @@ copy its layout, modules, and module configuration.
 Rename or remove any saved printer. Removing a printer does not delete its
 configuration: add the printer back and its dashboard returns.
 
+**Show pages this printer has not set up** puts every page in the navigation,
+including ones a printer cannot fill yet, such as Timelapse without the
+timelapse component. Useful for seeing what a page offers before you install
+what it needs.
+
 See [Several printers](/guide/printers) for more information, including why
 settings follow a printer's identity rather than its address.
 
@@ -288,7 +293,8 @@ Some settings stay in the browser even then, because they are about the
 screen rather than about you:
 
 - **The printer list itself**, and what depends on it: hidden navigation
-  destinations and the Farm view's camera choices. See
+  destinations, whether pages a printer has not set up are shown, and the Farm
+  view's camera choices. See
   [Several printers](/guide/printers#where-it-is-all-stored).
 - **Device ergonomics**: the screen-awake setting, whether the sidebar is
   collapsed or minimal, whether page headers are shown, which settings

@@ -23,6 +23,7 @@ import { useContextMenuGuard } from '@/composables/useContextMenuGuard'
 import { useDecimalComma } from '@/composables/useDecimalComma'
 import { useFont } from '@/composables/useFont'
 import { useHiddenDestinations } from '@/composables/useHiddenDestinations'
+import { useShowUnsupportedDestinations } from '@/composables/useShowUnsupportedDestinations'
 import { useMinimalisticSidebar } from '@/composables/useMinimalisticSidebar'
 import { useSelectValueOnFocus } from '@/composables/useSelectValueOnFocus'
 import { useSidebar } from '@/composables/useSidebar'
@@ -71,6 +72,7 @@ const { isSidebarCollapsed, toggleSidebar } = useSidebar()
 const { isMinimalisticSidebar } = useMinimalisticSidebar()
 const { themePack } = useTheme()
 const hiddenDestinations = useHiddenDestinations()
+const { enabled: showUnsupportedDestinations } = useShowUnsupportedDestinations()
 const { availability: printerAvailability, messageKey: printerAvailabilityMessageKey } =
   useAvailability('klipper')
 const { availability: moonrakerAvailability } = useAvailability('moonraker')
@@ -272,6 +274,7 @@ const supportedDestinations = computed(() =>
         savedPrinters: printers.entries.length,
       },
       hiddenDestinations.hidden.value,
+      showUnsupportedDestinations.value,
     ),
   ),
 )

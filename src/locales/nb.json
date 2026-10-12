@@ -3250,6 +3250,7 @@
     "renameHint": "La stå tomt for å vise adressen, {host}, i stedet.",
     "renameHintDiscovered": "La stå tomt for å vise navnet skriveren oppgir selv, {name}.",
     "showFarm": "Vis Farm-siden",
+    "showUnsupported": "Vis sider skriveren ikke har satt opp",
     "renameConfirm": "Endre navn",
     "removeTitle": "Fjern {name}",
     "removeDescription": "Fjerne {name}? Kontrollpanelet og andre innstillinger blir lagret, og dukker opp igjen hvis du legger den til på nytt.",
