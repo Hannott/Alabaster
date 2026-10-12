@@ -3,12 +3,15 @@ import { computed, ref, watch, type WatchStopHandle } from 'vue'
 
 import {
   isPrintableGcodeFilename,
+  listThumbnailPath,
   normalizeMoonrakerRelativePath,
   uploadMoonrakerFile,
   type JsonRpcNotification,
+  type MoonrakerDirectoryFile,
   type MoonrakerGcodeMetadata,
 } from '@/services/moonraker'
 import { useAvailabilityStore } from '@/stores/availability'
+import { readOutcome, type HistoryOutcome } from '@/stores/history'
 import { useMoonrakerStore } from '@/stores/moonraker'
 import { usePrinterStore } from '@/stores/printer'
 import { useServerCapabilitiesStore } from '@/stores/serverCapabilities'
@@ -33,6 +36,30 @@ export interface GcodeFileEntry {
   path: string
   size: number
   modified: number
+  details: GcodeFileDetails
+}
+
+/**
+ * What a row needs to help choose a print, read from the extended listing so
+ * the whole folder costs one request. Null wherever the file carries nothing,
+ * which is normal for a hand-written file.
+ */
+export interface GcodeFileDetails {
+  estimatedTime: number | null
+  filamentWeight: number | null
+  filamentType: string | null
+  /** The first filament's hex color, for the row's swatch. */
+  filamentColor: string | null
+  /** Relative to the file's own folder, as Moonraker reports it. */
+  thumbnail: string | null
+  lastPrintedAt: number | null
+  lastJobId: string | null
+}
+
+/** How the file's most recent print went, read from history when the file is opened. */
+export interface GcodeLastPrint {
+  startedAt: number
+  outcome: HistoryOutcome
 }
 
 export interface GcodeFolderEntry {
@@ -60,6 +87,36 @@ function joinPath(base: string, name: string): string {
   return `${base}/${name}`
 }
 
+function positiveOrNull(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : null
+}
+
+function textOrNull(value: unknown): string | null {
+  return typeof value === 'string' && value.trim() !== '' ? value.trim() : null
+}
+
+const hexColorPattern = /^#(?:[0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i
+
+function readFileDetails(file: MoonrakerDirectoryFile): GcodeFileDetails {
+  const color = Array.isArray(file.filament_colors) ? file.filament_colors[0] : undefined
+  // A multi-material file reports its types comma-separated; the row names the first.
+  const type = textOrNull(file.filament_type)?.split(/[,;]/)[0]?.trim() || null
+  return {
+    estimatedTime: positiveOrNull(file.estimated_time),
+    filamentWeight: positiveOrNull(file.filament_weight_total),
+    filamentType: type,
+    filamentColor: typeof color === 'string' && hexColorPattern.test(color) ? color : null,
+    thumbnail: listThumbnailPath(file.thumbnails),
+    lastPrintedAt: positiveOrNull(file.print_start_time),
+    lastJobId: textOrNull(file.job_id),
+  }
+}
+
+/** Slicer leftovers such as the thumbnails folder are not somewhere a print is chosen from. */
+function isHidden(name: string): boolean {
+  return name.startsWith('.')
+}
+
 function compareText(left: string, right: string): number {
   return left.localeCompare(right, undefined, { numeric: true, sensitivity: 'base' })
 }
@@ -81,11 +138,14 @@ export const useGcodeFilesStore = defineStore('gcodeFiles', () => {
 
   const sortKey = ref<GcodeSortKey>('modified')
   const sortDirection = ref<GcodeSortDirection>('descending')
+  /** Narrows the shown folder by name; it never asks Moonraker to search. */
+  const query = ref('')
 
   /** Path of the file whose detail is shown, or null. */
   const selectedPath = ref<string | null>(null)
   const selectedMetadata = ref<MoonrakerGcodeMetadata | null>(null)
   const isMetadataLoading = ref(false)
+  const selectedLastPrint = ref<GcodeLastPrint | null>(null)
 
   const isUploading = ref(false)
 
@@ -148,6 +208,17 @@ export const useGcodeFilesStore = defineStore('gcodeFiles', () => {
     })
   })
 
+  const normalizedQuery = computed(() => query.value.trim().toLocaleLowerCase())
+
+  function matchesQuery(name: string): boolean {
+    return normalizedQuery.value === '' || name.toLocaleLowerCase().includes(normalizedQuery.value)
+  }
+
+  const visibleFolders = computed(() =>
+    sortedFolders.value.filter((folder) => matchesQuery(folder.name)),
+  )
+  const visibleFiles = computed(() => sortedFiles.value.filter((file) => matchesQuery(file.name)))
+
   const selectedFile = computed(
     () => files.value.find((file) => file.path === selectedPath.value) ?? null,
   )
@@ -173,21 +244,25 @@ export const useGcodeFilesStore = defineStore('gcodeFiles', () => {
     try {
       const result = await moonraker.rpcCall('server.files.get_directory', {
         path: joinPath('gcodes', path),
+        extended: true,
       })
       if (generation !== directoryGeneration) return
 
-      folders.value = result.dirs.map((folder) => ({
-        name: folder.dirname,
-        path: joinPath(path, folder.dirname),
-        modified: folder.modified,
-      }))
+      folders.value = result.dirs
+        .filter((folder) => !isHidden(folder.dirname))
+        .map((folder) => ({
+          name: folder.dirname,
+          path: joinPath(path, folder.dirname),
+          modified: folder.modified,
+        }))
       files.value = result.files
-        .filter((file) => isPrintableGcodeFilename(file.filename))
+        .filter((file) => isPrintableGcodeFilename(file.filename) && !isHidden(file.filename))
         .map((file) => ({
           name: file.filename,
           path: joinPath(path, file.filename),
           size: file.size,
           modified: file.modified,
+          details: readFileDetails(file),
         }))
       diskUsage.value = result.disk_usage ?? emptyDiskUsage
     } catch {
@@ -211,6 +286,7 @@ export const useGcodeFilesStore = defineStore('gcodeFiles', () => {
     currentPath.value = normalized
     folders.value = []
     files.value = []
+    query.value = ''
     clearSelection()
     await loadDirectory(normalized)
   }
@@ -228,7 +304,33 @@ export const useGcodeFilesStore = defineStore('gcodeFiles', () => {
     metadataGeneration += 1
     selectedPath.value = null
     selectedMetadata.value = null
+    selectedLastPrint.value = null
     isMetadataLoading.value = false
+  }
+
+  /** Choosing the open file again closes it, as a disclosure does. */
+  async function toggle(path: string): Promise<void> {
+    if (selectedPath.value === path) clearSelection()
+    else await select(path)
+  }
+
+  /**
+   * The listing says when a file last started and which job that was; only
+   * history knows how it ended, so that one lookup waits until the file is
+   * opened rather than costing a request per row.
+   */
+  async function loadLastPrint(path: string, generation: number): Promise<void> {
+    const file = files.value.find((entry) => entry.path === path)
+    const jobId = file?.details.lastJobId
+    if (!jobId || !serverCapabilities.hasComponent('history')) return
+    try {
+      const { job } = await moonraker.rpcCall('server.history.get_job', { uid: jobId })
+      if (generation !== metadataGeneration) return
+      selectedLastPrint.value = { startedAt: job.start_time, outcome: readOutcome(job.status) }
+    } catch {
+      // A job deleted from history since the file last printed: the start time
+      // from the listing still stands, only the outcome is unknown.
+    }
   }
 
   /**
@@ -241,7 +343,9 @@ export const useGcodeFilesStore = defineStore('gcodeFiles', () => {
     const generation = ++metadataGeneration
     selectedPath.value = path
     selectedMetadata.value = null
+    selectedLastPrint.value = null
     isMetadataLoading.value = true
+    void loadLastPrint(path, generation)
 
     try {
       const metadata = await printer.loadMetadata(path)
@@ -350,6 +454,8 @@ export const useGcodeFilesStore = defineStore('gcodeFiles', () => {
     diskUsage.value = emptyDiskUsage
     selectedPath.value = null
     selectedMetadata.value = null
+    selectedLastPrint.value = null
+    query.value = ''
     isLoading.value = false
     isMetadataLoading.value = false
     failed.value = false
@@ -420,11 +526,15 @@ export const useGcodeFilesStore = defineStore('gcodeFiles', () => {
     sortDirection,
     sortedFolders,
     sortedFiles,
+    query,
+    visibleFolders,
+    visibleFiles,
     breadcrumbs,
     parentPath,
     selectedPath,
     selectedFile,
     selectedMetadata,
+    selectedLastPrint,
     isMetadataLoading,
     isUploading,
     isAnalysisReady,
@@ -435,6 +545,7 @@ export const useGcodeFilesStore = defineStore('gcodeFiles', () => {
     navigateUp,
     refreshDirectory,
     select,
+    toggle,
     clearSelection,
     upload,
     processEstimate,

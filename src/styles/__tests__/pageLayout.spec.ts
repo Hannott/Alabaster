@@ -48,6 +48,7 @@ describe('page layout contract', () => {
       'views/DashboardView.vue',
       'views/CalibrationView.vue',
       'views/HistoryView.vue',
+      'views/PrintFilesView.vue',
       'views/TimelapseView.vue',
       'views/MachineView.vue',
       'views/SettingsView.vue',
@@ -56,7 +57,6 @@ describe('page layout contract', () => {
       'views/ConfigurationView.vue',
       'views/ConsoleView.vue',
       'views/GcodeViewerView.vue',
-      'views/PrintFilesView.vue',
     ]
 
     for (const view of standardViews) expect(source(view)).toContain('class="standard-page')
@@ -157,15 +157,20 @@ describe('page layout contract', () => {
   })
 
   /*
-   * History used to pin a detail pane beside its job list, and had to cap it
-   * to the scrollport so its Remove button could not end up below the fold.
-   * The job opens beneath its own row now, so neither the pin nor the cap has
-   * anything left to do — and a reintroduced sticky pane would bring that
-   * failure back with it.
+   * History pinned a detail pane beside its job list and had to cap it to the
+   * scrollport so its Remove button could not end up below the fold; Print
+   * files' pane replaced the whole list below 55rem. Both now open the item
+   * beneath its own row, as one washed block with no outline, so neither the
+   * pin, the cap, nor the swap has anything left to do — and a reintroduced
+   * side pane would bring those failures back with it.
    */
-  it('opens a History job beneath its own row rather than in a pinned pane', () => {
-    expect(ruleBody('.history-job-expansion')).toContain('grid-column: 2 / -2')
+  it('opens a History job or a print file beneath its own row rather than in a side pane', () => {
+    expect(styles).toMatch(/\n\.machine-row-expansion\s*\{[^}]*grid-column:\s*1 \/ -1/)
+    expect(styles).toMatch(
+      /\.machine-row--open,\s*\.machine-row-expansion\s*\{[^}]*background-image:\s*linear-gradient/,
+    )
     expect(styles).not.toContain('.history-job-detail')
+    expect(styles).not.toContain('.print-files-detail')
   })
 
   it('publishes the wrapped header height the page shells measure against', () => {
@@ -309,20 +314,17 @@ describe('page layout contract', () => {
    * Every band in a file workspace's stack holds its height whether or not it has
    * anything to say. Two ways that was broken: Configuration's old recent-files
    * band was removed entirely when there was nothing to offer — so switching
-   * roots moved every row below it — and the Print files trail had no height at
-   * all, so it resized as the path got longer. The explorer's footer is the band
-   * that replaced the recent files, and it renders unconditionally.
+   * roots moved every row below it — and the Print files trail, a band then and
+   * the files card's title now, had no height at all, so it resized as the path
+   * got longer. The explorer's footer is the band that replaced the recent
+   * files, and it renders unconditionally.
    *
    * `overflow-x: auto` is the second half of the trail bug: it makes a box
    * scrollable on both axes, so a trail one pixel taller than its content box grew
    * a vertical scrollbar. Each trail pins `overflow-y` to hidden.
    */
   it('reserves the height of every band in a file workspace stack', () => {
-    for (const band of [
-      '.machine-command-bar',
-      '.machine-file-controls',
-      '.print-files-breadcrumbs',
-    ]) {
+    for (const band of ['.machine-command-bar', '.machine-file-controls']) {
       const rule = styles.slice(styles.indexOf(`${band} {`))
       const body = rule.slice(0, rule.indexOf('}'))
       expect(body, `${band} must reserve its height`).toMatch(/min-height:\s*[\d.]+rem/)
@@ -333,7 +335,7 @@ describe('page layout contract', () => {
     expect(footerBody).toMatch(/block-size:\s*[\d.]+rem/)
     expect(footerBody).toMatch(/flex:\s*0 0 [\d.]+rem/)
 
-    const trail = styles.slice(styles.indexOf('.print-files-breadcrumbs {'))
+    const trail = styles.slice(styles.indexOf('.print-files-trail {'))
     expect(trail.slice(0, trail.indexOf('}'))).toContain('overflow-y: hidden')
 
     const view = source('views/ConfigurationView.vue')

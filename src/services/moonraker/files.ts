@@ -1,6 +1,6 @@
 import { MoonrakerEndpointError } from '@/services/moonraker/errors'
 import { moonrakerHttpBaseUrl } from '@/services/moonraker/url'
-import type { MoonrakerFileRoot } from '@/services/moonraker/types'
+import type { MoonrakerFileRoot, MoonrakerGcodeThumbnail } from '@/services/moonraker/types'
 
 export interface MoonrakerUploadResult {
   item: {
@@ -200,4 +200,31 @@ function uploadWithProgress(
     signal?.addEventListener('abort', () => request.abort(), { once: true })
     request.send(form)
   })
+}
+
+function usableThumbnails(thumbnails: unknown): MoonrakerGcodeThumbnail[] {
+  if (!Array.isArray(thumbnails)) return []
+  return thumbnails
+    .filter(
+      (thumbnail): thumbnail is MoonrakerGcodeThumbnail =>
+        typeof thumbnail?.relative_path === 'string' &&
+        typeof thumbnail.width === 'number' &&
+        thumbnail.width > 0,
+    )
+    .sort((a, b) => a.width - b.width)
+}
+
+/**
+ * The thumbnail a list row draws: the smallest of at least 64 px, so a 40 px
+ * cell stays sharp on a high-density screen without a long list fetching every
+ * file's 300 px image. A file with only small ones gets its largest.
+ */
+export function listThumbnailPath(thumbnails: unknown): string | null {
+  const usable = usableThumbnails(thumbnails)
+  return (usable.find((thumbnail) => thumbnail.width >= 64) ?? usable.at(-1))?.relative_path ?? null
+}
+
+/** The largest embedded thumbnail, for a preview that has room for it. */
+export function largestThumbnailPath(thumbnails: unknown): string | null {
+  return usableThumbnails(thumbnails).at(-1)?.relative_path ?? null
 }

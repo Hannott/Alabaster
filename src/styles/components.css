@@ -2869,9 +2869,9 @@ input[type='number']::-webkit-inner-spin-button {
  * settings layer always looked correct and hid this, because a
  * `grid-template-rows` transition re-resolves the percentage on every frame.
  *
- * The two regions that genuinely fill their parent — `.machine-availability` and
- * `.print-files-availability` — declare `height: 100%` themselves, so the base
- * rule is not what serves them and dropping it here costs them nothing.
+ * The region that genuinely fills its parent — `.machine-availability` —
+ * declares `height: 100%` itself, so the base rule is not what serves it and
+ * dropping it here costs it nothing.
  */
 .dashboard-column__item > .availability-region__content {
   display: grid;
@@ -12984,8 +12984,9 @@ body.machine-editor-fullscreen-open {
 }
 
 /*
- * A list whose rows lead with a picture: the glyph track widens to the
- * thumbnail. Everything else is the shared row list.
+ * A list whose rows lead with a picture — History's jobs, Print files' files
+ * and queue: the glyph track widens to the thumbnail. Everything else is the
+ * shared row list.
  */
 .machine-list--media {
   grid-template-columns: 0.25rem 2.5rem minmax(0, 1fr) auto auto auto 0.25rem;
@@ -13001,15 +13002,16 @@ body.machine-editor-fullscreen-open {
 }
 
 /*
- * A job row lays out its own tracks rather than being a `subgrid` of the
- * list, because it carries containment, and layout containment turns a
+ * A job or file row lays out its own tracks rather than being a `subgrid` of
+ * the list, because it carries containment, and layout containment turns a
  * subgrid back into an ordinary grid. The tracks are the list's own seven, so
  * every child's `grid-column` still lands where the shared row puts it; the
  * status track has a fixed floor wide enough for "Interrupted", which is what
  * keeps the column straight down rows that no longer share one.
  *
- * "Load more" has no ceiling, so this list is the one place in the product
- * whose element count is set by how long the user keeps pressing a button.
+ * History's "Load more" has no ceiling, and a print folder holds however many
+ * files the slicer has sent it, so these two lists are the places in the
+ * product whose element count nothing on the page bounds.
  * A thousand rows is 51 000 px of layout and paint for the rows on screen;
  * skipping the rest is what keeps scrolling and every re-render flat as the
  * list grows. The intrinsic size is stated rather than guessed, because a
@@ -13019,7 +13021,7 @@ body.machine-editor-fullscreen-open {
  * padding and divider are not added to it. `auto` then lets the browser keep
  * each row's real measured size once it has rendered it.
  */
-.machine-list--media > .history-job {
+.machine-list--media > :is(.history-job, .print-file) {
   grid-template-columns: 0.25rem 2.5rem minmax(0, 1fr) auto minmax(6.5rem, auto) auto 0.25rem;
   column-gap: 0.75rem;
   content-visibility: auto;
@@ -13030,19 +13032,20 @@ body.machine-editor-fullscreen-open {
  * Containment clips paint to the row, and the row's own menu opens below it,
  * so a row with its menu open drops containment until the menu closes —
  * otherwise the panel is cut at the row's edge and reads as hidden behind the
- * next job.
+ * next row.
  */
-.machine-list--media > .history-job:has(.header-menu__panel) {
+.machine-list--media > :is(.history-job, .print-file):has(.header-menu__panel) {
   content-visibility: visible;
 }
 
 /*
  * The picture and the name are one control, the `file-select` that opens the
- * job beneath its row. It spans their two tracks as a subgrid, so the row's
- * shared columns still line up with every other row's while the whole left
- * half answers a press; the status and the menu stay controls of their own.
+ * row's details beneath it. It spans their two tracks as a subgrid, so the
+ * row's shared columns still line up with every other row's while the whole
+ * left half answers a press; the status and the menu stay controls of their
+ * own.
  */
-.history-job__toggle {
+.machine-row__toggle {
   display: grid;
   grid-column: 2 / 4;
   grid-template-columns: subgrid;
@@ -13050,25 +13053,44 @@ body.machine-editor-fullscreen-open {
   text-align: start;
 }
 
-.history-job__toggle > .machine-row__thumb {
+.machine-row__toggle > .machine-row__thumb {
   grid-column: 1;
 }
 
-.history-job__toggle > .machine-row__detail {
+.machine-row__toggle > .machine-row__detail {
   grid-column: 2;
 }
 
-/* The open job's details, under its row and starting at the picture's column. */
-.history-job-expansion {
-  display: grid;
-  grid-column: 2 / -2;
-  grid-template-columns: 7.5rem minmax(0, 1fr);
-  gap: 0.75rem 1.25rem;
-  padding-block: 0.25rem 1rem;
+/*
+ * An open row and its details are one item: one accent wash from the row's
+ * top to the details' bottom, and no outline. The selected-row border this
+ * replaced framed only the row, so it read as a box with the details hanging
+ * loose beneath it — and an open row is a disclosure, not a selection held
+ * somewhere else on the page. The details appearing are the shape cue, so the
+ * wash is not the state's only signal.
+ *
+ * The details span the whole list so the wash meets the card's edges; the
+ * 1rem inline padding is the edge track plus the column gap, so the preview
+ * still starts on the row picture's column.
+ */
+.machine-row--open,
+.machine-row-expansion {
+  background-image: linear-gradient(
+    color-mix(in srgb, var(--action-primary) 12%, transparent),
+    color-mix(in srgb, var(--action-primary) 12%, transparent)
+  );
 }
 
-.history-job-expansion > img,
-.history-job-expansion__placeholder {
+.machine-row-expansion {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: 7.5rem minmax(0, 1fr);
+  gap: 0.75rem 1.25rem;
+  padding: 0.25rem 1rem 1rem;
+}
+
+.machine-row-expansion > img,
+.machine-row-expansion__placeholder {
   width: 7.5rem;
   height: 7.5rem;
   border-radius: 0.4rem;
@@ -13076,14 +13098,14 @@ body.machine-editor-fullscreen-open {
   object-fit: contain;
 }
 
-.history-job-facts {
+.machine-row-facts {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   align-content: start;
   gap: 0.6rem 1.5rem;
 }
 
-.history-job-facts dt {
+.machine-row-facts dt {
   color: var(--text-muted);
   font-size: var(--text-label-caps-size);
   font-weight: var(--font-weight-increased);
@@ -13091,21 +13113,31 @@ body.machine-editor-fullscreen-open {
   text-transform: uppercase;
 }
 
-.history-job-facts dd {
+.machine-row-facts dd {
   color: var(--text-primary);
   font-size: var(--text-row-name-size);
 }
 
-.history-job-facts dd span {
+.machine-row-facts dd span {
   color: var(--text-muted);
   font-size: var(--text-field-label-size);
 }
 
-.history-job-actions {
+.machine-row-actions {
   display: flex;
   flex-wrap: wrap;
   grid-column: 2;
   gap: 0.5rem;
+}
+
+/* A line about the open item that is not one of its facts: still loading, a spool too short. */
+.machine-row-expansion__note {
+  grid-column: 2;
+  font-size: var(--text-field-label-size);
+}
+
+.machine-row-expansion__note:not(.text-alert-inline) {
+  color: var(--text-muted);
 }
 
 /* The statistics card's own sections share the list's 1rem inline edge. */
@@ -13133,16 +13165,17 @@ body.machine-editor-fullscreen-open {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .history-job-expansion {
+  .machine-row-expansion {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .history-job-expansion > img,
-  .history-job-expansion__placeholder {
+  .machine-row-expansion > img,
+  .machine-row-expansion__placeholder {
     display: none;
   }
 
-  .history-job-actions {
+  .machine-row-actions,
+  .machine-row-expansion__note {
     grid-column: 1;
   }
 }
@@ -13164,7 +13197,7 @@ body.machine-editor-fullscreen-open {
    * are different shapes, the word stays for assistive technology, and a job
    * that went wrong says how on its own detail line.
    */
-  .machine-list--media > .history-job {
+  .machine-list--media > :is(.history-job, .print-file) {
     grid-template-columns: 0.25rem 2.5rem minmax(0, 1fr) auto auto auto 0.25rem;
   }
 
@@ -15518,208 +15551,112 @@ body.machine-editor-fullscreen-open {
 }
 
 /*
- * Print files. A split workspace like the File Explorer, and deliberately not
- * built from its classes: a row here carries a size and a date beside a name and
- * selects a file to print, where a row there marks an open editor buffer. They
- * look alike and behave differently, so the two sets stay separate — sharing them
- * would mean every change to one had to be defended against the other's needs.
- *
- * The root is a vertical flex container so the page-heading gets its own row
- * above the workspace, the same split `.file-explorer-view` established.
+ * Print files. The files in the shown folder and the print queue side by side,
+ * in the Machine and History pages' anatomy. Below 96rem they stack with the
+ * queue first, so what is about to print is never below a hundred files. The
+ * split workspace this replaced put the chosen file in a pane beside the
+ * list, and below 55rem that pane replaced the list outright.
  */
-.print-files-view {
-  display: flex;
-  flex-direction: column;
+.print-files-view > .availability-region > .availability-region__content {
+  display: grid;
+  align-content: start;
   gap: 1rem;
 }
 
-.print-files-availability,
-.print-files-availability > .availability-region__content {
-  height: 100%;
-  min-height: 0;
+.print-files-grid {
+  display: grid;
+  grid-template-areas: 'files queue';
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  align-items: start;
+  gap: 1rem;
 }
 
-/* Flex-basis wins over the plain `height: 100%` above for main-axis sizing. */
-.print-files-view > .print-files-availability {
-  flex: 1 1 0;
+.print-files-grid > .print-files-panel {
+  grid-area: files;
 }
 
-.print-files-workspace {
-  display: flex;
-  block-size: 100%;
-  min-height: 0;
-  overflow: hidden;
-  border: 1px solid var(--border-subtle);
-  border-radius: 0.6rem;
-  background: var(--surface-raised);
+.print-files-grid > .print-queue-panel {
+  grid-area: queue;
 }
 
-.print-files-browser {
+@media (max-width: 96rem) {
+  .print-files-grid {
+    grid-template-areas: 'queue' 'files';
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.print-files-view .machine-panel-heading {
+  min-height: 3.6875rem;
+}
+
+/*
+ * The folder trail is the files card's title. It scrolls sideways on its own
+ * line rather than wrapping, and pins `overflow-y`: `overflow-x: auto` alone
+ * makes a box scrollable on both axes, so a trail a pixel taller than its
+ * content grew a vertical scrollbar.
+ */
+.print-files-trail {
   display: flex;
   min-width: 0;
-  min-height: 0;
-  flex: 1 1 auto;
-  flex-direction: column;
-  background: var(--surface-soft);
-}
-
-.print-files-pane-header {
-  display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  padding: 0.85rem 1rem;
-  border-block-end: 1px solid var(--border-subtle);
-}
-
-.print-files-pane-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem;
-}
-
-.print-files-storage {
-  margin-block-start: 0.15rem;
-  font-size: var(--text-meta-size);
-  font-weight: var(--font-weight);
-  color: var(--text-muted);
-}
-
-/* One line, never a second scrollbar: the breadcrumb trail scrolls itself. */
-/*
- * A fixed band, like every other row in this stack. Two things were wrong before:
- * `overflow-x: auto` makes a box scrollable on both axes, so a trail one pixel
- * taller than its content box grew a vertical scrollbar, and without a height the
- * band resized as the trail got longer, moving the whole listing below it.
- */
-.print-files-breadcrumbs {
-  display: flex;
-  height: 2.9rem;
-  min-height: 2.9rem;
-  flex: 0 0 2.9rem;
-  align-items: center;
-  flex-wrap: nowrap;
-  gap: 0.15rem;
+  gap: 0.35rem;
   overflow-x: auto;
   overflow-y: hidden;
-  padding-inline: 1rem;
-  border-block-end: 1px solid var(--border-subtle);
   white-space: nowrap;
 }
 
-.print-files-breadcrumbs__separator {
+.print-files-trail__separator {
   color: var(--text-muted);
 }
 
-.print-files-columns {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 6rem 13rem;
-  gap: 0.5rem;
-  padding: 0.4rem 1rem;
-  border-block-end: 1px solid var(--border-subtle);
-}
-
-.print-files-column {
+/* The summary band carries the search and the sort, so the list starts with a file. */
+.print-files-summary {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 0.2rem;
-  background: none;
-  border: 0;
-  padding: 0;
-  font-size: var(--text-label-caps-size);
-  font-weight: var(--font-weight);
-  letter-spacing: var(--text-label-caps-tracking);
-  text-transform: uppercase;
-  cursor: pointer;
+  gap: 0.5rem 1rem;
 }
 
-.print-files-column--size,
-.print-files-column--modified {
-  justify-content: flex-end;
-}
-
-.print-files-rows {
+.print-files-summary > p {
   flex: 1 1 auto;
-  min-height: 0;
-  overflow-y: auto;
-  padding: 0.35rem 0.5rem 0.75rem;
 }
 
-/*
- * Composed on `file-select`, which owns the type, color, hover, and focus of
- * every row the user picks a file out of. This class adds the grid and nothing
- * else — the same division the File Explorer's rows use, so the two lists cannot
- * drift apart in everything except their columns.
- */
-.print-files-row {
+.print-files-summary .machine-search {
+  flex: 0 1 18rem;
+}
+
+.machine-row__thumb--folder {
   display: grid;
-  inline-size: 100%;
-  grid-template-columns: 1.25rem minmax(0, 1fr) 6rem 13rem;
-  align-items: center;
-  gap: 0.5rem;
-  min-height: 2.5rem;
-  padding-inline: calc(0.5rem - var(--selection-row-border));
+  place-items: center;
+  color: var(--accent-primary);
 }
 
-.print-files-row:hover:not(:disabled) {
-  background-color: var(--surface-raised);
-  color: var(--text-primary);
-}
-
-.print-files-row__name {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.print-files-row__size,
-.print-files-row__modified {
-  font-family: var(--font-mono);
-  font-size: var(--text-meta-size);
-  color: var(--text-muted);
-  text-align: end;
-  white-space: nowrap;
+/* A file's material is a swatch and its type: what a reader matches against the loaded spool. */
+.print-file__material .filament-chip__swatch {
+  flex: 0 0 auto;
 }
 
 .print-files-note {
-  padding: 0.5rem 1rem 0.75rem;
-  font-size: var(--text-hint-size);
+  padding: 0.75rem 1rem;
   color: var(--text-muted);
+  font-size: var(--text-field-label-size);
 }
 
-.print-files-detail {
-  display: flex;
-  inline-size: clamp(18rem, 26vw, 24rem);
-  flex: 0 0 clamp(18rem, 26vw, 24rem);
-  min-height: 0;
-  flex-direction: column;
-  gap: 0.75rem;
-  overflow-y: auto;
-  border-inline-start: 1px solid var(--border-subtle);
-  padding: 0.85rem 1rem 1rem;
-}
+@container machine-status-panel (max-width: 30rem) {
+  .print-files-summary .machine-search {
+    flex: 1 1 100%;
+  }
 
-.print-files-detail__header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 0.5rem;
-}
-
-.print-files-thumbnail {
-  inline-size: 100%;
-  max-width: 100%;
-  border: 1px solid var(--border-subtle);
-  border-radius: 0.3rem;
-  background: var(--surface-strong);
-}
-
-.print-files-filament-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.35rem;
+  /* The swatch stays; the type waits for the open row, as History's outcome word does. */
+  .print-file__material-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
 }
 
 .filament-chip {
@@ -15766,78 +15703,6 @@ body.machine-editor-fullscreen-open {
 
 .filament-chip__type {
   color: var(--text-muted);
-}
-
-.print-files-metadata {
-  display: grid;
-  gap: 0.15rem;
-}
-
-.print-files-metadata__row {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 0.75rem;
-  padding: 0.3rem 0;
-  border-block-end: 1px solid var(--border-subtle);
-  font-size: var(--text-meta-size);
-}
-
-.print-files-metadata__row dt {
-  color: var(--text-muted);
-}
-
-.print-files-metadata__row dd {
-  font-family: var(--font-mono);
-  font-weight: var(--font-weight);
-  text-align: end;
-}
-
-.print-files-detail__actions {
-  margin-block-start: auto;
-  display: grid;
-  gap: 0.4rem;
-}
-
-.print-files-estimate {
-  margin-block-start: 0.75rem;
-  display: grid;
-  gap: 0.4rem;
-}
-
-/*
- * Below this width the two panes stack rather than shrink, and the detail pane
- * replaces the browser when a file is chosen. Geometry changes at the
- * breakpoint and is never animated, per ADR 0004.
- */
-@media (max-width: 55rem) {
-  .print-files-workspace {
-    display: block;
-    overflow-y: auto;
-  }
-
-  .print-files-workspace--detail-open .print-files-browser {
-    display: none;
-  }
-
-  .print-files-detail {
-    inline-size: auto;
-    border-inline-start: 0;
-  }
-
-  .print-files-columns,
-  .print-files-row {
-    grid-template-columns: 1.25rem minmax(0, 1fr) 6rem;
-  }
-
-  .print-files-columns {
-    grid-template-columns: minmax(0, 1fr) 6rem;
-  }
-
-  .print-files-column--modified,
-  .print-files-row__modified {
-    display: none;
-  }
 }
 
 /*

@@ -100,14 +100,14 @@ describe('HistoryJobRow', () => {
       global: { plugins: [i18n] },
     })
 
-    expect(wrapper.get('.history-job__toggle').attributes('aria-expanded')).toBe('true')
-    expect(wrapper.get('.machine-row').classes()).toContain('selection-row--selected')
+    expect(wrapper.get('.machine-row__toggle').attributes('aria-expanded')).toBe('true')
+    expect(wrapper.get('.machine-row').classes()).toContain('machine-row--open')
   })
 
   it('asks the parent to open it rather than deciding for itself', async () => {
     const wrapper = mount(HistoryJobRow, { props: rowProps(), global: { plugins: [i18n] } })
 
-    await wrapper.get('.history-job__toggle').trigger('click')
+    await wrapper.get('.machine-row__toggle').trigger('click')
 
     expect(wrapper.emitted('select')).toHaveLength(1)
   })

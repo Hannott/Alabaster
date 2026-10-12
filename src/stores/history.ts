@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { computed, ref, watch, type WatchStopHandle } from 'vue'
 
 import { historyPeriods, periodSince, type HistoryPeriod } from '@/features/history/statistics'
+import { largestThumbnailPath, listThumbnailPath } from '@/services/moonraker/files'
 import type {
   JsonRpcNotification,
   MoonrakerHistoryAuxiliaryData,
@@ -123,7 +124,8 @@ export const windowPageSize = 2000
 /** A backstop against an unbounded loop, not a real limit any period should approach. */
 const maximumWindowPages = 25
 
-function readOutcome(status: unknown): HistoryOutcome {
+/** Moonraker's job status, folded into the outcomes History tells apart. */
+export function readOutcome(status: unknown): HistoryOutcome {
   if (typeof status !== 'string') return 'unknown'
   const normalized = status.trim().toLowerCase()
   if (normalized === 'completed') return 'completed'
@@ -196,10 +198,6 @@ function textOrNull(value: unknown): string | null {
  * largest. Both come from the same list the slicer embedded.
  */
 function readJobDetails(metadata: MoonrakerHistoryJob['metadata']): HistoryJobDetails {
-  const thumbnails = (Array.isArray(metadata?.thumbnails) ? metadata.thumbnails : [])
-    .filter((thumbnail) => typeof thumbnail?.relative_path === 'string' && thumbnail.width > 0)
-    .sort((a, b) => a.width - b.width)
-  const small = thumbnails.find((thumbnail) => thumbnail.width >= 64) ?? thumbnails.at(-1)
   return {
     estimatedTime: positiveOrNull(metadata?.estimated_time),
     filamentType: textOrNull(metadata?.filament_type),
@@ -208,8 +206,8 @@ function readJobDetails(metadata: MoonrakerHistoryJob['metadata']): HistoryJobDe
     layerHeight: positiveOrNull(metadata?.layer_height),
     objectHeight: positiveOrNull(metadata?.object_height),
     slicer: textOrNull(metadata?.slicer),
-    thumbnailSmall: small?.relative_path ?? null,
-    thumbnailLarge: thumbnails.at(-1)?.relative_path ?? null,
+    thumbnailSmall: listThumbnailPath(metadata?.thumbnails),
+    thumbnailLarge: largestThumbnailPath(metadata?.thumbnails),
   }
 }
 

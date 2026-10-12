@@ -149,9 +149,7 @@
   },
   "printFiles": {
     "title": "Utskriftsfiler",
-    "breadcrumbs": "Mappesti",
     "root": "Alle filer",
-    "parentFolder": "Opp ett nivå",
     "empty": "Ingen utskriftsfiler i denne mappen.",
     "loadFailed": "Kunne ikke lese mappen.",
     "printBusy": "En utskrift kjører allerede.",
@@ -168,27 +166,58 @@
       "print": "Skriv ut denne filen",
       "addToQueue": "Legg i køen",
       "addedToQueue": "Lagt i køen",
-      "getAccurateEstimate": "Hent nøyaktig tidsestimat",
-      "closeDetail": "Lukk fildetaljer"
+      "getAccurateEstimate": "Hent nøyaktig tidsestimat"
     },
     "metadata": {
       "estimatedTime": "Beregnet tid",
       "filament": "Filament",
-      "filamentValue": "{value} m",
       "gramsValue": "{value} g",
       "millimetres": "{value} mm",
       "celsius": "{value}°C",
-      "layerHeight": "Laghøyde",
-      "objectHeight": "Objekthøyde",
-      "nozzleDiameter": "Dysediameter",
-      "extruderTemp": "Dysetemp.",
-      "bedTemp": "Platetemp.",
-      "chamberTemp": "Kammertemp.",
       "slicer": "Kuttet med",
       "thumbnailAlt": "Forhåndsvisning av {name}",
       "loading": "Leser slicer-data …",
       "none": "Filen har ingen slicer-data.",
       "temperatureMismatch": "Lastet filament er satt til {filament}, denne filen varmer dysen til {file}"
+    },
+    "search": "Søk i filer",
+    "sortBy": "Sorter etter",
+    "folder": "Mappe",
+    "fileCount": "Ingen filer | {count} fil | {count} filer",
+    "noMatches": "Ingen filer passer søket.",
+    "moreActions": "Flere handlinger for {name}",
+    "groups": {
+      "earlierThisMonth": "Tidligere denne måneden"
+    },
+    "detail": {
+      "printTime": "Utskriftstid",
+      "slicerEstimate": "slicerens estimat",
+      "temperatures": "Temperaturer",
+      "bed": "plate {value}",
+      "chamber": "kammer {value}",
+      "listSeparator": ", ",
+      "nozzle": "{value} mm dyse",
+      "file": "Fil",
+      "lastPrinted": "Sist skrevet ut",
+      "aside": "· {value}",
+      "outcome": {
+        "completed": "fullført",
+        "cancelled": "avbrutt",
+        "error": "mislyktes",
+        "interrupted": "forstyrret",
+        "unknown": "ukjent utfall"
+      }
+    },
+    "queue": {
+      "title": "Kø",
+      "state": {
+        "ready": "Klar",
+        "loading": "Laster",
+        "starting": "Starter",
+        "paused": "Pauset"
+      },
+      "jobs": "{count} jobb | {count} jobber",
+      "moreActions": "Flere køhandlinger"
     }
   },
   "calibration": {

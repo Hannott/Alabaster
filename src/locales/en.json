@@ -149,9 +149,7 @@
   },
   "printFiles": {
     "title": "Print files",
-    "breadcrumbs": "Folder path",
     "root": "All files",
-    "parentFolder": "Up one level",
     "empty": "No print files in this folder.",
     "loadFailed": "Could not read this folder.",
     "printBusy": "A print is already running.",
@@ -168,27 +166,58 @@
       "print": "Print this file",
       "addToQueue": "Add to queue",
       "addedToQueue": "Added to queue",
-      "getAccurateEstimate": "Get accurate estimate",
-      "closeDetail": "Close file details"
+      "getAccurateEstimate": "Get accurate estimate"
     },
     "metadata": {
       "estimatedTime": "Estimated time",
       "filament": "Filament",
-      "filamentValue": "{value} m",
       "gramsValue": "{value} g",
       "millimetres": "{value} mm",
       "celsius": "{value}°C",
-      "layerHeight": "Layer height",
-      "objectHeight": "Object height",
-      "nozzleDiameter": "Nozzle diameter",
-      "extruderTemp": "Extruder temp",
-      "bedTemp": "Bed temp",
-      "chamberTemp": "Chamber temp",
       "slicer": "Sliced with",
       "thumbnailAlt": "Preview of {name}",
       "loading": "Reading slicer data…",
       "none": "This file carries no slicer data.",
       "temperatureMismatch": "Loaded filament is set for {filament}, this file heats the hotend to {file}"
+    },
+    "search": "Search files",
+    "sortBy": "Sort by",
+    "folder": "Folder",
+    "fileCount": "No files | {count} file | {count} files",
+    "noMatches": "No files match the search.",
+    "moreActions": "More actions for {name}",
+    "groups": {
+      "earlierThisMonth": "Earlier this month"
+    },
+    "detail": {
+      "printTime": "Print time",
+      "slicerEstimate": "slicer estimate",
+      "temperatures": "Temperatures",
+      "bed": "bed {value}",
+      "chamber": "chamber {value}",
+      "listSeparator": ", ",
+      "nozzle": "{value} mm nozzle",
+      "file": "File",
+      "lastPrinted": "Last printed",
+      "aside": "· {value}",
+      "outcome": {
+        "completed": "completed",
+        "cancelled": "cancelled",
+        "error": "failed",
+        "interrupted": "interrupted",
+        "unknown": "outcome unknown"
+      }
+    },
+    "queue": {
+      "title": "Queue",
+      "state": {
+        "ready": "Ready",
+        "loading": "Loading",
+        "starting": "Starting",
+        "paused": "Paused"
+      },
+      "jobs": "{count} job | {count} jobs",
+      "moreActions": "More queue actions"
     }
   },
   "calibration": {

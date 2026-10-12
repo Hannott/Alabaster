@@ -23,6 +23,6 @@ export function formatHistoryDuration(seconds: number, t: Translate): string {
 
 export function formatHistoryFilament(millimetres: number, t: Translate, locale: string): string {
   if (!Number.isFinite(millimetres) || millimetres <= 0) return t('history.noValue')
-  const formatter = numberFormat(locale, { maximumFractionDigits: 1 })
+  const formatter = numberFormat(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 })
   return t('history.filamentValue', { value: formatter.format(millimetres / 1000) })
 }

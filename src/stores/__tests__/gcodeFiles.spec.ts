@@ -9,7 +9,7 @@ import { usePrinterStore } from '@/stores/printer'
 
 function directoryResult(
   dirs: Array<{ dirname: string; modified: number }>,
-  files: Array<{ filename: string; modified: number; size: number }>,
+  files: Array<{ filename: string; modified: number; size: number } & Record<string, unknown>>,
 ) {
   return {
     dirs: dirs.map((folder) => ({ ...folder, size: 0, permissions: 'rw' })),
@@ -46,7 +46,10 @@ describe('gcode files store', () => {
 
     await gcodeFiles.refreshDirectory()
 
-    expect(rpcCall).toHaveBeenCalledWith('server.files.get_directory', { path: 'gcodes' })
+    expect(rpcCall).toHaveBeenCalledWith('server.files.get_directory', {
+      path: 'gcodes',
+      extended: true,
+    })
     expect(gcodeFiles.files.map((file) => file.name)).toEqual(['cube.gcode', 'benchy.GCO'])
     expect(gcodeFiles.folders.map((folder) => folder.name)).toEqual(['calibration'])
     expect(gcodeFiles.diskUsage.free).toBe(600)
@@ -63,6 +66,7 @@ describe('gcode files store', () => {
 
     expect(rpcCall).toHaveBeenLastCalledWith('server.files.get_directory', {
       path: 'gcodes/calibration/first-layer',
+      extended: true,
     })
     expect(gcodeFiles.breadcrumbs).toEqual([
       { name: 'calibration', path: 'calibration' },
@@ -152,6 +156,138 @@ describe('gcode files store', () => {
 
     gcodeFiles.sortBy('size')
     expect(gcodeFiles.sortedFiles.map((file) => file.name)).toEqual(['big.gcode', 'small.gcode'])
+  })
+
+  it('reads what a row shows from the extended listing, without a request per file', async () => {
+    const moonraker = useMoonrakerStore()
+    const rpcCall = vi.spyOn(moonraker, 'rpcCall').mockResolvedValue(
+      directoryResult(
+        [],
+        [
+          {
+            filename: 'clip.gcode',
+            modified: 10,
+            size: 2048,
+            estimated_time: 3641,
+            filament_weight_total: 8.84,
+            filament_type: 'PLA;PETG',
+            filament_colors: ['#8D6B4B', '#FFFFFF'],
+            thumbnails: [
+              { width: 32, height: 32, size: 1, relative_path: '.thumbs/clip-32x32.png' },
+              { width: 300, height: 300, size: 1, relative_path: '.thumbs/clip-300x300.png' },
+            ],
+            print_start_time: 1_700_000_000,
+            job_id: '0001DC',
+          },
+          // A colour that is not one would reach a style attribute as written.
+          { filename: 'bare.gcode', modified: 5, size: 10, filament_colors: ['red; x'] },
+        ],
+      ),
+    )
+    const gcodeFiles = useGcodeFilesStore()
+
+    await gcodeFiles.refreshDirectory()
+
+    expect(rpcCall).toHaveBeenCalledTimes(1)
+    expect(gcodeFiles.files[0]?.details).toEqual({
+      estimatedTime: 3641,
+      filamentWeight: 8.84,
+      filamentType: 'PLA',
+      filamentColor: '#8D6B4B',
+      // The 32 px one is blurry in a 40 px cell on a dense screen.
+      thumbnail: '.thumbs/clip-300x300.png',
+      lastPrintedAt: 1_700_000_000,
+      lastJobId: '0001DC',
+    })
+    expect(gcodeFiles.files[1]?.details.filamentColor).toBeNull()
+    expect(gcodeFiles.files[1]?.details.thumbnail).toBeNull()
+  })
+
+  it('hides the slicer thumbnail folder and other dot entries', async () => {
+    const moonraker = useMoonrakerStore()
+    vi.spyOn(moonraker, 'rpcCall').mockResolvedValue(
+      directoryResult(
+        [
+          { dirname: '.thumbs', modified: 1 },
+          { dirname: 'parts', modified: 2 },
+        ],
+        [
+          { filename: '.hidden.gcode', modified: 1, size: 1 },
+          { filename: 'cube.gcode', modified: 1, size: 1 },
+        ],
+      ),
+    )
+    const gcodeFiles = useGcodeFilesStore()
+
+    await gcodeFiles.refreshDirectory()
+
+    expect(gcodeFiles.folders.map((folder) => folder.name)).toEqual(['parts'])
+    expect(gcodeFiles.files.map((file) => file.name)).toEqual(['cube.gcode'])
+  })
+
+  it('narrows the shown folder by name and forgets the search on navigation', async () => {
+    const moonraker = useMoonrakerStore()
+    vi.spyOn(moonraker, 'rpcCall').mockResolvedValue(
+      directoryResult(
+        [{ dirname: 'Brackets', modified: 2 }],
+        [
+          { filename: 'bracket_left.gcode', modified: 1, size: 1 },
+          { filename: 'cube.gcode', modified: 1, size: 1 },
+        ],
+      ),
+    )
+    const gcodeFiles = useGcodeFilesStore()
+    await gcodeFiles.refreshDirectory()
+
+    gcodeFiles.query = '  BRACKET '
+
+    expect(gcodeFiles.visibleFiles.map((file) => file.name)).toEqual(['bracket_left.gcode'])
+    expect(gcodeFiles.visibleFolders.map((folder) => folder.name)).toEqual(['Brackets'])
+
+    await gcodeFiles.navigateTo('Brackets')
+    expect(gcodeFiles.query).toBe('')
+  })
+
+  it('closes the open file when it is chosen again', async () => {
+    const moonraker = useMoonrakerStore()
+    vi.spyOn(moonraker, 'rpcCall').mockResolvedValue(
+      directoryResult([], [{ filename: 'cube.gcode', modified: 1, size: 10 }]),
+    )
+    vi.spyOn(usePrinterStore(), 'loadMetadata').mockResolvedValue(null)
+    const gcodeFiles = useGcodeFilesStore()
+    await gcodeFiles.refreshDirectory()
+
+    await gcodeFiles.toggle('cube.gcode')
+    expect(gcodeFiles.selectedPath).toBe('cube.gcode')
+
+    await gcodeFiles.toggle('cube.gcode')
+    expect(gcodeFiles.selectedPath).toBeNull()
+  })
+
+  it('asks history how the open file last printed, and only once it is opened', async () => {
+    const moonraker = useMoonrakerStore()
+    const rpcCall = vi.spyOn(moonraker, 'rpcCall').mockImplementation((async (method: string) => {
+      if (method === 'server.history.get_job') {
+        return { job: { job_id: '0001DC', status: 'klippy_shutdown', start_time: 1_700_000_500 } }
+      }
+      return directoryResult(
+        [],
+        [{ filename: 'clip.gcode', modified: 1, size: 10, job_id: '0001DC', print_start_time: 1 }],
+      )
+    }) as never)
+    vi.spyOn(usePrinterStore(), 'loadMetadata').mockResolvedValue(null)
+    const gcodeFiles = useGcodeFilesStore()
+    await gcodeFiles.refreshDirectory()
+    expect(rpcCall).not.toHaveBeenCalledWith('server.history.get_job', expect.anything())
+
+    await gcodeFiles.select('clip.gcode')
+    await vi.waitFor(() => expect(gcodeFiles.selectedLastPrint).not.toBeNull())
+
+    expect(rpcCall).toHaveBeenCalledWith('server.history.get_job', { uid: '0001DC' })
+    expect(gcodeFiles.selectedLastPrint).toEqual({
+      startedAt: 1_700_000_500,
+      outcome: 'interrupted',
+    })
   })
 
   it('reads slicer metadata for the selected file through the printer store cache', async () => {

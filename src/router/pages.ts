@@ -32,7 +32,7 @@ interface PageEntry {
 export const pages: Record<NavigationDestinationName, PageEntry> = {
   farm: { shell: 'standard', load: () => import('@/views/FarmView.vue') },
   overview: { shell: 'standard', load: () => import('@/views/DashboardView.vue') },
-  printFiles: { shell: 'workspace', load: () => import('@/views/PrintFilesView.vue') },
+  printFiles: { shell: 'standard', load: () => import('@/views/PrintFilesView.vue') },
   gcodeViewer: { shell: 'workspace', load: () => import('@/views/GcodeViewerView.vue') },
   history: { shell: 'standard', load: () => import('@/views/HistoryView.vue') },
   timelapse: { shell: 'standard', load: () => import('@/views/TimelapseView.vue') },

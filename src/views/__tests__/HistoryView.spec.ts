@@ -214,10 +214,10 @@ describe('HistoryView', () => {
     ]
     const wrapper = mountView()
 
-    expect(wrapper.find('.history-job-expansion').exists()).toBe(false)
-    await wrapper.get('.history-job__toggle').trigger('click')
+    expect(wrapper.find('.machine-row-expansion').exists()).toBe(false)
+    await wrapper.get('.machine-row__toggle').trigger('click')
 
-    expect(wrapper.get('.history-job-facts').text()).toContain('Spool 3')
+    expect(wrapper.get('.machine-row-facts').text()).toContain('Spool 3')
   })
 
   it('opens the clicked job beneath its own row, and closes it when chosen again', async () => {
@@ -228,15 +228,15 @@ describe('HistoryView', () => {
     ]
     const wrapper = mountView()
 
-    const toggles = wrapper.findAll('.history-job__toggle')
+    const toggles = wrapper.findAll('.machine-row__toggle')
     await toggles[1]!.trigger('click')
 
-    const expansion = wrapper.get('.history-job-expansion')
+    const expansion = wrapper.get('.machine-row-expansion')
     expect(expansion.attributes('id')).toBe('history-job-2')
     expect(toggles[1]!.attributes('aria-expanded')).toBe('true')
 
     await toggles[1]!.trigger('click')
-    expect(wrapper.find('.history-job-expansion').exists()).toBe(false)
+    expect(wrapper.find('.machine-row-expansion').exists()).toBe(false)
   })
 
   it('queues the opened job for printing again from its details', async () => {
@@ -247,7 +247,7 @@ describe('HistoryView', () => {
     const addJob = vi.spyOn(jobQueue, 'addJob').mockResolvedValue(true)
     const wrapper = mountView()
 
-    await wrapper.get('.history-job__toggle').trigger('click')
+    await wrapper.get('.machine-row__toggle').trigger('click')
     const queueButton = wrapper.findAll('button').find((button) => button.text() === 'Add to queue')
     expect(queueButton).toBeDefined()
     await queueButton?.trigger('click')
@@ -265,7 +265,7 @@ describe('HistoryView', () => {
     vi.spyOn(jobQueue, 'addJob').mockResolvedValue(true)
     const wrapper = mountView()
 
-    await wrapper.findAll('.history-job__toggle')[0]!.trigger('click')
+    await wrapper.findAll('.machine-row__toggle')[0]!.trigger('click')
     const queueButton = wrapper.findAll('button').find((button) => button.text() === 'Add to queue')
     await queueButton?.trigger('click')
     await flushPromises()
@@ -273,7 +273,7 @@ describe('HistoryView', () => {
     expect(queueButton?.attributes('data-cooldown')).toBe('true')
 
     // A confirmation names the job that was on screen when it was earned.
-    await wrapper.findAll('.history-job__toggle')[1]!.trigger('click')
+    await wrapper.findAll('.machine-row__toggle')[1]!.trigger('click')
     const reopened = wrapper.findAll('button').find((button) => button.text() === 'Add to queue')
     expect(reopened?.attributes('data-cooldown')).toBeUndefined()
   })

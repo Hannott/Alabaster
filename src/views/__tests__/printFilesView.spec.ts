@@ -81,54 +81,67 @@ beforeEach(() => {
   })
 })
 
+function fileToggles(view: Awaited<ReturnType<typeof mountView>>) {
+  return view.findAll('.print-file .machine-row__toggle')
+}
+
+async function openCube(view: Awaited<ReturnType<typeof mountView>>): Promise<void> {
+  await fileToggles(view)[0]!.trigger('click')
+  await flushPromises()
+}
+
 describe('Print files view', () => {
-  it('lists folders and printable files as file-select rows', async () => {
+  it('lists folders, then files newest first, as file-select rows', async () => {
     const view = await mountView()
 
-    const rows = view.findAll('.print-files-row')
-    // The parent row is absent at the root: there is nowhere above it to go.
-    expect(rows).toHaveLength(3)
-    expect(rows.map((row) => row.text())).toEqual([
-      expect.stringContaining('calibration'),
-      expect.stringContaining('cube.gcode'),
-      expect.stringContaining('benchy.gcode'),
-    ])
+    const folders = view.findAll('.print-folder')
+    expect(folders).toHaveLength(1)
+    expect(folders[0]!.text()).toContain('calibration')
+
+    // Newest first by default, named without the `.gcode` every row would repeat.
+    const names = view.findAll('.print-file .machine-row__name').map((name) => name.text())
+    expect(names).toEqual(['cube', 'benchy'])
 
     // Composed on the documented shared pattern rather than a parallel one.
-    for (const row of rows) expect(row.classes()).toContain('file-select')
+    for (const toggle of view.findAll('.machine-row__toggle')) {
+      expect(toggle.classes()).toContain('file-select')
+    }
   })
 
-  it('shows no detail pane until a file is chosen', async () => {
+  it('opens nothing until a file is chosen', async () => {
     const view = await mountView()
 
-    expect(view.find('.print-files-detail').exists()).toBe(false)
+    expect(view.find('.machine-row-expansion').exists()).toBe(false)
   })
 
-  it('shows what the slicer said about the chosen file', async () => {
+  it('shows what the slicer said about the chosen file beneath its own row', async () => {
     const view = await mountView()
 
-    await view.findAll('.print-files-row')[1]!.trigger('click')
-    await flushPromises()
+    await openCube(view)
 
-    const detail = view.find('.print-files-detail')
-    expect(detail.exists()).toBe(true)
-    expect(detail.text()).toContain('cube.gcode')
+    const expansion = view.get('.machine-row-expansion')
     // 5400 s and 4200 mm, in the units a person reads.
-    expect(detail.text()).toContain('1h 30m')
-    expect(detail.text()).toContain('4.2 m')
-    expect(detail.text()).toContain('OrcaSlicer')
+    expect(expansion.text()).toContain('1h 30m')
+    expect(expansion.text()).toContain('4.2 m')
+    expect(expansion.text()).toContain('OrcaSlicer')
+    expect(expansion.attributes('id')).toBe('print-file-details')
   })
 
-  it('marks the chosen row rather than leaving the selection only in the pane', async () => {
+  it('marks the open row as one item with its details, not as a selection held elsewhere', async () => {
     const view = await mountView()
 
-    await view.findAll('.print-files-row')[1]!.trigger('click')
-    await flushPromises()
+    await openCube(view)
 
-    const selected = view.findAll('.selection-row--selected')
-    expect(selected).toHaveLength(1)
-    expect(selected[0]!.text()).toContain('cube.gcode')
-    expect(selected[0]!.attributes('aria-current')).toBe('true')
+    const open = view.findAll('.machine-row--open')
+    expect(open).toHaveLength(1)
+    expect(open[0]!.text()).toContain('cube')
+    expect(open[0]!.classes()).not.toContain('selection-row')
+    expect(fileToggles(view)[0]!.attributes('aria-expanded')).toBe('true')
+
+    // Chosen again, it closes.
+    await fileToggles(view)[0]!.trigger('click')
+    await flushPromises()
+    expect(view.find('.machine-row-expansion').exists()).toBe(false)
   })
 
   it('starts the chosen file, passing the path Klipper takes', async () => {
@@ -136,17 +149,33 @@ describe('Print files view', () => {
     const startPrint = vi.spyOn(printer, 'startPrint').mockResolvedValue(true)
     const view = await mountView()
 
-    await view.findAll('.print-files-row')[1]!.trigger('click')
-    await flushPromises()
-    await view.find('.print-files-detail__actions button').trigger('click')
+    await openCube(view)
+    await view.get('.print-file__start').trigger('click')
 
     expect(startPrint).toHaveBeenCalledWith('cube.gcode')
   })
 
+  it("offers print and queue from a row's menu without opening it", async () => {
+    const printer = usePrinterStore(pinia)
+    const startPrint = vi.spyOn(printer, 'startPrint').mockResolvedValue(true)
+    const jobQueue = useJobQueueStore(pinia)
+    const addJob = vi.spyOn(jobQueue, 'addJob').mockResolvedValue(true)
+    const view = await mountView()
+
+    const row = view.findAll('.print-file')[1]!
+    await row.get('.machine-row__menu > .button').trigger('click')
+    await row.get('.print-file__queue').trigger('click')
+    await flushPromises()
+    expect(addJob).toHaveBeenCalledWith('benchy.gcode')
+
+    await row.get('.machine-row__menu > .button').trigger('click')
+    await row.get('.print-file__print').trigger('click')
+    expect(startPrint).toHaveBeenCalledWith('benchy.gcode')
+  })
+
   /**
-   * Enqueuing is the one action here whose result is invisible from where the
-   * button is — the queue lives on another card and the list does not move —
-   * so the control confirms on itself for a second afterwards.
+   * On a phone the queue card sits above the list and out of view, so the
+   * control confirms on itself for a second afterwards.
    */
   it('confirms an enqueue on the button that did it, then gives the button back', async () => {
     vi.useFakeTimers()
@@ -155,9 +184,8 @@ describe('Print files view', () => {
       vi.spyOn(jobQueue, 'addJob').mockResolvedValue(true)
       const view = await mountView()
 
-      await view.findAll('.print-files-row')[1]!.trigger('click')
-      await flushPromises()
-      const queueButton = view.findAll('.print-files-detail__actions button')[1]!
+      await openCube(view)
+      const queueButton = view.get('.print-file__enqueue')
       await queueButton.trigger('click')
       await flushPromises()
 
@@ -181,9 +209,8 @@ describe('Print files view', () => {
     vi.spyOn(jobQueue, 'addJob').mockResolvedValue(false)
     const view = await mountView()
 
-    await view.findAll('.print-files-row')[1]!.trigger('click')
-    await flushPromises()
-    const queueButton = view.findAll('.print-files-detail__actions button')[1]!
+    await openCube(view)
+    const queueButton = view.get('.print-file__enqueue')
     await queueButton.trigger('click')
     await flushPromises()
 
@@ -202,12 +229,10 @@ describe('Print files view', () => {
     const startPrint = vi.spyOn(printer, 'startPrint').mockResolvedValue(true)
     const view = await mountView()
 
-    await view.findAll('.print-files-row')[1]!.trigger('click')
-    await flushPromises()
+    await openCube(view)
 
-    const printButton = view.find('.print-files-detail__actions button')
-    expect(printButton.attributes('disabled')).toBeDefined()
-    expect(view.find('.print-files-detail').text()).toContain('A print is already running.')
+    expect(view.get('.print-file__start').attributes('disabled')).toBeDefined()
+    expect(view.get('.machine-row-expansion').text()).toContain('A print is already running.')
     expect(startPrint).not.toHaveBeenCalled()
   })
 
@@ -225,9 +250,8 @@ describe('Print files view', () => {
       seedOverdueInterval()
       const view = await mountView()
 
-      await view.findAll('.print-files-row')[1]!.trigger('click')
-      await flushPromises()
-      await view.find('.print-files-detail__actions button').trigger('click')
+      await openCube(view)
+      await view.get('.print-file__start').trigger('click')
 
       expect(startPrint).toHaveBeenCalledWith('cube.gcode')
       expect(view.find('dialog[open]').exists()).toBe(false)
@@ -240,30 +264,31 @@ describe('Print files view', () => {
       seedOverdueInterval()
       const view = await mountView()
 
-      await view.findAll('.print-files-row')[1]!.trigger('click')
-      await flushPromises()
-      await view.find('.print-files-detail__actions button').trigger('click')
+      await openCube(view)
+      await view.get('.print-file__start').trigger('click')
 
       expect(startPrint).not.toHaveBeenCalled()
       expect(view.text()).toContain('Maintenance is overdue')
       expect(view.text()).toContain('Belt tension')
     })
 
-    it('starts the print and quiets the reminder until tomorrow on "Start anyway"', async () => {
+    it('starts the file it was asked about on "Start anyway", and quiets the reminder until tomorrow', async () => {
       const printer = usePrinterStore(pinia)
       const startPrint = vi.spyOn(printer, 'startPrint').mockResolvedValue(true)
       const confirmations = useConfirmationsStore(pinia)
       confirmations.setMaintenanceReminderEnabled(true)
       seedOverdueInterval()
       const view = await mountView()
-      await view.findAll('.print-files-row')[1]!.trigger('click')
-      await flushPromises()
-      await view.find('.print-files-detail__actions button').trigger('click')
+
+      // Asked from a row's menu, with no row open: the reminder still knows which file.
+      const row = view.findAll('.print-file')[1]!
+      await row.get('.machine-row__menu > .button').trigger('click')
+      await row.get('.print-file__print').trigger('click')
 
       const startAnyway = view.findAll('button').find((button) => button.text() === 'Start anyway')
       await startAnyway?.trigger('click')
 
-      expect(startPrint).toHaveBeenCalledWith('cube.gcode')
+      expect(startPrint).toHaveBeenCalledWith('benchy.gcode')
       expect(confirmations.shouldShowMaintenanceReminder()).toBe(false)
     })
 
@@ -274,9 +299,8 @@ describe('Print files view', () => {
       confirmations.setMaintenanceReminderEnabled(true)
       seedOverdueInterval()
       const view = await mountView()
-      await view.findAll('.print-files-row')[1]!.trigger('click')
-      await flushPromises()
-      await view.find('.print-files-detail__actions button').trigger('click')
+      await openCube(view)
+      await view.get('.print-file__start').trigger('click')
 
       const notNow = view.findAll('button').find((button) => button.text() === 'Not now')
       await notNow?.trigger('click')
@@ -286,19 +310,49 @@ describe('Print files view', () => {
     })
   })
 
-  it('offers folder navigation into a subfolder and back out of it', async () => {
+  it('navigates into a folder and back out through the trail in the card title', async () => {
     const view = await mountView()
 
-    await view.findAll('.print-files-row')[0]!.trigger('click')
+    await view.get('.print-folder .machine-row__toggle').trigger('click')
     await flushPromises()
 
-    expect(view.text()).toContain('calibration')
-    const rows = view.findAll('.print-files-row')
-    // Inside a folder the first row goes back up.
-    expect(rows[0]!.text()).toContain('Up one level')
+    const trail = view.get('.print-files-trail')
+    expect(trail.get('[aria-current="location"]').text()).toBe('calibration')
+    const root = trail.findAll('button').find((button) => button.text() === 'All files')
+    await root!.trigger('click')
+    await flushPromises()
+
+    expect(view.get('.print-files-trail').text()).toBe('All files')
   })
 
-  it('says the folder is empty rather than showing an empty table', async () => {
+  it('narrows the list as the reader types, and says when nothing matches', async () => {
+    const view = await mountView()
+
+    await view.get('.print-files-summary input[type="search"]').setValue('bench')
+    expect(view.findAll('.print-file .machine-row__name').map((name) => name.text())).toEqual([
+      'benchy',
+    ])
+
+    await view.get('.print-files-summary input[type="search"]').setValue('nothing-like-it')
+    expect(view.text()).toContain('No files match the search.')
+  })
+
+  it('shows the queue beside the files, with a way to remove each job', async () => {
+    const jobQueue = useJobQueueStore(pinia)
+    jobQueue.jobs = [{ filename: 'benchy.gcode', job_id: 'j1', time_added: 1, time_in_queue: 1 }]
+    jobQueue.queueState = 'paused'
+    const removeJob = vi.spyOn(jobQueue, 'removeJob').mockResolvedValue(true)
+    const view = await mountView()
+
+    const panel = view.get('.print-queue-panel')
+    expect(panel.get('.machine-panel-summary').text()).toContain('Paused')
+    expect(panel.get('.machine-row__name').text()).toBe('benchy')
+
+    await panel.get('[aria-label="Remove benchy from the queue"]').trigger('click')
+    expect(removeJob).toHaveBeenCalledWith('j1')
+  })
+
+  it('says the folder is empty rather than showing an empty list', async () => {
     const moonraker = useMoonrakerStore(pinia)
     vi.spyOn(moonraker, 'rpcCall').mockResolvedValue({
       ...directory,

@@ -188,8 +188,19 @@ export interface MoonrakerDirectoryEntry {
   permissions: string
 }
 
-export interface MoonrakerDirectoryFile extends MoonrakerDirectoryEntry {
+/**
+ * With `extended: true`, a file in the `gcodes` root also carries the slicer
+ * metadata Moonraker already parsed, plus when the file last started printing
+ * and that job's history id — the whole list's thumbnails and estimates in one
+ * request rather than one metadata request per row.
+ */
+export interface MoonrakerDirectoryFile
+  extends
+    MoonrakerDirectoryEntry,
+    Partial<Omit<MoonrakerGcodeMetadata, 'filename' | 'size' | 'modified'>> {
   filename: string
+  print_start_time?: number | null
+  job_id?: string | null
 }
 
 export interface MoonrakerDirectoryFolder extends MoonrakerDirectoryEntry {
@@ -886,6 +897,10 @@ export interface MoonrakerRpcMethods {
   'server.history.reset_totals': {
     params: undefined
     result: { last_totals: MoonrakerHistoryTotals }
+  }
+  'server.history.get_job': {
+    params: { uid: string }
+    result: { job: MoonrakerHistoryJob }
   }
   'server.history.delete_job': {
     params: { uid: string } | { all: true }

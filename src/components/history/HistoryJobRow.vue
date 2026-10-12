@@ -91,17 +91,16 @@ const meta = computed(() => {
 
 <template>
   <div
-    class="history-job machine-row selection-row"
-    :class="{ 'selection-row--selected': selected }"
+    class="history-job machine-row"
+    :class="{ 'machine-row--open': selected }"
     :data-state="
       job.outcome === 'completed' || job.outcome === 'cancelled' ? 'current' : 'attention'
     "
   >
     <button
       type="button"
-      class="file-select history-job__toggle"
+      class="file-select machine-row__toggle"
       :aria-expanded="selected"
-      :aria-current="selected ? 'true' : undefined"
       :aria-controls="`history-job-${job.id}`"
       @click="$emit('select')"
     >

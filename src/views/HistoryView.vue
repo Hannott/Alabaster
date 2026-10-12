@@ -12,6 +12,7 @@ import PageHeading from '@/components/PageHeading.vue'
 import { useAvailability } from '@/composables/useAvailability'
 import { formatHistoryDuration, formatHistoryFilament } from '@/features/history/format'
 import { historyOutcomeIcon } from '@/features/history/outcome'
+import { createTimeFormatter } from '@/i18n/formats'
 import {
   estimateDeviation,
   historyPeriods,
@@ -270,19 +271,19 @@ onBeforeUnmount(() => clearInterval(clock))
 const dayFormatter = computed(
   () => new Intl.DateTimeFormat(locale.value, { weekday: 'long', day: 'numeric', month: 'long' }),
 )
-const timeFormatter = computed(
-  () => new Intl.DateTimeFormat(locale.value, { hour: '2-digit', minute: '2-digit' }),
-)
-const shortDateTimeFormatter = computed(
-  () =>
-    new Intl.DateTimeFormat(locale.value, {
-      weekday: 'short',
-      day: 'numeric',
-      month: 'short',
-      hour: '2-digit',
-      minute: '2-digit',
-    }),
-)
+/** Follows the 12- or 24-hour choice in Settings, which a bare `Intl` formatter would not. */
+const timeFormatter = computed(() => createTimeFormatter(locale.value))
+const shortDateTimeFormatter = computed(() => {
+  const hourCycle = timeFormatter.value.resolvedOptions().hourCycle
+  return new Intl.DateTimeFormat(locale.value, {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+    ...(hourCycle ? { hourCycle } : {}),
+  })
+})
 
 function jobMoment(job: HistoryJob): number | null {
   const seconds = job.endedAt ?? job.startedAt
@@ -604,15 +605,15 @@ function requestReprint(job: HistoryJob): void {
                 <div
                   v-if="entry.job.id === selectedJob?.id"
                   :id="`history-job-${entry.job.id}`"
-                  class="history-job-expansion"
+                  class="machine-row-expansion"
                 >
                   <img
                     v-if="thumbnailUrl(entry.job, entry.job.details.thumbnailLarge)"
                     :src="thumbnailUrl(entry.job, entry.job.details.thumbnailLarge) ?? undefined"
                     alt=""
                   />
-                  <span v-else class="history-job-expansion__placeholder" aria-hidden="true"></span>
-                  <dl class="history-job-facts selectable">
+                  <span v-else class="machine-row-expansion__placeholder" aria-hidden="true"></span>
+                  <dl class="machine-row-facts selectable">
                     <div>
                       <dt>{{ t('history.jobs.detail.started') }}</dt>
                       <dd>{{ formatMoment(entry.job.startedAt) }}</dd>
@@ -707,7 +708,7 @@ function requestReprint(job: HistoryJob): void {
                       </div>
                     </template>
                   </dl>
-                  <div class="history-job-actions">
+                  <div class="machine-row-actions">
                     <AppButton
                       size="sm"
                       :guard="reprintGuard"
