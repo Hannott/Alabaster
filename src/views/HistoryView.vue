@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import AppButton from '@/components/AppButton.vue'
@@ -329,6 +329,68 @@ const jobGroups = computed(() => {
   return groups
 })
 
+/*
+ * The next page loads as the end of the list comes within reach, so reading
+ * back through a long history is one continuous scroll. The marker is the
+ * list's last 30rem rather than its final pixel: at wide widths the list is its
+ * own scroll region, and an observer's `rootMargin` stretches only the
+ * viewport, never a scroll container between it and the target, so the lead
+ * has to be part of what is observed. The button at the end stays, as the
+ * pending state while a page loads and as the retry after one failed — a
+ * failure stops the automatic loading rather than repeating it.
+ */
+const listEnd = ref<HTMLElement | null>(null)
+const listEndInView = ref(false)
+const listEndObserver =
+  typeof IntersectionObserver === 'undefined'
+    ? null
+    : new IntersectionObserver((entries) => {
+        const entry = entries[entries.length - 1]
+        if (entry) listEndInView.value = entry.isIntersecting
+      })
+
+watch(
+  listEnd,
+  (element, previous) => {
+    if (previous) listEndObserver?.unobserve(previous)
+    if (element) listEndObserver?.observe(element)
+    else listEndInView.value = false
+  },
+  { flush: 'post' },
+)
+
+onBeforeUnmount(() => listEndObserver?.disconnect())
+
+/**
+ * One page, then a fresh look at the marker. The sighting that asked for the
+ * page is spent before the request goes out, and the marker is observed anew
+ * once the page has landed, so only a measurement taken after the new rows were
+ * laid out can ask for the next one. Re-arming on the loading flag instead
+ * acted on the sighting from before the rows arrived — one page too many every
+ * time, and in a hidden tab, where the observer reports nothing at all, every
+ * page Moonraker holds, one after another.
+ */
+async function loadNextPage(): Promise<void> {
+  listEndInView.value = false
+  await history.loadMore()
+  const element = listEnd.value
+  if (!element || !listEndObserver) return
+  listEndObserver.unobserve(element)
+  listEndObserver.observe(element)
+}
+
+watch(
+  () =>
+    listEndInView.value &&
+    history.hasMore &&
+    !history.isLoading &&
+    !history.failed &&
+    moonrakerAvailability.value.isAvailable,
+  (ready) => {
+    if (ready) void loadNextPage()
+  },
+)
+
 function formatMoment(seconds: number | null): string {
   if (seconds === null || !Number.isFinite(seconds) || seconds <= 0) return t('history.noValue')
   return shortDateTimeFormatter.value.format(seconds * 1000)
@@ -433,7 +495,9 @@ function requestReprint(job: HistoryJob): void {
     <!--
       `flex-1` without `min-h-0`, deliberately: the grow keeps the unavailable
       placeholder filling the page, while the default `min-height: auto` keeps
-      the region at least as tall as the job list. With `min-h-0` the region
+      the region at least as tall as its content: the whole job list where the
+      cards stack, the statistics card where they sit side by side and the job
+      list scrolls on its own. With `min-h-0` the region
       stayed capped at the viewport leftover and the list overflowed its box —
       and overflowing content slides past `.standard-page`'s `padding-bottom`,
       which pads only in-flow boxes, so a fully-scrolled page ended flush
@@ -576,7 +640,7 @@ function requestReprint(job: HistoryJob): void {
             <span>{{ t('history.jobs.failed') }}</span>
           </p>
 
-          <div v-if="history.hasJobs" class="machine-list machine-list--media">
+          <div v-if="history.hasJobs" class="machine-list machine-list--media history-jobs-list">
             <template v-for="group in jobGroups" :key="group.key">
               <p class="machine-list__label">{{ group.label }}</p>
               <template v-for="entry in group.jobs" :key="entry.job.id">
@@ -744,6 +808,12 @@ function requestReprint(job: HistoryJob): void {
                 </div>
               </template>
             </template>
+            <div
+              v-if="history.hasMore"
+              ref="listEnd"
+              class="history-jobs__end"
+              aria-hidden="true"
+            ></div>
             <div v-if="history.hasMore" class="machine-list__fold">
               <AppButton
                 variant="quiet"
@@ -752,7 +822,7 @@ function requestReprint(job: HistoryJob): void {
                 :pending="history.isLoading"
                 :label="t('history.jobs.loadMore')"
                 :disabled="history.isLoading"
-                @click="history.loadMore()"
+                @click="loadNextPage()"
               />
             </div>
           </div>

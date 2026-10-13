@@ -68,13 +68,13 @@ The distribution of how long your prints run: what the printer is used for.
 
 ## Jobs
 
-The full list, newest first and grouped by day, with **Load older jobs** at
-the end. It pages on
-what was returned rather than a count, so nothing is skipped at a boundary.
+The full list, newest first and grouped by day. Older jobs load as you scroll
+toward the end, so the whole history reads as one list. It pages on what was
+returned rather than a count, so nothing is skipped at a boundary.
 
-Pages you have loaded stay loaded. A print starting or finishing adds it to the
-top of the list you already have, so paging back through a long history is not
-undone by the printer finishing a job while you read.
+Jobs you have loaded stay loaded. A print starting or finishing adds it to the
+top of the list you already have, so scrolling back through a long history is
+not undone by the printer finishing a job while you read.
 
 **Recognise a job at a glance.** Each row shows the slicer's thumbnail, the
 time it finished, how long it printed, and how much filament it used. Open a

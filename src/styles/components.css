@@ -13030,6 +13030,52 @@ body.machine-editor-fullscreen-open {
   }
 }
 
+/*
+ * Side by side, the two cards fill the canvas to its bottom edge and the job
+ * list scrolls inside its own card, so the statistics and the lifetime strip
+ * stay put however far back the reader goes. The statistics card sets the
+ * row's floor: the list's `flex: 1 1 0` contributes nothing to the row's
+ * height, so a window too short for the statistics grows the row to fit them
+ * and the page scrolls, rather than clipping the card. Stacked, the list stays
+ * in the page's own scroll: a second scroll region below the statistics on a
+ * phone would trap every swipe that lands on it.
+ */
+@media (width > 96rem) {
+  .history-view > .availability-region > .availability-region__content {
+    grid-template-rows: auto 1fr;
+  }
+
+  .history-grid {
+    align-items: stretch;
+  }
+
+  .history-jobs-panel {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .history-jobs-list {
+    flex: 1 1 0;
+    min-height: 20rem;
+    align-content: start;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+}
+
+/*
+ * What the job list's paging watches: the list's last 30rem, laid over the
+ * rows it ends on and taking no height of its own, so the next page is asked
+ * for while there is still a screenful to read. `HistoryView` holds why the
+ * lead is geometry rather than an observer margin.
+ */
+.history-jobs__end {
+  grid-column: 1 / -1;
+  height: 30rem;
+  margin-block-start: -30rem;
+  pointer-events: none;
+}
+
 /* Same height as the Machine cards' headings, with or without actions. */
 .history-view .machine-panel-heading {
   min-height: 3.6875rem;
@@ -13065,9 +13111,9 @@ body.machine-editor-fullscreen-open {
  * status track has a fixed floor wide enough for "Interrupted", which is what
  * keeps the column straight down rows that no longer share one.
  *
- * History's "Load more" has no ceiling, and a print folder holds however many
- * files the slicer has sent it, so these two lists are the places in the
- * product whose element count nothing on the page bounds.
+ * History's job list pages in with no ceiling, and a print folder holds
+ * however many files the slicer has sent it, so these two lists are the
+ * places in the product whose element count nothing on the page bounds.
  * A thousand rows is 51 000 px of layout and paint for the rows on screen;
  * skipping the rest is what keeps scrolling and every re-render flat as the
  * list grows. The intrinsic size is stated rather than guessed, because a
@@ -15645,6 +15691,36 @@ body.machine-editor-fullscreen-open {
   .print-files-grid {
     grid-template-areas: 'queue' 'files';
     grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/*
+ * Side by side, History's arrangement: both cards reach the canvas's bottom
+ * edge, the file list scrolls inside its card under the trail, search and
+ * sort, and the queue card sets the row's floor. The list takes the card's
+ * height only while it has rows, so an empty folder's or a failed read's note
+ * sits under the summary rather than at the bottom of an empty card.
+ */
+@media (width > 96rem) {
+  .print-files-view > .availability-region > .availability-region__content {
+    grid-template-rows: 1fr;
+  }
+
+  .print-files-grid {
+    align-items: stretch;
+  }
+
+  .print-files-panel {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .print-files-list:has(> *) {
+    flex: 1 1 0;
+    min-height: 20rem;
+    align-content: start;
+    overflow-y: auto;
+    overscroll-behavior: contain;
   }
 }
 

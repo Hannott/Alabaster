@@ -434,7 +434,7 @@ describe('history store', () => {
    * surface — 263 KB and 125 ms against a real printer's 90-day period — and
    * the notification carries the job that changed, so none of these assertions
    * are about a nicety. `jobs` keeping its extra pages is the same fact from
-   * the user's side: pressing "Load more" four times and then starting a print
+   * the user's side: scrolling four pages back and then starting a print
    * must not put the list back to page one.
    */
   describe('applying a history-changed notification', () => {

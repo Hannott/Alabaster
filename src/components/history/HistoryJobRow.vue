@@ -130,6 +130,7 @@ const meta = computed(() => {
       class="machine-row__menu"
       :label="t('history.jobs.moreActions', { name })"
       align="end"
+      placement="auto"
       trigger-size="sm"
       trigger-icon-only
     >

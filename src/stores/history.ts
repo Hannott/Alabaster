@@ -499,7 +499,7 @@ export const useHistoryStore = defineStore('history', () => {
    * statistics window — measured against a real printer at 270 jobs, 263 KB
    * and 125 ms for a 90-day period, and proportionally worse for a farm
    * printer on "all time". It also replaced `jobs` with a fresh first page,
-   * which threw away every extra page the user had pressed "Load more" for and
+   * which threw away every extra page the user had scrolled back through and
    * re-rendered the whole list, twice per print. None of that bought anything:
    * the notification carries the changed job itself.
    *

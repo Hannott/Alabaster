@@ -1,6 +1,6 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { flushPromises, mount } from '@vue/test-utils'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { i18n } from '@/i18n'
 import { useAvailabilityStore } from '@/stores/availability'
@@ -339,6 +339,95 @@ describe('HistoryView', () => {
     expect(loadMoreButton).toBeDefined()
     await loadMoreButton?.trigger('click')
     expect(loadMore).toHaveBeenCalled()
+  })
+
+  describe('paging as the end of the list comes into view', () => {
+    class FakeObserver {
+      static latest: FakeObserver | null = null
+      observed: Element[] = []
+      observeCalls = 0
+      constructor(private readonly callback: IntersectionObserverCallback) {
+        FakeObserver.latest = this
+      }
+      observe(element: Element): void {
+        this.observed.push(element)
+        this.observeCalls += 1
+      }
+      unobserve(element: Element): void {
+        this.observed = this.observed.filter((entry) => entry !== element)
+      }
+      disconnect(): void {
+        this.observed = []
+      }
+      report(isIntersecting: boolean): void {
+        const entries = this.observed.map((target) => ({ isIntersecting, target }))
+        this.callback(
+          entries as unknown as IntersectionObserverEntry[],
+          this as unknown as IntersectionObserver,
+        )
+      }
+    }
+
+    beforeEach(() => {
+      vi.stubGlobal('IntersectionObserver', FakeObserver)
+      useAvailabilityStore().moonrakerConnected({ klippy_connected: true, klippy_state: 'ready' })
+    })
+
+    afterEach(() => {
+      vi.unstubAllGlobals()
+    })
+
+    it('asks for one page per sighting, and looks again only after it has landed', async () => {
+      const history = useHistoryStore()
+      history.jobs = [job()]
+      history.hasMore = true
+      let finish: (loaded: boolean) => void = () => {}
+      const loadMore = vi.spyOn(history, 'loadMore').mockImplementation(() => {
+        history.isLoading = true
+        return new Promise((resolve) => {
+          finish = (loaded) => {
+            history.isLoading = false
+            resolve(loaded)
+          }
+        })
+      })
+      mountView()
+      await flushPromises()
+      const observer = FakeObserver.latest!
+      expect(observer.observed).toHaveLength(1)
+      expect(observer.observeCalls).toBe(1)
+
+      observer.report(true)
+      await flushPromises()
+      expect(loadMore).toHaveBeenCalledTimes(1)
+
+      // The page lands while the observer has said nothing new — a hidden tab,
+      // or the frame before the new rows are measured. That must not page again.
+      finish(true)
+      await flushPromises()
+      expect(loadMore).toHaveBeenCalledTimes(1)
+      expect(observer.observeCalls).toBe(2)
+
+      observer.report(true)
+      await flushPromises()
+      expect(loadMore).toHaveBeenCalledTimes(2)
+    })
+
+    it('stops paging after a failed read and leaves the retry to the button', async () => {
+      const history = useHistoryStore()
+      history.jobs = [job()]
+      history.hasMore = true
+      history.failed = true
+      const loadMore = vi.spyOn(history, 'loadMore').mockResolvedValue(false)
+      const wrapper = mountView()
+
+      await flushPromises()
+      expect(FakeObserver.latest!.observed).toHaveLength(1)
+      FakeObserver.latest!.report(true)
+      await flushPromises()
+      expect(loadMore).not.toHaveBeenCalled()
+      expect(wrapper.findAll('button').some((b) => b.text() === 'Load older jobs')).toBe(true)
+    })
   })
 
   it('falls back to the field name when its declaration is gone', () => {

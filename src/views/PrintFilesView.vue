@@ -449,7 +449,8 @@ const {
   <section class="standard-page print-files-view">
     <PageHeading :title="t('printFiles.title')" />
 
-    <AvailabilityRegion requires="moonraker">
+    <!-- `flex-1` without `min-h-0`, for the reason History's own region gives. -->
+    <AvailabilityRegion requires="moonraker" class="flex-1">
       <div class="print-files-grid">
         <section
           class="machine-status-panel machine-list-panel print-files-panel relative"
@@ -550,7 +551,7 @@ const {
             </div>
           </div>
 
-          <div class="machine-list machine-list--media">
+          <div class="machine-list machine-list--media print-files-list">
             <div
               v-for="folder in gcodeFiles.visibleFolders"
               :key="folder.path"

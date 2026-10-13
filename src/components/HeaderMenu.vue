@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onBeforeUnmount, ref, watch } from 'vue'
+import { nextTick, onBeforeUnmount, ref, watch } from 'vue'
 
 import AppButton, { type AppButtonSize, type AppButtonVariant } from '@/components/AppButton.vue'
 
@@ -12,9 +12,13 @@ const props = defineProps<{
   /**
    * Which side of the trigger the panel opens on. The header opens downward;
    * the mobile navigation sits at the bottom of the viewport and has to open
-   * upward, or its panel would be off-screen.
+   * upward, or its panel would be off-screen. `auto` opens downward unless
+   * whatever clips the trigger — a list that scrolls on its own, or the
+   * viewport — would cut the panel off and there is room above: a row menu in
+   * History's or Print files' list, whose last visible rows sit at that
+   * list's edge.
    */
-  placement?: 'below' | 'above'
+  placement?: 'below' | 'above' | 'auto'
   /**
    * The trigger's shape, for a menu whose trigger has to match the controls
    * beside it rather than the header's default icon button.
@@ -58,10 +62,44 @@ const emit = defineEmits<{ open: [] }>()
 
 const open = ref(false)
 const root = ref<HTMLElement | null>(null)
+const panel = ref<HTMLElement | null>(null)
+const autoPlacement = ref<'below' | 'above'>('below')
 
 function toggle(): void {
   open.value = !open.value
-  if (open.value) emit('open')
+  if (!open.value) return
+  emit('open')
+  if (props.placement === 'auto') void placeAuto()
+}
+
+/** The part of the viewport that no clipping ancestor of `element` cuts off. */
+function visibleBounds(element: HTMLElement): { top: number; bottom: number } {
+  let top = 0
+  let bottom = window.innerHeight
+  for (let node = element.parentElement; node; node = node.parentElement) {
+    if (getComputedStyle(node).overflowY === 'visible') continue
+    const rect = node.getBoundingClientRect()
+    top = Math.max(top, rect.top)
+    bottom = Math.min(bottom, rect.bottom)
+  }
+  return { top, bottom }
+}
+
+/**
+ * Measured once the panel has rendered below and before the frame is painted,
+ * so the panel never shows on the wrong side first. Re-measured on every
+ * opening, since the trigger may have scrolled anywhere in between.
+ */
+async function placeAuto(): Promise<void> {
+  autoPlacement.value = 'below'
+  await nextTick()
+  if (!root.value || !panel.value) return
+  const bounds = visibleBounds(root.value)
+  const panelRect = panel.value.getBoundingClientRect()
+  const roomAbove = root.value.getBoundingClientRect().top - bounds.top
+  if (panelRect.bottom > bounds.bottom && roomAbove > panelRect.height) {
+    autoPlacement.value = 'above'
+  }
 }
 
 function close(): void {
@@ -127,10 +165,11 @@ onBeforeUnmount(() => {
     </AppButton>
     <div
       v-if="open"
+      ref="panel"
       class="header-menu__panel"
       :class="[
         `header-menu__panel--${props.align ?? 'end'}`,
-        `header-menu__panel--${props.placement ?? 'below'}`,
+        `header-menu__panel--${props.placement === 'auto' ? autoPlacement : (props.placement ?? 'below')}`,
         props.panelClass,
       ]"
       role="menu"

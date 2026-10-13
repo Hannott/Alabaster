@@ -91,6 +91,7 @@ const meta = computed(() => {
       class="machine-row__menu"
       :label="t('printFiles.moreActions', { name })"
       align="end"
+      placement="auto"
       trigger-size="sm"
       trigger-icon-only
     >

@@ -127,7 +127,7 @@ describe('HistoryJobRow', () => {
   /**
    * This row exists as a component so that a change elsewhere on the page does
    * not re-render every loaded job — measured at 0.05 ms per row per change,
-   * which is 49 ms for a list a user has pressed "Load more" on twenty times.
+   * which is 49 ms for a list a user has scrolled twenty pages back through.
    * Vue delivers that by skipping a child whose props are unchanged, and the
    * one thing that would silently undo it is handing the row a callback prop
    * instead of listening to a declared emit: an inline handler is a new

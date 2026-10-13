@@ -157,6 +157,24 @@ describe('page layout contract', () => {
   })
 
   /*
+   * Side by side, History's job list and Print files' file list scroll inside
+   * their cards so the card beside them stays in view. Stacked they must not:
+   * a second scroll region under another card on a phone traps every swipe
+   * that lands on it. A stated `flex: 1 1 0` basis is what keeps the list from
+   * sizing the row to its own content and scrolling nothing.
+   */
+  it('bounds the History and Print files lists only where their cards sit side by side', () => {
+    for (const list of ['\\.history-jobs-list', '\\.print-files-list:has\\(> \\*\\)']) {
+      expect(styles).toMatch(
+        new RegExp(
+          `@media \\(width > 96rem\\)\\s*\\{[^@]*${list}\\s*\\{[^}]*flex:\\s*1 1 0;[^}]*overflow-y:\\s*auto`,
+          's',
+        ),
+      )
+    }
+  })
+
+  /*
    * History pinned a detail pane beside its job list and had to cap it to the
    * scrollport so its Remove button could not end up below the fold; Print
    * files' pane replaced the whole list below 55rem. Both now open the item

@@ -1,4 +1,4 @@
-import { mount } from '@vue/test-utils'
+import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import HeaderMenu from '@/components/HeaderMenu.vue'
@@ -52,6 +52,41 @@ describe('HeaderMenu', () => {
     await wrapper.vm.$nextTick()
     expect(wrapper.find('.header-menu__panel').exists()).toBe(false)
 
+    wrapper.unmount()
+  })
+
+  it('opens an auto-placed panel upward only when what clips it would cut it off below', async () => {
+    const list = document.createElement('div')
+    list.style.overflowY = 'auto'
+    document.body.append(list)
+    let panelBottom = 500
+    const rect = (top: number, bottom: number) => ({ top, bottom, height: bottom - top }) as DOMRect
+    const spy = vi
+      .spyOn(HTMLElement.prototype, 'getBoundingClientRect')
+      .mockImplementation(function (this: HTMLElement) {
+        if (this === list) return rect(0, 400)
+        if (this.classList.contains('header-menu__panel')) {
+          return rect(panelBottom - 120, panelBottom)
+        }
+        return rect(350, 380)
+      })
+    const wrapper = mount(HeaderMenu, {
+      props: { label: 'More', placement: 'auto' },
+      slots: { trigger: '<span>more</span>', default: '<p>item</p>' },
+      attachTo: list,
+    })
+
+    await wrapper.find('button').trigger('click')
+    await flushPromises()
+    expect(wrapper.get('.header-menu__panel').classes()).toContain('header-menu__panel--above')
+
+    await wrapper.find('button').trigger('click')
+    panelBottom = 390
+    await wrapper.find('button').trigger('click')
+    await flushPromises()
+    expect(wrapper.get('.header-menu__panel').classes()).toContain('header-menu__panel--below')
+
+    spy.mockRestore()
     wrapper.unmount()
   })
 
