@@ -11,6 +11,7 @@ import { onKlipperRestart } from '@/composables/onKlipperRestart'
 import { useAvailability } from '@/composables/useAvailability'
 import { useConfigWrite } from '@/composables/useConfigWrite'
 import { useProcedureContext } from '@/composables/useProcedureContext'
+import { useProcedureText } from '@/composables/useProcedureText'
 import { procedureById } from '@/features/calibration/procedures'
 import {
   attemptScript,
@@ -37,6 +38,7 @@ import { usePrinterStore } from '@/stores/printer'
  * running driver with `SET_TMC_FIELD` and is gone at the next restart.
  */
 const { t } = useI18n({ useScope: 'global' })
+const { effects } = useProcedureText()
 const calibration = useCalibrationStore()
 const printer = usePrinterStore()
 const context = useProcedureContext()
@@ -259,17 +261,17 @@ function historySummary(entry: CalibrationLogEntry): string {
 <template>
   <CalibrationCard
     class="calibration-workspace"
+    workspace
     :title="t('calibration.procedure.sensorlessHoming.name')"
   >
-    <template #aside>
-      <span class="calibration-workspace__command">{{ driver?.option }}</span>
-      <span>{{ inFile ?? '—' }}</span>
-    </template>
+    <template #aside>{{ effects(procedureById('sensorlessHoming')!) }}</template>
     <p class="calibration-workspace__description">
       {{ t('calibration.procedure.sensorlessHoming.detail') }}
     </p>
-
-    <CalibrationRequirements :requires="procedureById('sensorlessHoming')!.requires" />
+    <p class="calibration-workspace__current">
+      <span class="calibration-workspace__command">{{ driver?.option }}</span>
+      <span>{{ inFile ?? '—' }}</span>
+    </p>
 
     <div class="calibration-params">
       <fieldset v-if="drivers.length > 1" class="calibration-choice">
@@ -292,58 +294,64 @@ function historySummary(entry: CalibrationLogEntry): string {
       </fieldset>
     </div>
 
-    <div
-      v-if="driver && setup && (setup.lines.length > 0 || setup.removes.length > 0)"
-      class="calibration-sensorless-setup"
-    >
-      <p class="calibration-panel__hint" role="alert">
-        {{
-          t(
-            !setup.blocking
-              ? 'calibration.sensorless.setup.adjust'
-              : setup.lines.some((line) => line.option === 'endstop_pin')
-                ? 'calibration.sensorless.setup.switch'
-                : 'calibration.sensorless.setup.direction',
-            { stepper: driver.stepper },
-          )
-        }}
-      </p>
-      <pre v-if="snippet" class="calibration-snippet selectable">{{ snippet }}</pre>
-      <p
-        v-for="removal in setup.removes"
-        :key="`${removal.section}.${removal.option}`"
-        class="calibration-panel__hint"
+    <!--
+      The config this search needs, inside the gate with the conditions: it
+      blocks the steps below exactly as "no print running" does.
+    -->
+    <CalibrationRequirements :requires="procedureById('sensorlessHoming')!.requires">
+      <div
+        v-if="driver && setup && (setup.lines.length > 0 || setup.removes.length > 0)"
+        class="calibration-sensorless-setup"
       >
-        {{ t('calibration.sensorless.setup.remove', removal) }}
-      </p>
-      <div class="calibration-step__controls">
-        <AppField
-          v-if="needsPin"
-          v-model="diagPin"
-          type="text"
-          size="sm"
-          :label="t('calibration.sensorless.setup.diagPin')"
-        />
-        <AppButton
-          size="sm"
-          variant="primary"
-          icon="save"
-          :label="t('calibration.sensorless.setup.fix')"
-          :pending="configWrite.writing.value === 'setup'"
-          :disabled="configWrite.disabled.value || (needsPin && !pinValid)"
-          @click="fixConfig"
-        />
+        <p class="calibration-panel__hint" role="alert">
+          {{
+            t(
+              !setup.blocking
+                ? 'calibration.sensorless.setup.adjust'
+                : setup.lines.some((line) => line.option === 'endstop_pin')
+                  ? 'calibration.sensorless.setup.switch'
+                  : 'calibration.sensorless.setup.direction',
+              { stepper: driver.stepper },
+            )
+          }}
+        </p>
+        <pre v-if="snippet" class="calibration-snippet selectable">{{ snippet }}</pre>
+        <p
+          v-for="removal in setup.removes"
+          :key="`${removal.section}.${removal.option}`"
+          class="calibration-panel__hint"
+        >
+          {{ t('calibration.sensorless.setup.remove', removal) }}
+        </p>
+        <div class="calibration-step__controls">
+          <AppField
+            v-if="needsPin"
+            v-model="diagPin"
+            type="text"
+            size="sm"
+            :label="t('calibration.sensorless.setup.diagPin')"
+          />
+          <AppButton
+            size="sm"
+            variant="primary"
+            icon="save"
+            :label="t('calibration.sensorless.setup.fix')"
+            :pending="configWrite.writing.value === 'setup'"
+            :disabled="configWrite.disabled.value || (needsPin && !pinValid)"
+            @click="fixConfig"
+          />
+        </div>
+        <p v-if="needsPin" class="calibration-panel__hint">
+          {{ t('calibration.sensorless.setup.pinHint') }}
+        </p>
+        <p v-if="setupOutcome" class="calibration-panel__hint" role="status">
+          {{ t(`calibration.result.persist.${setupOutcome}`) }}
+        </p>
+        <p v-else-if="setup.blocking" class="calibration-panel__hint">
+          {{ t('calibration.sensorless.setup.restart') }}
+        </p>
       </div>
-      <p v-if="needsPin" class="calibration-panel__hint">
-        {{ t('calibration.sensorless.setup.pinHint') }}
-      </p>
-      <p v-if="setupOutcome" class="calibration-panel__hint" role="status">
-        {{ t(`calibration.result.persist.${setupOutcome}`) }}
-      </p>
-      <p v-else-if="setup.blocking" class="calibration-panel__hint">
-        {{ t('calibration.sensorless.setup.restart') }}
-      </p>
-    </div>
+    </CalibrationRequirements>
 
     <ol v-if="driver && !driver.setup.blocking" class="calibration-steps">
       <li class="calibration-step">

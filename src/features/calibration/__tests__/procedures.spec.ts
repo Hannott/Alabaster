@@ -961,3 +961,53 @@ describe('the few parameters a run takes', () => {
     ).toContain('STEP=5')
   })
 })
+
+describe('the list glance', () => {
+  const glance = (id: string, rows: { label: object; after: string }[]) =>
+    procedureById(id as never)!.glance!(rows as never)
+
+  it('names only the screw furthest out, or says the bed is level', () => {
+    expect(
+      glance('screwsTilt', [
+        { label: { literal: 'front left' }, after: '' },
+        { label: { literal: 'front right' }, after: 'CCW 00:13' },
+        { label: { literal: 'back' }, after: 'CW 00:06' },
+        { label: { key: 'calibration.result.maxDeviation' }, after: '0.050 mm' },
+      ]),
+    ).toEqual({
+      key: 'calibration.glance.screw',
+      params: { screw: 'front right', turn: 'CCW 00:13' },
+    })
+    expect(glance('screwsTilt', [{ label: { literal: 'back' }, after: 'CW 00:00' }])).toEqual({
+      key: 'calibration.glance.level',
+    })
+  })
+
+  it('judges a gantry by its range and belts by their similarity', () => {
+    expect(
+      glance('quadGantryLevel', [
+        { label: { key: 'calibration.result.retries' }, after: '2/5' },
+        { label: { key: 'calibration.result.range' }, after: '0.004213' },
+      ]),
+    ).toEqual({ key: 'calibration.glance.range', params: { value: '0.004' } })
+    expect(
+      glance('shakeTuneBelts', [
+        { label: { key: 'calibration.result.similarity' }, after: '99.5%' },
+      ]),
+    ).toEqual({ key: 'calibration.glance.similarity', params: { value: '99.5%' } })
+  })
+
+  it('leaves a check without a value, however much it reported', () => {
+    for (const id of [
+      'endstops',
+      'stepperBuzz',
+      'accelerometerQuery',
+      'axesNoise',
+      'heaterCheck',
+    ]) {
+      const procedure = procedureById(id as never)!
+      expect(procedure.glance, id).toBeUndefined()
+      expect(procedure.current, id).toBeUndefined()
+    }
+  })
+})

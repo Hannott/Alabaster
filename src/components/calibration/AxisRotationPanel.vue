@@ -6,6 +6,7 @@ import AppButton from '@/components/AppButton.vue'
 import AppField from '@/components/AppField.vue'
 import AppIcon from '@/components/AppIcon.vue'
 import CalibrationCard from '@/components/calibration/CalibrationCard.vue'
+import CalibrationHistory from '@/components/calibration/CalibrationHistory.vue'
 import RotationHardwareFields, {
   type RotationProposal,
 } from '@/components/calibration/RotationHardwareFields.vue'
@@ -24,7 +25,8 @@ import {
   stepperDrive,
   suggestedFullSteps,
 } from '@/features/calibration/axisRotation'
-import { useCalibrationStore } from '@/stores/calibration'
+import { procedureById } from '@/features/calibration/procedures'
+import { useCalibrationStore, type CalibrationLogEntry } from '@/stores/calibration'
 import { usePrinterStore } from '@/stores/printer'
 
 /**
@@ -42,7 +44,7 @@ const calibration = useCalibrationStore()
 const printer = usePrinterStore()
 const context = useProcedureContext()
 const requirements = useProcedureRequirements()
-const { when } = useProcedureText()
+const { effects } = useProcedureText()
 const { availability: klipperAvailability } = useAvailability('klipper')
 
 const steppers = computed(() => axisSteppers(context.value.sections))
@@ -220,19 +222,24 @@ const summary = computed(() =>
     .join(' · '),
 )
 
-const history = computed(() => [...calibration.historyFor('axisRotation')].reverse().slice(0, 5))
+/** A logged run in one line: the value it moved from and to. */
+function historySummary(entry: CalibrationLogEntry): string {
+  return `${entry.values.stepper} · rotation_distance ${entry.rows[0]?.before} → ${entry.rows[0]?.after}`
+}
 </script>
 
 <template>
   <CalibrationCard
     class="calibration-workspace"
+    workspace
     :title="t('calibration.procedure.axisRotation.name')"
   >
-    <template #aside>
-      <span class="calibration-workspace__command">{{ summary }}</span>
-    </template>
+    <template #aside>{{ effects(procedureById('axisRotation')!) }}</template>
     <p class="calibration-workspace__description">
       {{ t('calibration.procedure.axisRotation.detail') }}
+    </p>
+    <p class="calibration-workspace__current">
+      <span class="calibration-workspace__command">{{ summary }}</span>
     </p>
 
     <div class="calibration-params">
@@ -404,17 +411,6 @@ const history = computed(() => [...calibration.historyFor('axisRotation')].rever
       :disabled="method === 'measure' && !moved"
     />
 
-    <div v-if="history.length > 0" class="calibration-history">
-      <h3 class="calibration-history__title">{{ t('calibration.bench.history') }}</h3>
-      <ul class="calibration-history__list">
-        <li v-for="entry in history" :key="entry.at" class="calibration-history__entry">
-          <span class="calibration-history__when">{{ when(entry.at) }}</span>
-          <span class="calibration-history__summary">
-            {{ entry.values.stepper }} · rotation_distance {{ entry.rows[0]?.before }} →
-            {{ entry.rows[0]?.after }}
-          </span>
-        </li>
-      </ul>
-    </div>
+    <CalibrationHistory id="axisRotation" :summary="historySummary" />
   </CalibrationCard>
 </template>

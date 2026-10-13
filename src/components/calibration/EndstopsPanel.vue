@@ -22,7 +22,11 @@ const timeFormatter = computed(() => createTimeFormatter(locale.value))
 </script>
 
 <template>
-  <CalibrationCard :title="t('calibration.endstops.title')" :hint="t('calibration.endstops.hint')">
+  <CalibrationCard
+    workspace
+    :title="t('calibration.endstops.title')"
+    :hint="t('calibration.endstops.hint')"
+  >
     <template #aside>
       <AppButton
         size="xs"

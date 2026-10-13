@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import CalibrationCard from '@/components/calibration/CalibrationCard.vue'
+import { useProcedureText } from '@/composables/useProcedureText'
 import {
   probeSamples,
   probeSummaryOf,
@@ -24,6 +25,7 @@ import { useCalibrationStore } from '@/stores/calibration'
  * lowest, highest, average and median lines.
  */
 const { t, locale } = useI18n({ useScope: 'global' })
+const { when } = useProcedureText()
 const calibration = useCalibrationStore()
 
 const width = 320
@@ -36,10 +38,11 @@ const plotBottom = height - 10
 const samples = computed(() => probeSamples(calibration.linesFor('probeAccuracy')))
 const isRunning = computed(() => calibration.runFor('probeAccuracy')?.running === true)
 
-const logged = computed(() => {
+const latestEntry = computed(() => {
   const history = calibration.historyFor('probeAccuracy')
-  return probeSummaryOf(history[history.length - 1])
+  return history[history.length - 1]
 })
+const logged = computed(() => probeSummaryOf(latestEntry.value))
 
 const summary = computed(() => summarize(samples.value) ?? logged.value)
 const fromSamples = computed(() => samples.value.length > 0)
@@ -123,19 +126,28 @@ const facts = computed(() => {
       value: `${millimetres(value.standardDeviation)} mm`,
     })
   }
+  /*
+   * The rest of the run's statistics, here rather than stacked six to a run
+   * in the workspace's history, which now keeps each run to one line.
+   */
+  for (const key of ['average', 'median', 'maximum', 'minimum'] as const) {
+    const stat = value[key]
+    if (stat === null) continue
+    facts.push({ key, label: t(`calibration.probe.${key}`), value: millimetres(stat) })
+  }
   return facts
 })
 </script>
 
 <template>
-  <CalibrationCard :title="t('calibration.context.samples.title')">
+  <CalibrationCard class="calibration-samples-card" :title="t('calibration.context.samples.title')">
     <template #aside>
       <span class="calibration-context__aside">
         {{
           fromSamples
             ? t('calibration.context.samples.count', { count: samples.length })
-            : summary
-              ? t('calibration.context.samples.lastRun')
+            : summary && latestEntry
+              ? when(latestEntry.at)
               : ''
         }}
       </span>
@@ -149,7 +161,7 @@ const facts = computed(() => {
       }}
     </p>
 
-    <template v-else>
+    <div v-else class="calibration-samples-layout">
       <svg
         class="calibration-context__figure calibration-samples"
         :viewBox="`0 0 ${width} ${height}`"
@@ -234,6 +246,6 @@ const facts = computed(() => {
           <dd>{{ fact.value }}</dd>
         </div>
       </dl>
-    </template>
+    </div>
   </CalibrationCard>
 </template>

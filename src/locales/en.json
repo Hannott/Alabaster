@@ -243,7 +243,6 @@
       "samples": {
         "title": "Probe samples",
         "count": "{count} samples",
-        "lastRun": "Last run",
         "empty": "Each sample is drawn here as the probe takes it.",
         "waiting": "Waiting for the first sample.",
         "summary": "{count} samples between {minimum} and {maximum} mm"
@@ -451,9 +450,6 @@
       "failed": "{when} · failed",
       "interrupted": "{when} · not seen to finish",
       "running": "Running",
-      "readiness": "Ready?",
-      "staged": "Staged for SAVE_CONFIG: {count}",
-      "stagedUnknown": "Changes staged for SAVE_CONFIG",
       "run": "Run",
       "noScript": "Fill in the values above",
       "interactive": "A dialog walks through the steps once it starts.",
@@ -486,15 +482,17 @@
         "heats": "Heats",
         "probes": "Probes the bed"
       },
-      "current": "{value} (in the file)",
       "next": {
         "stale": "Next: {name}, due ({when})",
         "never": "Next: {name}, never run on this printer",
-        "open": "Open"
+        "open": "Open",
+        "tag": "Next"
       },
       "trends": "Trends",
       "allHistory": "Show all {count}",
-      "fewerHistory": "Show fewer"
+      "fewerHistory": "Show fewer",
+      "runActions": "Actions for the run on {when}",
+      "notRunHere": "Not run here"
     },
     "requirement": {
       "homed": {
@@ -762,207 +760,166 @@
     "procedure": {
       "endstops": {
         "name": "Endstop check",
-        "description": "Reads every endstop, live.",
         "detail": "Reads each endstop again every couple of seconds while the printer is idle. Press a switch by hand and watch it change."
       },
       "stepperBuzz": {
         "name": "Stepper check",
-        "description": "Moves one motor to confirm its wiring.",
         "detail": "Moves the chosen stepper 1 mm forward and back ten times. Watch which motor moves, and that it moves the way the axis should."
       },
       "axisRotation": {
         "name": "Axis rotation distance",
-        "description": "rotation_distance from belt, screw or move.",
         "detail": "Belt pitch × pulley teeth, or screw pitch × starts. The gear ratio and the motor step angle are options of their own, and the step angle changes steps per mm, not rotation_distance. A measured move checks a lead screw, and shows a motor set up with the wrong step angle."
       },
       "zEndstop": {
         "name": "Z endstop position",
-        "description": "Paper test; sets Z position_endstop.",
         "detail": "Lowers the nozzle onto a sheet of paper in steps you choose, then stages the new position_endstop for SAVE_CONFIG. A dialog walks you through it."
       },
       "endstopPhase": {
         "name": "Endstop phase",
-        "description": "Stepper phase at each endstop, for homing.",
         "detail": "Reports the stepper phase each endstop triggers at, and stages it for SAVE_CONFIG. Home a few times first so there are readings to use."
       },
       "tmcAutotune": {
         "name": "TMC autotune",
-        "description": "Tunes TMC drivers from the motor data.",
         "detail": "Sets the TMC driver registers from each motor's data sheet values. Nothing moves."
       },
       "axesMap": {
         "name": "Axis map",
-        "description": "Maps accelerometer axes to the printer's.",
         "detail": "Moves each axis and measures which accelerometer axis responds, then prints the axes_map to use."
       },
       "bedMesh": {
         "name": "Bed mesh",
-        "description": "Probes the bed and saves a mesh profile.",
         "detail": "Probes a grid across the bed and stores it under a profile name. Take it at the bed temperature you print at: a mesh taken cold does not describe a hot bed."
       },
       "quadGantryLevel": {
         "name": "Quad gantry level",
-        "description": "Levels the gantry with the four Z motors.",
         "detail": "Probes the four corners and moves each Z motor until the gantry is within tolerance. The result is live until the next home."
       },
       "zTilt": {
         "name": "Z tilt",
-        "description": "Levels the bed with the Z motors.",
         "detail": "Probes the configured points and moves each Z motor until the bed is within tolerance. The result is live until the next home."
       },
       "screwsTilt": {
         "name": "Bed screws",
-        "description": "Says how far to turn each bed screw.",
         "detail": "Probes beside each bed screw and reports the turn that brings it level with the base screw. Turn them, then run it again to check."
       },
       "bedScrews": {
         "name": "Bed screws by hand",
-        "description": "Moves to each screw for a paper test.",
         "detail": "Moves the nozzle over each bed screw in turn. Adjust the screw with a sheet of paper under the nozzle, then accept or mark it adjusted. A dialog walks you through it."
       },
       "deltaCalibrate": {
         "name": "Delta calibration",
-        "description": "Calibrates a delta printer's geometry.",
         "detail": "Probes points across the bed and stages new endstop positions and radius for SAVE_CONFIG."
       },
       "probeZOffset": {
         "name": "Probe Z offset",
-        "description": "Paper test; sets the probe's z_offset.",
         "detail": "Probes the bed, then lowers the nozzle onto a sheet of paper in steps you choose, and stages the new z_offset for SAVE_CONFIG. A dialog walks you through it."
       },
       "probeAccuracy": {
         "name": "Probe accuracy",
-        "description": "Repeats one point and reports the spread.",
         "detail": "Probes the point under the probe several times without moving and reports how far the readings spread. A standard deviation under about 0.003 mm is typical of a good probe."
       },
       "bedTilt": {
         "name": "Bed tilt",
-        "description": "Measures bed tilt for software compensation.",
         "detail": "Probes the configured points and stages x_adjust and y_adjust for SAVE_CONFIG."
       },
       "eddyDriveCurrent": {
         "name": "Eddy probe drive current",
-        "description": "Drive current for an eddy current probe.",
         "detail": "Put the nozzle about 20 mm above the bed first. Finds the coil drive current and stages it for SAVE_CONFIG."
       },
       "eddyHeight": {
         "name": "Eddy probe height map",
-        "description": "Frequency to height for an eddy probe.",
         "detail": "Starts with a paper test, then moves the probe through a range of heights to map its frequency to distance. A dialog walks you through it."
       },
       "probeDrift": {
         "name": "Probe temperature drift",
-        "description": "How the probe's readings drift as it warms.",
         "detail": "A paper test first, then a sample each time you ask for one as the probe warms toward the target; Complete stages the drift table for SAVE_CONFIG."
       },
       "beacon": {
         "name": "Beacon calibration",
-        "description": "Beacon probe calibration.",
         "detail": "Runs BEACON_CALIBRATE and follows it through the paper test when it asks for one."
       },
       "cartographer": {
         "name": "Cartographer calibration",
-        "description": "Cartographer probe calibration.",
         "detail": "Runs CARTOGRAPHER_CALIBRATE and follows it through the paper test when it asks for one."
       },
       "autoZ": {
         "name": "Automatic Z calibration",
-        "description": "Z offset from the endstop, probe and bed.",
         "detail": "Runs klipper_z_calibration's CALIBRATE_Z, which measures the nozzle and the probe on the Z endstop and the bed, and applies the offset until the next restart."
       },
       "heaterModel": {
         "name": "Heater model",
-        "description": "Tunes a heater's PID or MPC model.",
         "detail": "Heats the heater to the target and lets it swing around it a few times, which takes several minutes, then stages the new constants for SAVE_CONFIG. Tune at the temperature you print at."
       },
       "heaterCheck": {
         "name": "Heater limits",
-        "description": "Each heater's model and shutdown limits.",
         "detail": "Each heater's current control constants, and the verify_heater limits that stop the printer when a heater does not heat as expected."
       },
       "shaperCalibrate": {
         "name": "Input shaper calibration",
-        "description": "Shakes each axis; recommends a shaper.",
         "detail": "Excites each axis across a range of frequencies with the accelerometer attached, recommends a shaper and frequency per axis, and stages them for SAVE_CONFIG."
       },
       "shakeTuneShaper": {
         "name": "Input shaper graphs",
-        "description": "Shake&Tune's shaper run, a graph per axis.",
         "detail": "Runs Shake&Tune's AXES_SHAPER_CALIBRATION. Its graphs appear beside this panel when they are written, and its recommendation is lifted into the result."
       },
       "shakeTuneBelts": {
         "name": "Belt comparison",
-        "description": "Compares the two belts on a CoreXY.",
         "detail": "Runs Shake&Tune's COMPARE_BELTS_RESPONSES. Two belts at the same tension draw two curves that lie on top of each other."
       },
       "shakeTuneVibrations": {
         "name": "Vibration profile",
-        "description": "Maps vibrations across speeds and angles.",
         "detail": "Runs Shake&Tune's CREATE_VIBRATIONS_PROFILE, which moves the toolhead at a range of speeds and angles. The graph shows the speeds to avoid."
       },
       "accelerometerQuery": {
         "name": "Accelerometer check",
-        "description": "Reads the accelerometer once.",
         "detail": "Reads one sample from the accelerometer. At rest, one axis reads about 9800 mm/s², which is gravity."
       },
       "axesNoise": {
         "name": "Accelerometer noise",
-        "description": "Reads background vibration for two seconds.",
         "detail": "Reads the accelerometer for two seconds with the printer still. High noise here means a fan touching the toolhead or a loose mount, and it will show in every graph."
       },
       "rotationDistance": {
         "name": "Rotation distance",
-        "description": "How far the extruder moves filament.",
         "detail": "A new extruder starts from its drive gear and gear ratio. A measured extrude corrects it: mark the filament above the extruder, extrude a known length slowly, and measure what is left to the mark."
       },
       "pressureAdvance": {
         "name": "Pressure advance",
-        "description": "Tries a value live; keeps it in the file.",
         "detail": "Sets pressure advance and its smoothing time on the running printer, until the next restart. Keep a value that prints well in the config file from the result."
       },
       "nonlinearPressureAdvance": {
         "name": "Nonlinear pressure advance",
-        "description": "Kalico's nonlinear PA from printed towers.",
         "detail": "Each tower sweeps one value with height. Enter the heights where the side and the front look best, and keep the value they work out. Any tower can be printed again."
       },
       "runoutSensors": {
         "name": "Filament sensors",
-        "description": "Each runout sensor's state, live.",
         "detail": "Pull the filament back past a sensor and watch it change. A sensor that reads no filament while filament is loaded is a fault, not an empty spool."
       },
       "axisTwist": {
         "name": "Axis twist compensation",
-        "description": "Paper test along X; corrects probe twist.",
         "detail": "Probes each point along the axis, then lowers the nozzle onto paper at the same point, and stages the difference for SAVE_CONFIG. Calibrate the probe Z offset again afterwards."
       },
       "sensorlessHoming": {
         "name": "Sensorless homing",
-        "description": "Stall sensitivity for switchless homing.",
         "detail": "Home the axis at one sensitivity after another and say what it did. The value kept sits a third of the way from the least sensitive single touch to the most sensitive full home."
       },
       "skewCorrection": {
         "name": "Skew correction",
-        "description": "Squares the frame from a measured print.",
         "detail": "Print the skew calibration object with no correction, corner A toward the origin. Measure AC, BD and AD in each plane with calipers, leaving out any flats on the corners."
       },
       "probeXyOffset": {
         "name": "Probe X/Y offset",
-        "description": "Where the probe sits beside the nozzle.",
         "detail": "Stand the nozzle on a mark near the middle of the bed and record it, then stand the probe's sensing point on the same mark and record that. The difference is x_offset and y_offset."
       },
       "screwPositions": {
         "name": "Screw positions",
-        "description": "Records bed screws by standing over them.",
         "detail": "Jog the nozzle or the probe over each bed screw and record it. The coordinates the section needs are worked out from the probe offset and written together."
       },
       "loadCell": {
         "name": "Load cell",
-        "description": "Scales a load cell with a known weight.",
         "detail": "Tare the cell with nothing on it, place a weight of known mass, and enter it. ACCEPT stages counts_per_gram and reference_tare_counts for SAVE_CONFIG."
       },
       "tuningTower": {
         "name": "Tuning tower",
-        "description": "Pressure advance or retraction, by tower.",
         "detail": "The tower prints a range of values, one per height. Measure the height that prints best and keep the value it was printed at."
       }
     },
@@ -1158,6 +1115,13 @@
       "accept": "Accept",
       "abort": "Abort",
       "aborted": "Calibration aborted. Nothing was staged."
+    },
+    "glance": {
+      "probe": "range {range} · SD {deviation} mm",
+      "screw": "{screw} {turn}",
+      "level": "Level",
+      "range": "range {value} mm",
+      "similarity": "{value} similar"
     }
   },
   "history": {

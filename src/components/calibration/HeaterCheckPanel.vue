@@ -4,6 +4,8 @@ import { useI18n } from 'vue-i18n'
 
 import CalibrationCard from '@/components/calibration/CalibrationCard.vue'
 import { useProcedureContext } from '@/composables/useProcedureContext'
+import { useProcedureText } from '@/composables/useProcedureText'
+import { procedureById } from '@/features/calibration/procedures'
 import { usePrinterConfigStore } from '@/stores/printerConfig'
 
 /**
@@ -21,6 +23,7 @@ import { usePrinterConfigStore } from '@/stores/printerConfig'
  * after the calibration that replaced them.
  */
 const { t } = useI18n({ useScope: 'global' })
+const { effects } = useProcedureText()
 const printerConfig = usePrinterConfigStore()
 const context = useProcedureContext()
 
@@ -90,8 +93,10 @@ const heaters = computed(() =>
 <template>
   <CalibrationCard
     class="calibration-workspace"
+    workspace
     :title="t('calibration.procedure.heaterCheck.name')"
   >
+    <template #aside>{{ effects(procedureById('heaterCheck')!) }}</template>
     <p class="calibration-workspace__description">
       {{ t('calibration.procedure.heaterCheck.detail') }}
     </p>

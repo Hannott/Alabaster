@@ -18,8 +18,16 @@ import { usePrinterStore } from '@/stores/printer'
  * that meets it. The generic workspace and every guided panel list them
  * through this, so "homed" is checked, worded and fixed the same way whether
  * the procedure is one command or a sequence the reader drives.
+ *
+ * It is the gate as well as the list: a soft box holding the checks and, in
+ * the slot, whatever they gate — the workspace's command and Run, a panel's
+ * config fix. They used to sit apart, the checks above the settings and Run
+ * below them, so "meet the conditions above first" pointed past every field
+ * to a list the reader had already scrolled by.
  */
 const props = defineProps<{ requires: readonly ProcedureRequirement[] }>()
+
+const slots = defineSlots<{ default?(): unknown }>()
 
 const { t } = useI18n({ useScope: 'global' })
 const calibration = useCalibrationStore()
@@ -48,30 +56,37 @@ const states = computed(() => props.requires.map((requirement) => requirements.v
 </script>
 
 <template>
-  <ul v-if="states.length > 0" class="calibration-checks">
-    <li
-      v-for="state in states"
-      :key="state.requirement"
-      class="calibration-check"
-      :class="{ 'calibration-check--unmet': !state.met }"
-    >
-      <AppIcon :name="state.met ? 'check' : 'warning'" class="size-4 shrink-0" aria-hidden="true" />
-      <span class="calibration-check__text">{{
-        t(`calibration.requirement.${state.requirement}.${state.wording}`, state.params ?? {})
-      }}</span>
-      <!-- A condition met only on the config's word still offers the check that would show it. -->
-      <AppButton
-        v-if="
-          (!state.met || state.wording === 'configured' || state.wording === 'boardConnected') &&
-          state.fix
-        "
-        size="xs"
-        :icon="fixIcons[state.fix.id]"
-        :label="t(`calibration.requirement.fix.${state.fix.id}`)"
-        :pending="state.fix.pending"
-        :disabled="!canFix"
-        @click="state.fix.run()"
-      />
-    </li>
-  </ul>
+  <div v-if="states.length > 0 || slots.default" class="calibration-gate">
+    <ul v-if="states.length > 0" class="calibration-checks">
+      <li
+        v-for="state in states"
+        :key="state.requirement"
+        class="calibration-check"
+        :class="{ 'calibration-check--unmet': !state.met }"
+      >
+        <AppIcon
+          :name="state.met ? 'check' : 'warning'"
+          class="size-4 shrink-0"
+          aria-hidden="true"
+        />
+        <span class="calibration-check__text">{{
+          t(`calibration.requirement.${state.requirement}.${state.wording}`, state.params ?? {})
+        }}</span>
+        <!-- A condition met only on the config's word still offers the check that would show it. -->
+        <AppButton
+          v-if="
+            (!state.met || state.wording === 'configured' || state.wording === 'boardConnected') &&
+            state.fix
+          "
+          size="xs"
+          :icon="fixIcons[state.fix.id]"
+          :label="t(`calibration.requirement.fix.${state.fix.id}`)"
+          :pending="state.fix.pending"
+          :disabled="!canFix"
+          @click="state.fix.run()"
+        />
+      </li>
+    </ul>
+    <slot></slot>
+  </div>
 </template>

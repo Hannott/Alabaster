@@ -345,11 +345,21 @@ export interface CalibrationProcedure {
     context: ProcedureContext,
   ) => ProcedureResult | null
   /**
-   * The value the printer is set to right now, for the list to show where no
-   * run has been logged: the file's `z_offset`, the running shaper. A logged
-   * result wins over it.
+   * What the printer is set to right now, the list's line for a procedure
+   * whose product is a setting: the file's `z_offset`, the configured shaper.
+   * The file rather than the last run, because a run can stage a value that
+   * was never saved, and the list answers what the printer will use.
    */
   current?: (context: ProcedureContext) => string | null
+  /**
+   * The one figure worth reading off the list for a procedure whose product is
+   * a measurement, from its newest logged run: a probe's spread, the worst
+   * screw. Most procedures have neither this nor `current` and show no value
+   * at all — a check's readings, a noise level or a graph's name are read on
+   * the workspace, and printed under every row they made the list a wall of
+   * numbers nobody scanned.
+   */
+  glance?: (rows: readonly ProcedureResultRow[]) => ProcedureText | null
   /**
    * What only the reader can say once the run ends — whether the motor moved,
    * and the right way — logged as the run's result with their answers.
@@ -717,6 +727,48 @@ function configuredShapers(context: ProcedureContext): string | null {
     return type && freq ? [`${axis} ${type} ${freq} Hz`] : []
   })
   return parts.length > 0 ? parts.join(' · ') : null
+}
+
+/** A logged row's value by its message key, or null. */
+function rowAfter(rows: readonly ProcedureResultRow[], name: string): string | null {
+  const row = rows.find((candidate) => 'key' in candidate.label && candidate.label.key === name)
+  return row && row.after !== '' ? row.after : null
+}
+
+function fixed(value: string, digits: number): string {
+  const number = Number(value)
+  return Number.isFinite(number) ? number.toFixed(digits) : value
+}
+
+/** The probe test's spread: its range and standard deviation, which is what a probe is judged by. */
+function probeGlance(rows: readonly ProcedureResultRow[]): ProcedureText | null {
+  const range = rowAfter(rows, 'calibration.probe.range')
+  const deviation = rowAfter(rows, 'calibration.probe.standardDeviation')
+  if (range === null) return null
+  if (deviation === null) return key('calibration.glance.range', { value: fixed(range, 4) })
+  return key('calibration.glance.probe', { range: fixed(range, 4), deviation: fixed(deviation, 4) })
+}
+
+/** The screw furthest out, by its turn: the one that says whether the bed needs touching. */
+function screwsGlance(rows: readonly ProcedureResultRow[]): ProcedureText | null {
+  const minutes = (turn: string) => {
+    const match = /(\d+):(\d+)/.exec(turn)
+    return match ? Number(match[1]) * 60 + Number(match[2]) : -1
+  }
+  const turns = rows.filter((row) => 'literal' in row.label && minutes(row.after) >= 0)
+  if (turns.length === 0) return null
+  const worst = turns.reduce((most, row) => (minutes(row.after) > minutes(most.after) ? row : most))
+  if (minutes(worst.after) === 0) return key('calibration.glance.level')
+  return key('calibration.glance.screw', {
+    screw: 'literal' in worst.label ? worst.label.literal : '',
+    turn: worst.after,
+  })
+}
+
+/** What a gantry or Z tilt run left: the range between its probe points. */
+function levelingGlance(rows: readonly ProcedureResultRow[]): ProcedureText | null {
+  const range = rowAfter(rows, 'calibration.result.range')
+  return range === null ? null : key('calibration.glance.range', { value: fixed(range, 3) })
 }
 
 /** The option as the file writes it, said for the list; null where no line sets it. */
@@ -1405,6 +1457,13 @@ export const calibrationProcedures: readonly CalibrationProcedure[] = [
     duration: 'minute',
     staleAfterDays: null,
     panel: 'axisRotation',
+    current: (context) => {
+      const parts = axisSteppers(context.sections).flatMap((stepper) => {
+        const distance = settingText(context, stepper, 'rotation_distance')
+        return distance === null ? [] : [`${stepper.replace(/^stepper_/, '')} ${distance}`]
+      })
+      return parts.length === 0 ? null : `rotation_distance ${parts.join(' · ')}`
+    },
   },
   {
     id: 'zEndstop',
@@ -1553,6 +1612,7 @@ export const calibrationProcedures: readonly CalibrationProcedure[] = [
     id: 'probeAccuracy',
     stage: 'bed',
     listRows: ['calibration.probe.range', 'calibration.probe.standardDeviation'],
+    glance: probeGlance,
     command: 'PROBE_ACCURACY',
     available: (context) => context.hasProbe,
     // It probes wherever the toolhead stands, and the probe is not the nozzle.
@@ -1615,7 +1675,7 @@ export const calibrationProcedures: readonly CalibrationProcedure[] = [
       )
       if (section === undefined) return null
       const y = settingText(context, section, 'y_offset') ?? '0'
-      return `x_offset ${settingText(context, section, 'x_offset')} · y_offset ${y}`
+      return `x ${settingText(context, section, 'x_offset')} · y ${y}`
     },
   },
   {
@@ -1657,6 +1717,7 @@ export const calibrationProcedures: readonly CalibrationProcedure[] = [
       results: JSON.stringify(context.screwsTilt()?.results ?? {}),
     }),
     parse: parseScrewsStatus,
+    glance: screwsGlance,
   },
   {
     id: 'bedScrews',
@@ -1682,6 +1743,7 @@ export const calibrationProcedures: readonly CalibrationProcedure[] = [
     staleAfterDays: 30,
     build: () => 'QUAD_GANTRY_LEVEL',
     parse: parseRetries,
+    glance: levelingGlance,
   },
   {
     id: 'zTilt',
@@ -1694,6 +1756,7 @@ export const calibrationProcedures: readonly CalibrationProcedure[] = [
     staleAfterDays: 30,
     build: () => 'Z_TILT_ADJUST',
     parse: parseRetries,
+    glance: levelingGlance,
   },
   {
     id: 'bedTilt',
@@ -1914,8 +1977,7 @@ export const calibrationProcedures: readonly CalibrationProcedure[] = [
     current: (context) => {
       const mesh = context.mesh()
       if (mesh === null || mesh.points === 0) return null
-      const temperature = mesh.temperature === null ? '' : ` · ${Math.round(mesh.temperature)} °C`
-      return `${mesh.profile} · ${millimetres(mesh.range)}${temperature}`
+      return `${mesh.profile} · ${millimetres(mesh.range)}`
     },
   },
 
@@ -1941,6 +2003,16 @@ export const calibrationProcedures: readonly CalibrationProcedure[] = [
     duration: 'minutes',
     staleAfterDays: 90,
     confirm: true,
+    /*
+     * Each heater's control, which the file already holds: without it a
+     * printer tuned elsewhere read as never calibrated.
+     */
+    current: (context) =>
+      context.heaters.length === 0
+        ? null
+        : context.heaters
+            .map((heater) => `${heater.label} ${heater.kind.toUpperCase()}`)
+            .join(' · '),
     params: [
       {
         key: 'HEATER',
@@ -2089,6 +2161,12 @@ export const calibrationProcedures: readonly CalibrationProcedure[] = [
       buildWithWords('COMPARE_BELTS_RESPONSES', values, ['FREQ_START', 'FREQ_END']),
     snapshot: (_values, context) => ({ graph: context.newestGraph('belts') ?? '' }),
     parse: parseBelts,
+    glance: (rows) => {
+      const similarity = rowAfter(rows, 'calibration.result.similarity')
+      return similarity === null
+        ? null
+        : key('calibration.glance.similarity', { value: similarity })
+    },
   },
   {
     id: 'shaperCalibrate',
@@ -2369,10 +2447,6 @@ export const calibrationProcedures: readonly CalibrationProcedure[] = [
     duration: 'interactive',
     staleAfterDays: null,
     panel: 'tuningTower',
-    current: (context) => {
-      const advance = writtenText(context, 'extruder', 'pressure_advance')
-      return advance === null ? null : `pressure_advance ${advance}`
-    },
   },
   {
     id: 'nonlinearPressureAdvance',

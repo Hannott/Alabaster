@@ -42,8 +42,9 @@ and whether it moves the toolhead, heats, or probes.
   (to the mesh's zero reference, the safe-Z home, or the bed's centre, in that
   order), **Check accelerometer** before a resonance run, and **Clear mesh and
   Z offset** before a Z calibration, so what it measures is the probe alone.
-  A fix waits while a calibration runs. The band above the list shows the
-  conditions for the whole job. The accelerometer condition is answered by
+  A fix waits while a calibration runs. The conditions sit directly above
+  **Run**, so whatever is keeping it from starting is the line right above
+  it. The accelerometer condition is answered by
   the chip itself: a check or a resonance run that answered since Klipper
   last started counts, one that failed with a chip fault does not, and until
   either has happened a configured chip is listed as configured, not as
@@ -75,16 +76,21 @@ and whether it moves the toolhead, heats, or probes.
   whether the motor moved, and the right way, once it has run. **Record
   answers** keeps them with the run.
 
-Each calibration also shows when it last ran on this printer, and what the
-printer is set to: the values its last run found, or, for one that has never
-run here, the value in the config file, such as the probe's `z_offset` or the
-configured input shaper. Its earlier runs are listed under the result, the
-five newest first, and **Show all** opens the whole record of twenty. Click an
-earlier run to open it as the result: its values next to what the printer had
-before, how it ended, and whatever its result offered, so an older shaper run
-can still be applied or saved and its shaper chosen as on the day. **Back to
-latest** returns to the newest run. **Forget** removes one run from the
-printer's record, after asking, for every browser. The
+Each calibration in the list shows when it last ran on this printer. A
+calibration that sets something also shows what the printer is set to now,
+such as the probe's `z_offset`, the configured input shaper or the heaters'
+PID or MPC control; one that measures something shows the figure that says
+how it went, such as the probe's spread, the bed screw furthest out, or how
+alike the belts are. One that has never run here but whose value is already
+in the configuration is marked as not run here rather than never run.
+Its earlier runs are listed under the result, one line each with what they
+found, the five newest first, and **Show all** opens the whole record of
+twenty. Click an earlier run to open it as the result: all its values next to
+what the printer had before, how it ended, and whatever its result offered,
+so an older shaper run can still be applied or saved and its shaper chosen as
+on the day. **Back to latest** returns to the newest run. **Forget**, in a
+run's **⋯** menu, removes it from the printer's record, after asking, for
+every browser. The
 record is kept on the printer, so every browser sees the same dates. A
 calibration that is due, such as a mesh older than 30 days or heater models
 older than 90, is marked as due. A run that failed, or that no browser saw
@@ -93,9 +99,9 @@ was, so it does not count as the last run, and a calibration whose only run
 failed is still due. A run is on record from the moment it starts, so one
 interrupted by a reload or a dropped connection is not lost, and one that
 Klipper stopped under ends there rather than holding every Run button until
-the page is reloaded. A job opens on its first calibration. Under a result, the
-panel names the next calibration on the job that is due or has never run
-here, with **Open** to go to it. Klipper's input shaper calibration and
+the page is reloaded. A job opens on its first calibration. The next
+calibration on the job that is due or has never run here is marked **Next** in
+the list, and named under a result with **Open** to go to it. Klipper's input shaper calibration and
 Shake&Tune's count as one: running either finishes the job, and neither is
 named next after the other.
 
@@ -135,7 +141,8 @@ calibration is about:
   order it was taken, as the probe takes it. A single outlier, a steady drift
   while the probe warms, and an even scatter look different here even when
   their range is the same. An earlier run is drawn from its lowest, highest,
-  average and median heights.
+  average and median heights, and every statistic it reported is listed
+  beside the drawing.
 - **Probe Z offset** shows the probe and the nozzle over the bed at the moment
   the probe triggers, with the saved `x_offset`, `y_offset` and `z_offset`, and
   a new `z_offset` that is waiting for `SAVE_CONFIG`.
@@ -171,7 +178,9 @@ Every other bed calibration shows the height map.
   axis: its frequency, the vibration it leaves, its smoothing and the
   acceleration it allows, with the recommended one and the one in the config
   file marked. A shaper with slightly more vibration and a much higher
-  acceleration may suit a fast printer better than the recommendation.
+  acceleration may suit a fast printer better than the recommendation. Once
+  the console no longer holds a run's lines, the newest run's recommendation
+  per axis is shown instead, with its date.
 
 When a shaper run offers more than one shaper for an axis, you choose which
 one **Apply** and **Save config** use: Shake&Tune's pick for performance or
@@ -613,8 +622,9 @@ the printer's config folder.
 | Axes map           | The accelerometer orientation check.   |
 | Static frequency   | A single-frequency measurement.        |
 
-Every graph is listed by name and date, and the newest one is open beside the
-list. A test that finishes opens its own graph.
+Every graph is listed by when it was made, and by axis for the input shaper
+graphs, and the newest one is open beside the list. A test that finishes opens
+its own graph.
 
 **Compare** puts two graphs side by side, from any two tests: a belts
 comparison beside an input shaper result shows what tensioning the belts did.

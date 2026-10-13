@@ -11,6 +11,7 @@ import { onKlipperRestart } from '@/composables/onKlipperRestart'
 import { useAvailability } from '@/composables/useAvailability'
 import { useConfigWrite } from '@/composables/useConfigWrite'
 import { useProcedureContext } from '@/composables/useProcedureContext'
+import { useProcedureText } from '@/composables/useProcedureText'
 import { formatNumber } from '@/features/calibration/axisRotation'
 import { isNonlinearModel, readNpaConfig } from '@/features/calibration/nonlinearPressureAdvance'
 import { procedureById } from '@/features/calibration/procedures'
@@ -37,6 +38,7 @@ import { usePrinterStore } from '@/stores/printer'
  * also what puts the guide's slowed cornering back, so Save does both.
  */
 const { t } = useI18n({ useScope: 'global' })
+const { effects } = useProcedureText()
 const calibration = useCalibrationStore()
 const printer = usePrinterStore()
 const context = useProcedureContext()
@@ -180,17 +182,17 @@ function historySummary(entry: CalibrationLogEntry): string {
 <template>
   <CalibrationCard
     class="calibration-workspace"
+    workspace
     :title="t('calibration.procedure.tuningTower.name')"
   >
-    <template #aside>
-      <span class="calibration-workspace__command">{{ info.option }}</span>
-      <span>{{ inFile ?? '—' }}</span>
-    </template>
+    <template #aside>{{ effects(procedureById('tuningTower')!) }}</template>
     <p class="calibration-workspace__description">
       {{ t('calibration.procedure.tuningTower.detail') }}
     </p>
-
-    <CalibrationRequirements :requires="procedureById('tuningTower')!.requires" />
+    <p class="calibration-workspace__current">
+      <span class="calibration-workspace__command">{{ info.option }}</span>
+      <span>{{ inFile ?? '—' }}</span>
+    </p>
 
     <div class="calibration-params">
       <fieldset v-if="targets.length > 1" class="calibration-choice">
@@ -222,6 +224,8 @@ function historySummary(entry: CalibrationLogEntry): string {
         </label>
       </fieldset>
     </div>
+
+    <CalibrationRequirements :requires="procedureById('tuningTower')!.requires" />
 
     <ol class="calibration-steps">
       <li class="calibration-step">

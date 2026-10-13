@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { computed, type Component } from 'vue'
+import { computed, provide, type Component } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import AxisRotationPanel from '@/components/calibration/AxisRotationPanel.vue'
 import CalibrationProcedureList from '@/components/calibration/CalibrationProcedureList.vue'
 import CalibrationProcedureWorkspace from '@/components/calibration/CalibrationProcedureWorkspace.vue'
-import CalibrationReadiness from '@/components/calibration/CalibrationReadiness.vue'
 import EndstopsPanel from '@/components/calibration/EndstopsPanel.vue'
 import HeaterCheckPanel from '@/components/calibration/HeaterCheckPanel.vue'
 import LoadCellPanel from '@/components/calibration/LoadCellPanel.vue'
@@ -16,6 +16,7 @@ import ScrewPositionsPanel from '@/components/calibration/ScrewPositionsPanel.vu
 import SensorlessHomingPanel from '@/components/calibration/SensorlessHomingPanel.vue'
 import SkewCorrectionPanel from '@/components/calibration/SkewCorrectionPanel.vue'
 import TuningTowerPanel from '@/components/calibration/TuningTowerPanel.vue'
+import { procedurePickerKey } from '@/components/calibration/procedurePicker'
 import { useCalibrationSelection } from '@/composables/useCalibrationSelection'
 import { useProcedureContext } from '@/composables/useProcedureContext'
 import {
@@ -43,9 +44,14 @@ const panelComponents: Record<ProcedurePanel, Component> = {
 }
 
 /**
- * One stage of Calibration: what the procedures here need, the procedures
- * themselves, the selected one's workspace, and — in the `live` slot — what
- * they act on, still live: the height map, the toolhead, the heater chart.
+ * One stage of Calibration: the procedures, the selected one's workspace, and
+ * — in the `live` slot — what they act on, still live: the height map, the
+ * toolhead, the heater chart.
+ *
+ * There is no stage-wide readiness band any more. It listed the union of what
+ * the stage's procedures need, which the open procedure's own checks already
+ * said beside the Run they gate — the same "Not homed" twice on one screen,
+ * the top one with nothing to press.
  *
  * Three independent column stacks, never a grid whose rows the columns share.
  * The stages used to place dashboard cards of very different heights side by
@@ -98,6 +104,19 @@ const selected = computed(() => {
  * panel across the procedures opened in between. A `v-if`/`v-else` pair
  * inside `KeepAlive` is the shape Vue's runtime trips over on unmount.
  */
+const { t } = useI18n({ useScope: 'global' })
+
+provide(procedurePickerKey, {
+  options: computed(() =>
+    procedures.value.map((procedure) => ({
+      value: procedure.id,
+      label: t(`calibration.procedure.${procedure.id}.name`),
+    })),
+  ),
+  selected: computed(() => selected.value?.id ?? null),
+  select: (id) => selection.selectProcedure(props.stage, id),
+})
+
 const workComponent = computed<Component | null>(() => {
   if (!selected.value) return null
   return selected.value.panel
@@ -119,8 +138,6 @@ const workProps = computed<Record<string, unknown>>(() => {
 
 <template>
   <div class="calibration-bench" :class="{ 'calibration-bench--wide-live': liveWide }">
-    <CalibrationReadiness :procedures="procedures" />
-
     <div class="calibration-bench__columns">
       <div class="calibration-bench__column calibration-bench__column--list">
         <CalibrationProcedureList

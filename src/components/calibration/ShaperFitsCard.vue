@@ -3,6 +3,8 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import CalibrationCard from '@/components/calibration/CalibrationCard.vue'
+import { useProcedureText } from '@/composables/useProcedureText'
+import type { ProcedureResultRow } from '@/features/calibration/procedures'
 import { shaperFits, type AxisFits, type ShaperFit } from '@/features/calibration/shaperFits'
 import { useCalibrationStore } from '@/stores/calibration'
 import { useConsoleStore } from '@/stores/console'
@@ -22,6 +24,7 @@ import { usePrinterConfigStore } from '@/stores/printerConfig'
  * fits, so an older run shows only what it recommended.
  */
 const { t, locale } = useI18n({ useScope: 'global' })
+const { when } = useProcedureText()
 const calibration = useCalibrationStore()
 const gcodeConsole = useConsoleStore()
 const printerConfig = usePrinterConfigStore()
@@ -39,17 +42,35 @@ const fromTranscript = computed(() =>
 const axes = computed(() => (fromRun.value.length > 0 ? fromRun.value : fromTranscript.value))
 const isRunning = computed(() => calibration.runFor('shaperCalibrate')?.running === true)
 
-const logged = computed(() => {
-  const history = calibration.historyFor('shaperCalibrate')
-  const rows = history[history.length - 1]?.rows ?? []
+/*
+ * The newest logged run that recommended anything. Its values are labelled
+ * either as the console printed them (`shaper_type_x`) or as the pending
+ * `SAVE_CONFIG` item they staged (`input_shaper · shaper_type_x`); reading
+ * only the first left the card saying no calibration had run beside a list
+ * row dated the week before.
+ */
+function recommendationsOf(rows: readonly ProcedureResultRow[]) {
   return (['x', 'y'] as const).flatMap((axis) => {
     const find = (option: string) =>
-      rows.find((row) => 'literal' in row.label && row.label.literal === `${option}_${axis}`)?.after
+      rows.find(
+        (row) =>
+          'literal' in row.label &&
+          (row.label.literal === `${option}_${axis}` ||
+            row.label.literal.endsWith(` · ${option}_${axis}`)),
+      )?.after
     const type = find('shaper_type')
     const frequency = find('shaper_freq')
     return type && frequency ? [{ axis, type, frequency }] : []
   })
-})
+}
+
+const loggedRun = computed(() =>
+  [...calibration.historyFor('shaperCalibrate')]
+    .reverse()
+    .map((entry) => ({ at: entry.at, axes: recommendationsOf(entry.rows) }))
+    .find((entry) => entry.axes.length > 0),
+)
+const logged = computed(() => loggedRun.value?.axes ?? [])
 
 /* The file's own line, not `configfile.settings`: a bare section reads as `mzv` there without saying so. */
 function inFile(axis: 'x' | 'y', name: string): boolean {
@@ -86,7 +107,7 @@ function recommended(axis: AxisFits): ShaperFit | undefined {
 <template>
   <CalibrationCard :title="t('calibration.context.fits.title')">
     <template v-if="axes.length === 0 && logged.length > 0" #aside>
-      <span class="calibration-context__aside">{{ t('calibration.context.samples.lastRun') }}</span>
+      <span class="calibration-context__aside">{{ when(loggedRun!.at) }}</span>
     </template>
 
     <template v-if="axes.length > 0">

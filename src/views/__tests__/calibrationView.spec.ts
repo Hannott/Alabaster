@@ -762,10 +762,10 @@ describe('Calibration view', () => {
     await flushPromises()
 
     const rows = view.findAll('.calibration-tuning-result')
-    expect(rows.map((row) => row.find('.calibration-tuning-result__name').text())).toEqual([
-      'shaper_x_new',
-      'shaper_x_old',
-      'belts_mid',
+    expect(rows.map((row) => row.attributes('title'))).toEqual([
+      'shaper_x_new.png',
+      'shaper_x_old.png',
+      'belts_mid.png',
     ])
     expect(rows.every((row) => !row.find('img').exists())).toBe(true)
 
@@ -776,6 +776,27 @@ describe('Calibration view', () => {
     expect(rows[0]!.attributes('aria-current')).toBe('true')
   })
 
+  /**
+   * Shown whole, a Shake&Tune file name was cut to its category and half its
+   * timestamp; the row says when, and the one thing the name adds — the axis.
+   */
+  it('names a graph by when it was made and the axis it measured', async () => {
+    const view = await mountResonance()
+    const shakeTune = useShakeTuneStore(pinia)
+    shakeTune.resultsByCategory.inputShaper = [
+      tuningResult('input_shaper', 'inputshaper_20261005_013100_axis_X', 1_790_000_000),
+    ]
+    shakeTune.resultsByCategory.belts = [
+      tuningResult('belts', 'beltscomparison_20261001_143735', 1_789_000_000),
+    ]
+    await flushPromises()
+
+    const [shaper, belts] = view.findAll('.calibration-tuning-result')
+    expect(shaper!.get('.calibration-tuning-result__meta').text()).toBe('X axis')
+    expect(shaper!.get('.calibration-tuning-result__name').text()).not.toContain('inputshaper')
+    expect(belts!.get('.calibration-tuning-result__meta').text()).toBe('')
+  })
+
   it('shows the graph for whichever row is picked', async () => {
     const view = await mountResonance()
     seedTuningResults()
@@ -783,7 +804,7 @@ describe('Calibration view', () => {
 
     const belts = view
       .findAll('.calibration-tuning-result')
-      .find((row) => row.text().includes('belts_mid'))
+      .find((row) => row.attributes('title')?.includes('belts_mid'))
     await belts!.trigger('click')
 
     expect(view.get('.calibration-tuning__pane img').attributes('src')).toBe(
@@ -811,7 +832,7 @@ describe('Calibration view', () => {
 
     const belts = view
       .findAll('.calibration-tuning-result')
-      .find((row) => row.text().includes('belts_mid'))
+      .find((row) => row.attributes('title')?.includes('belts_mid'))
     await belts!.trigger('click')
 
     const sources = view
@@ -840,7 +861,7 @@ describe('Calibration view', () => {
 
     const old = view
       .findAll('.calibration-tuning-result')
-      .find((row) => row.text().includes('shaper_x_old'))
+      .find((row) => row.attributes('title')?.includes('shaper_x_old'))
     await old!.trigger('click')
 
     const shakeTune = useShakeTuneStore(pinia)
@@ -1037,6 +1058,49 @@ describe('Calibration view', () => {
     expect(view.find('.module-settings__link').exists()).toBe(false)
   })
 
+  /**
+   * The stage-wide "Ready?" band said what the open procedure's checks already
+   * said; the checks now sit in one gate with the command and Run they block,
+   * after the settings, and the list marks its open row and its next step.
+   */
+  it('gates Run in one box after the settings, and marks the open and next rows', async () => {
+    const printerConfig = await import('@/stores/printerConfig')
+    const config = printerConfig.usePrinterConfigStore(pinia)
+    vi.spyOn(config, 'hasProbe', 'get').mockReturnValue(true)
+    config.settings = { probe: { z_offset: -0.85 } } as never
+    const view = await mountView('bed')
+    await selectProcedure(view, 'probeAccuracy')
+
+    expect(view.find('.calibration-readiness').exists()).toBe(false)
+    const gate = view.get('.calibration-workspace .calibration-gate')
+    expect(gate.find('.calibration-checks').exists()).toBe(true)
+    expect(gate.find('.calibration-run').exists()).toBe(true)
+    const body = view.get('.calibration-workspace .calibration-card__body').element
+    const order = [...body.children].map((child) => child.className)
+    expect(order.findIndex((name) => name.includes('calibration-params'))).toBeLessThan(
+      order.findIndex((name) => name.includes('calibration-gate')),
+    )
+
+    const open = view.get('.calibration-procedure[aria-current="true"]')
+    expect(open.classes()).toContain('calibration-procedure--current')
+    expect(open.classes()).not.toContain('selection-row')
+    const next = view.findAll('.calibration-procedure__next')
+    expect(next).toHaveLength(1)
+    expect(open.find('.calibration-procedure__next').exists()).toBe(false)
+  })
+
+  /** Below the middle width the list hides, and the workspace's own title is the picker. */
+  it('offers the stage’s procedures as the workspace title, not as a card of its own', async () => {
+    const view = await mountView('axes')
+
+    const picker = view.get(
+      '.calibration-bench__column--work .calibration-card__header .calibration-card__picker',
+    )
+    expect(picker.text()).toContain(i18n.global.t('calibration.procedure.endstops.name'))
+    expect(view.find('.calibration-procedures .calibration-card__picker').exists()).toBe(false)
+    expect(view.find('.calibration-procedures__select').exists()).toBe(false)
+  })
+
   it('says what each procedure is set to, from the log or else the file', async () => {
     const printerConfig = await import('@/stores/printerConfig')
     const config = printerConfig.usePrinterConfigStore(pinia)
@@ -1084,17 +1148,49 @@ describe('Calibration view', () => {
 
     // A probe test says its spread, not its extremes.
     expect(rowFor('probeAccuracy').get('.calibration-procedure__value').text()).toBe(
-      'Range 0.012 · Standard deviation 0.004',
+      'range 0.0120 · SD 0.0040 mm',
     )
-    // Never run here, so the file's value, said to be the file's.
+    // A setting is what the file holds — and the row says "not run here", not "never
+    // run", which beside a configured value reads as never calibrated.
     expect(rowFor('probeZOffset').get('.calibration-procedure__value').text()).toBe(
-      'z_offset -0.85 (in the file)',
+      'z_offset -0.85',
     )
-    expect(rowFor('probeZOffset').text()).toContain('Never run')
-    // The loaded mesh's own numbers; a saved profile is in the file too.
-    expect(rowFor('bedMesh').get('.calibration-procedure__value').text()).toBe(
-      'default · 0.144 mm (in the file)',
-    )
+    expect(rowFor('probeZOffset').text()).toContain('Not run here')
+    expect(rowFor('probeZOffset').text()).not.toContain('Never run')
+    // The loaded mesh, by name and range.
+    expect(rowFor('bedMesh').get('.calibration-procedure__value').text()).toBe('default · 0.144 mm')
+    // No row explains what its procedure is for.
+    expect(view.find('.calibration-procedure__description').exists()).toBe(false)
+  })
+
+  /**
+   * A check's readings say nothing at a glance — the owner's example was the
+   * accelerometer noise row printing every axis's figure under a sentence
+   * saying what the test does — so a row without a setting or a judging
+   * figure is its name and its date.
+   */
+  it('shows no value under a check, however much its run reported', async () => {
+    const logged = {
+      version: 1,
+      procedures: {
+        axesNoise: [
+          {
+            at: Date.now() - 3_600_000,
+            values: {},
+            rows: [{ label: { literal: 'Noise, xy (x · y · z)' }, after: '5.09 · 1.39 · 2.02' }],
+            outcome: 'measured',
+          },
+        ],
+      },
+    }
+    vi.spyOn(useMoonrakerStore(pinia), 'rpcCall').mockImplementation(((method: string) =>
+      Promise.resolve(method === 'server.database.get_item' ? { value: logged } : {})) as never)
+
+    const view = await mountResonance()
+    const name = i18n.global.t('calibration.procedure.axesNoise.name')
+    const row = view.findAll('.calibration-procedure').find((each) => each.text().includes(name))!
+    expect(row.find('.calibration-procedure__value').exists()).toBe(false)
+    expect(row.text()).not.toContain('5.09')
   })
 
   it('says a last run failed rather than dating it like a success', async () => {
@@ -1130,7 +1226,7 @@ describe('Calibration view', () => {
       )!
     // The newest entry was never seen to finish; the one before it failed. Neither is "the last run".
     expect(row.get('.calibration-procedure__last').text()).toContain('not seen to finish')
-    expect(row.get('.calibration-procedure__value').text()).toBe('Range 0.012')
+    expect(row.get('.calibration-procedure__value').text()).toBe('range 0.0120 mm')
     expect(useCalibrationStore(pinia).lastRunAt('probeAccuracy')).toBe(measuredAt)
   })
 
@@ -1180,7 +1276,8 @@ describe('Calibration view', () => {
     await flushPromises()
     expect(view.get('.calibration-result__title').text()).toBe('Earlier result')
     expect(view.get('.calibration-result__table').text()).toContain('0.031')
-    expect(rows[1]!.classes()).toContain('selection-row--selected')
+    expect(rows[1]!.classes()).toContain('calibration-history__open--current')
+    expect(rows[1]!.classes()).not.toContain('selection-row')
 
     // Back to latest closes it; with no live run there is nothing in its place.
     await view
@@ -1191,10 +1288,11 @@ describe('Calibration view', () => {
     expect(view.find('.calibration-result').exists()).toBe(false)
 
     // Forget asks first, then removes the run from the printer's record.
-    const forget = view
-      .findAll('.calibration-history__entry button')
-      .find((button) => button.text() === 'Forget')!
-    await forget.trigger('click')
+    // Forget lives in the run's ⋯ menu rather than on every row.
+    const entry = view.findAll('.calibration-history__entry')[0]!
+    expect(entry.text()).not.toContain('Forget')
+    await entry.get('.calibration-history__menu').trigger('click')
+    await entry.get('.calibration-history__forget').trigger('click')
     await flushPromises()
     const dialog = view.findAll('dialog').find((candidate) => candidate.text().includes('Forget'))!
     await dialog
@@ -1225,17 +1323,17 @@ describe('Calibration view', () => {
     const config = printerConfig.usePrinterConfigStore(pinia)
     config.settings = { ...config.settings, lis2dw: { cs_pin: 'btt_lis2dw:gpio9' } } as never
     const view = await mountResonance()
+    await selectProcedure(view, 'shakeTuneShaper')
 
-    expect(view.get('.calibration-readiness').text()).toContain(
+    expect(view.get('.calibration-checks').text()).toContain(
       'Accelerometer board btt_lis2dw connected',
     )
     // Klipper's own word for a non-critical MCU gone quiet outranks everything else.
     machineSystem.mcuModules = [{ ...board, isDisconnected: true }]
     await flushPromises()
-    expect(view.get('.calibration-readiness').text()).toContain(
+    expect(view.get('.calibration-checks').text()).toContain(
       'Accelerometer board btt_lis2dw is not connected.',
     )
-    await selectProcedure(view, 'shakeTuneShaper')
     expect(runButton(view).attributes('disabled')).toBeDefined()
   })
 
@@ -1244,10 +1342,10 @@ describe('Calibration view', () => {
     const availability = useAvailabilityStore(pinia)
     const configured = i18n.global.t('calibration.requirement.accelerometer.configured')
     const answering = i18n.global.t('calibration.requirement.accelerometer.met')
-    expect(view.get('.calibration-readiness').text()).toContain(configured)
+    await selectProcedure(view, 'shakeTuneShaper')
+    expect(view.get('.calibration-checks').text()).toContain(configured)
 
     // The check is offered beside a condition met only on the config's word.
-    await selectProcedure(view, 'shakeTuneShaper')
     const check = view
       .findAll('.calibration-checks button')
       .find(
@@ -1257,15 +1355,15 @@ describe('Calibration view', () => {
     expect(check).toBeDefined()
     await check!.trigger('click')
     await flushPromises()
-    expect(view.get('.calibration-readiness').text()).toContain(answering)
+    expect(view.get('.calibration-checks').text()).toContain(answering)
 
     // A restart re-detects the board the chip hangs off; what it said before is no longer evidence.
     availability.handleKlipperNotification('notify_klippy_shutdown')
     availability.handleKlipperNotification('notify_klippy_ready')
     availability.printerSnapshotSynchronized()
     await flushPromises()
-    expect(view.get('.calibration-readiness').text()).toContain(configured)
-    expect(view.get('.calibration-readiness').text()).not.toContain(answering)
+    expect(view.get('.calibration-checks').text()).toContain(configured)
+    expect(view.get('.calibration-checks').text()).not.toContain(answering)
   })
 
   it('names the next step under a result, and draws what the log can show', async () => {

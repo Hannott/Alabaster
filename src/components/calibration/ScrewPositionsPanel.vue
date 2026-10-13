@@ -11,6 +11,7 @@ import { useCalibrationSelection } from '@/composables/useCalibrationSelection'
 import { useConfigWrite } from '@/composables/useConfigWrite'
 import { useProcedureRequirements } from '@/composables/useProcedureRequirements'
 import { useScrewRecording } from '@/composables/useScrewRecording'
+import { useProcedureText } from '@/composables/useProcedureText'
 import { procedureById } from '@/features/calibration/procedures'
 import { configuredScrews } from '@/features/calibration/screws'
 import {
@@ -39,6 +40,7 @@ import { usePrinterConfigStore } from '@/stores/printerConfig'
  * itself lives in `useScrewRecording`, which the bed drawing reads too.
  */
 const { t } = useI18n({ useScope: 'global' })
+const { effects } = useProcedureText()
 const calibration = useCalibrationStore()
 const printerConfig = usePrinterConfigStore()
 const requirements = useProcedureRequirements()
@@ -162,17 +164,17 @@ function historySummary(entry: CalibrationLogEntry): string {
 <template>
   <CalibrationCard
     class="calibration-workspace"
+    workspace
     :title="t('calibration.procedure.screwPositions.name')"
   >
-    <template #aside>
-      <span class="calibration-workspace__command">[{{ section }}]</span>
-      <span>{{ t('calibration.screwPositions.count', { count: configured.length }) }}</span>
-    </template>
+    <template #aside>{{ effects(procedureById('screwPositions')!) }}</template>
     <p class="calibration-workspace__description">
       {{ t('calibration.procedure.screwPositions.detail') }}
     </p>
-
-    <CalibrationRequirements :requires="requires" />
+    <p class="calibration-workspace__current">
+      <span class="calibration-workspace__command">[{{ section }}]</span>
+      <span>{{ t('calibration.screwPositions.count', { count: configured.length }) }}</span>
+    </p>
 
     <div class="calibration-params">
       <fieldset v-if="targets.length > 1" class="calibration-choice">
@@ -208,6 +210,8 @@ function historySummary(entry: CalibrationLogEntry): string {
         </label>
       </fieldset>
     </div>
+
+    <CalibrationRequirements :requires="requires" />
 
     <ol class="calibration-steps">
       <li class="calibration-step">

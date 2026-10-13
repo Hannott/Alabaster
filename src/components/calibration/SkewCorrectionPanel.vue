@@ -9,6 +9,8 @@ import CalibrationHistory from '@/components/calibration/CalibrationHistory.vue'
 import { onKlipperRestart } from '@/composables/onKlipperRestart'
 import { useAvailability } from '@/composables/useAvailability'
 import { useProcedureContext } from '@/composables/useProcedureContext'
+import { useProcedureText } from '@/composables/useProcedureText'
+import { procedureById } from '@/features/calibration/procedures'
 import type { ProcedureResultRow } from '@/features/calibration/procedures'
 import {
   isSkewProfileName,
@@ -36,6 +38,7 @@ import { usePrinterStore } from '@/stores/printer'
  * and the lengths alone say nothing until Klipper has been asked.
  */
 const { t, locale } = useI18n({ useScope: 'global' })
+const { effects } = useProcedureText()
 const calibration = useCalibrationStore()
 const printer = usePrinterStore()
 const context = useProcedureContext()
@@ -164,13 +167,15 @@ function historySummary(entry: CalibrationLogEntry): string {
 <template>
   <CalibrationCard
     class="calibration-workspace"
+    workspace
     :title="t('calibration.procedure.skewCorrection.name')"
   >
-    <template #aside>
-      <span class="calibration-workspace__command">SET_SKEW · SKEW_PROFILE</span>
-    </template>
+    <template #aside>{{ effects(procedureById('skewCorrection')!) }}</template>
     <p class="calibration-workspace__description">
       {{ t('calibration.procedure.skewCorrection.detail') }}
+    </p>
+    <p class="calibration-workspace__current">
+      <span class="calibration-workspace__command">SET_SKEW · SKEW_PROFILE</span>
     </p>
 
     <ol class="calibration-steps">

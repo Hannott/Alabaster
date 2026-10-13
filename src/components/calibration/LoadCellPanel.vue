@@ -9,6 +9,8 @@ import CalibrationHistory from '@/components/calibration/CalibrationHistory.vue'
 import { onKlipperRestart } from '@/composables/onKlipperRestart'
 import { useAvailability } from '@/composables/useAvailability'
 import { useProcedureContext } from '@/composables/useProcedureContext'
+import { useProcedureText } from '@/composables/useProcedureText'
+import { procedureById } from '@/features/calibration/procedures'
 import {
   loadCellWord,
   loadCells,
@@ -32,6 +34,7 @@ import { usePrinterStore } from '@/stores/printer'
  * this one.
  */
 const { t, locale } = useI18n({ useScope: 'global' })
+const { effects } = useProcedureText()
 const calibration = useCalibrationStore()
 const printer = usePrinterStore()
 const gcodeConsole = useConsoleStore()
@@ -134,13 +137,18 @@ function historySummary(entry: CalibrationLogEntry): string {
 </script>
 
 <template>
-  <CalibrationCard class="calibration-workspace" :title="t('calibration.procedure.loadCell.name')">
-    <template #aside>
-      <span class="calibration-workspace__command">counts_per_gram</span>
-      <span>{{ inFile ?? '—' }}</span>
-    </template>
+  <CalibrationCard
+    class="calibration-workspace"
+    workspace
+    :title="t('calibration.procedure.loadCell.name')"
+  >
+    <template #aside>{{ effects(procedureById('loadCell')!) }}</template>
     <p class="calibration-workspace__description">
       {{ t('calibration.procedure.loadCell.detail') }}
+    </p>
+    <p class="calibration-workspace__current">
+      <span class="calibration-workspace__command">counts_per_gram</span>
+      <span>{{ inFile ?? '—' }}</span>
     </p>
 
     <div class="calibration-params">

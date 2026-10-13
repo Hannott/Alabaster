@@ -16,7 +16,7 @@ const runoutSensors = useRunoutSensorsStore()
 </script>
 
 <template>
-  <CalibrationCard :title="t('calibration.sensors.title')">
+  <CalibrationCard workspace :title="t('calibration.sensors.title')">
     <p v-if="runoutSensors.readings.length === 0" class="calibration-panel__hint">
       {{ t('calibration.sensors.empty') }}
     </p>

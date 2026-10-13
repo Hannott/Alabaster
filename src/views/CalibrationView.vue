@@ -202,8 +202,6 @@ const consoleOpen = ref(false)
       <AppButton
         variant="quiet"
         size="sm"
-        block
-        start
         icon="console"
         class="calibration-console-toggle"
         :aria-expanded="consoleOpen"

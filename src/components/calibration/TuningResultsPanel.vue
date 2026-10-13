@@ -126,8 +126,20 @@ function formatModified(result: ShakeTuneResult): string {
   return dateFormatter.value.format(result.modified * 1000)
 }
 
-function displayName(result: ShakeTuneResult): string {
-  return result.name.replace(/\.png$/i, '')
+/**
+ * What tells one graph from another in its own folder: the axis a shaper run
+ * measured, or nothing. Shake&Tune names a file category, timestamp, then
+ * any axis — `inputshaper_20261005_013100_axis_X.png` — and shown whole, the
+ * row cut it to `inputshaper_202610…`, a category the group heading already
+ * named and half a date the row already said.
+ */
+function distinction(result: ShakeTuneResult): string {
+  const rest = result.name
+    .replace(/\.png$/i, '')
+    .replace(/^[a-z]+_/i, '')
+    .replace(/^\d{8}_\d{6}_?/, '')
+  const axis = /^axis_([xyz])$/i.exec(rest)
+  return axis ? t('calibration.context.fits.axis', { axis: axis[1]!.toUpperCase() }) : rest
 }
 </script>
 
@@ -223,12 +235,16 @@ function displayName(result: ShakeTuneResult): string {
                 :title="result.name"
                 @click="pick(result)"
               >
-                <span class="calibration-tuning-result__name">{{ displayName(result) }}</span>
+                <span class="calibration-tuning-result__name">{{ formatModified(result) }}</span>
                 <span class="calibration-tuning-result__meta">
-                  {{ formatModified(result) }}
-                  <template v-if="result.path === comparison?.path">
-                    · {{ t('calibration.tuning.compared') }}
-                  </template>
+                  {{
+                    [
+                      distinction(result),
+                      result.path === comparison?.path ? t('calibration.tuning.compared') : '',
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')
+                  }}
                 </span>
               </button>
             </li>

@@ -79,7 +79,7 @@ const { t } = useI18n({ useScope: 'global' })
 const calibration = useCalibrationStore()
 const printer = usePrinterStore()
 const printerConfig = usePrinterConfigStore()
-const { when } = useProcedureText()
+const { effects, when } = useProcedureText()
 const { availability: klipperAvailability } = useAvailability('klipper')
 
 const entries = computed(() => calibration.historyFor('nonlinearPressureAdvance'))
@@ -558,8 +558,10 @@ const writeDisabled = computed(
 <template>
   <CalibrationCard
     class="calibration-workspace"
+    workspace
     :title="t('calibration.procedure.nonlinearPressureAdvance.name')"
   >
+    <template #aside>{{ effects(procedureById('nonlinearPressureAdvance')!) }}</template>
     <p class="calibration-workspace__description">
       {{ t('calibration.procedure.nonlinearPressureAdvance.detail') }}
     </p>

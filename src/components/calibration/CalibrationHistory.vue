@@ -2,8 +2,8 @@
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import AppButton from '@/components/AppButton.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
+import CalibrationRunMenu from '@/components/calibration/CalibrationRunMenu.vue'
 import { useActionGuard } from '@/composables/useActionGuard'
 import { useProcedureText } from '@/composables/useProcedureText'
 import type { ProcedureId } from '@/features/calibration/procedures'
@@ -58,12 +58,10 @@ function forget(at: number | null = forgetAt.value): void {
           <span class="calibration-history__when">{{ when(entry.at) }}</span>
           <span class="calibration-history__summary">{{ summary(entry) }}</span>
         </span>
-        <AppButton
+        <CalibrationRunMenu
+          :when="when(entry.at)"
           :guard="forgetGuard"
-          size="xs"
-          icon="trash"
-          :label="t('calibration.bench.forget')"
-          @click="requestForget(entry.at)"
+          @forget="requestForget(entry.at)"
         />
       </li>
     </ul>

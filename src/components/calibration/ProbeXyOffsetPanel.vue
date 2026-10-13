@@ -8,6 +8,7 @@ import CalibrationHistory from '@/components/calibration/CalibrationHistory.vue'
 import CalibrationRequirements from '@/components/calibration/CalibrationRequirements.vue'
 import { useConfigWrite } from '@/composables/useConfigWrite'
 import { useProcedureRequirements } from '@/composables/useProcedureRequirements'
+import { useProcedureText } from '@/composables/useProcedureText'
 import type { BedPoint } from '@/features/calibration/bedContext'
 import { procedureById } from '@/features/calibration/procedures'
 import { coordinateText, probeOffsetFrom } from '@/features/calibration/toolheadPoints'
@@ -27,6 +28,7 @@ import { probeSections, usePrinterConfigStore } from '@/stores/printerConfig'
  * the first, and the offset is between the two machine positions.
  */
 const { t } = useI18n({ useScope: 'global' })
+const { effects } = useProcedureText()
 const calibration = useCalibrationStore()
 const printer = usePrinterStore()
 const printerConfig = usePrinterConfigStore()
@@ -110,14 +112,16 @@ function historySummary(entry: CalibrationLogEntry): string {
 <template>
   <CalibrationCard
     class="calibration-workspace"
+    workspace
     :title="t('calibration.procedure.probeXyOffset.name')"
   >
-    <template #aside>
-      <span class="calibration-workspace__command">x_offset · y_offset</span>
-      <span>{{ coordinateText(configured.x) }}, {{ coordinateText(configured.y) }}</span>
-    </template>
+    <template #aside>{{ effects(procedureById('probeXyOffset')!) }}</template>
     <p class="calibration-workspace__description">
       {{ t('calibration.procedure.probeXyOffset.detail') }}
+    </p>
+    <p class="calibration-workspace__current">
+      <span class="calibration-workspace__command">x_offset · y_offset</span>
+      <span>{{ coordinateText(configured.x) }}, {{ coordinateText(configured.y) }}</span>
     </p>
 
     <CalibrationRequirements :requires="requires" />

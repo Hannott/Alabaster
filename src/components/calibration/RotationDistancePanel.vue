@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 import AppButton from '@/components/AppButton.vue'
 import AppField from '@/components/AppField.vue'
 import CalibrationCard from '@/components/calibration/CalibrationCard.vue'
+import CalibrationHistory from '@/components/calibration/CalibrationHistory.vue'
 import CalibrationRequirements from '@/components/calibration/CalibrationRequirements.vue'
 import RotationHardwareFields, {
   type RotationProposal,
@@ -15,7 +16,7 @@ import { useProcedureText } from '@/composables/useProcedureText'
 import { formatNumber, stepperDrive, suggestedFullSteps } from '@/features/calibration/axisRotation'
 import { procedureById } from '@/features/calibration/procedures'
 import { rotationDistanceFrom } from '@/features/calibration/rotationDistance'
-import { useCalibrationStore } from '@/stores/calibration'
+import type { CalibrationLogEntry } from '@/stores/calibration'
 import { usePrinterStore } from '@/stores/printer'
 import { usePrinterConfigStore } from '@/stores/printerConfig'
 import { useTelemetryStore } from '@/stores/telemetry'
@@ -39,11 +40,10 @@ import { useTelemetryStore } from '@/stores/telemetry'
  * takes a firmware restart to apply, which the header's restart already says.
  */
 const { t } = useI18n({ useScope: 'global' })
-const calibration = useCalibrationStore()
 const printer = usePrinterStore()
 const printerConfig = usePrinterConfigStore()
 const telemetry = useTelemetryStore()
-const { when } = useProcedureText()
+const { effects } = useProcedureText()
 const { availability: klipperAvailability } = useAvailability('klipper')
 
 /*
@@ -161,22 +161,25 @@ async function extrude(): Promise<void> {
   }
 }
 
-const history = computed(() =>
-  [...calibration.historyFor('rotationDistance')].reverse().slice(0, 5),
-)
+/** A logged run in one line: the value it moved from and to. */
+function historySummary(entry: CalibrationLogEntry): string {
+  return `rotation_distance ${entry.rows[0]?.before} → ${entry.rows[0]?.after}`
+}
 </script>
 
 <template>
   <CalibrationCard
     class="calibration-workspace"
+    workspace
     :title="t('calibration.procedure.rotationDistance.name')"
   >
-    <template #aside>
-      <span class="calibration-workspace__command">rotation_distance</span>
-      <span>{{ current === null ? '—' : current }}</span>
-    </template>
+    <template #aside>{{ effects(procedureById('rotationDistance')!) }}</template>
     <p class="calibration-workspace__description">
       {{ t('calibration.procedure.rotationDistance.detail') }}
+    </p>
+    <p class="calibration-workspace__current">
+      <span class="calibration-workspace__command">rotation_distance</span>
+      <span>{{ current === null ? '—' : current }}</span>
     </p>
 
     <CalibrationRequirements :requires="procedureById('rotationDistance')!.requires" />
@@ -318,16 +321,6 @@ const history = computed(() =>
       :disabled="method === 'measure' && !extruded"
     />
 
-    <div v-if="history.length > 0" class="calibration-history">
-      <h3 class="calibration-history__title">{{ t('calibration.bench.history') }}</h3>
-      <ul class="calibration-history__list">
-        <li v-for="entry in history" :key="entry.at" class="calibration-history__entry">
-          <span class="calibration-history__when">{{ when(entry.at) }}</span>
-          <span class="calibration-history__summary">
-            rotation_distance {{ entry.rows[0]?.before }} → {{ entry.rows[0]?.after }}
-          </span>
-        </li>
-      </ul>
-    </div>
+    <CalibrationHistory id="rotationDistance" :summary="historySummary" />
   </CalibrationCard>
 </template>

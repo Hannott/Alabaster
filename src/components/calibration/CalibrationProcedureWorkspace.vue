@@ -8,6 +8,7 @@ import AppSelect from '@/components/AppSelect.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import CalibrationCard from '@/components/calibration/CalibrationCard.vue'
 import CalibrationRequirements from '@/components/calibration/CalibrationRequirements.vue'
+import CalibrationRunMenu from '@/components/calibration/CalibrationRunMenu.vue'
 import CalibrationScrewsGrid from '@/components/calibration/CalibrationScrewsGrid.vue'
 import CalibrationSparkline from '@/components/calibration/CalibrationSparkline.vue'
 import { useActionGuard } from '@/composables/useActionGuard'
@@ -34,6 +35,7 @@ import {
   type ShaperCandidate,
 } from '@/features/calibration/procedures'
 import type { ScrewReading } from '@/features/calibration/screws'
+import { headlineRows } from '@/features/calibration/summary'
 import { trendSeries } from '@/features/calibration/trends'
 import { useAvailabilityStore } from '@/stores/availability'
 import {
@@ -70,7 +72,7 @@ const printer = usePrinterStore()
 const availability = useAvailabilityStore()
 const context = useProcedureContext()
 const requirements = useProcedureRequirements()
-const { lastRun, text, when } = useProcedureText()
+const { effects, lastRun, text, when } = useProcedureText()
 const { availability: klipperAvailability } = useAvailability('klipper')
 
 /*
@@ -550,17 +552,22 @@ const history = computed(() =>
   showAllHistory.value ? earlier.value : earlier.value.slice(0, recentHistory),
 )
 
-/** Every value an earlier run found, one per line — a shaper run has one per axis. */
-function summary(entry: (typeof history.value)[number]): string[] {
+/**
+ * An earlier run in one line: the values the list row would show for it. Every
+ * value it found is a click away, in the result card the row opens — a stack
+ * of six probe statistics per run made the history the longest thing on the
+ * card and the runs hard to compare down the column.
+ */
+function summary(entry: (typeof history.value)[number]): string {
   const outcome = calibration.outcomeOf(entry)
   if (outcome === 'failed' || outcome === 'interrupted' || outcome === 'aborted') {
-    return [t(`calibration.result.outcome.${outcome}`)]
+    return t(`calibration.result.outcome.${outcome}`)
   }
-  if (outcome === 'running') return [t('calibration.bench.running')]
-  const found = entry.rows.filter((row) => row.after !== '')
-  return found.length > 0
-    ? found.map((row) => `${text(row.label)} ${row.after}`)
-    : [t(`calibration.result.outcome.${outcome}`)]
+  if (outcome === 'running') return t('calibration.bench.running')
+  const shown = headlineRows(props.procedure, entry.rows)
+  return shown.length > 0
+    ? shown.map((row) => `${text(row.label)} ${row.after}`).join(' · ')
+    : t(`calibration.result.outcome.${outcome}`)
 }
 
 // What belongs to one procedure's view resets when another is chosen, or another subject of it.
@@ -575,27 +582,19 @@ watch(
     actionOutcomes.value = {}
   },
 )
-
-const effects = computed(() =>
-  [
-    t(`calibration.bench.duration.${props.procedure.duration}`),
-    ...props.procedure.effects.map((effect) => t(`calibration.bench.effect.${effect}`)),
-  ].join(' · '),
-)
 </script>
 
 <template>
   <CalibrationCard
     class="calibration-workspace"
+    workspace
     :title="t(`calibration.procedure.${procedure.id}.name`)"
   >
-    <template #aside>{{ effects }}</template>
+    <template #aside>{{ effects(procedure) }}</template>
 
     <p class="calibration-workspace__description">
       {{ t(`calibration.procedure.${procedure.id}.detail`) }}
     </p>
-
-    <CalibrationRequirements :requires="procedure.requires" />
 
     <div v-if="procedure.params?.length" class="calibration-params">
       <template v-for="parameter in procedure.params" :key="parameter.key">
@@ -656,23 +655,25 @@ const effects = computed(() =>
       </template>
     </div>
 
-    <div class="calibration-run">
-      <code class="calibration-run__script selectable">{{
-        script ?? t('calibration.bench.noScript')
-      }}</code>
-      <AppButton
-        :guard="guard"
-        icon="play"
-        :label="t('calibration.bench.run')"
-        :pending="isRunning"
-        :disabled="!canRun"
-        @click="requestRun"
-      />
-    </div>
-    <p v-if="blockedReason" class="calibration-panel__hint">{{ blockedReason }}</p>
-    <p v-if="procedure.duration === 'interactive'" class="calibration-panel__hint">
-      {{ t('calibration.bench.interactive') }}
-    </p>
+    <CalibrationRequirements :requires="procedure.requires">
+      <div class="calibration-run">
+        <code class="calibration-run__script selectable">{{
+          script ?? t('calibration.bench.noScript')
+        }}</code>
+        <AppButton
+          :guard="guard"
+          icon="play"
+          :label="t('calibration.bench.run')"
+          :pending="isRunning"
+          :disabled="!canRun"
+          @click="requestRun"
+        />
+      </div>
+      <p v-if="blockedReason" class="calibration-panel__hint">{{ blockedReason }}</p>
+      <p v-if="procedure.duration === 'interactive'" class="calibration-panel__hint">
+        {{ t('calibration.bench.interactive') }}
+      </p>
+    </CalibrationRequirements>
 
     <div v-if="shown" class="calibration-result" role="status" aria-live="polite">
       <div class="calibration-result__head">
@@ -856,28 +857,19 @@ const effects = computed(() =>
         <li v-for="entry in history" :key="entry.at" class="calibration-history__entry">
           <button
             type="button"
-            class="file-select selection-row calibration-history__open"
-            :class="{ 'selection-row--selected': entry.at === openedAt }"
+            class="file-select calibration-history__open"
+            :class="{ 'calibration-history__open--current': entry.at === openedAt }"
             :aria-pressed="entry.at === openedAt"
             @click="openEntry(entry.at)"
           >
             <span class="calibration-history__when">{{ when(entry.at) }}</span>
-            <span class="calibration-history__body">
-              <span
-                v-for="(line, index) in summary(entry)"
-                :key="index"
-                class="calibration-history__summary"
-                >{{ line }}</span
-              >
-            </span>
+            <span class="calibration-history__summary">{{ summary(entry) }}</span>
           </button>
-          <AppButton
+          <CalibrationRunMenu
+            :when="when(entry.at)"
             :guard="forgetGuard"
-            size="xs"
-            icon="trash"
-            :label="t('calibration.bench.forget')"
             :disabled="calibration.outcomeOf(entry) === 'running'"
-            @click="requestForget(entry.at)"
+            @forget="requestForget(entry.at)"
           />
         </li>
       </ul>

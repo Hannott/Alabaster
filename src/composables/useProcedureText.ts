@@ -1,7 +1,7 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import type { ProcedureText } from '@/features/calibration/procedures'
+import type { CalibrationProcedure, ProcedureText } from '@/features/calibration/procedures'
 import { createDateTimeFormatter, createTimeFormatter } from '@/i18n/formats'
 
 /**
@@ -37,5 +37,17 @@ export function useProcedureText() {
     return dateFormatter.value.format(at)
   }
 
-  return { text, lastRun, when }
+  /**
+   * How long a procedure takes and what it moves or heats, the line every
+   * workspace header carries — the generic one and each guided panel alike,
+   * so a header never changes shape with the procedure opened.
+   */
+  function effects(procedure: Pick<CalibrationProcedure, 'duration' | 'effects'>): string {
+    return [
+      t(`calibration.bench.duration.${procedure.duration}`),
+      ...procedure.effects.map((effect) => t(`calibration.bench.effect.${effect}`)),
+    ].join(' · ')
+  }
+
+  return { text, lastRun, when, effects }
 }
