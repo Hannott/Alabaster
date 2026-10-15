@@ -359,6 +359,9 @@ const mobileOverflowDestinations = computed(() =>
   supportedDestinations.value.filter((destination) => destination.mobile === 'overflow'),
 )
 
+const appVersion = __APP_VERSION__
+const releaseUrl = `https://github.com/Hannott/Alabaster/releases/tag/v${appVersion}`
+
 const sidebarLabel = computed(() =>
   isSidebarCollapsed.value ? t('navigation.expandSidebar') : t('navigation.collapseSidebar'),
 )
@@ -608,16 +611,31 @@ async function discardPendingConfig(): Promise<void> {
         </ol>
       </nav>
 
-      <AppButton
-        icon-only
-        :icon="isSidebarCollapsed ? 'sidebarExpand' : 'sidebarCollapse'"
-        class="sidebar-toggle relative mt-auto shrink-0 self-start"
-        :aria-label="sidebarLabel"
-        :aria-expanded="!isSidebarCollapsed"
-        aria-controls="desktop-primary-navigation"
-        :title="sidebarLabel"
-        @click="toggleSidebar"
-      />
+      <div class="sidebar-footer relative mt-auto flex items-center gap-3">
+        <AppButton
+          icon-only
+          :icon="isSidebarCollapsed ? 'sidebarExpand' : 'sidebarCollapse'"
+          class="sidebar-toggle shrink-0 self-start"
+          :aria-label="sidebarLabel"
+          :aria-expanded="!isSidebarCollapsed"
+          aria-controls="desktop-primary-navigation"
+          :title="sidebarLabel"
+          @click="toggleSidebar"
+        />
+        <span class="sidebar-copy">
+          <a
+            :href="releaseUrl"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="sidebar-version"
+            :title="t('app.versionTitle', { version: appVersion })"
+            :tabindex="isSidebarCollapsed ? -1 : undefined"
+            :aria-hidden="isSidebarCollapsed ? 'true' : undefined"
+          >
+            v{{ appVersion }}
+          </a>
+        </span>
+      </div>
     </aside>
 
     <div class="app-content min-w-0 flex-1">
@@ -1235,6 +1253,15 @@ async function discardPendingConfig(): Promise<void> {
                     — {{ t('navigation.unsavedChanges') }}
                   </span>
                 </RouterLink>
+                <p class="header-menu__divider" role="separator"></p>
+                <a
+                  :href="releaseUrl"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="sidebar-version sidebar-version--menu"
+                >
+                  {{ t('app.versionTitle', { version: appVersion }) }}
+                </a>
               </template>
             </HeaderMenu>
           </li>

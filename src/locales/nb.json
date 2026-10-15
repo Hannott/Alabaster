@@ -2,7 +2,8 @@
   "app": {
     "name": "Alabaster",
     "skipToContent": "Hopp til hovedinnhold",
-    "playAnimation": "Spill Alabaster-logoanimasjonen"
+    "playAnimation": "Spill Alabaster-logoanimasjonen",
+    "versionTitle": "Alabaster {version} på GitHub"
   },
   "toast": {
     "error": "Feil: {message}",

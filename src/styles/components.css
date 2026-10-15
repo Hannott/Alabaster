@@ -682,6 +682,7 @@ input[type='radio']:focus-visible,
 .farm-estop:focus-visible,
 .tab-select:focus-visible,
 .text-action:focus-visible,
+.sidebar-version:focus-visible,
 .history-trend__hit:focus-visible,
 .calibration-layout__screw--movable:focus-visible {
   outline: 2px solid var(--focus-ring);
@@ -1994,6 +1995,28 @@ input[type='number']::-webkit-inner-spin-button {
 
 .sidebar-copy {
   max-inline-size: 12rem;
+}
+
+/*
+ * Version and release link, parked beside the collapse toggle. It rides
+ * `.sidebar-copy`'s fade so it leaves with the labels when the rail collapses.
+ * The menu variant is the same link inside the mobile bar's More menu, the
+ * only place a phone has for it.
+ */
+.sidebar-version {
+  font-size: var(--text-eyebrow-size);
+  color: var(--text-muted);
+  text-decoration: none;
+}
+
+.sidebar-version:hover {
+  color: var(--text-primary);
+  text-decoration: underline;
+}
+
+.sidebar-version--menu {
+  display: block;
+  padding: 0.25rem 0.6rem;
 }
 
 /*

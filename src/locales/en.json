@@ -2,7 +2,8 @@
   "app": {
     "name": "Alabaster",
     "skipToContent": "Skip to main content",
-    "playAnimation": "Play the Alabaster logo animation"
+    "playAnimation": "Play the Alabaster logo animation",
+    "versionTitle": "Alabaster {version} on GitHub"
   },
   "toast": {
     "error": "Error: {message}",
