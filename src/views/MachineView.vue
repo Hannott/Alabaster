@@ -506,7 +506,7 @@ onBeforeUnmount(() => {
           :aria-busy="machine.isUpdateManagerBusy || undefined"
         >
           <header class="machine-panel-heading">
-            <AppIcon name="refresh" class="size-5 text-action" aria-hidden="true" />
+            <AppIcon name="systemUpdate" class="size-5 text-action" aria-hidden="true" />
             <h2 id="machine-updates-title">{{ t('machine.updates.title') }}</h2>
             <div class="machine-panel-heading__actions">
               <AppButton
