@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import AppButton from '@/components/AppButton.vue'
+import AppField from '@/components/AppField.vue'
 import AppSelect from '@/components/AppSelect.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import DisclosureReveal from '@/components/DisclosureReveal.vue'
@@ -23,6 +24,11 @@ import { useSettingsCategory, type SettingsCategory } from '@/composables/useSet
 import { useSidebar } from '@/composables/useSidebar'
 import { useTextWeight, type TextWeightMode } from '@/composables/useTextWeight'
 import { useTheme, type ThemeMode } from '@/composables/useTheme'
+import {
+  tooltipDelayRange,
+  tooltipDurationRange,
+  useTooltipPreferences,
+} from '@/composables/useTooltipPreferences'
 import { useWakeLock } from '@/composables/useWakeLock'
 import { docsSites, type DocsSite } from '@/features/machine/docsLinks'
 import { indentWidths, type IndentWidth } from '@/features/machine/indent'
@@ -93,6 +99,16 @@ const { setSidebarCollapsed } = useSidebar()
 const { timeMode, dateMode, dateCustomPattern, setTimeMode, setDateMode, setDateCustomPattern } =
   useDateTimeFormatMode()
 const wakeLock = useWakeLock()
+const tooltipPreferences = useTooltipPreferences()
+const tooltipDelay = computed({
+  get: () => tooltipPreferences.preferences.value.delayMs,
+  set: (value: number | string | null | undefined) => tooltipPreferences.setDelayMs(Number(value)),
+})
+const tooltipDuration = computed({
+  get: () => tooltipPreferences.preferences.value.durationMs,
+  set: (value: number | string | null | undefined) =>
+    tooltipPreferences.setDurationMs(Number(value)),
+})
 const { indentWidth, setIndentWidth } = useEditorIndent()
 const documentationSite = useDocumentationSiteStore()
 onMounted(() => documentationSite.start())
@@ -1617,6 +1633,54 @@ const lastSyncedDisplay = computed(() => {
             <p v-else-if="wakeLock.enabled.value" class="mt-2 text-xs text-muted">
               {{ wakeLock.isActive.value ? t('display.active') : t('display.inactiveWhileHidden') }}
             </p>
+          </section>
+
+          <section v-if="showCategory('display')" class="page-card">
+            <p class="text-eyebrow text-data-blue">
+              {{ t('tooltips.eyebrow') }}
+            </p>
+            <h2 class="mt-2 text-section-title">{{ t('tooltips.title') }}</h2>
+
+            <label class="check-row mt-7">
+              <input
+                type="checkbox"
+                :checked="tooltipPreferences.preferences.value.animate"
+                @change="
+                  tooltipPreferences.setAnimate(!tooltipPreferences.preferences.value.animate)
+                "
+              />
+              <span>{{ t('tooltips.animate') }}</span>
+            </label>
+
+            <div class="settings-field-pair mt-5">
+              <AppField
+                v-model="tooltipDelay"
+                type="number"
+                size="sm"
+                :label="t('tooltips.delay')"
+                :unit="t('tooltips.unit')"
+                :min="tooltipDelayRange.min"
+                :max="tooltipDelayRange.max"
+                :step="10"
+              />
+              <AppField
+                v-model="tooltipDuration"
+                type="number"
+                size="sm"
+                :label="t('tooltips.duration')"
+                :unit="t('tooltips.unit')"
+                :min="tooltipDurationRange.min"
+                :max="tooltipDurationRange.max"
+                :step="10"
+                :disabled="!tooltipPreferences.preferences.value.animate"
+              />
+            </div>
+            <AppButton
+              class="mt-3"
+              size="sm"
+              :label="t('tooltips.reset')"
+              @click="tooltipPreferences.reset()"
+            />
           </section>
 
           <section v-if="showCategory('editor')" class="page-card">

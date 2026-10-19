@@ -165,6 +165,12 @@ This setting has two limits:
 - It needs a secure context, so it is unavailable over a plain LAN address.
   It works at `localhost`, or when Alabaster is served over HTTPS.
 
+**Tooltips.** Hover a control and its tooltip draws itself from the pointer.
+Set how long to hover first (0 to 2000 ms, 300 by default) and how long the
+drawing takes (60 to 5000 ms, 280 by default). Turn **Animate tooltips** off
+and the finished tooltip only fades in. Your system's reduced-motion setting
+does the same. All three settings travel with your profile when you sync settings.
+
 ## Editor
 
 **Indent width**: 2, 4, or 8 spaces. This sets what <kbd>Tab</kbd> inserts in

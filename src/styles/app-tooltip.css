@@ -1,0 +1,157 @@
+/*
+ * `AppTooltipHost`, the one tooltip. Four stages on one element: a dot at the
+ * pointer, the dot growing upward into a line while it is still fading in, the
+ * line widening into the box the instant it is full height, then the text.
+ * `--tip-t` is the whole reveal and comes from the reader's Tooltips setting;
+ * `--tip-w`/`--tip-h` are the finished box, measured by the host, because the
+ * stages animate towards a size. Width and height are animated here on purpose:
+ * the element is a zero-size popover in the top layer, so nothing around it can
+ * reflow.
+ */
+.app-tooltip {
+  position: fixed;
+  inset: auto;
+  inline-size: 0;
+  block-size: 0;
+  margin: 0;
+  border: 0;
+  padding: 0;
+  overflow: visible;
+  background: transparent;
+  color: inherit;
+  pointer-events: none;
+  transition: opacity var(--motion-duration-instant) var(--motion-ease-standard);
+}
+
+.app-tooltip[data-leaving='true'] {
+  opacity: 0;
+}
+
+.app-tooltip__shape {
+  position: absolute;
+  inset-inline-start: 0;
+  inset-block-end: 0;
+  box-sizing: border-box;
+  inline-size: 0.25rem;
+  block-size: 0.25rem;
+  overflow: hidden;
+  border: 1px solid var(--accent-primary);
+  border-radius: 0.125rem;
+  background: var(--accent-primary);
+  box-shadow: 0 0.75rem 2rem color-mix(in srgb, var(--ito-black) 16%, transparent);
+  translate: -50% 0;
+  opacity: 0;
+  animation:
+    app-tooltip-shape var(--tip-t) both,
+    app-tooltip-fade calc(var(--tip-t) * 0.2) linear both;
+}
+
+.app-tooltip[data-side='below'] .app-tooltip__shape {
+  inset-block: 0 auto;
+}
+
+.app-tooltip__text {
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline-start: 50%;
+  box-sizing: border-box;
+  display: grid;
+  place-items: center;
+  inline-size: var(--tip-w);
+  block-size: var(--tip-h);
+  padding: 0.4rem 0.6rem;
+  translate: -50% -50%;
+  text-align: center;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+  font-size: var(--text-hint-size);
+  line-height: 1.35;
+  color: var(--text-primary);
+  opacity: 0;
+  animation: app-tooltip-fade calc(var(--tip-t) * 0.34) var(--motion-ease-standard) both;
+  animation-delay: calc(var(--tip-t) * 0.8);
+}
+
+.app-tooltip__text--probe {
+  position: fixed;
+  inset: 0 auto auto 0;
+  inline-size: max-content;
+  block-size: auto;
+  max-inline-size: 18rem;
+  translate: none;
+  visibility: hidden;
+  animation: none;
+}
+
+@keyframes app-tooltip-shape {
+  0% {
+    inline-size: 0.25rem;
+    block-size: 0.25rem;
+    border-color: var(--accent-primary);
+    border-radius: 0.125rem;
+    background: var(--accent-primary);
+    translate: -50% 0;
+    animation-timing-function: var(--motion-ease-emphasized);
+  }
+  45% {
+    inline-size: 0.25rem;
+    block-size: var(--tip-h);
+    border-color: var(--accent-primary);
+    background: var(--accent-primary);
+    translate: -50% 0;
+    animation-timing-function: var(--motion-ease-emphasized);
+  }
+  100% {
+    inline-size: var(--tip-w);
+    block-size: var(--tip-h);
+    border-color: var(--border-subtle);
+    border-radius: 0.3rem;
+    background: var(--surface-raised);
+    translate: calc(-50% + var(--tip-shift)) 0;
+  }
+}
+
+@keyframes app-tooltip-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/*
+ * Animation off in Settings, and the operating system's reduced-motion
+ * setting, both skip the first three stages: the finished box fades in.
+ */
+.app-tooltip[data-mode='fade'] .app-tooltip__shape {
+  inline-size: var(--tip-w);
+  block-size: var(--tip-h);
+  border-color: var(--border-subtle);
+  border-radius: 0.3rem;
+  background: var(--surface-raised);
+  translate: calc(-50% + var(--tip-shift)) 0;
+  animation: app-tooltip-fade var(--motion-duration-fast) var(--motion-ease-standard) both;
+}
+
+.app-tooltip[data-mode='fade'] .app-tooltip__text {
+  opacity: 1;
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-tooltip__shape {
+    inline-size: var(--tip-w);
+    block-size: var(--tip-h);
+    border-color: var(--border-subtle);
+    border-radius: 0.3rem;
+    background: var(--surface-raised);
+    translate: calc(-50% + var(--tip-shift)) 0;
+    animation: app-tooltip-fade var(--motion-duration-fast) var(--motion-ease-standard) both;
+  }
+
+  .app-tooltip__text {
+    opacity: 1;
+    animation: none;
+  }
+}

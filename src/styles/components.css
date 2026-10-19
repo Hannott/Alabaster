@@ -14079,6 +14079,18 @@ body.machine-editor-fullscreen-open {
   flex: 1 1 12rem;
 }
 
+/*
+ * Two number fields side by side on a settings card. An embedded label sits in
+ * a notch of the field's own border and truncates when the field is narrower
+ * than its words, so each column fits the longest label rather than the 5.5rem
+ * a bare value needs.
+ */
+.settings-field-pair {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(0, 10rem));
+  gap: 0.6rem;
+}
+
 .calibration-params {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr));

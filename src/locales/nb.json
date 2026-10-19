@@ -3142,6 +3142,15 @@
     "active": "Holder for øyeblikket skjermen våken.",
     "inactiveWhileHidden": "Fortsetter når denne fanen er aktiv igjen."
   },
+  "tooltips": {
+    "eyebrow": "Skjerm",
+    "title": "Verktøytips",
+    "animate": "Animer verktøytips",
+    "delay": "Ventetid",
+    "duration": "Animasjonslengde",
+    "unit": "ms",
+    "reset": "Tilbakestill verktøytips"
+  },
   "editor": {
     "eyebrow": "Redigering",
     "title": "Konfigurasjonsredigering",

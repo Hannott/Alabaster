@@ -3142,6 +3142,15 @@
     "active": "Currently keeping the screen awake.",
     "inactiveWhileHidden": "Will resume once this tab is in front again."
   },
+  "tooltips": {
+    "eyebrow": "Display",
+    "title": "Tooltips",
+    "animate": "Animate tooltips",
+    "delay": "Hover delay",
+    "duration": "Animation length",
+    "unit": "ms",
+    "reset": "Reset tooltips"
+  },
   "editor": {
     "eyebrow": "Editor",
     "title": "Configuration editor",

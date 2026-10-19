@@ -9,6 +9,7 @@ import { useHistoryStore } from '@/stores/history'
 import { useMaintenanceStore } from '@/stores/maintenance'
 import { useServerWarningsStore } from '@/stores/serverWarnings'
 import { useWakeLock } from '@/composables/useWakeLock'
+import { useTooltipPreferences } from '@/composables/useTooltipPreferences'
 import { useCommandPreferencesStore } from '@/stores/commandPreferences'
 import { useConfirmationsStore } from '@/stores/confirmations'
 import { useDashboardLayoutStore } from '@/stores/dashboardLayout'
@@ -191,6 +192,29 @@ describe('settings bundle', () => {
     await applySettingsBundle({ theme: { mode: 'nonsense' } })
 
     expect(theme.mode.value).toBe('light')
+  })
+
+  it('carries tooltip preferences, and a bundle that predates them leaves them alone', async () => {
+    const tooltips = useTooltipPreferences()
+    tooltips.setAnimate(false)
+    tooltips.setDurationMs(900)
+    tooltips.setDelayMs(120)
+
+    const bundle = collectSettingsBundle()
+    expect(bundle.tooltips).toEqual({ animate: false, durationMs: 900, delayMs: 120 })
+
+    tooltips.reset()
+    await applySettingsBundle(bundle)
+    expect(tooltips.preferences.value).toEqual({ animate: false, durationMs: 900, delayMs: 120 })
+
+    await applySettingsBundle({ theme: { mode: 'light' } })
+    expect(tooltips.preferences.value.durationMs).toBe(900)
+
+    expect(defaultSettingsBundle().tooltips).toEqual({
+      animate: true,
+      durationMs: 280,
+      delayMs: 300,
+    })
   })
 
   it('excludes device ergonomics — wake lock is never read or written', async () => {

@@ -23,6 +23,11 @@ import { useMaintenanceStore, type MaintenanceInterval } from '@/stores/maintena
 import { useServerWarningsStore } from '@/stores/serverWarnings'
 import { useFont } from '@/composables/useFont'
 import { isTextWeightMode, useTextWeight, type TextWeightMode } from '@/composables/useTextWeight'
+import {
+  defaultTooltipPreferences,
+  useTooltipPreferences,
+  type TooltipPreferences,
+} from '@/composables/useTooltipPreferences'
 import { isThemeMode, useTheme, type ThemeMode } from '@/composables/useTheme'
 import type { DashboardProfile } from '@/dashboard/layout'
 import { defaultIndentWidth, isIndentWidth, type IndentWidth } from '@/features/machine/indent'
@@ -98,6 +103,8 @@ export interface SettingsBundle {
   theme: { mode: ThemeMode; pack: ThemePackId }
   font: FontId
   textWeight: TextWeightMode
+  /** Null in a bundle written before tooltips had settings. */
+  tooltips: TooltipPreferences | null
   consoleFont: ConsoleFontChoice
   consoleWeight: ConsoleWeightMode
   editorIndentWidth: IndentWidth
@@ -164,6 +171,7 @@ export function collectSettingsBundle(): SettingsBundle {
   const theme = useTheme()
   const font = useFont()
   const textWeight = useTextWeight()
+  const tooltips = useTooltipPreferences()
   const consoleFont = useConsoleFont()
   const consoleWeight = useConsoleWeight()
   const editorIndent = useEditorIndent()
@@ -189,6 +197,7 @@ export function collectSettingsBundle(): SettingsBundle {
     theme: { mode: theme.mode.value, pack: theme.themePack.value },
     font: font.fontId.value,
     textWeight: textWeight.mode.value,
+    tooltips: { ...tooltips.preferences.value },
     consoleFont: consoleFont.consoleFont.value,
     consoleWeight: consoleWeight.mode.value,
     editorIndentWidth: editorIndent.indentWidth.value,
@@ -273,6 +282,7 @@ export async function applySettingsBundle(input: unknown): Promise<void> {
   if (typeof input.textWeight === 'string' && isTextWeightMode(input.textWeight)) {
     textWeight.setTextWeightMode(input.textWeight)
   }
+  if (isRecord(input.tooltips)) useTooltipPreferences().replace(input.tooltips)
   if (typeof input.consoleFont === 'string' && isConsoleFontChoice(input.consoleFont)) {
     consoleFont.setConsoleFont(input.consoleFont)
   }
@@ -341,6 +351,7 @@ export function defaultSettingsBundle(): SettingsBundle {
     theme: { mode: 'system', pack: defaultThemePackId },
     font: defaultFontId,
     textWeight: 'regular',
+    tooltips: { ...defaultTooltipPreferences },
     consoleFont: 'match',
     consoleWeight: 'regular',
     editorIndentWidth: defaultIndentWidth,

@@ -15,6 +15,7 @@ import MachineUpdateConsoleHost from '@/components/MachineUpdateConsoleHost.vue'
 import ManualProbeDialog from '@/components/ManualProbeDialog.vue'
 import PrinterFaultNotice from '@/components/PrinterFaultNotice.vue'
 import SaveConfigDialog from '@/components/SaveConfigDialog.vue'
+import AppTooltipHost from '@/components/AppTooltipHost.vue'
 import ToastStack from '@/components/ToastStack.vue'
 import { useAvailability } from '@/composables/useAvailability'
 import { useConsoleFont } from '@/composables/useConsoleFont'
@@ -1306,5 +1307,6 @@ async function discardPendingConfig(): Promise<void> {
     <MachineUpdateConsoleHost />
 
     <ToastStack />
+    <AppTooltipHost />
   </div>
 </template>
