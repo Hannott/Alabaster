@@ -116,7 +116,9 @@ how to tune it.
 ## I already use another interface's macro pack
 
 Then leave `alabaster.cfg` out. Both define `PAUSE`, `RESUME`, and
-`CANCEL_PRINT`, and Klipper refuses to start when a macro is defined twice.
+`CANCEL_PRINT`. Klipper does not report a macro defined twice: the one
+included last replaces the other without a warning, and you get a mix of the
+two packs.
 
 The installer checks before it changes anything. It reads `printer.cfg` and
 everything it includes. If it finds a conflicting definition, it tells you

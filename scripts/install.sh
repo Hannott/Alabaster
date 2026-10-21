@@ -18,8 +18,9 @@ DEFAULT_PORT='8090'
 DEFAULT_MOONRAKER='127.0.0.1:7125'
 
 # The macros this pack defines. Another interface's macro pack defines the same
-# names, and Klipper refuses to start when a macro is defined twice — so these
-# are what the conflict scan looks for. Matched by macro name rather than by
+# names, and Klipper merges a second definition into the first without a word,
+# the one included last winning — a silent half-and-half of two packs, which is
+# worse than an error. So these are what the conflict scan looks for. Matched by macro name rather than by
 # filename so a renamed or hand-written pack is caught just the same.
 CONFLICT_MACROS='PAUSE RESUME CANCEL_PRINT SET_PAUSE_AT_LAYER SET_PAUSE_NEXT_LAYER SET_PRINT_STATS_INFO'
 # Config sections it declares, which collide the same way.
@@ -548,7 +549,7 @@ add_include() {
         # Command substitution strips the trailing newline, so it is added back
         # rather than letting the last entry run into the warning below it.
         printf '%s\n' "$conflicts" >&2
-        warn 'Klipper will not start with either defined twice, so the include was NOT added.'
+        warn 'Klipper would let one silently replace the other, so the include was NOT added.'
         say ''
         say 'Most likely another Klipper web interface ships a macro pack you already'
         say 'include. Use one pack or the other: remove that include, then add'

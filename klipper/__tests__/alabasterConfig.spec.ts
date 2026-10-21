@@ -104,6 +104,45 @@ describe('alabaster.cfg', () => {
     expect(wrapper).toContain(`${renamed} {rawparams}`)
   })
 
+  it('never waits on the motion queue inside the per-layer wrapper', () => {
+    /*
+     * SET_PRINT_STATS_INFO runs at every layer change. An M400 in it drains
+     * the planner each time, so the toolhead stops and leaves a blob on every
+     * layer of every print — on the printers of everyone who installs the pack.
+     */
+    expect(macroBody(config, 'SET_PRINT_STATS_INFO')).not.toMatch(/\bM400\b/)
+  })
+
+  it('reaches user macros only through the guarded hook', () => {
+    /*
+     * The hooks are how an owner adds their own pause, resume, and cancel steps
+     * without redefining the macros, which Klipper lets them do silently and
+     * which drops everything the pack does. Each hook must be a setting the
+     * owner can find, and must go through `_ALABASTER_HOOK`: called blind, a
+     * misspelled name is only an "Unknown command" line in the console.
+     */
+    const settings = macroBody(config, '_ALABASTER')
+    const hooks: Record<string, string> = {
+      PAUSE: 'user_pause_macro',
+      RESUME: 'user_resume_macro',
+      CANCEL_PRINT: 'user_cancel_macro',
+    }
+    for (const [macro, setting] of Object.entries(hooks)) {
+      expect(settings, `_ALABASTER must declare ${setting}`).toContain(`variable_${setting}:`)
+      expect(macroBody(config, macro)).toContain(`_ALABASTER_HOOK SETTING=${setting}`)
+    }
+  })
+
+  it('cancels before running the owner cancel macro', () => {
+    // A failing cancel macro of the owner's must not be able to leave the print
+    // running, so the base cancel has to come first.
+    const cancel = macroBody(config, 'CANCEL_PRINT')
+    expect(cancel.indexOf('_ALABASTER_CANCEL_BASE')).toBeGreaterThanOrEqual(0)
+    expect(cancel.indexOf('_ALABASTER_CANCEL_BASE')).toBeLessThan(
+      cancel.indexOf('_ALABASTER_HOOK SETTING=user_cancel_macro'),
+    )
+  })
+
   it('keeps its helpers out of the user macro picker', () => {
     /*
      * A pack that puts eight internal helpers in front of the user has made

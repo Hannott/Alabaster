@@ -10,7 +10,14 @@ itself when the macro is missing.
 
 **A pause that gets the nozzle off the print.** Klipper's built-in pause stops
 the nozzle where it is, on the part. This macro retracts filament, lifts Z,
-and parks the nozzle instead.
+and parks the nozzle instead. A pause can last longer than Klipper's idle
+timeout without the motors turning off, and resuming heats the hotend back up
+if it was turned off in the meantime.
+
+**Your own steps on pause, resume, and cancel.** Name a macro of your own in
+the settings and the pack runs it at the right moment, such as playing a
+sound or lowering the bed for a filament change. See
+[Adding your own steps](#adding-your-own-steps).
 
 **Pause at a layer.** The Print card's _Pause at a layer_ and _Pause when this
 layer finishes_ options appear only when `SET_PAUSE_AT_LAYER` and
@@ -23,7 +30,8 @@ nozzle, and resets the file.
 **Load and unload filament.** Klipper defines no load or unload macros on its
 own. `alabaster.cfg` provides them, and the
 [Extruder](/interface/modules#extruder) card uses them to load and unload
-filament.
+filament. Both take an optional `TEMP`, such as `LOAD_FILAMENT TEMP=220`, to
+heat the hotend first.
 
 ## Installing it
 
@@ -82,8 +90,10 @@ them in automatically.
 
 ::: warning Use one macro pack, not two
 Established Klipper web interfaces ship their own config defining `PAUSE`,
-`RESUME`, `CANCEL_PRINT`, and the layer-pause macros. Klipper refuses to start
-when a macro is defined twice, so including both files breaks your printer.
+`RESUME`, `CANCEL_PRINT`, and the layer-pause macros. Klipper does not report a
+macro defined twice: the definition included last replaces the other one
+without a warning. Including both files leaves you with a mix of the two, and
+the pack's layer-pause cleanup and settings stop working.
 :::
 
 The installer checks for this before it changes anything. It reads
@@ -93,7 +103,9 @@ include.
 
 To switch: remove the other pack's include from `printer.cfg`, add
 `[include alabaster.cfg]`, and restart Klipper. Your own macros are untouched;
-only the pack's own definitions overlap.
+only the pack's own definitions overlap. The same applies to a `PAUSE`,
+`RESUME`, or `CANCEL_PRINT` of your own: move its steps into a
+[hook](#adding-your-own-steps) instead of keeping the macro.
 
 To keep the other pack: leave `alabaster.cfg` out. Its layer-pause macros are
 named the same way, so Alabaster's pause-at-layer controls work with that pack
@@ -101,8 +113,7 @@ too.
 
 ## Tuning it
 
-Everything worth changing is in one block at the top. Edit the values, not the
-macros below them.
+Everything worth changing is in one block at the top of the file:
 
 ```ini
 [gcode_macro _ALABASTER]
@@ -117,6 +128,21 @@ variable_unretract_speed: 35
 variable_travel_speed: 200
 variable_park_at_cancel: True
 variable_pause_extruder_off_after: 0
+variable_pause_idle_timeout: 3600
+variable_user_pause_macro: ''
+variable_user_resume_macro: ''
+variable_user_cancel_macro: ''
+```
+
+To change a value without editing `alabaster.cfg`, repeat only that value in
+a file of your own that is included after it. Klipper merges sections with
+the same name, so the rest of the block keeps the pack's values, and the
+pack's update source stays free of local changes:
+
+```ini
+[gcode_macro _ALABASTER]
+variable_park_x: 290
+variable_pause_idle_timeout: 43200
 ```
 
 | Variable                   |                                                                                |
@@ -128,6 +154,8 @@ variable_pause_extruder_off_after: 0
 | `travel_speed`             | Speed for parking and for the move back, in mm/s.                              |
 | `park_at_cancel`           | Whether a cancelled print parks as well as a paused one.                       |
 | `pause_extruder_off_after` | Turn the hotend off this many seconds into a pause. `0` leaves it on.          |
+| `pause_idle_timeout`       | Klipper's idle timeout during a pause, in seconds. `0` leaves it unchanged.    |
+| `user_*_macro`             | A macro of your own to run on pause, resume, or cancel. `''` runs nothing.     |
 
 Filament lengths have their own block, `_ALABASTER_FILAMENT`: set
 `load_length` and `unload_length` to match the distance between your extruder
@@ -135,10 +163,44 @@ and your nozzle.
 
 ::: tip Turn off the hotend during long pauses
 Set `pause_extruder_off_after` to a value such as `600` to turn off the hotend
-during a long pause. On resume, Alabaster tells you the hotend is off and
-waits for you to set a temperature, instead of pushing cold filament through
-the hotend.
+during a long pause. Resuming heats it back to the temperature the print was
+using before any filament moves.
 :::
+
+::: warning Long pauses and the idle timeout
+When a pause outlasts Klipper's idle timeout, Klipper turns off the heaters
+and the motors, and the print cannot be resumed. Klipper's default timeout is
+600 seconds. `pause_idle_timeout` replaces it for the length of the pause, and
+your configured timeout comes back on resume or cancel.
+:::
+
+## Adding your own steps
+
+Each hook names a macro of your own. The pack calls it at a fixed point:
+
+| Hook                | Runs                                                           |
+| ------------------- | -------------------------------------------------------------- |
+| `user_pause_macro`  | After the nozzle has parked.                                   |
+| `user_resume_macro` | Before the hotend reheats and the nozzle returns to the print. |
+| `user_cancel_macro` | After the print has been cancelled.                            |
+
+```ini
+[gcode_macro _ALABASTER]
+variable_user_pause_macro: '_MY_PAUSE'
+
+[gcode_macro _MY_PAUSE]
+gcode:
+  G91
+  G1 Z20 F600
+  G90
+```
+
+A resume macro can read where the print stopped from
+`printer["gcode_macro _ALABASTER_STATE"]`: `resume_x`, `resume_y`, and
+`resume_z` in G-code coordinates, and `resume_temperature`.
+
+A hook that names a macro the printer does not have is reported in the
+console and skipped. Pause, resume, and cancel still complete.
 
 ## What it declares
 
