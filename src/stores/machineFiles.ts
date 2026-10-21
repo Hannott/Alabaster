@@ -8,6 +8,7 @@ import {
   type MachineFileKind,
 } from '@/features/machine/fileKind'
 import { withBaseHref } from '@/features/machine/htmlPreview'
+import { createZipArchive } from '@/features/machine/zipArchive'
 import {
   addConfigInclude,
   findIncludeRewrite,
@@ -18,6 +19,7 @@ import {
 } from '@/features/machine/includes'
 import { moveBeside, type TabDropPlacement } from '@/features/machine/tabRows'
 import {
+  fetchMoonrakerBinaryFile,
   fetchMoonrakerTextFile,
   moonrakerFileUrl,
   normalizeMoonrakerRelativePath,
@@ -81,7 +83,7 @@ export interface OpenFileOptions {
 }
 
 export type MachineFileError =
-  'directory' | 'file' | 'save' | 'saveAll' | 'mutation' | 'restart' | null
+  'directory' | 'file' | 'save' | 'saveAll' | 'mutation' | 'restart' | 'export' | null
 export type MachineFileNotice =
   | 'saved'
   | 'savedRestarting'
@@ -1060,6 +1062,35 @@ export const useMachineFilesStore = defineStore('machineFiles', () => {
     return files.map((file) => normalizeMoonrakerRelativePath(file.path))
   }
 
+  /**
+   * Every file in the config root as one ZIP, read from the printer rather than
+   * from the editor's buffers: a backup is what Klipper would load, and an
+   * unsaved edit is not part of that. All or nothing — a backup missing a file
+   * it appears to contain is worse than no backup — so one failed read reports
+   * an error and returns null.
+   */
+  async function exportConfigArchive(): Promise<Blob | null> {
+    if (!availability.isMoonrakerConnected || isMutating.value) return null
+    isMutating.value = true
+    clearFeedback()
+    try {
+      const files = await moonraker.rpcCall('server.files.list', { root: 'config' })
+      const entries = await Promise.all(
+        files.map(async (file) => {
+          const path = normalizeMoonrakerRelativePath(file.path)
+          const data = await fetchMoonrakerBinaryFile('config', path, moonraker.endpoint)
+          return { path, data, modified: file.modified }
+        }),
+      )
+      return createZipArchive(entries)
+    } catch {
+      lastError.value = 'export'
+      return null
+    } finally {
+      isMutating.value = false
+    }
+  }
+
   /** The buffer for a config file, or undefined if it has never been loaded. */
   function configBuffer(path: string): MachineFileBuffer | undefined {
     return fileBuffers.value.get(path)
@@ -1861,6 +1892,7 @@ export const useMachineFilesStore = defineStore('machineFiles', () => {
     discardAllChanges,
     discardChangesAt,
     listConfigFiles,
+    exportConfigArchive,
     configBuffer,
     loadConfigFiles,
     setConfigBufferContent,

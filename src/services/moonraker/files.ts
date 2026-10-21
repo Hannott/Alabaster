@@ -76,12 +76,12 @@ export function validMoonrakerFilename(name: string): boolean {
   )
 }
 
-export async function fetchMoonrakerTextFile(
+async function fetchMoonrakerFile(
   root: MoonrakerFileRoot,
   path: string,
   websocketEndpoint: string,
-  fetcher: typeof fetch = fetch,
-): Promise<string> {
+  fetcher: typeof fetch,
+): Promise<Response> {
   const normalizedPath = normalizeMoonrakerRelativePath(path)
   if (!normalizedPath) throw new MoonrakerEndpointError()
   const endpoint = moonrakerHttpBaseUrl(websocketEndpoint)
@@ -92,7 +92,27 @@ export async function fetchMoonrakerTextFile(
   endpoint.searchParams.set('t', String(Date.now()))
   const response = await fetcher(endpoint, { cache: 'no-store' })
   if (!response.ok) throw new Error(`Moonraker file download failed with ${response.status}`)
-  return response.text()
+  return response
+}
+
+export async function fetchMoonrakerTextFile(
+  root: MoonrakerFileRoot,
+  path: string,
+  websocketEndpoint: string,
+  fetcher: typeof fetch = fetch,
+): Promise<string> {
+  return (await fetchMoonrakerFile(root, path, websocketEndpoint, fetcher)).text()
+}
+
+/** The file's raw bytes, for content that must not pass through a text decoder. */
+export async function fetchMoonrakerBinaryFile(
+  root: MoonrakerFileRoot,
+  path: string,
+  websocketEndpoint: string,
+  fetcher: typeof fetch = fetch,
+): Promise<Uint8Array> {
+  const response = await fetchMoonrakerFile(root, path, websocketEndpoint, fetcher)
+  return new Uint8Array(await response.arrayBuffer())
 }
 
 export interface MoonrakerUploadOptions {

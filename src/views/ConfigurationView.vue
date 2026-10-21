@@ -900,6 +900,19 @@ function downloadEntry(entry: MachineFileEntry): void {
   link.remove()
 }
 
+async function exportConfiguration(): Promise<void> {
+  const archive = await machineFiles.exportConfigArchive()
+  if (!archive) return
+  const url = URL.createObjectURL(archive)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `config-${new Date().toISOString().slice(0, 10)}.zip`
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  URL.revokeObjectURL(url)
+}
+
 function requestDeleteEntry(entry: MachineFileEntry): void {
   closeContextMenu()
   if (confirmations.shouldConfirm('deleteFileEntry')) {
@@ -2447,6 +2460,17 @@ onBeforeUnmount(() => {
                 :aria-label="t('configuration.actions.upload')"
                 :title="t('configuration.actions.upload')"
                 @click="selectUpload"
+              />
+              <AppButton
+                v-if="machineFiles.isRootEditable"
+                size="sm"
+                icon-only
+                on-soft
+                icon="download"
+                :disabled="!moonrakerAvailability.isAvailable || machineFiles.isMutating"
+                :aria-label="t('configuration.actions.exportAll')"
+                :title="t('configuration.actions.exportAll')"
+                @click="exportConfiguration"
               />
               <input
                 ref="uploadInput"

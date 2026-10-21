@@ -2422,7 +2422,8 @@
       "newFilePrompt": "Gi den nye konfigurasjonsfilen et navn",
       "newFileDefault": "ny-konfigurasjon.cfg",
       "newFolderPrompt": "Gi den nye mappen et navn",
-      "collapseAll": "Fold sammen alle mapper"
+      "collapseAll": "Fold sammen alle mapper",
+      "exportAll": "Last ned alt som ZIP"
     },
     "contextMenu": {
       "label": "Handlinger for {name}",
@@ -2599,7 +2600,8 @@
       "save": "Filen kunne ikke lagres. Endringene forblir i redigeringen.",
       "saveAll": "Enkelte filer kunne ikke lagres. De forblir ulagret i redigeringen.",
       "mutation": "Filoperasjonen kunne ikke fullføres.",
-      "restart": "Filen ble lagret, men fastvaren kunne ikke startes på nytt."
+      "restart": "Filen ble lagret, men fastvaren kunne ikke startes på nytt.",
+      "export": "Konfigurasjonen kunne ikke eksporteres. Ingenting ble lastet ned."
     },
     "files": {
       "title": "Konfigurasjonsutforsker",

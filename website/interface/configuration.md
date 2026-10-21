@@ -342,6 +342,13 @@ read-only file cannot be dragged, and Alabaster disables its Rename and
 Delete. A read-only folder will not accept a drop. Moonraker would refuse
 every one of these operations; Alabaster says so before you attempt it.
 
+## Back up everything
+
+**Download all as ZIP** in the toolbar packs every file under the config root,
+subfolders included, into one archive. It reads the files as they are on the
+printer, so unsaved edits in the editor are not part of it. If any file cannot
+be read, nothing is downloaded.
+
 ## Save new config
 
 The header offers to save changes Klipper is holding from a `SAVE_CONFIG`,

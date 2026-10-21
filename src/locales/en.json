@@ -2422,7 +2422,8 @@
       "newFilePrompt": "Name the new configuration file",
       "newFileDefault": "new-config.cfg",
       "newFolderPrompt": "Name the new folder",
-      "collapseAll": "Collapse all folders"
+      "collapseAll": "Collapse all folders",
+      "exportAll": "Download all as ZIP"
     },
     "contextMenu": {
       "label": "Actions for {name}",
@@ -2599,7 +2600,8 @@
       "save": "The file could not be saved. Your changes remain in the editor.",
       "saveAll": "Some files could not be saved. They remain unsaved in the editor.",
       "mutation": "The file operation could not be completed.",
-      "restart": "The file was saved, but the firmware could not be restarted."
+      "restart": "The file was saved, but the firmware could not be restarted.",
+      "export": "The configuration could not be exported. Nothing was downloaded."
     },
     "files": {
       "title": "Configuration explorer",
