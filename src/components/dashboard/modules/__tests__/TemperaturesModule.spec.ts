@@ -296,7 +296,7 @@ describe('TemperaturesModule', () => {
     await flushPromises()
 
     const row = wrapper.findAll('.module-table__row').at(0)
-    expect(row?.findAll('button')).toHaveLength(0)
+    expect(row?.findAll('.temperature-controls button')).toHaveLength(0)
 
     await row?.get('input').setValue('215')
     await row?.get('input').trigger('keydown.enter')
@@ -556,6 +556,30 @@ describe('TemperaturesModule', () => {
     expect(series[0]?.targetPoints.map((point) => point.value)).toEqual([0, 215])
   })
 
+  it('narrows the chart to one sensor on a click and back on the next', async () => {
+    const { telemetry, wrapper } = mountModule()
+    telemetry.temperatureHistory = [
+      { eventtime: 1, values: { extruder: 25, heater_bed: 24 }, targets: {} },
+      { eventtime: 2, values: { extruder: 60, heater_bed: 40 }, targets: {} },
+    ]
+    await flushPromises()
+    const drawn = () =>
+      (
+        wrapper.findComponent({ name: 'TemperatureChart' }).props('series') as Array<{
+          objectName: string
+        }>
+      ).map((entry) => entry.objectName)
+
+    const select = wrapper.findAll('.temperature-row-select')[1]!
+    await select.trigger('click')
+    expect(drawn()).toEqual(['heater_bed'])
+    expect(select.attributes('aria-pressed')).toBe('true')
+
+    await select.trigger('click')
+    expect(drawn()).toEqual(['extruder', 'heater_bed'])
+    expect(select.attributes('aria-pressed')).toBe('false')
+  })
+
   /*
    * With scaling off the axis becomes the machine's own ceiling, so every frame
    * is the same frame and a reading can be compared against one seen an hour
@@ -776,7 +800,7 @@ describe('TemperaturesModule', () => {
 
     const extruderRow = wrapper.findAll('.module-table__row').at(0)
     expect(extruderRow?.find('.temperature-detail').exists()).toBe(false)
-    expect(extruderRow?.findAll('button')).toHaveLength(0)
+    expect(extruderRow?.findAll('.temperature-controls button')).toHaveLength(0)
 
     const bedRow = wrapper.findAll('.module-table__row').at(1)
     expect(bedRow?.find('.temperature-detail').exists()).toBe(true)

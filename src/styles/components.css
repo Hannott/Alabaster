@@ -3327,6 +3327,31 @@ input[type='number']::-webkit-inner-spin-button {
 .temperature-row-icon {
   width: 1.5rem;
   height: 1.5rem;
+  flex: none;
+}
+
+/*
+ * The icon and the name are one `text-action` that narrows the chart to this
+ * sensor, spanning the icon track and the name track so the row's grid is the
+ * one it always had. Primary at rest rather than the pattern's muted: the name
+ * is the row's own label, and muted would make it the faintest thing in the
+ * row. The pressed state is an underline, a shape cue where the color is
+ * already spent on the sensor.
+ */
+.temperature-row-select {
+  display: flex;
+  min-width: 0;
+  grid-column: 1 / 3;
+  align-items: center;
+  align-self: stretch;
+  gap: 0.5rem;
+  color: var(--text-primary);
+  text-align: start;
+}
+
+.temperature-row-select--active .module-table__name {
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
 }
 
 /*
@@ -5144,6 +5169,11 @@ input.z-axis__slider {
   stroke: var(--accent-primary);
   stroke-width: 1;
   stroke-dasharray: 3 3;
+}
+
+/* Held by a click: solid, so a held reading is not mistaken for a passing one. */
+.temperature-chart__cursor--pinned {
+  stroke-dasharray: none;
 }
 
 .temperature-chart__cursor-dot {

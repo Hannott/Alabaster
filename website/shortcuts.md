@@ -81,6 +81,7 @@ Focus the chart on the Temperatures card and:
 | Key                         | Action                                    |
 | --------------------------- | ----------------------------------------- |
 | <kbd>←</kbd> / <kbd>→</kbd> | Step back and forward one recorded sample |
+| <kbd>Enter</kbd>            | Hold or release the current moment        |
 | <kbd>Esc</kbd>              | Stop reading the past and return to now   |
 
 The readings in the list above the chart follow the point in time you are

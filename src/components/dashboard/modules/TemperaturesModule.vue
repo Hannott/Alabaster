@@ -122,7 +122,27 @@ const listedSensors = computed(() => {
   return telemetry.sensors.filter((sensor) => configured.includes(sensor.objectName))
 })
 
+/**
+ * The one sensor the chart is narrowed to, or null while it draws the set the
+ * card is configured for. Not persisted: it is a look at one trace, and a card
+ * that reopened narrowed would read as a chart that had lost its other lines.
+ */
+const isolatedSensor = ref<string | null>(null)
+
+function toggleIsolated(objectName: string): void {
+  isolatedSensor.value = isolatedSensor.value === objectName ? null : objectName
+}
+
 const chartSeries = computed(() => {
+  // Drawn even when the sensor is not among the configured series, so clicking
+  // any listed row shows that row. The axis refits on its own: the series names
+  // are part of the chart's framing key.
+  const isolated = isolatedSensor.value
+  if (isolated !== null) {
+    const match = telemetry.sensors.filter((sensor) => sensor.objectName === isolated)
+    // A sensor that has gone away must not leave the chart empty.
+    if (match.length > 0) return match
+  }
   const configured = configOptionalStringList(config.value, 'chartSeries')
   if (configured === null) {
     return telemetry.sensors.filter((sensor) => sensor.isSettable)
@@ -661,13 +681,22 @@ const hasJobLoaded = computed(() => printer.hasActivePrint)
         it belongs to, it does neither.
       -->
         <div v-for="sensor in listedSensors" :key="sensor.objectName" class="module-table__row">
-          <AppIcon
-            :name="rowIcon(sensor)"
-            class="temperature-row-icon"
-            :style="{ color: colorFor(sensor.objectName) }"
-            aria-hidden="true"
-          />
-          <span class="module-table__name">{{ sensorLabel(sensor) }}</span>
+          <button
+            type="button"
+            class="text-action temperature-row-select"
+            :class="{ 'temperature-row-select--active': isolatedSensor === sensor.objectName }"
+            :aria-pressed="isolatedSensor === sensor.objectName"
+            :aria-label="t('dashboard.temperature.isolateSensor', { sensor: sensorLabel(sensor) })"
+            @click="toggleIsolated(sensor.objectName)"
+          >
+            <AppIcon
+              :name="rowIcon(sensor)"
+              class="temperature-row-icon"
+              :style="{ color: colorFor(sensor.objectName) }"
+              aria-hidden="true"
+            />
+            <span class="module-table__name">{{ sensorLabel(sensor) }}</span>
+          </button>
           <!--
           One field per sensor, not a reading beside a box to type in. The two
           numbers are one subject — where the heater is and where it is going —

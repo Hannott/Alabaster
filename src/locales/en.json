@@ -1566,6 +1566,7 @@
       "targetLabelCurrent": "Target temperature for {heater}, now {current}{unit}",
       "readingLabel": "Temperature reported by {sensor}",
       "readingAt": "Reading at {time}",
+      "isolateSensor": "Show only {sensor} on the chart",
       "chartLabel": "Temperature history for the selected sensors",
       "showChart": "Show the history chart",
       "passive": "Reports only",

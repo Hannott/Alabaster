@@ -668,7 +668,28 @@ function eventtimeAt(clientX: number): number | null {
   return time.value.start + Math.min(1, Math.max(0, fraction)) * span
 }
 
+/**
+ * Whether a click is holding the cursor where it is. The moment is stored as an
+ * eventtime and the axis scrolls under it, so a held cursor rides along with
+ * its sample rather than staying at a pixel — which is what "follow that time"
+ * means.
+ */
+const pinned = ref(false)
+
+function togglePin(clientX: number | null): void {
+  if (pinned.value) {
+    pinned.value = false
+    // Handed back to the pointer where it is, not blanked, so releasing is not
+    // a flicker of the table back to the present under a pointer still on the plot.
+    if (clientX !== null) cursorEventtime.value = eventtimeAt(clientX)
+    return
+  }
+  if (clientX !== null) cursorEventtime.value = eventtimeAt(clientX)
+  pinned.value = cursorEventtime.value !== null
+}
+
 function moveCursor(clientX: number): void {
+  if (pinned.value) return
   // Content sliding under a pointer that never moved still reports a move, so
   // scrolling with the pointer over the plot used to re-read the past — and
   // repaint every reading in the table with it — on each frame of the gesture.
@@ -676,7 +697,14 @@ function moveCursor(clientX: number): void {
   cursorEventtime.value = eventtimeAt(clientX)
 }
 
+/** Leaving the plot or losing focus ends a scrub, never a held reading. */
 function clearCursor(): void {
+  if (pinned.value) return
+  cursorEventtime.value = null
+}
+
+function releaseCursor(): void {
+  pinned.value = false
   cursorEventtime.value = null
 }
 
@@ -758,7 +786,10 @@ const description = computed(() => t('dashboard.temperature.chartLabel'))
     @blur="clearCursor"
     @keydown.left.prevent="stepCursor(-1)"
     @keydown.right.prevent="stepCursor(1)"
-    @keydown.esc.prevent="clearCursor"
+    @keydown.esc.prevent="releaseCursor"
+    @keydown.enter.prevent="togglePin(null)"
+    @keydown.space.prevent="togglePin(null)"
+    @click="togglePin($event.clientX)"
   >
     <template v-if="width > 0">
       <!--
@@ -845,6 +876,7 @@ const description = computed(() => t('dashboard.temperature.chartLabel'))
               :x2="cursor.x"
               :y2="gutterTop + plotHeight"
               class="temperature-chart__cursor"
+              :class="{ 'temperature-chart__cursor--pinned': pinned }"
             />
             <circle
               v-for="dot in cursor.dots"

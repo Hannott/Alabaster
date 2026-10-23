@@ -1566,6 +1566,7 @@
       "targetLabelCurrent": "Måltemperatur for {heater}, nå {current}{unit}",
       "readingLabel": "Temperatur målt av {sensor}",
       "readingAt": "Avlesning {time}",
+      "isolateSensor": "Vis bare {sensor} i grafen",
       "chartLabel": "Temperaturhistorikk for de valgte sensorene",
       "showChart": "Vis historikkgrafen",
       "passive": "Kun måling",

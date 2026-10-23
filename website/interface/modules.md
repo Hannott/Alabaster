@@ -161,6 +161,14 @@ show the value recorded at that moment. The whole table moves together, and
 the chart labels the moment it is showing. Arrow keys step through the same
 samples one at a time, and Escape returns to the present.
 
+Click the chart to hold a moment. The marker stays on that sample as the chart
+scrolls, and the list keeps reading it, until you click again.
+
+### Isolating a sensor
+
+Click a sensor's icon or name to chart only that sensor, with the scale fitted
+to it. Click it again to bring the others back.
+
 Target boxes do not follow this. They always show the printer's current
 setpoint, so no control here can act on a value from four minutes ago.
 

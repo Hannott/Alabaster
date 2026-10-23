@@ -602,6 +602,34 @@ describe('TemperatureChart', () => {
     expect(notPrevented).toBe(true)
   })
 
+  it('holds the reading on a click until the next one', async () => {
+    const wrapper = await mountChart()
+    const svg = chartBox(wrapper)
+    const element = svg.element as HTMLElement
+    element.getBoundingClientRect = () =>
+      ({ left: 0, width: chartWidth, top: 0, height: 144 }) as DOMRect
+
+    element.dispatchEvent(new MouseEvent('click', { clientX: chartWidth - 20, bubbles: true }))
+    await flushPromises()
+    const held = wrapper.emitted('update:cursorEventtime')!.at(-1)
+    expect(held).not.toEqual([null])
+
+    // Neither leaving nor moving disturbs a held reading.
+    await svg.trigger('pointerleave')
+    element.dispatchEvent(new MouseEvent('pointermove', { clientX: 40, bubbles: true }))
+    await flushPromises()
+    expect(wrapper.emitted('update:cursorEventtime')!.at(-1)).toEqual(held)
+
+    element.dispatchEvent(new MouseEvent('click', { clientX: 40, bubbles: true }))
+    await flushPromises()
+    const released = wrapper.emitted('update:cursorEventtime')!.at(-1)
+    expect(released).not.toEqual(held)
+
+    // Released, the pointer drives it again.
+    await svg.trigger('pointerleave')
+    expect(wrapper.emitted('update:cursorEventtime')!.at(-1)).toEqual([null])
+  })
+
   /* A gesture the browser takes over for a scroll ends in a cancel, not a leave. */
   it('drops the cursor when a pointer gesture is cancelled', async () => {
     const wrapper = await mountChart()
