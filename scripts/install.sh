@@ -296,7 +296,9 @@ collect_configs() {
             [ -f "$match" ] || continue
             collect_configs "$match"
         done
-    done < <(sed -n 's/^[[:space:]]*\[include[[:space:]]\+\([^]]*\)\].*/\1/p' "$file")
+    # Greedy to the last ], as Klipper's own section header is: a pattern
+    # such as alabaster.cfg's alabaster-user.cf[g] has a ] of its own.
+    done < <(sed -n 's/^[[:space:]]*\[include[[:space:]]\+\(.*\)\].*/\1/p' "$file")
 }
 
 scan_for_conflicts() {
@@ -434,11 +436,10 @@ repair_config_repo() {
 
 
 # Puts alabaster.cfg where printer.cfg's [include] expects it, as a symlink
-# into the clone rather than a copy — so editing the file, whether by hand or
-# through Alabaster's own Configuration page, edits the real file inside the
-# git working tree. That is what lets an edit surface as "local changes" on
-# the Machine page's own repository-recovery flow instead of vanishing
-# silently on the next update.
+# into the clone rather than a copy, so the update manager's updates reach
+# it. Moonraker reserves the paths of the repositories it updates, which
+# makes the file read-only through its API; settings go in alabaster-user.cfg
+# instead (install_user_settings).
 link_macro_pack() {
     local repo_file="${config_repo_path}/klipper/alabaster.cfg" target="${config_dir}/alabaster.cfg"
 
@@ -469,7 +470,7 @@ link_macro_pack() {
         # git-tracked. Backed up rather than replaced silently: any edits to
         # its _ALABASTER settings do not carry forward automatically — there
         # is no safe way to merge them into the new copy.
-        warn "${target} is a plain file from an earlier install. Backing it up — reapply any of your own settings by editing the new one."
+        warn "${target} is a plain file from an earlier install. Backing it up — reapply any of your own settings in alabaster-user.cfg."
         run cp "$target" "${target}.pre-git-migration"
         run rm -f "$target"
     fi
@@ -520,13 +521,34 @@ install_macro_pack() {
     fi
 
     if ensure_config_repo && link_macro_pack; then
+        install_user_settings "$(dirname "$fallback_source")/alabaster-user.cfg"
         add_include
         return 0
     fi
 
     warn 'Falling back to the copy included in this release; it will not update on its own.'
     copy_macro_pack_plain "$fallback_source"
+    install_user_settings "$(dirname "$fallback_source")/alabaster-user.cfg"
     add_include
+}
+
+# The owner's own file for the pack's settings, created once and never
+# replaced: it holds the only edits the pack expects, so an update or a
+# re-run that overwrote it would silently undo them. A plain copy, not a
+# link, so Moonraker treats it as an ordinary editable config file.
+install_user_settings() {
+    local source="$1" target="${config_dir}/alabaster-user.cfg"
+
+    if [ -e "$target" ]; then
+        did 'alabaster-user.cfg already exists; your settings were left alone'
+        return 0
+    fi
+    if [ ! -f "$source" ]; then
+        warn "${source} was not found; alabaster-user.cfg was not created. The pack runs on its defaults."
+        return 0
+    fi
+    run cp "$source" "$target"
+    did "alabaster-user.cfg created at ${target} — change the pack's settings there"
 }
 
 add_include() {

@@ -98,6 +98,7 @@ step 'What this will remove'
 say "  ${install_path}"
 [ -n "$printer_cfg" ] && say "  the [include alabaster.cfg] line in ${printer_cfg}, if present"
 [ -n "$config_dir" ] && say "  ${config_dir}/alabaster.cfg, if you say so"
+[ -n "$config_dir" ] && say "  ${config_dir}/alabaster-user.cfg, if you say so"
 say "  ${config_repo_path}, if you say so"
 [ -n "$moonraker_conf" ] && say "  the [update_manager] blocks for Alabaster and its macro pack in ${moonraker_conf}, if present"
 say '  the nginx site, if present'
@@ -157,6 +158,17 @@ elif [ -n "$config_dir" ] && [ -f "${config_dir}/alabaster.cfg" ]; then
         did 'alabaster.cfg deleted'
     else
         skipped 'alabaster.cfg kept'
+    fi
+fi
+
+# Nothing includes it once alabaster.cfg is gone, so keeping it is harmless;
+# it defaults to no because it holds the owner's own settings.
+if [ -n "$config_dir" ] && [ -f "${config_dir}/alabaster-user.cfg" ]; then
+    if ask "Delete ${config_dir}/alabaster-user.cfg? (your macro pack settings)" n; then
+        run rm -f "${config_dir}/alabaster-user.cfg"
+        did 'alabaster-user.cfg deleted'
+    else
+        skipped 'alabaster-user.cfg kept'
     fi
 fi
 

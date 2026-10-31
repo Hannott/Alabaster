@@ -33,6 +33,10 @@ own. `alabaster.cfg` provides them, and the
 filament. Both take an optional `TEMP`, such as `LOAD_FILAMENT TEMP=220`, to
 heat the hotend first.
 
+**A purge line beside the print.** `ADAPTIVE_PURGE` draws the purge line next
+to the objects you are printing, ending as close as it can to where the print
+starts. See [Purging before a print](#purging-before-a-print).
+
 ## Installing it
 
 The [installer](/guide/installation) can install the pack for you: it offers
@@ -65,15 +69,10 @@ because Moonraker tracks a downloaded release and a git clone differently.
 Updating one does not require updating the other, and the two can never
 disagree about which version they are.
 
-::: tip Editing it directly is fine
-Because `alabaster.cfg` is a symlink, editing it (through Alabaster's own
-Configuration page, or by hand) changes the file inside the clone. Moonraker
-then shows that repository as having local changes the next time it checks for
-updates. Use the same
-[recovery flow](/interface/machine#recovering-a-broken-repository) already
-used for Klipper and Moonraker's own update sources: it shows you that this
-copy is no longer identical to what shipped.
-:::
+Moonraker does not let anything edit a repository it updates, so
+`alabaster.cfg` opens read-only. Your settings go in `alabaster-user.cfg`
+instead, a plain file next to it that the installer creates once and updates
+never touch. See [Tuning it](#tuning-it).
 
 If there is no network at install time, or the repository is unreachable, the
 installer falls back to a plain copy of the file included in the release. This
@@ -83,7 +82,7 @@ clone is retried. Re-running the installer retries the clone on its own.
 An install from before this existed leaves a plain file where the symlink now
 goes. The installer detects this and backs up the old file as
 `alabaster.cfg.pre-git-migration` instead of replacing it silently. Reapply any
-of your own settings by editing the new file; there is no safe way to merge
+of your own settings in `alabaster-user.cfg`; there is no safe way to merge
 them in automatically.
 
 ## If you are coming from another interface
@@ -113,37 +112,23 @@ too.
 
 ## Tuning it
 
-Everything worth changing is in one block at the top of the file:
-
-```ini
-[gcode_macro _ALABASTER]
-variable_park_enabled: True
-variable_park_x: -1
-variable_park_y: -1
-variable_park_lift: 10.0
-variable_retract: 1.0
-variable_retract_speed: 35
-variable_unretract_extra: 0.0
-variable_unretract_speed: 35
-variable_travel_speed: 200
-variable_park_at_cancel: True
-variable_pause_extruder_off_after: 0
-variable_pause_idle_timeout: 3600
-variable_user_pause_macro: ''
-variable_user_resume_macro: ''
-variable_user_cancel_macro: ''
-```
-
-To change a value without editing `alabaster.cfg`, repeat only that value in
-a file of your own that is included after it. Klipper merges sections with
-the same name, so the rest of the block keeps the pack's values, and the
-pack's update source stays free of local changes:
+Change the pack's settings in `alabaster-user.cfg`, next to `printer.cfg`.
+Every setting is listed there, commented out, with its default. Remove the
+`#` in front of a line, change the value, and restart Klipper:
 
 ```ini
 [gcode_macro _ALABASTER]
 variable_park_x: 290
 variable_pause_idle_timeout: 43200
 ```
+
+A setting you leave commented out keeps the pack's default, including when a
+later release improves it.
+
+If the file is missing, for example on a printer installed before it existed,
+re-run the [installer](/guide/installation) to create it, or copy it from
+`~/alabaster-config/klipper/alabaster-user.cfg`. Without it, the pack runs on
+its defaults.
 
 | Variable                   |                                                                                |
 | -------------------------- | ------------------------------------------------------------------------------ |
@@ -157,9 +142,9 @@ variable_pause_idle_timeout: 43200
 | `pause_idle_timeout`       | Klipper's idle timeout during a pause, in seconds. `0` leaves it unchanged.    |
 | `user_*_macro`             | A macro of your own to run on pause, resume, or cancel. `''` runs nothing.     |
 
-Filament lengths have their own block, `_ALABASTER_FILAMENT`: set
-`load_length` and `unload_length` to match the distance between your extruder
-and your nozzle.
+Filament lengths have their own block in the same file,
+`_ALABASTER_FILAMENT`: set `load_length` and `unload_length` to match the
+distance between your extruder and your nozzle.
 
 ::: tip Turn off the hotend during long pauses
 Set `pause_extruder_off_after` to a value such as `600` to turn off the hotend
@@ -184,6 +169,8 @@ Each hook names a macro of your own. The pack calls it at a fixed point:
 | `user_resume_macro` | Before the hotend reheats and the nozzle returns to the print. |
 | `user_cancel_macro` | After the print has been cancelled.                            |
 
+Name the hook and define the macro in `alabaster-user.cfg`:
+
 ```ini
 [gcode_macro _ALABASTER]
 variable_user_pause_macro: '_MY_PAUSE'
@@ -201,6 +188,58 @@ A resume macro can read where the print stopped from
 
 A hook that names a macro the printer does not have is reported in the
 console and skipped. Pause, resume, and cancel still complete.
+
+## Purging before a print
+
+Add `ADAPTIVE_PURGE` to your start G-code as the last step before printing,
+after the hotend is at temperature and any bed mesh is loaded:
+
+```ini
+[gcode_macro PRINT_START]
+gcode:
+  # ...heat, home, mesh...
+  ADAPTIVE_PURGE
+```
+
+The line goes on whichever side of the print lets it end closest to one of
+the objects, so the nozzle travels only a short way from the purge to the
+first layer. It never leaves your printer's travel limits and never comes
+closer to the print than `margin`. If no side has room, it skips the purge
+and says so rather than stopping the print.
+
+The purge first lays a thick, slow line that flushes most of the filament,
+then a thin, faster one that brings the nozzle pressure to where a printed
+line needs it. It leaves the line with a fast sideways move while retracting,
+which snaps the strand off at the purge instead of dragging it to the print.
+The nozzle then moves to the edge of the print at line height and pushes the
+filament back, so the first layer starts with the nozzle full.
+
+It needs your slicer's object labels (**Label objects** in PrusaSlicer and
+OrcaSlicer). Without them, it purges along the edge of the bed and reports it
+in the console.
+
+If you know where the first layer starts, pass it. The line ends next to that
+point, and the filament is pushed back right where printing begins:
+
+```ini
+ADAPTIVE_PURGE X=120 Y=80
+```
+
+The settings have their own block in `alabaster-user.cfg`, `_ALABASTER_PURGE`:
+
+| Variable       |                                                                                                    |
+| -------------- | -------------------------------------------------------------------------------------------------- |
+| `length`       | Filament to purge, in mm. More filament makes the line longer or folds it into rows. `0` skips it. |
+| `flow`         | Flow during the purge, in mm³/s. Keep it at or below what your hotend manages on a first layer.    |
+| `height`       | Nozzle height for the line, in mm. About one and a half times the nozzle diameter.                 |
+| `margin`       | Gap between the line and the objects, in mm. Keep it wider than your skirt or brim.                |
+| `edge`         | How close the line may come to the ends of X and Y travel, in mm.                                  |
+| `sides`        | Sides the line may use, such as `'front, left'`. Front is the low-Y side.                          |
+| `tip_distance` | How far your end G-code retracts the filament, pushed back before purging. `0` if it does not.     |
+| `retract`      | How far the filament pulls back while leaving the line, in mm. Pushed back out at the print.       |
+
+The line never gets thicker than `max_extrude_cross_section` in your
+`[extruder]` section allows, so Klipper's default limit is enough.
 
 ## What it declares
 

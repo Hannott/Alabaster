@@ -66,7 +66,9 @@ jobs:
           # an offline or --from-zip install where that clone cannot be made —
           # kept so the archive is still a complete, self-sufficient artifact.
           mkdir -p "${staging}/klipper" "${staging}/deploy" "${staging}/scripts"
-          cp klipper/alabaster.cfg "${staging}/klipper/"
+          # alabaster-user.cfg is the template the installer copies once into
+          # the config directory, on both the clone and the fallback path.
+          cp klipper/alabaster.cfg klipper/alabaster-user.cfg "${staging}/klipper/"
           cp -R deploy/. "${staging}/deploy/"
           # The uninstaller travels with the release it will remove, so it is
           # never a newer script guessing at an older layout — and it works

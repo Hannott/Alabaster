@@ -17,6 +17,16 @@ import { excludedMacroNames, isSelectableMacroObject } from '@/stores/macros'
  */
 
 const config = readFileSync(join(process.cwd(), 'klipper', 'alabaster.cfg'), 'utf8')
+const userTemplate = readFileSync(join(process.cwd(), 'klipper', 'alabaster-user.cfg'), 'utf8')
+
+/** The settings blocks: the pack's defaults, mirrored in the user template. */
+const settingsMacros = ['_ALABASTER', '_ALABASTER_FILAMENT', '_ALABASTER_PURGE']
+
+/** `variable_` name to raw value, from lines that may be commented out with `#`. */
+function variables(body: string, commented: boolean): Map<string, string> {
+  const pattern = commented ? /^#variable_(\w+):\s*(.*)$/gm : /^variable_(\w+):\s*(.*)$/gm
+  return new Map([...body.matchAll(pattern)].map((match) => [match[1]!, match[2]!.trim()]))
+}
 
 /** Every `[gcode_macro NAME]` the pack defines, upper-cased as Klipper reads them. */
 function definedMacros(source: string): Set<string> {
@@ -149,7 +159,7 @@ describe('alabaster.cfg', () => {
      * the picker worse for everyone who installs it. `isSelectableMacroObject`
      * is the interface's own rule, so this asks the question the picker will.
      */
-    const userFacing = new Set(['LOAD_FILAMENT', 'UNLOAD_FILAMENT'])
+    const userFacing = new Set(['LOAD_FILAMENT', 'UNLOAD_FILAMENT', 'ADAPTIVE_PURGE'])
     for (const name of macros) {
       if (userFacing.has(name)) continue
       expect(
@@ -164,6 +174,77 @@ describe('alabaster.cfg', () => {
       expect(macros).toContain(name)
       expect(isSelectableMacroObject(`gcode_macro ${name}`)).toBe(true)
     }
+  })
+
+  it('sizes the purge from the printer it runs on', () => {
+    /*
+     * The adaptive purges this replaces hard-coded what they should have read:
+     * clamping at 0 instead of the axis limits sent a line past X max and
+     * stopped the print, and a fixed 5 mm² cross-section delivered half the
+     * requested flow on 1.75 mm filament. Each of these is a value Klipper
+     * already knows; the purge must ask rather than assume.
+     */
+    const purge = macroBody(config, '_ALABASTER_PURGE_LINE')
+    for (const source of [
+      'printer.toolhead.axis_minimum',
+      'printer.toolhead.axis_maximum',
+      'config.max_extrude_cross_section',
+      'config.filament_diameter',
+      'config.nozzle_diameter',
+      'printer.exclude_object.objects',
+    ]) {
+      expect(purge, `_ALABASTER_PURGE_LINE must read ${source}`).toContain(source)
+    }
+  })
+
+  it('checks the hotend before the purge plans a single move', () => {
+    // ADAPTIVE_PURGE waits for temperature and then calls the planner, so
+    // can_extrude is read after the wait. Planning in the same macro would
+    // read it before M109 had run.
+    const purge = macroBody(config, 'ADAPTIVE_PURGE')
+    expect(purge.indexOf('M109')).toBeGreaterThanOrEqual(0)
+    expect(purge.indexOf('M109')).toBeLessThan(purge.indexOf('_ALABASTER_PURGE_LINE'))
+    expect(macroBody(config, '_ALABASTER_PURGE_LINE')).toContain('can_extrude')
+  })
+
+  it('lists every setting in the user template, at its default', () => {
+    /*
+     * alabaster.cfg is read-only on an installed printer, so alabaster-user.cfg
+     * is the only place the owner can see what is adjustable. A setting
+     * missing from it is one nobody finds; one listed at a different value
+     * than the pack's default tells the owner the wrong default.
+     */
+    for (const name of settingsMacros) {
+      const defaults = variables(macroBody(config, name), false)
+      const listed = variables(macroBody(userTemplate, name), true)
+      expect([...listed.keys()].sort(), `${name} in alabaster-user.cfg`).toEqual(
+        [...defaults.keys()].sort(),
+      )
+      for (const [variable, value] of defaults) {
+        expect(listed.get(variable), `${name}.${variable} default`).toBe(value)
+      }
+    }
+  })
+
+  it('ships a user template that changes nothing until the owner edits it', () => {
+    /*
+     * The installer copies the template once and never again. An active line
+     * in it would pin that value on every new install, so a later release
+     * improving the default would never reach them.
+     */
+    expect(userTemplate).not.toMatch(/^\s*variable_/m)
+    expect(userTemplate).not.toMatch(/^\s*gcode:/m)
+  })
+
+  it('includes the user settings last, without requiring them', () => {
+    /*
+     * Last, so each value set there replaces the default above it. A pattern,
+     * because Klipper refuses to start on a plain include whose file is
+     * missing, and the pack updates on its own, ahead of the installer that
+     * creates the file.
+     */
+    const sections = [...config.matchAll(/^\[([^\n]+)\]\s*$/gm)].map((match) => match[1]!)
+    expect(sections.at(-1)).toMatch(/^include alabaster-user\.cf\[g\]$/)
   })
 
   it('renames overridden commands out of the way', () => {

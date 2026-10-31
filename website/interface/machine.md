@@ -115,9 +115,8 @@ host; check for updates again to confirm.
 ::: tip Alabaster's own macro pack is one of these rows
 If you installed [the macro pack](/guide/macros), it appears here as its own
 row, separate from Alabaster itself, because a git clone updates differently
-from a downloaded release. Editing `alabaster.cfg` directly turns this row
-into **Needs attention**, because the clone now has local changes. Use the
-recovery below to keep or discard those changes before the next update.
+from a downloaded release. Your settings for it live in `alabaster-user.cfg`,
+outside the clone, so updating this row never touches them.
 :::
 
 ### Rolling back an update
