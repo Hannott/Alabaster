@@ -143,6 +143,24 @@ describe('Configuration roots', () => {
     expect(view.findAll('.machine-readonly-mark')).toHaveLength(0)
   })
 
+  it('answers a right-click on a log the way it does on a config file', async () => {
+    const view = await mountAtLogs()
+    const row = view.findAll('[data-tree-path]').find((item) => item.text().includes('klippy.log'))
+
+    await row!.trigger('contextmenu')
+    await flushPromises()
+
+    const labels = [
+      ...document.body.querySelectorAll<HTMLButtonElement>('.file-context-menu button'),
+    ]
+    const named = (text: string) => labels.find((button) => button.textContent?.includes(text))
+    expect(named('Pin')?.disabled).toBe(false)
+    expect(named('Download')?.disabled).toBe(false)
+    expect(named('Rename')?.disabled).toBe(true)
+    expect(named('Delete')?.disabled).toBe(true)
+    expect(named('printer.cfg')).toBeUndefined()
+  })
+
   it('marks the read-only exception in a root that also holds writable files', async () => {
     const moonraker = useMoonrakerStore(pinia)
     vi.spyOn(moonraker, 'rpcCall').mockResolvedValue({

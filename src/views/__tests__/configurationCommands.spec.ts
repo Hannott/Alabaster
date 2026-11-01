@@ -146,4 +146,39 @@ describe('Configuration file commands', () => {
     await buttonNamed(view.find('.machine-side-strip'), 'Config')!.trigger('click')
     expect(workspace.classes()).toContain('machine-workspace--explorer-peek')
   })
+
+  /*
+   * The defect: with focus in the tree or the tab well rather than the editor,
+   * Ctrl+S reached the browser, which offered to save the page's HTML.
+   */
+  describe('Ctrl+S outside the editor', () => {
+    function pressSave(): KeyboardEvent {
+      const event = new KeyboardEvent('keydown', {
+        key: 's',
+        ctrlKey: true,
+        bubbles: true,
+        cancelable: true,
+      })
+      document.body.dispatchEvent(event)
+      return event
+    }
+
+    it('saves the open file', async () => {
+      const view = await mountView()
+      await openPrinterCfg(view)
+      const files = useMachineFilesStore(pinia)
+      const saveFile = vi.spyOn(files, 'saveFile').mockResolvedValue(true)
+
+      const event = pressSave()
+
+      expect(event.defaultPrevented).toBe(true)
+      expect(saveFile).toHaveBeenCalledWith(false)
+    })
+
+    it('leaves the chord to the browser with no file open', async () => {
+      await mountView()
+
+      expect(pressSave().defaultPrevented).toBe(false)
+    })
+  })
 })

@@ -830,9 +830,14 @@ async function toggleIncludeInPrinterConfig(
  * Whether printer.cfg already includes this entry is only known after asking
  * the store, so the menu doesn't open — and can't flash the wrong label —
  * until that check (when relevant) has resolved.
+ *
+ * Gated on the connection, not on write access: pin and download work in a
+ * read-only root, and a log row answering a right-click with nothing made the
+ * Logs explorer behave unlike the Config one for no reason the reader could
+ * see. Rename and delete gate themselves per entry.
  */
 async function openContextMenu(event: MouseEvent, entry: MachineFileEntry): Promise<void> {
-  if (!canMutate.value) return
+  if (!moonrakerAvailability.value.isAvailable) return
   const requestId = ++contextMenuRequestId
   const includable = isIncludableEntry(entry)
   const isIncluded = includable ? await machineFiles.isIncludedInPrimaryConfig(entry) : false
@@ -1451,8 +1456,31 @@ function hasOpenDialog(): boolean {
   return document.querySelector('dialog[open]') !== null
 }
 
+/*
+ * Ctrl+S with a file open means that file wherever focus is — the tree, the tab
+ * well, the toolbar — not the browser's "Save page as", which would hand the
+ * reader this application's HTML. The editor answers the chord itself and
+ * prevents it, so a press that reaches here already handled is left alone, and
+ * Shift is not ours for the same reason the editor leaves it: see
+ * docs/design/configuration-editor.md.
+ */
+function handleSaveShortcut(event: KeyboardEvent): boolean {
+  if (!(event.ctrlKey || event.metaKey) || event.shiftKey || event.key.toLowerCase() !== 's') {
+    return false
+  }
+  if (event.defaultPrevented || !machineFiles.currentFile) return false
+  event.preventDefault()
+  // Behind a dialog the press is still kept from the browser, but saving would
+  // act on a file the dialog may be asking about.
+  if (canSave.value && !hasOpenDialog()) {
+    void save(event.altKey && klipperAvailability.value.isAvailable)
+  }
+  return true
+}
+
 function handleWindowKeydown(event: KeyboardEvent): void {
-  if (hasOpenDialog() || quickConfig.viewMode !== 'files') return
+  if (quickConfig.viewMode !== 'files') return
+  if (handleSaveShortcut(event) || hasOpenDialog()) return
   /*
    * The keyboard twin of the mouse's back and forward buttons, and the chord the
    * browser itself uses for them — which, unlike Ctrl+Tab, a page is allowed to
