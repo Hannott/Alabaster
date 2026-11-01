@@ -6571,11 +6571,19 @@ input.z-axis__slider {
   padding: 0.1rem 0.5rem 0.45rem 1.85rem;
 }
 
+/*
+ * A wrapping flex row rather than a two-column grid: most values are one number
+ * and sit beside their option, but some are whole tables (`phase_stepping`
+ * stages a calibration string per stepper). A fixed value column let such a
+ * value crush the option name to nothing and scroll the box sideways; here it
+ * drops onto its own line and wraps inside it instead.
+ */
 .pending-row {
-  display: grid;
+  display: flex;
   min-width: 0;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 0.5rem;
+  flex-wrap: wrap;
+  column-gap: 0.5rem;
+  row-gap: 0.1rem;
   align-items: baseline;
   font-size: var(--text-hint-size);
 }
@@ -6591,6 +6599,8 @@ input.z-axis__slider {
 }
 
 .pending-row__option {
+  flex: 1 1 auto;
+  min-width: 0;
   overflow: hidden;
   color: var(--text-muted);
   font-family: var(--font-mono);
@@ -6599,20 +6609,42 @@ input.z-axis__slider {
 }
 
 .pending-row__value {
-  display: inline-flex;
+  display: flex;
+  min-width: 0;
+  max-width: 100%;
+  flex-wrap: wrap;
   align-items: center;
+  justify-content: flex-end;
   gap: 0.25rem;
+  margin-inline-start: auto;
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
-  white-space: nowrap;
 }
 
 .pending-row__previous {
+  min-width: 0;
+  overflow-wrap: anywhere;
   color: var(--text-muted);
   text-decoration: line-through;
 }
 
+/* The arrow travels with the new value, never left alone between two wrapped tables. */
+.pending-row__after {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  gap: 0.25rem;
+}
+
+.pending-row__arrow {
+  flex: 0 0 auto;
+  align-self: flex-start;
+  margin-block-start: 0.3em;
+}
+
 .pending-row__next {
+  min-width: 0;
+  overflow-wrap: anywhere;
   color: var(--status-available);
   font-weight: var(--font-weight-increased);
 }

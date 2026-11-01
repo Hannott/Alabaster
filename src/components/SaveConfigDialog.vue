@@ -129,11 +129,18 @@ onBeforeUnmount(() => {
                 running config lacks has nothing to arrow from, and drawing an
                 empty "before" would imply it did.
               -->
-              <template v-if="row.previous !== null && isChangedRow(row)">
-                <span class="pending-row__previous">{{ row.previous }}</span>
-                <AppIcon name="right" class="size-3" aria-hidden="true" />
-              </template>
-              <span class="pending-row__next">{{ valueFor(row) }}</span>
+              <span v-if="row.previous !== null && isChangedRow(row)" class="pending-row__previous">
+                {{ row.previous }}
+              </span>
+              <span class="pending-row__after">
+                <AppIcon
+                  v-if="row.previous !== null && isChangedRow(row)"
+                  name="right"
+                  class="size-3 pending-row__arrow"
+                  aria-hidden="true"
+                />
+                <span class="pending-row__next">{{ valueFor(row) }}</span>
+              </span>
             </span>
           </div>
         </div>
