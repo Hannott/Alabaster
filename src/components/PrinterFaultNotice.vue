@@ -97,9 +97,18 @@ onBeforeUnmount(() => {
   if (readingConfig) quickConfig.stop()
 })
 
-function openLogs(): void {
-  void machineFiles.setRoot('logs')
+/*
+ * Lands on klippy.log by run: while the printer is in this state, the newest
+ * run is the one that failed, and its reason is at the top of that view.
+ */
+async function openLogs(): Promise<void> {
   void router.push({ name: 'configuration' })
+  await machineFiles.setKlippyLogView('run')
+  if (!(await machineFiles.setRoot('logs'))) return
+  const log = machineFiles.entries.find(
+    (entry) => entry.kind === 'file' && entry.name === 'klippy.log',
+  )
+  if (log) await machineFiles.openFileByPath({ ...log, kind: 'file', path: 'klippy.log' })
 }
 
 function openLocation(): void {

@@ -34,6 +34,12 @@ export interface AppSelectOption {
    * them unheaded.
    */
   group?: string | undefined
+  /**
+   * What the closed control shows while this option is chosen, where the
+   * label alone leans on its group heading: under "Today", `10:38` is enough,
+   * but the closed control has no heading and needs `Today 10:38`.
+   */
+  selectedLabel?: string | undefined
 }
 
 const props = defineProps<{
@@ -41,6 +47,13 @@ const props = defineProps<{
   /** The control's accessible name. There is no visible label inside it. */
   label: string
   disabled?: boolean
+  /**
+   * Which edge of the trigger the open list lines up with. The end by
+   * default, for a trigger at the end of a row; the start for one at the
+   * start of a bar, whose list would otherwise grow back over what lies to
+   * its left.
+   */
+  align?: 'start' | 'end'
 }>()
 
 /**
@@ -82,9 +95,10 @@ const selectedIndex = computed(() =>
     props.options.findIndex((option) => option.value === model.value),
   ),
 )
-const selectedLabel = computed(
-  () => props.options.find((option) => option.value === model.value)?.label ?? '',
-)
+const selectedLabel = computed(() => {
+  const option = props.options.find((candidate) => candidate.value === model.value)
+  return option?.selectedLabel ?? option?.label ?? ''
+})
 
 /**
  * The options in runs of a shared family, each entry keeping the index it has
@@ -152,12 +166,11 @@ function positionPanel(): void {
   const triggerRect = triggerEl.value?.getBoundingClientRect()
   const panelRect = panel.value?.getBoundingClientRect()
   if (!triggerRect || !panelRect) return
+  const preferredLeft =
+    props.align === 'start' ? triggerRect.left : triggerRect.right - panelRect.width
   const left = Math.max(
     viewportMarginPx,
-    Math.min(
-      triggerRect.right - panelRect.width,
-      window.innerWidth - panelRect.width - viewportMarginPx,
-    ),
+    Math.min(preferredLeft, window.innerWidth - panelRect.width - viewportMarginPx),
   )
   const top = Math.max(
     viewportMarginPx,

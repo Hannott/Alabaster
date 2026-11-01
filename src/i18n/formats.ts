@@ -227,7 +227,7 @@ function setDateCustomPattern(pattern: string): void {
 }
 
 interface TimeOptions {
-  /** Adds `second: '2-digit'` — the console transcript is the one caller that needs it. */
+  /** Adds `second: '2-digit'`, for a transcript or log whose lines land seconds apart. */
   seconds?: boolean
 }
 

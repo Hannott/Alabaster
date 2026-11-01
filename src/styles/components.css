@@ -12116,6 +12116,215 @@ body.machine-editor-fullscreen-open {
 }
 
 /*
+ * klippy.log, one run at a time. It takes the editor's place inside the same
+ * card, so the tab well, the command bar and the explorer stay as they are.
+ * Klipper writes the whole config into the log on every start and a Stats
+ * line every second, which buries the hundred lines that say what happened.
+ * The bar sits above the editor grid rather than inside the run view, so the
+ * Run / Full file choice stays in place when the full file is open.
+ */
+.log-run {
+  --code-font-size: var(--console-editor-text-size);
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+  background: var(--code-surface);
+}
+
+.log-run__bar {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  border-block-end: 1px solid var(--border-subtle);
+  padding: 0.5rem 1rem;
+  background: var(--surface-raised);
+}
+
+.log-run__views {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+}
+
+.log-run__picker {
+  flex: 0 1 30rem;
+  min-width: 12rem;
+}
+
+.log-run__count {
+  margin-inline-start: auto;
+  color: var(--text-muted);
+  font-size: var(--text-meta-size);
+}
+
+/*
+ * The reason a run ended, stated once above the lines. Shape and words carry
+ * it, not the wash alone: an octagon and "Shutdown" read the same in any theme.
+ */
+.log-run__summary {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 0.75rem 1rem;
+  border-block-end: 1px solid var(--status-danger-border);
+  padding: 1rem 1.2rem;
+  background: var(--status-danger-soft);
+}
+
+.log-run__summary-icon {
+  color: var(--status-danger-text);
+}
+
+.log-run__outcome {
+  color: var(--status-danger-text);
+  font-size: var(--text-label-caps-size);
+  font-weight: var(--font-weight-increased);
+  letter-spacing: var(--text-label-caps-tracking);
+  text-transform: uppercase;
+}
+
+.log-run__reason {
+  margin-block-start: 0.2rem;
+  font-family: var(--font-mono);
+  font-size: var(--text-row-name-size);
+  font-weight: var(--font-weight-increased);
+  overflow-wrap: anywhere;
+}
+
+.log-run__facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1.5rem;
+  margin-block-start: 0.5rem;
+}
+
+.log-run__facts > div {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.log-run__facts dt {
+  color: var(--text-muted);
+  font-size: var(--text-meta-size);
+}
+
+.log-run__facts dd {
+  font-size: var(--text-meta-size);
+  font-variant-numeric: tabular-nums;
+}
+
+.log-run__failed {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  border-block-end: 1px solid var(--border-subtle);
+  padding: 0.75rem 1.2rem;
+  color: var(--status-danger-text);
+  font-size: var(--text-meta-size);
+}
+
+/* The editor's own metrics, so switching between Run and Full file does not change the text. */
+.log-run__rows {
+  min-height: 0;
+  flex: 1 1 0;
+  overflow-y: auto;
+  margin: 0;
+  padding-block: 1rem;
+  list-style: none;
+  font-family: var(--font-mono);
+  font-size: var(--code-font-size);
+  font-variant-ligatures: none;
+  line-height: 1.5rem;
+}
+
+.log-row {
+  display: grid;
+  grid-template-columns: calc(var(--log-time-chars, 8) * 1ch + 1.35rem) minmax(0, 1fr);
+}
+
+/*
+ * Klipper stamps only its Stats lines, so a row's time is the last Stats line's
+ * before it. Shown on every row: a blank cell reads as "unknown" to someone
+ * who scrolled into the middle.
+ */
+.log-row__time {
+  border-inline-end: 1px solid var(--border-subtle);
+  padding-inline: 0.75rem 0.6rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  text-align: end;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.log-row__text {
+  padding-inline: 1.2rem 1rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.log-row__mark {
+  display: inline-flex;
+  min-height: 1.2rem;
+  align-items: center;
+  margin-inline-end: 0.6rem;
+  border: 1px solid var(--status-danger-border);
+  border-radius: 999px;
+  padding-inline: 0.35rem;
+  color: var(--status-danger-text);
+  font-family: var(--font-sans);
+  font-size: var(--text-inline-mark-size);
+  letter-spacing: var(--text-badge-tracking);
+  text-transform: uppercase;
+  vertical-align: 0.1rem;
+}
+
+.log-row--error .log-row__text,
+.log-row--shutdown .log-row__text {
+  color: var(--status-danger-text);
+}
+
+.log-row--shutdown {
+  background: var(--status-danger-soft);
+}
+
+/* A folded block is one row: what it is, and how many lines it holds. */
+.log-fold__toggle {
+  width: 100%;
+  padding-inline: 0.75rem 1rem;
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+}
+
+.log-fold__chevron {
+  color: var(--text-muted);
+}
+
+.log-fold__label {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-primary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.log-fold--error .log-fold__label {
+  color: var(--status-danger-text);
+}
+
+.log-fold__count {
+  flex: 0 0 auto;
+  color: var(--text-muted);
+  font-family: var(--font-sans);
+  font-size: var(--text-meta-size);
+}
+
+/*
  * A gallery thumbnail's own viewer, not the Configuration editor's inline
  * `.image-viewer` host: this one is a popup over the rest of the page, so it
  * gets a `<dialog>` shell instead of a grid cell. Header and viewer tile the

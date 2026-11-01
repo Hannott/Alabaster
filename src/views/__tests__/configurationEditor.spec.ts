@@ -42,7 +42,8 @@ const configListing = {
 
 const logsListing = {
   dirs: [],
-  files: [{ filename: 'klippy.log', modified: 20, size: hugeLog.length, permissions: 'r' }],
+  // Not klippy.log, which opens one run at a time rather than in the editor.
+  files: [{ filename: 'moonraker.log', modified: 20, size: hugeLog.length, permissions: 'r' }],
   disk_usage: { total: 1000, used: 400, free: 600 },
   root_info: { name: 'logs', permissions: 'r' },
 } as never
@@ -136,7 +137,7 @@ async function openLogFile() {
   await flushPromises()
   await files.openFile({
     kind: 'file',
-    name: 'klippy.log',
+    name: 'moonraker.log',
     size: hugeLog.length,
     modified: 20,
     permissions: 'r',

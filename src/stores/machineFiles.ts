@@ -8,6 +8,7 @@ import {
   type MachineFileKind,
 } from '@/features/machine/fileKind'
 import { withBaseHref } from '@/features/machine/htmlPreview'
+import { isKlippyLogName } from '@/features/machine/klippyLog'
 import { createZipArchive } from '@/features/machine/zipArchive'
 import {
   addConfigInclude,
@@ -168,6 +169,18 @@ export const useMachineFilesStore = defineStore('machineFiles', () => {
    * mistake must still not be written to from here.
    */
   const isRootEditable = computed(() => currentRoot.value === 'config')
+  /*
+   * How `klippy.log` is shown: one run at a time, read from the end of the
+   * file a piece at a time, or the whole file in the editor. The run view
+   * reads the file itself, so opening a log in it fetches nothing here — a
+   * log of many megabytes would otherwise download whole only to be hidden.
+   */
+  const klippyLogView = ref<'run' | 'file'>('run')
+
+  /** Whether opening `name` in the browsed root shows it by run rather than in the editor. */
+  function opensByRun(name: string): boolean {
+    return currentRoot.value === 'logs' && klippyLogView.value === 'run' && isKlippyLogName(name)
+  }
   /*
    * Whether a config file has been written since Klipper last read its config.
    *
@@ -740,6 +753,13 @@ export const useMachineFilesStore = defineStore('machineFiles', () => {
     const generation = ++fileGeneration
     const file: OpenMachineFile = { ...entry, kind: 'file', path }
     const kind = classifyFileKind(entry.name)
+    if (opensByRun(entry.name)) {
+      viewerContent.value = ''
+      showFile(file, preview)
+      lastError.value = null
+      isEditorLoading.value = false
+      return true
+    }
     if (kind === 'image') {
       showFile(file, preview)
       imageCacheBust.value += 1
@@ -816,6 +836,17 @@ export const useMachineFilesStore = defineStore('machineFiles', () => {
   ): Promise<boolean> {
     if (!validMoonrakerFilename(file.name)) return false
     return openFileAtPath(file.path, file, options)
+  }
+
+  /** Switches how `klippy.log` is shown, reading the open log into the editor for the whole file. */
+  async function setKlippyLogView(view: 'run' | 'file'): Promise<void> {
+    if (klippyLogView.value === view) return
+    klippyLogView.value = view
+    const file = currentFile.value
+    if (!file || currentRoot.value !== 'logs' || !isKlippyLogName(file.name)) return
+    await openFileAtPath(file.path, file, {
+      preview: openTabs.value.find((tab) => tab.file.path === file.path)?.preview ?? false,
+    })
   }
 
   /** Stops showing a file without closing its tab. */
@@ -1829,6 +1860,9 @@ export const useMachineFilesStore = defineStore('machineFiles', () => {
   return {
     currentRoot,
     isRootEditable,
+    klippyLogView,
+    opensByRun,
+    setKlippyLogView,
     hasUnappliedConfigChanges,
     setRoot,
     currentPath,

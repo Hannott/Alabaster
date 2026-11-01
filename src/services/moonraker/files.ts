@@ -76,12 +76,11 @@ export function validMoonrakerFilename(name: string): boolean {
   )
 }
 
-async function fetchMoonrakerFile(
+function moonrakerFileRequestUrl(
   root: MoonrakerFileRoot,
   path: string,
   websocketEndpoint: string,
-  fetcher: typeof fetch,
-): Promise<Response> {
+): URL {
   const normalizedPath = normalizeMoonrakerRelativePath(path)
   if (!normalizedPath) throw new MoonrakerEndpointError()
   const endpoint = moonrakerHttpBaseUrl(websocketEndpoint)
@@ -90,9 +89,49 @@ async function fetchMoonrakerFile(
     .map(encodeURIComponent)
     .join('/')}`
   endpoint.searchParams.set('t', String(Date.now()))
+  return endpoint
+}
+
+async function fetchMoonrakerFile(
+  root: MoonrakerFileRoot,
+  path: string,
+  websocketEndpoint: string,
+  fetcher: typeof fetch,
+): Promise<Response> {
+  const endpoint = moonrakerFileRequestUrl(root, path, websocketEndpoint)
   const response = await fetcher(endpoint, { cache: 'no-store' })
   if (!response.ok) throw new Error(`Moonraker file download failed with ${response.status}`)
   return response
+}
+
+/**
+ * Bytes `start` up to `end` (exclusive), or to the end of the file when `end`
+ * is left out — so a log of many megabytes can be read from its end, and its
+ * growth read without the part already held. Null when `start` is at or past
+ * the end of the file.
+ *
+ * Only the `bytes=N-` and `bytes=N-M` forms are ever sent: a cross-origin
+ * request may carry `Range` without a preflight only in those forms, and
+ * Moonraker answers no preflight for it. A suffix range (`bytes=-N`) fails
+ * before reaching the printer. A server that ignores the header answers with
+ * the whole file, which is sliced here instead.
+ */
+export async function fetchMoonrakerFileRange(
+  root: MoonrakerFileRoot,
+  path: string,
+  websocketEndpoint: string,
+  start: number,
+  end?: number,
+  fetcher: typeof fetch = fetch,
+): Promise<Uint8Array | null> {
+  const endpoint = moonrakerFileRequestUrl(root, path, websocketEndpoint)
+  const range = end === undefined ? `bytes=${start}-` : `bytes=${start}-${end - 1}`
+  const response = await fetcher(endpoint, { cache: 'no-store', headers: { Range: range } })
+  if (response.status === 416) return null
+  if (!response.ok) throw new Error(`Moonraker file download failed with ${response.status}`)
+  const bytes = new Uint8Array(await response.arrayBuffer())
+  if (response.status === 206) return bytes
+  return bytes.length > start ? bytes.slice(start, end) : null
 }
 
 export async function fetchMoonrakerTextFile(

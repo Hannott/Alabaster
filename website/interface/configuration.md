@@ -134,6 +134,29 @@ the section name in its error message is a link. It opens the file that holds
 the section, at the line Klipper means, even when that file is included from
 `printer.cfg` rather than being `printer.cfg` itself.
 
+## Reading klippy.log
+
+`klippy.log` opens one Klipper start at a time, so the lines that explain a
+shutdown are not buried under the config Klipper copies into the log on every
+start. When a run ended in a shutdown or a failed start, the reason is at the
+top, with when it started, when it stopped, and **Go to shutdown** to jump to
+the line.
+
+- Pick an earlier run from the list beside **Run**. Each run says how it
+  ended: still running, restarted, shut down and why, or stopped with no
+  reason logged.
+- Every line shows the time it was written.
+- The config copy, Klipper's diagnostic dumps after a shutdown, Python
+  tracebacks, and long runs of near-identical lines such as a resonance test's
+  frequency sweep fold to one line each. Click one to open it. Klipper's
+  once-a-second Stats lines are hidden.
+- Lines Klipper writes while the newest run is open appear at the bottom.
+  Scroll to the end to follow them.
+
+**Full file** shows the whole log in the editor instead. Rotated copies such
+as `klippy.log.2026-10-31` open the same way. **Open logs** on a Klipper error
+opens the run that failed.
+
 ## Include links
 
 `[include]` targets are links. Hovering underlines the path. Ctrl+click opens

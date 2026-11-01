@@ -15,6 +15,8 @@ import ConfigurationTabWell from '@/components/machine/ConfigurationTabWell.vue'
 import EditorContextMenu from '@/components/machine/EditorContextMenu.vue'
 import FileContextMenu from '@/components/machine/FileContextMenu.vue'
 import HtmlFileViewer from '@/components/machine/HtmlFileViewer.vue'
+import KlippyLogBar from '@/components/machine/KlippyLogBar.vue'
+import KlippyLogRunView from '@/components/machine/KlippyLogRunView.vue'
 import MachineCodeEditor, {
   type EditorContextMenuRequest,
 } from '@/components/machine/MachineCodeEditor.vue'
@@ -24,6 +26,7 @@ import { useAutoHidePanel } from '@/composables/useAutoHidePanel'
 import { useAvailability } from '@/composables/useAvailability'
 import { useConfigFileHistory } from '@/composables/useConfigFileHistory'
 import { useEditorIndent } from '@/composables/useEditorIndent'
+import { useKlippyLogRuns } from '@/composables/useKlippyLog'
 import { useMachineFilePins } from '@/composables/useMachineFilePins'
 import { useMachineFilesSettings } from '@/composables/useMachineFilesSettings'
 import {
@@ -36,6 +39,7 @@ import { resolveEditorContext, type EditorContext } from '@/features/machine/edi
 import type { EditorMenuAction } from '@/features/machine/editorMenu'
 import type { IncludeTargetInfo } from '@/features/machine/editor/includeLinks'
 import { classifyFileKind, isLargeFile } from '@/features/machine/fileKind'
+import { isKlippyLogName } from '@/features/machine/klippyLog'
 import { lineChangeMarks, NO_LINE_CHANGE_MARKS } from '@/features/machine/lineChanges'
 import { toggleComment, type LineEdit } from '@/features/machine/lineEdit'
 import { fileIcon } from '@/features/machine/fileIcons'
@@ -441,6 +445,35 @@ const isCurrentFileHtml = computed(() => machineFiles.currentFileKind === 'html'
 // for "this file is shown, not edited" rather than repeating the OR at every
 // call site.
 const isCurrentFilePreview = computed(() => isCurrentFileImage.value || isCurrentFileHtml.value)
+const isKlippyLogOpen = computed(
+  () =>
+    machineFiles.currentRoot === 'logs' &&
+    machineFiles.currentFile !== null &&
+    isKlippyLogName(machineFiles.currentFile.name),
+)
+const isKlippyLogByRun = computed(
+  () => isKlippyLogOpen.value && machineFiles.klippyLogView === 'run',
+)
+const klippyLog = useKlippyLogRuns(() => {
+  const file = machineFiles.currentFile
+  if (!isKlippyLogByRun.value || !file || !moonrakerAvailability.value.isAvailable) return null
+  return { root: 'logs', path: file.path, size: file.size }
+})
+
+/*
+ * The whole file is the editor's to show, so it passes the same gate a large
+ * file opened from the tree does.
+ */
+async function chooseKlippyLogView(view: 'run' | 'file'): Promise<void> {
+  const file = machineFiles.currentFile
+  if (view === 'run' || !file) {
+    await machineFiles.setKlippyLogView(view)
+    return
+  }
+  await openWithWarningGate(file.name, file.size, () => machineFiles.setKlippyLogView('file'), {
+    wholeFile: true,
+  })
+}
 /*
  * Both roots are offered unconditionally rather than gated on what `server.info`
  * registered. A Moonraker without `logs` answers the listing with an error the
@@ -691,15 +724,19 @@ function chooseRoot(root: MachineFileRoot): void {
 /**
  * Gates opening a file behind a confirmation when it can't be shown reliably:
  * an unrecognized (likely binary) type, or a file large enough to stall the
- * plain-textarea editor or an in-browser image decode.
+ * plain-textarea editor or an in-browser image decode. A klippy.log opened by
+ * run reads a piece of the file at a time, so it passes ungated unless the
+ * whole file is what is being asked for.
  */
 async function openWithWarningGate(
   name: string,
   size: number,
   run: () => void | Promise<void>,
+  { wholeFile = !machineFiles.opensByRun(name) } = {},
 ): Promise<void> {
   const kind = classifyFileKind(name)
   if (
+    wholeFile &&
     (kind === 'unsupported' || isLargeFile(kind, size)) &&
     confirmations.shouldConfirm('openUnsupportedFile')
   ) {
@@ -2087,9 +2124,31 @@ onBeforeUnmount(() => {
               technology.
             -->
             <h2 class="sr-only">{{ machineFiles.currentFile.name }}</h2>
+            <KlippyLogBar
+              v-if="isKlippyLogOpen"
+              :file-name="machineFiles.currentFile.name"
+              :view="machineFiles.klippyLogView"
+              :lines="klippyLog.lines.value"
+              :runs="klippyLog.runs.value"
+              :selected-run="klippyLog.selectedRun.value"
+              :row-count="klippyLog.result.value?.rows.length ?? null"
+              :hidden-stats="klippyLog.result.value?.hiddenStats ?? 0"
+              @update:view="chooseKlippyLogView"
+              @select="klippyLog.selectRun"
+            />
             <div class="machine-editor-grid">
+              <KlippyLogRunView
+                v-if="isKlippyLogByRun"
+                :file-name="machineFiles.currentFile.name"
+                :lines="klippyLog.lines.value"
+                :run="klippyLog.selectedRun.value"
+                :rows="klippyLog.result.value?.rows ?? []"
+                :is-loading="klippyLog.isLoading.value"
+                :failed="klippyLog.failed.value"
+                @retry="klippyLog.reload"
+              />
               <ImageViewer
-                v-if="isCurrentFileImage && machineFiles.currentImageUrl"
+                v-else-if="isCurrentFileImage && machineFiles.currentImageUrl"
                 :src="machineFiles.currentImageUrl"
                 :alt="t('configuration.editor.imageAlt', { name: machineFiles.currentFile.name })"
               />

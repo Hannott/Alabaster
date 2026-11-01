@@ -1,6 +1,6 @@
 import { createPinia, setActivePinia, type Pinia } from 'pinia'
 import { enableAutoUnmount, flushPromises, mount } from '@vue/test-utils'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { useMachineFilesSettings } from '@/composables/useMachineFilesSettings'
 import { i18n } from '@/i18n'
@@ -9,6 +9,20 @@ import { useMoonrakerStore } from '@/stores/moonraker'
 import ConfigurationView from '@/views/ConfigurationView.vue'
 
 enableAutoUnmount(afterEach)
+
+beforeAll(() => {
+  // jsdom ships <dialog> without its modal methods, so the shared dialog's
+  // open/close watcher has nothing to call.
+  const dialogPrototype = window.HTMLDialogElement.prototype as unknown as Record<string, unknown>
+  if (typeof dialogPrototype.showModal !== 'function') {
+    dialogPrototype.showModal = function showModal(this: HTMLDialogElement): void {
+      this.open = true
+    }
+    dialogPrototype.close = function close(this: HTMLDialogElement): void {
+      this.open = false
+    }
+  }
+})
 
 /** Every entry in the logs root is read-only, which is what Moonraker reports. */
 const logsListing = {
@@ -177,5 +191,44 @@ describe('Configuration roots', () => {
     await flushPromises()
 
     expect(view.findAll('.machine-readonly-mark')).toHaveLength(1)
+  })
+
+  /*
+   * klippy.log runs to megabytes. By run, it is read a piece at a time from
+   * its end, so opening it never downloads the whole file, and never asks
+   * whether to; asking for the whole file is what passes the large-file gate.
+   */
+  it('opens klippy.log by run without reading the whole file', async () => {
+    const view = mount(ConfigurationView, {
+      global: { plugins: [i18n, pinia] },
+      attachTo: document.body,
+    })
+    await flushPromises()
+    await view
+      .findAll('.machine-root-tabs button')
+      .find((button) => button.text() === 'Logs')!
+      .trigger('click')
+    await flushPromises()
+
+    await view.get('[data-tree-path="klippy.log"]').trigger('click')
+    await flushPromises()
+
+    const requests = vi
+      .mocked(fetch)
+      .mock.calls.filter(([input]) => String(input).includes('/server/files/logs/'))
+    expect(requests.length).toBeGreaterThan(0)
+    expect(
+      requests.every(([, init]) => new Headers(init?.headers).get('Range')?.startsWith('bytes=')),
+    ).toBe(true)
+    expect(view.find('.log-run').exists()).toBe(true)
+    expect(document.querySelector('dialog[open]')).toBeNull()
+
+    const fullFile = view
+      .findAll('.log-run__views .tab-select')
+      .find((button) => button.text() === 'Full file')!
+    await fullFile.trigger('click')
+    await flushPromises()
+
+    expect(document.querySelector('dialog[open]')?.textContent).toContain('klippy.log')
   })
 })

@@ -2436,6 +2436,64 @@
       "removeFromPrinterConfig": "Fjern fra printer.cfg",
       "delete": "Slett"
     },
+    "klippyLog": {
+      "region": "{name}, én kjøring",
+      "rowsLabel": "Logglinjer",
+      "views": {
+        "label": "Hvordan {name} vises",
+        "run": "Kjøring",
+        "file": "Hele filen"
+      },
+      "run": {
+        "label": "Kjøring",
+        "today": "I dag",
+        "yesterday": "I går",
+        "unknownDay": "Tidligere",
+        "unknownTime": "Ukjent tid",
+        "continuedFrom": "Fra {time}",
+        "option": "{time} · {outcome}",
+        "selected": "{day} {time} · {outcome}"
+      },
+      "outcome": {
+        "running": "Kjører",
+        "restarted": "Startet på nytt",
+        "ended": "Stoppet, ingen årsak logget",
+        "shutdown": "Stanset: {reason}",
+        "error": "Oppstart feilet: {reason}"
+      },
+      "outcomeShort": {
+        "running": "Kjører",
+        "restarted": "Startet på nytt",
+        "ended": "Stoppet",
+        "shutdown": "Stanset",
+        "error": "Oppstart feilet"
+      },
+      "count": "{rows} rader fra {lines} linjer · {stats} Stats-linjer skjult",
+      "summary": {
+        "shutdown": "Stanset",
+        "shutdownPrinting": "Stanset under en utskrift",
+        "error": "Oppstart feilet",
+        "started": "Startet",
+        "shutDownAt": "Stanset",
+        "failedAt": "Feilet",
+        "ranFor": "Kjørte i",
+        "goToShutdown": "Gå til stansen",
+        "goToError": "Gå til feilen"
+      },
+      "marks": {
+        "shutdown": "Stanset",
+        "error": "Feil"
+      },
+      "folds": {
+        "config": "Konfigurasjonen slik den ble lastet",
+        "rollover": "Gjentatt fra forrige logg",
+        "lines": "{count} linje | {count} linjer",
+        "similar": "{count} like linjer",
+        "traceback": "Traceback · {count} linjer"
+      },
+      "failed": "{name} kunne ikke leses.",
+      "retry": "Prøv igjen"
+    },
     "editorMenu": {
       "label": "Handlinger i redigeringen",
       "reference": {

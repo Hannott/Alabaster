@@ -2436,6 +2436,64 @@
       "removeFromPrinterConfig": "Remove from printer.cfg",
       "delete": "Delete"
     },
+    "klippyLog": {
+      "region": "{name}, one run",
+      "rowsLabel": "Log lines",
+      "views": {
+        "label": "How {name} is shown",
+        "run": "Run",
+        "file": "Full file"
+      },
+      "run": {
+        "label": "Run",
+        "today": "Today",
+        "yesterday": "Yesterday",
+        "unknownDay": "Earlier",
+        "unknownTime": "Unknown time",
+        "continuedFrom": "From {time}",
+        "option": "{time} · {outcome}",
+        "selected": "{day} {time} · {outcome}"
+      },
+      "outcome": {
+        "running": "Running",
+        "restarted": "Restarted",
+        "ended": "Stopped, no reason logged",
+        "shutdown": "Shutdown: {reason}",
+        "error": "Start failed: {reason}"
+      },
+      "outcomeShort": {
+        "running": "Running",
+        "restarted": "Restarted",
+        "ended": "Stopped",
+        "shutdown": "Shutdown",
+        "error": "Start failed"
+      },
+      "count": "{rows} rows from {lines} lines · {stats} Stats lines hidden",
+      "summary": {
+        "shutdown": "Shutdown",
+        "shutdownPrinting": "Shutdown during a print",
+        "error": "Start failed",
+        "started": "Started",
+        "shutDownAt": "Shut down",
+        "failedAt": "Failed",
+        "ranFor": "Ran for",
+        "goToShutdown": "Go to shutdown",
+        "goToError": "Go to error"
+      },
+      "marks": {
+        "shutdown": "Shutdown",
+        "error": "Error"
+      },
+      "folds": {
+        "config": "Config as loaded",
+        "rollover": "Repeated from the previous log",
+        "lines": "{count} line | {count} lines",
+        "similar": "{count} similar lines",
+        "traceback": "Traceback · {count} lines"
+      },
+      "failed": "{name} could not be read.",
+      "retry": "Try again"
+    },
     "editorMenu": {
       "label": "Editor actions",
       "reference": {

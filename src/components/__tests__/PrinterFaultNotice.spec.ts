@@ -100,6 +100,30 @@ describe('PrinterFaultNotice', () => {
     expect(router.currentRoute.value.name).toBe('configuration')
   })
 
+  /** While Klipper is in this state, the newest run of klippy.log is the one that failed. */
+  it('opens klippy.log by run, on the run that failed', async () => {
+    const notice = await mountNotice()
+    const machineFiles = useMachineFilesStore(pinia)
+    machineFiles.klippyLogView = 'file'
+    vi.spyOn(machineFiles, 'setRoot').mockImplementation(async () => {
+      machineFiles.entries = [
+        { kind: 'file', name: 'klippy.log', size: 4_000_000, modified: 20, permissions: 'r' },
+      ]
+      return true
+    })
+    const openFileByPath = vi.spyOn(machineFiles, 'openFileByPath').mockResolvedValue(true)
+    faultState('Option not valid in section')
+    await nextTick()
+
+    await notice.findAll('.printer-fault__actions button')[2]!.trigger('click')
+    await flushPromises()
+
+    expect(machineFiles.klippyLogView).toBe('run')
+    expect(openFileByPath).toHaveBeenCalledWith(
+      expect.objectContaining({ path: 'klippy.log', size: 4_000_000 }),
+    )
+  })
+
   it('links the section Klipper refused to its line, in whichever file holds it', async () => {
     const machineFiles = useMachineFilesStore(pinia)
     const files: Record<string, string> = {
