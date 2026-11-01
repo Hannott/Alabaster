@@ -297,20 +297,33 @@ export const useSpoolStore = defineStore('spool', () => {
      * told us it is disconnected — a printer without the component never polls
      * at all, and one whose Spoolman server has dropped stops rather than
      * spending a request every tick on a call that cannot succeed.
+     *
+     * A new Moonraker connection re-reads status even while Spoolman was last
+     * known down: Moonraker reconnects to Spoolman within a second of its own
+     * restart, before this socket is back, so the notification saying Spoolman
+     * returned is never delivered here, and without this read "disconnected"
+     * would stay on screen until the page was reloaded.
      */
     stopCapabilityWatch = watch(
-      () =>
-        availability.isMoonrakerConnected &&
-        serverCapabilities.hasComponent('spoolman') &&
-        spoolmanConnected.value !== false,
-      (shouldRun) => {
-        if (shouldRun) {
+      [
+        () => availability.isMoonrakerConnected && serverCapabilities.hasComponent('spoolman'),
+        () => spoolmanConnected.value !== false,
+      ],
+      ([session, spoolmanUp], previous) => {
+        if (!session) {
+          stopPolling()
+          return
+        }
+        // `previous` is empty on the immediate first run, which counts as a start.
+        const sessionStarted = !previous[0]
+        if (sessionStarted) {
           void refreshStatus()
           void refreshSpoolmanUrl()
-          startPolling()
-        } else {
-          stopPolling()
+        } else if (spoolmanUp) {
+          void refreshStatus()
         }
+        if (spoolmanUp) startPolling()
+        else stopPolling()
       },
       { immediate: true },
     )

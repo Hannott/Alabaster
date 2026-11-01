@@ -216,6 +216,45 @@ describe('spool store', () => {
   })
 
   /*
+   * Moonraker reconnects to Spoolman within a second of its own restart, before
+   * this socket is back, so the "connected again" notification is never
+   * delivered — only a fresh status read on the new connection clears it.
+   */
+  it('re-reads status on a new Moonraker connection while Spoolman was last known down', async () => {
+    const handlers = spyNotifications()
+    const moonraker = useMoonrakerStore()
+    vi.spyOn(moonraker, 'rpcCall').mockImplementation((method) => {
+      if (method === 'server.spoolman.status') {
+        return Promise.resolve({
+          spoolman_connected: true,
+          pending_reports: [],
+          spool_id: 1,
+        }) as never
+      }
+      return Promise.resolve(proxied({ id: 1, remaining_weight: 500 })) as never
+    })
+
+    const spool = useSpoolStore()
+    spool.start()
+    await vi.advanceTimersByTimeAsync(0)
+
+    fire(handlers, 'notify_spoolman_status_changed', { spoolman_connected: false })
+    await nextTick()
+    expect(spool.spoolmanConnected).toBe(false)
+
+    const availability = useAvailabilityStore()
+    availability.moonrakerConnectionLost()
+    await nextTick()
+    makeMoonrakerConnected()
+    await vi.advanceTimersByTimeAsync(0)
+
+    expect(spool.spoolmanConnected).toBe(true)
+    expect(spool.activeSpool?.remaining_weight).toBe(500)
+
+    spool.stop()
+  })
+
+  /*
    * Polling stops the instant Spoolman is known down, so nothing would
    * otherwise refresh the spool away from its last-known-good reading — every
    * fit/temperature check downstream would keep judging a print against
