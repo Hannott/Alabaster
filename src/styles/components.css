@@ -12174,6 +12174,13 @@ body.machine-editor-fullscreen-open {
   background: var(--status-danger-soft);
 }
 
+.log-run__summary-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
 .log-run__summary-icon {
   color: var(--status-danger-text);
 }

@@ -152,6 +152,11 @@ the line.
   once-a-second Stats lines are hidden.
 - Lines Klipper writes while the newest run is open appear at the bottom.
   Scroll to the end to follow them.
+- **Copy error log** puts the part of a failed run worth posting on the
+  clipboard, ready to paste into a forum post, a Discord message, or an AI
+  chat. It keeps the Klipper and MCU versions, the dumps and tracebacks in
+  full, and the last Stats line before the shutdown. It leaves out the config,
+  repeated lines, and the requests Moonraker and other front ends sent. Attach the whole file when someone asks for it.
 
 **Full file** shows the whole log in the editor instead. Rotated copies such
 as `klippy.log.2026-10-31` open the same way. **Open logs** on a Klipper error

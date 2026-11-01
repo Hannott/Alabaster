@@ -388,6 +388,162 @@ export function runRows(lines: readonly string[], run: KlippyRun): KlippyRunRows
   return { rows, hiddenStats }
 }
 
+export type KlippyExcerptEntry =
+  | { kind: 'line'; text: string }
+  | {
+      kind: 'omitted'
+      what: 'config' | 'similar' | 'requests' | 'messages' | 'lines'
+      count: number
+    }
+
+/*
+ * After a shutdown Klipper also dumps the last requests each API client sent,
+ * which for a front end is its own subscribe calls: tens of kilobytes of JSON
+ * that say nothing about why the printer stopped, and would take an excerpt
+ * past a forum post's length on their own.
+ */
+const CLIENT_REQUESTS_DUMP = /^Dumping \d+ requests for client /
+
+/*
+ * The MCU's send and receive queues are dumped a hundred messages each, and a
+ * send-queue line can run to five hundred characters of step timing. The last
+ * few before the shutdown are the ones read; the rest only push the excerpt
+ * past what a forum post holds.
+ */
+const QUEUE_DUMP = /^Dumping (send|receive) queue /
+const QUEUE_DUMP_KEPT = 10
+
+/** Entries an excerpt keeps; a forum post has to fit, and a reader skims past a few hundred. */
+const EXCERPT_LIMIT = 400
+/** Of those, how many come from the top of the run, where its versions and MCUs are stated. */
+const EXCERPT_HEAD = 80
+/** Entries kept from just before the first sign of trouble, which say what the printer was doing. */
+const EXCERPT_LEAD_IN = 40
+/** The most entries kept from the trouble on, which can run past the limit rather than be cut. */
+const EXCERPT_TAIL_MAX = 600
+
+/**
+ * The part of a run worth pasting into a forum post or an AI chat: every line
+ * the run view shows, with tracebacks and MCU dumps written out, because
+ * those are what the people answering read first. The config copy
+ * and runs of similar lines are left out with a note saying so, and only the
+ * last Stats line before a shutdown is kept, since it holds the MCU and timing
+ * figures a shutdown is diagnosed from. A run too long to post keeps its top
+ * and everything from shortly before the first sign of trouble.
+ */
+export function runExcerpt(lines: readonly string[], run: KlippyRun): KlippyExcerptEntry[] {
+  const placed: Array<{ at: number; entry: KlippyExcerptEntry }> = []
+  const line = (at: number) => placed.push({ at, entry: { kind: 'line', text: lines[at]! } })
+
+  function rawLines(from: number, to: number): void {
+    let index = from
+    while (index < to) {
+      const text = lines[index]!
+      if (text === CONFIG_OPEN) {
+        let close = index + 1
+        while (close < to && lines[close] !== CONFIG_CLOSE) close += 1
+        const end = Math.min(close + 1, to)
+        placed.push({
+          at: index,
+          entry: { kind: 'omitted', what: 'config', count: end - index },
+        })
+        index = end
+        continue
+      }
+      if (text.trim() && !STATS_LINE.test(text)) line(index)
+      index += 1
+    }
+  }
+
+  for (const row of runRows(lines, run).rows) {
+    if (row.kind === 'line') line(row.line)
+    else if (row.fold === 'config')
+      placed.push({ at: row.line, entry: { kind: 'omitted', what: 'config', count: row.count } })
+    else if (row.fold === 'similar') {
+      line(row.line)
+      placed.push({
+        at: row.line + 0.5,
+        entry: { kind: 'omitted', what: 'similar', count: row.count - 1 },
+      })
+    } else if (row.fold === 'dump' && CLIENT_REQUESTS_DUMP.test(row.label)) {
+      line(row.line)
+      placed.push({
+        at: row.line + 0.5,
+        entry: { kind: 'omitted', what: 'requests', count: row.count - 1 },
+      })
+    } else if (row.fold === 'dump' && QUEUE_DUMP.test(row.label)) {
+      const messages = foldLines(lines, row).slice(1)
+      const kept = messages.slice(-QUEUE_DUMP_KEPT)
+      line(row.line)
+      if (messages.length > kept.length)
+        placed.push({
+          at: row.line + 0.5,
+          entry: { kind: 'omitted', what: 'messages', count: messages.length - kept.length },
+        })
+      for (const message of kept) line(message.line)
+    } else rawLines(row.line, row.end)
+  }
+
+  if (run.outcome.type === 'shutdown') {
+    let failedAt = run.outcome.line
+    for (let index = run.start; index < failedAt; index += 1) {
+      if (ERROR_LINE.test(lines[index]!)) {
+        failedAt = index
+        break
+      }
+    }
+    for (let index = failedAt - 1; index >= run.start; index -= 1) {
+      if (STATS_LINE.test(lines[index]!)) {
+        line(index)
+        break
+      }
+    }
+  }
+
+  placed.sort((a, b) => a.at - b.at)
+  const entries = placed.map((item) => item.entry)
+  if (entries.length <= EXCERPT_LIMIT) return entries
+  /*
+   * The cut goes before the trouble, never through it: a traceback cut in half
+   * or a shutdown left out is the excerpt failing at the one thing it is for.
+   */
+  const trouble = firstTrouble(lines, run)
+  const troubleAt = placed.findIndex((item) => item.at >= trouble)
+  const fromEnd = entries.length - (EXCERPT_LIMIT - EXCERPT_HEAD)
+  const fromTrouble = troubleAt - EXCERPT_LEAD_IN
+  // A harmless traceback hours before the shutdown would otherwise keep everything after it.
+  const keepFrom =
+    troubleAt >= 0 && entries.length - fromTrouble <= EXCERPT_TAIL_MAX
+      ? Math.min(fromTrouble, fromEnd)
+      : fromEnd
+  if (keepFrom <= EXCERPT_HEAD) return entries
+  return [
+    ...entries.slice(0, EXCERPT_HEAD),
+    { kind: 'omitted', what: 'lines', count: weight(entries.slice(EXCERPT_HEAD, keepFrom)) },
+    ...entries.slice(keepFrom),
+  ]
+}
+
+/** Lines that entries stand for, counting what each note says it left out. */
+function weight(entries: readonly KlippyExcerptEntry[]): number {
+  return entries.reduce((sum, entry) => sum + (entry.kind === 'line' ? 1 : entry.count), 0)
+}
+
+/** The first line of a run that reports something wrong, or its end when nothing does. */
+function firstTrouble(lines: readonly string[], run: KlippyRun): number {
+  for (let index = run.start; index < run.end; index += 1) {
+    const text = lines[index]!
+    if (
+      text === TRACEBACK_LINE ||
+      SHUTDOWN_LINE.test(text) ||
+      ERROR_LINE.test(text) ||
+      START_FAILURE.test(text)
+    )
+      return index
+  }
+  return run.end
+}
+
 /** The lines a fold holds, as they are shown once it is opened: Stats lines still left out. */
 export function foldLines(
   lines: readonly string[],

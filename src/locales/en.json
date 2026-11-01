@@ -2480,6 +2480,18 @@
         "goToShutdown": "Go to shutdown",
         "goToError": "Go to error"
       },
+      "copy": {
+        "label": "Copy error log",
+        "copied": "Copied",
+        "failed": "The error log could not be copied.",
+        "omitted": {
+          "config": "[config: {count} line left out] | [config: {count} lines left out]",
+          "similar": "[{count} similar line left out] | [{count} similar lines left out]",
+          "requests": "[{count} API client request left out] | [{count} API client requests left out]",
+          "messages": "[{count} earlier message left out] | [{count} earlier messages left out]",
+          "lines": "[{count} line left out] | [{count} lines left out]"
+        }
+      },
       "marks": {
         "shutdown": "Shutdown",
         "error": "Error"

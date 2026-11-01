@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest'
 
-import { findRuns, foldLines, isKlippyLogName, runRows } from '@/features/machine/klippyLog'
+import {
+  findRuns,
+  foldLines,
+  isKlippyLogName,
+  runExcerpt,
+  runRows,
+} from '@/features/machine/klippyLog'
 
 /** One start, shaped like a real klippy.log: header, config copy, Stats, a print, a shutdown. */
 function shutdownRun(startWall: number, startMono: number): string[] {
@@ -239,5 +245,126 @@ describe('runRows', () => {
       text: 'Heater bed within range',
       time: new Date(2026, 10, 1, 0, 0, 0),
     })
+  })
+})
+
+describe('runExcerpt', () => {
+  it('writes out the dump and traceback, keeps the last Stats line, and notes what it left out', () => {
+    const lines = shutdownRun(1000, 50)
+    const excerpt = runExcerpt(lines, findRuns(lines, true)[0]!)
+
+    expect(excerpt).toEqual([
+      { kind: 'line', text: 'Start printer at Sun Nov  1 10:38:22 2026 (1000 50)' },
+      { kind: 'omitted', what: 'config', count: 4 },
+      { kind: 'line', text: "mcu 'mcu': Starting serial connect" },
+      { kind: 'line', text: 'Testing frequency: 5.0 Hz' },
+      { kind: 'omitted', what: 'similar', count: 3 },
+      { kind: 'line', text: 'Starting SD card print (position 0)' },
+      { kind: 'line', text: 'Stats 110: gcodein=0' },
+      { kind: 'line', text: "MCU 'mcu' shutdown: Phase stepper move too late" },
+      { kind: 'line', text: 'Dumping send queue 3 messages' },
+      { kind: 'line', text: 'Sent 0 1.0 1.0 6: seq: 1' },
+      { kind: 'line', text: 'Sent 1 1.0 1.0 6: seq: 2' },
+      { kind: 'line', text: 'Sent 2 1.0 1.0 6: seq: 3' },
+      {
+        kind: 'line',
+        text: "Transition to shutdown state: MCU 'mcu' shutdown: Phase stepper move too late",
+      },
+      { kind: 'line', text: 'Traceback (most recent call last):' },
+      {
+        kind: 'line',
+        text: '  File "/klippy/extras/virtual_sdcard.py", line 430, in work_handler',
+      },
+      { kind: 'line', text: '    self.gcode.run_script(line)' },
+      { kind: 'line', text: 'klippy.printer.WaitInterruption: Command interrupted' },
+      { kind: 'line', text: 'Printer is shutdown' },
+      { kind: 'line', text: 'webhooks client 1: Disconnected' },
+      { kind: 'line', text: 'Restarting printer' },
+    ])
+  })
+
+  it('keeps the top and the end of a run too long to post', () => {
+    const lines = [
+      'Start printer at Sun Nov  1 10:38:22 2026 (1000 50)',
+      ...Array.from(
+        { length: 1000 },
+        (_, index) => `line ${index % 2 ? 'odd' : 'even'} ${'x'.repeat(index % 7)}`,
+      ),
+      'Transition to shutdown state: Timer too close',
+    ]
+    const excerpt = runExcerpt(lines, findRuns(lines, true)[0]!)
+
+    expect(excerpt).toHaveLength(401)
+    expect(excerpt[0]).toEqual({ kind: 'line', text: lines[0] })
+    expect(excerpt[80]).toEqual({ kind: 'omitted', what: 'lines', count: 602 })
+    expect(excerpt.at(-1)).toEqual({ kind: 'line', text: lines.at(-1) })
+  })
+})
+
+describe('runExcerpt, client requests', () => {
+  it('leaves out the requests Klipper dumps for each API client', () => {
+    const lines = [
+      'Start printer at Sun Nov  1 10:38:22 2026 (1000 50)',
+      "Transition to shutdown state: Lost communication with MCU 'mcu'",
+      'Dumping 2 requests for client 5477',
+      `Received 15829.3: b'{"id":1,"method":"objects/list"}'`,
+      `Received 15829.4: b'{"id":2,"method":"info"}'`,
+      'Restarting printer',
+    ]
+    const excerpt = runExcerpt(lines, findRuns(lines, true)[0]!)
+
+    expect(excerpt.slice(2)).toEqual([
+      { kind: 'line', text: 'Dumping 2 requests for client 5477' },
+      { kind: 'omitted', what: 'requests', count: 2 },
+      { kind: 'line', text: 'Restarting printer' },
+    ])
+  })
+})
+
+describe('runExcerpt, long shutdowns', () => {
+  it('keeps the last messages of each MCU queue dump', () => {
+    const lines = [
+      'Start printer at Sun Nov  1 10:38:22 2026 (1000 50)',
+      "Transition to shutdown state: MCU 'mcu' shutdown: Timer too close",
+      'Dumping send queue 12 messages',
+      ...Array.from({ length: 12 }, (_, index) => `Sent ${index} 1.0 1.0 6: seq: ${index}`),
+    ]
+    const excerpt = runExcerpt(lines, findRuns(lines, true)[0]!)
+
+    expect(excerpt.slice(2, 5)).toEqual([
+      { kind: 'line', text: 'Dumping send queue 12 messages' },
+      { kind: 'omitted', what: 'messages', count: 2 },
+      { kind: 'line', text: 'Sent 2 1.0 1.0 6: seq: 2' },
+    ])
+    expect(excerpt.at(-1)).toEqual({ kind: 'line', text: 'Sent 11 1.0 1.0 6: seq: 11' })
+  })
+
+  /** A long tail after the first traceback is still the part a reader needs. */
+  it('cuts before the first traceback rather than through it', () => {
+    const filler = (from: number, count: number) =>
+      Array.from({ length: count }, (_, index) => `step ${from + index} ${'x'.repeat(index % 5)}`)
+    const lines = [
+      'Start printer at Sun Nov  1 10:38:22 2026 (1000 50)',
+      ...filler(0, 200),
+      'Traceback (most recent call last):',
+      ...Array.from(
+        { length: 60 },
+        (_, index) => `  File "/klippy/mcu.py", line ${index}, in send`,
+      ),
+      'klippy.serialhdl.error: non-critical MCU is disconnected',
+      ...filler(1000, 300),
+      'Transition to shutdown state: Unhandled exception during run',
+    ]
+    const excerpt = runExcerpt(lines, findRuns(lines, true)[0]!)
+    const traceback = excerpt.findIndex(
+      (entry) => entry.kind === 'line' && entry.text.startsWith('Traceback'),
+    )
+
+    expect(excerpt[80]).toEqual({ kind: 'omitted', what: 'lines', count: 81 })
+    expect(traceback).toBe(81 + 40)
+    expect(excerpt.slice(traceback, traceback + 62).every((entry) => entry.kind === 'line')).toBe(
+      true,
+    )
+    expect(excerpt.at(-1)).toEqual({ kind: 'line', text: lines.at(-1) })
   })
 })

@@ -2480,6 +2480,18 @@
         "goToShutdown": "Gå til stansen",
         "goToError": "Gå til feilen"
       },
+      "copy": {
+        "label": "Kopier feillogg",
+        "copied": "Kopiert",
+        "failed": "Feilloggen kunne ikke kopieres.",
+        "omitted": {
+          "config": "[konfigurasjon: {count} linje utelatt] | [konfigurasjon: {count} linjer utelatt]",
+          "similar": "[{count} lignende linje utelatt] | [{count} lignende linjer utelatt]",
+          "requests": "[{count} API-klientforespørsel utelatt] | [{count} API-klientforespørsler utelatt]",
+          "messages": "[{count} tidligere melding utelatt] | [{count} tidligere meldinger utelatt]",
+          "lines": "[{count} linje utelatt] | [{count} linjer utelatt]"
+        }
+      },
       "marks": {
         "shutdown": "Stanset",
         "error": "Feil"

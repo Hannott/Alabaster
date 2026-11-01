@@ -1,17 +1,20 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import AppButton from '@/components/AppButton.vue'
 import AppIcon from '@/components/AppIcon.vue'
 import {
   foldLines,
+  runExcerpt,
   runKey,
   wasPrinting,
   type KlippyLogRow,
   type KlippyRun,
 } from '@/features/machine/klippyLog'
 import { createTimeFormatter } from '@/i18n/formats'
+import { useToastsStore } from '@/stores/toasts'
+import { copyToClipboard } from '@/utils/clipboard'
 import { numberFormat } from '@/utils/intl'
 
 type FoldRow = Extract<KlippyLogRow, { kind: 'fold' }>
@@ -28,6 +31,7 @@ const props = defineProps<{
 const emit = defineEmits<{ retry: [] }>()
 
 const { t, locale } = useI18n()
+const toasts = useToastsStore()
 
 const rowsList = ref<HTMLOListElement | null>(null)
 /** Opened folds, keyed by run and by line within the run, so reading earlier lines keeps them open. */
@@ -97,6 +101,32 @@ function duration(seconds: number): string {
     ? t('dashboard.duration.hoursMinutes', { hours, minutes })
     : t('dashboard.duration.minutes', { minutes })
 }
+
+const copied = ref(false)
+let copiedTimeout: ReturnType<typeof setTimeout> | undefined
+
+/** Fenced, so a forum or chat keeps the lines as they are instead of reflowing them. */
+async function copyExcerpt(): Promise<void> {
+  if (!props.run) return
+  const text = runExcerpt(props.lines, props.run).map((entry) =>
+    entry.kind === 'line'
+      ? entry.text
+      : t(
+          `configuration.klippyLog.copy.omitted.${entry.what}`,
+          { count: entry.count },
+          entry.count,
+        ),
+  )
+  if (!(await copyToClipboard(['```', ...text, '```'].join('\n')))) {
+    toasts.push(t('configuration.klippyLog.copy.failed'))
+    return
+  }
+  copied.value = true
+  clearTimeout(copiedTimeout)
+  copiedTimeout = setTimeout(() => (copied.value = false), 1500)
+}
+
+onBeforeUnmount(() => clearTimeout(copiedTimeout))
 
 function scrollToLine(line: number): void {
   const list = rowsList.value
@@ -197,17 +227,26 @@ const timeColumnChars = computed(
           </div>
         </dl>
       </div>
-      <AppButton
-        size="sm"
-        :label="
-          t(
-            summary.type === 'error'
-              ? 'configuration.klippyLog.summary.goToError'
-              : 'configuration.klippyLog.summary.goToShutdown',
-          )
-        "
-        @click="scrollToLine(summary.line)"
-      />
+      <div class="log-run__summary-actions">
+        <AppButton
+          size="sm"
+          :label="
+            t(copied ? 'configuration.klippyLog.copy.copied' : 'configuration.klippyLog.copy.label')
+          "
+          @click="copyExcerpt()"
+        />
+        <AppButton
+          size="sm"
+          :label="
+            t(
+              summary.type === 'error'
+                ? 'configuration.klippyLog.summary.goToError'
+                : 'configuration.klippyLog.summary.goToShutdown',
+            )
+          "
+          @click="scrollToLine(summary.line)"
+        />
+      </div>
     </section>
 
     <div v-if="failed" class="log-run__failed" role="status">
