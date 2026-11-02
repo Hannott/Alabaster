@@ -51,7 +51,7 @@ describe('ConsoleSettingsPane', () => {
     // says whether the card shows it too, and a second copy bound to the same
     // value would leave nothing to say which one is authoritative.
     const stored = ref<Record<string, unknown>>({})
-    useConsoleStore().gcodeHelp = [{ command: 'TIMELAPSE_RENDER', help: '' }]
+    useConsoleStore().gcodeHelp = [{ command: 'TIMELAPSE_RENDER', help: '', params: [] }]
     const pane = mount(ConsoleSettingsPane, {
       global: { plugins: [i18n], provide: provideContext(stored) },
     })
@@ -93,7 +93,7 @@ describe('ConsoleSettingsPane', () => {
   it('still offers everything the card can be configured with', () => {
     const stored = ref<Record<string, unknown>>({})
     const gcodeConsole = useConsoleStore()
-    gcodeConsole.gcodeHelp = [{ command: 'TIMELAPSE_RENDER', help: '' }]
+    gcodeConsole.gcodeHelp = [{ command: 'TIMELAPSE_RENDER', help: '', params: [] }]
 
     const pane = mount(ConsoleSettingsPane, {
       global: { plugins: [i18n], provide: provideContext(stored) },

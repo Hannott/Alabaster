@@ -30,13 +30,14 @@ const props = withDefaults(
     /** Every command the machine knows, for Tab completion. */
     commands?: readonly string[]
     /**
-     * Looks up what a macro can be called with, by name. A plain function
-     * rather than a precomputed table: the only macro whose parameters are
-     * ever needed is the one on the current line, and parsing every macro in
-     * `configfile.settings` on each keystroke would work through names that
-     * are never typed.
+     * Looks up what a command can be called with, by name: the parameters
+     * the machine declares for it, or those read from a macro's body. A plain
+     * function rather than a precomputed table: the only command whose
+     * parameters are ever needed is the one on the current line, and parsing
+     * every macro in `configfile.settings` on each keystroke would work
+     * through names that are never typed.
      */
-    getMacroParams?: (macroName: string) => readonly MacroParameter[]
+    getCommandParams?: (commandName: string) => readonly MacroParameter[]
     disabled?: boolean
     /**
      * A command sent from here is still in flight. The field stays editable —
@@ -50,7 +51,7 @@ const props = withDefaults(
   {
     history: () => [],
     commands: () => [],
-    getMacroParams: () => [],
+    getCommandParams: () => [],
     disabled: false,
     pending: false,
   },
@@ -98,11 +99,11 @@ const lastLine = computed(() => {
   const lines = draft.value.split('\n')
   return lines[lines.length - 1] ?? ''
 })
-const activeMacroParams = computed(() => {
-  const macroName = commandNameFromLine(lastLine.value)
-  return macroName ? props.getMacroParams(macroName) : []
+const activeParams = computed(() => {
+  const commandName = commandNameFromLine(lastLine.value)
+  return commandName ? props.getCommandParams(commandName) : []
 })
-const unfilledParams = computed(() => unfilledMacroParams(lastLine.value, activeMacroParams.value))
+const unfilledParams = computed(() => unfilledMacroParams(lastLine.value, activeParams.value))
 /**
  * The parameter the ghost text offers right now, or null when there is
  * nothing to offer — no macro on this line, nothing left to fill, the caret

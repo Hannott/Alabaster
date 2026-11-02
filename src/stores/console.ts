@@ -7,6 +7,7 @@ import {
   consoleEntryFromResponse,
   type ConsoleEntry,
 } from '@/services/console/transcript'
+import { schemaParams, type MacroParameter } from '@/dashboard/macroParams'
 import { i18n } from '@/i18n'
 import { useAvailabilityStore } from '@/stores/availability'
 import { useBedMeshStore } from '@/stores/bedMesh'
@@ -97,6 +98,11 @@ function persistConsoleClearedAt(scopeKeys: readonly string[], clearedAt: number
 export interface GcodeHelpEntry {
   command: string
   help: string
+  /**
+   * The parameters the machine declares for the command, empty where it
+   * declares none; see `schemaParams`.
+   */
+  params: MacroParameter[]
 }
 
 export const useConsoleStore = defineStore('console', () => {
@@ -221,6 +227,7 @@ export const useConsoleStore = defineStore('console', () => {
         .map(([command, details]) => ({
           command,
           help: isRecord(details) && typeof details.help === 'string' ? details.help : '',
+          params: isRecord(details) ? schemaParams(details.params) : [],
         }))
         .sort((left, right) => left.command.localeCompare(right.command))
     } catch {

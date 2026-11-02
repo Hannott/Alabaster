@@ -9,7 +9,7 @@ import ConsoleCommandInput from '@/components/console/ConsoleCommandInput.vue'
 import ConsoleHistoryBrowser from '@/components/console/ConsoleHistoryBrowser.vue'
 import ConsoleSettingsFields from '@/components/console/ConsoleSettingsFields.vue'
 import ConsoleTranscript from '@/components/console/ConsoleTranscript.vue'
-import { macroParamsFromSettings } from '@/dashboard/macroParams'
+import { commandParams } from '@/dashboard/macroParams'
 import { useAvailability } from '@/composables/useAvailability'
 import { useConsoleSettings } from '@/composables/useConsoleSettings'
 import { filterConsoleEntries } from '@/services/console/transcript'
@@ -101,8 +101,8 @@ const entries = computed(() =>
 const hiddenCount = computed(() => gcodeConsole.consoleEntries.length - entries.value.length)
 const inputOnTop = computed(() => settings.value.inputPosition === 'top')
 const commands = computed(() => gcodeConsole.gcodeHelp.map((entry) => entry.command))
-function getMacroParams(macroName: string) {
-  return macroParamsFromSettings(printerConfig.settings, macroName)
+function getCommandParams(commandName: string) {
+  return commandParams(gcodeConsole.gcodeHelp, printerConfig.settings, commandName)
 }
 const hasTimelapse = computed(() =>
   gcodeConsole.gcodeHelp.some((entry) => entry.command.includes('TIMELAPSE')),
@@ -228,7 +228,7 @@ function requestClearHistory(): void {
           ref="prompt"
           :history="gcodeConsole.commandHistory"
           :commands="commands"
-          :get-macro-params="getMacroParams"
+          :get-command-params="getCommandParams"
           :disabled="!klipper.isAvailable.value"
           :pending="printer.lockedCommands.console"
           @send="gcodeConsole.sendConsoleCommand($event)"

@@ -22,11 +22,13 @@ command is the record that it ran.
   several commands match, it fills in as far as they agree and lists the rest
   to choose from. Type `set` and press <kbd>Tab</kbd> to narrow the list
   without typing the full command name.
-- Type a macro's name and a space, and Alabaster shows the next parameter it
-  takes, dimmed, right after the cursor. Press <kbd>→</kbd> to fill it in and
-  keep typing its value. If a macro takes more than one parameter,
+- Type a command's name and a space, and Alabaster shows the next parameter
+  it takes, dimmed, right after the cursor. Press <kbd>→</kbd> to fill it in
+  and keep typing its value. If a command takes more than one parameter,
   <kbd>Tab</kbd> and <kbd>Shift</kbd>+<kbd>Tab</kbd> step through the ones
-  you haven't filled in, so you can set them in any order.
+  you haven't filled in, so you can set them in any order. This works for
+  every macro you wrote, and for every built-in command on a Kalico
+  bleeding-edge printer, which reports what its commands accept.
 - <kbd>Shift</kbd>+<kbd>Enter</kbd> adds a line. Use it to send a short script
   in one go instead of one command at a time.
 - Click any command in the transcript to put it back in the prompt. Adjust one

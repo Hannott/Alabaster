@@ -24,9 +24,9 @@ function seed() {
     consoleEntryFromResponse('ok T:24.1 /0.0 B:23.8 /0.0', 3, 1_700_000_002_000),
   ]
   gcodeConsole.gcodeHelp = [
-    { command: 'BED_MESH_CALIBRATE', help: 'Calibrate the bed mesh' },
-    { command: 'G28', help: 'Home the axes' },
-    { command: 'TIMELAPSE_RENDER', help: 'Render the timelapse' },
+    { command: 'BED_MESH_CALIBRATE', help: 'Calibrate the bed mesh', params: [] },
+    { command: 'G28', help: 'Home the axes', params: [] },
+    { command: 'TIMELAPSE_RENDER', help: 'Render the timelapse', params: [] },
   ]
   return gcodeConsole
 }
@@ -133,7 +133,7 @@ describe('ConsoleView', () => {
     await settings?.trigger('click')
     expect(wrapper.text()).toContain('Hide timelapse commands')
 
-    gcodeConsole.gcodeHelp = [{ command: 'G28', help: 'Home the axes' }]
+    gcodeConsole.gcodeHelp = [{ command: 'G28', help: 'Home the axes', params: [] }]
     await flushPromises()
     expect(wrapper.text()).not.toContain('Hide timelapse commands')
   })

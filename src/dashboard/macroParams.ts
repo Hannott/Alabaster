@@ -1,11 +1,14 @@
 /**
- * What a macro can be called with, read from the macro's own body.
+ * What a command can be called with.
  *
- * Klipper reports no parameter schema anywhere — a `gcode_macro`'s parameters
- * exist only as `params.NAME` references inside its Jinja body, which
- * `configfile.settings` already carries. This module extracts them, so the
- * card can offer a small form instead of making the user remember every
- * parameter's spelling.
+ * Two sources feed the same shape. A Kalico bleeding-edge printer publishes a
+ * parameter schema for every command and macro in `gcode.commands`, which
+ * `schemaParams` reads; stock Klipper reports no schema anywhere, so a
+ * `gcode_macro`'s parameters exist only as `params.NAME` references inside
+ * its Jinja body, which `configfile.settings` already carries and
+ * `parseMacroParams` extracts. `commandParams` prefers the schema and falls
+ * back to the body, so the card can offer a small form and the console its
+ * hints instead of making the user remember every parameter's spelling.
  *
  * It is a pure module, tested with nothing mounted, and it **fails closed**:
  * a body this parser cannot read yields no parameters, and a macro with no
@@ -22,6 +25,49 @@
 export interface MacroParameter {
   name: string
   defaultValue: string | null
+}
+
+/**
+ * The parameters a command declares in `gcode.commands[name].params`: one
+ * entry per parameter, keyed by name, each a record with at least a `type`
+ * and optionally a `default`. Only a literal default (a string, a number or
+ * a boolean) is reported as one, for the same reason `parseMacroParams`
+ * ignores expression defaults: a value the firmware computes must not be
+ * prefilled as text. Anything that is not such a record yields no
+ * parameters, so a printer without the schema degrades to the macro body.
+ */
+export function schemaParams(schema: unknown): MacroParameter[] {
+  if (typeof schema !== 'object' || schema === null || Array.isArray(schema)) return []
+  const params: MacroParameter[] = []
+  for (const [name, details] of Object.entries(schema as Record<string, unknown>)) {
+    if (name.startsWith('_')) continue
+    const value =
+      typeof details === 'object' && details !== null
+        ? (details as Record<string, unknown>).default
+        : undefined
+    const literal =
+      typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean'
+    params.push({ name: name.toUpperCase(), defaultValue: literal ? String(value) : null })
+  }
+  return params
+}
+
+/**
+ * The parameters of one command, from the machine's schema when it publishes
+ * one and from the macro's body otherwise. `entries` is the console store's
+ * `gcode.commands` listing; a command the machine does not list at all has
+ * no schema and is looked up as a macro, which is also how a draft whose name
+ * is still being typed resolves to nothing.
+ */
+export function commandParams(
+  entries: readonly { command: string; params: readonly MacroParameter[] }[],
+  settings: Readonly<Record<string, unknown>>,
+  commandName: string,
+): readonly MacroParameter[] {
+  const name = commandName.trim().toUpperCase()
+  const entry = entries.find((candidate) => candidate.command === name)
+  if (entry && entry.params.length > 0) return entry.params
+  return macroParamsFromSettings(settings, commandName)
 }
 
 const paramReference = /params\.([A-Za-z_][A-Za-z0-9_]*)((?:\s*\|\s*[a-z_]+(?:\([^)]*\))?)*)/g

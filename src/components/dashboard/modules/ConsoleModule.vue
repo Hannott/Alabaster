@@ -9,7 +9,7 @@ import ConsoleCommandInput from '@/components/console/ConsoleCommandInput.vue'
 import ConsoleTranscript from '@/components/console/ConsoleTranscript.vue'
 import AppDashboardModule from '@/components/dashboard/AppDashboardModule.vue'
 import ConsoleQuickSettings from '@/components/dashboard/modules/ConsoleQuickSettings.vue'
-import { macroParamsFromSettings } from '@/dashboard/macroParams'
+import { commandParams } from '@/dashboard/macroParams'
 import { filterConsoleEntries } from '@/services/console/transcript'
 import {
   configBoolean,
@@ -66,12 +66,12 @@ const entries = computed(() =>
 const commands = computed(() => gcodeConsole.gcodeHelp.map((entry) => entry.command))
 
 /**
- * Read from `configfile.settings` rather than precomputed for every macro:
- * see `ConsoleCommandInput`'s own `getMacroParams` prop for why a lookup
+ * Looked up per command rather than precomputed for every macro: see
+ * `ConsoleCommandInput`'s own `getCommandParams` prop for why a lookup
  * beats a table here.
  */
-function getMacroParams(macroName: string) {
-  return macroParamsFromSettings(printerConfig.settings, macroName)
+function getCommandParams(commandName: string) {
+  return commandParams(gcodeConsole.gcodeHelp, printerConfig.settings, commandName)
 }
 
 /**
@@ -148,7 +148,7 @@ useDashboardModuleHeaderAction(
           ref="prompt"
           :history="gcodeConsole.commandHistory"
           :commands="commands"
-          :get-macro-params="getMacroParams"
+          :get-command-params="getCommandParams"
           :pending="printer.lockedCommands.console"
           @send="gcodeConsole.sendConsoleCommand($event)"
         />

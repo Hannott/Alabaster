@@ -236,7 +236,21 @@ describe('console store', () => {
       }
       return Promise.resolve({
         eventtime: 1,
-        status: { gcode: { commands: { G28: { help: 'Home axes' }, M105: {} } } },
+        status: {
+          gcode: {
+            commands: {
+              G28: { help: 'Home axes' },
+              M105: {},
+              PHASE_STEPPING_CALIBRATE: {
+                help: 'Find the angle corrections',
+                params: {
+                  STEPPER: { type: 'string', required: true },
+                  PASSES: { type: 'int', default: 1 },
+                },
+              },
+            },
+          },
+        },
       })
     }) as never)
 
@@ -256,10 +270,19 @@ describe('console store', () => {
     // Moonraker reports epoch seconds; the entries carry real times, not now.
     expect(gcodeConsole.consoleEntries[0]?.at).toBe(1_700_000_000_000)
 
-    // The command list backs Tab completion and the command browser.
+    // The command list backs Tab completion and the command browser, and a
+    // command's declared parameters back the prompt's hints.
     expect(gcodeConsole.gcodeHelp).toEqual([
-      { command: 'G28', help: 'Home axes' },
-      { command: 'M105', help: '' },
+      { command: 'G28', help: 'Home axes', params: [] },
+      { command: 'M105', help: '', params: [] },
+      {
+        command: 'PHASE_STEPPING_CALIBRATE',
+        help: 'Find the angle corrections',
+        params: [
+          { name: 'STEPPER', defaultValue: null },
+          { name: 'PASSES', defaultValue: '1' },
+        ],
+      },
     ])
 
     respond?.({ jsonrpc: '2.0', method: 'notify_gcode_response', params: ['ok'] })

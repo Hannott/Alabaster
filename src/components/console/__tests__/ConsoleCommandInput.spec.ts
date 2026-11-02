@@ -14,10 +14,10 @@ const runPaTestParams: MacroParameter[] = [
 
 function mountInput(
   history: string[] = [],
-  getMacroParams: (name: string) => MacroParameter[] = () => [],
+  getCommandParams: (name: string) => MacroParameter[] = () => [],
 ) {
   const wrapper = mount(ConsoleCommandInput, {
-    props: { history, commands, getMacroParams },
+    props: { history, commands, getCommandParams },
     global: { plugins: [i18n] },
     attachTo: document.body,
   })

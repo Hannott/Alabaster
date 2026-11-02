@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
 
-import { macroParamsFromSettings, parseMacroParams } from '@/dashboard/macroParams'
+import {
+  commandParams,
+  macroParamsFromSettings,
+  parseMacroParams,
+  schemaParams,
+} from '@/dashboard/macroParams'
 
 describe('parseMacroParams', () => {
   it('reads params with literal defaults, in first-appearance order', () => {
@@ -71,5 +76,67 @@ describe('macroParamsFromSettings', () => {
     ])
     expect(macroParamsFromSettings(settings, 'MISSING_MACRO')).toEqual([])
     expect(macroParamsFromSettings({ 'gcode_macro broken': 7 }, 'BROKEN')).toEqual([])
+  })
+})
+
+describe('schemaParams', () => {
+  it('reads the declared parameters in declaration order, with literal defaults', () => {
+    expect(
+      schemaParams({
+        STEPPER: { type: 'string', required: true },
+        PASSES: { type: 'int', default: 1 },
+        PROBE: { type: 'float', default: 0.0 },
+        GRAPH: { type: 'int', required: false },
+        name: { type: 'string', default: 'x' },
+      }),
+    ).toEqual([
+      { name: 'STEPPER', defaultValue: null },
+      { name: 'PASSES', defaultValue: '1' },
+      { name: 'PROBE', defaultValue: '0' },
+      { name: 'GRAPH', defaultValue: null },
+      { name: 'NAME', defaultValue: 'x' },
+    ])
+  })
+
+  it('yields nothing for a printer that publishes no schema', () => {
+    expect(schemaParams(undefined)).toEqual([])
+    expect(schemaParams(null)).toEqual([])
+    expect(schemaParams('STEPPER')).toEqual([])
+    expect(schemaParams(['STEPPER'])).toEqual([])
+    expect(schemaParams({})).toEqual([])
+  })
+
+  it('keeps a computed default out of the prefill, like an expression default', () => {
+    expect(schemaParams({ SPEED: { type: 'float', default: null } })).toEqual([
+      { name: 'SPEED', defaultValue: null },
+    ])
+    expect(schemaParams({ _INTERNAL: { type: 'int' } })).toEqual([])
+  })
+})
+
+describe('commandParams', () => {
+  const entries = [
+    { command: 'G28', params: [] },
+    {
+      command: 'PHASE_STEPPING_CALIBRATE',
+      params: [{ name: 'STEPPER', defaultValue: null }],
+    },
+  ]
+  const settings = {
+    'gcode_macro run_pa_test': { gcode: '{% set n = params.NOZZLE|default(0.4) %}' },
+  }
+
+  it('prefers the schema the machine publishes', () => {
+    expect(commandParams(entries, settings, 'phase_stepping_calibrate')).toEqual([
+      { name: 'STEPPER', defaultValue: null },
+    ])
+  })
+
+  it('falls back to the macro body where the machine declares nothing', () => {
+    expect(commandParams(entries, settings, 'RUN_PA_TEST')).toEqual([
+      { name: 'NOZZLE', defaultValue: '0.4' },
+    ])
+    expect(commandParams(entries, settings, 'G28')).toEqual([])
+    expect(commandParams(entries, settings, 'UNKNOWN')).toEqual([])
   })
 })
