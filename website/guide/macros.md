@@ -207,10 +207,10 @@ first layer. It never leaves your printer's travel limits and never comes
 closer to the print than `margin`. If no side has room, it skips the purge
 and says so rather than stopping the print.
 
-The purge first lays a thick, slow line that flushes most of the filament,
-then a thin, faster one that brings the nozzle pressure to where a printed
-line needs it. It leaves the line with a fast sideways move while retracting,
-which snaps the strand off at the purge instead of dragging it to the print.
+The purge is one short, fat line, 30 mm by default. It starts just above the
+bed, which wipes off whatever hangs on the side of the nozzle, and climbs
+along its length, so it ends clean. It leaves the line with a fast sideways
+move while retracting, which snaps the strand off at the purge instead of dragging it to the print.
 The nozzle then moves to the edge of the print at line height and pushes the
 filament back, so the first layer starts with the nozzle full.
 
@@ -227,19 +227,26 @@ ADAPTIVE_PURGE X=120 Y=80
 
 The settings have their own block in `alabaster-user.cfg`, `_ALABASTER_PURGE`:
 
-| Variable       |                                                                                                    |
-| -------------- | -------------------------------------------------------------------------------------------------- |
-| `length`       | Filament to purge, in mm. More filament makes the line longer or folds it into rows. `0` skips it. |
-| `flow`         | Flow during the purge, in mm³/s. Keep it at or below what your hotend manages on a first layer.    |
-| `height`       | Nozzle height for the line, in mm. About one and a half times the nozzle diameter.                 |
-| `margin`       | Gap between the line and the objects, in mm. Keep it wider than your skirt or brim.                |
-| `edge`         | How close the line may come to the ends of X and Y travel, in mm.                                  |
-| `sides`        | Sides the line may use, such as `'front, left'`. Front is the low-Y side.                          |
-| `tip_distance` | How far your end G-code retracts the filament, pushed back before purging. `0` if it does not.     |
-| `retract`      | How far the filament pulls back while leaving the line, in mm. Pushed back out at the print.       |
+| Variable       |                                                                                                |
+| -------------- | ---------------------------------------------------------------------------------------------- |
+| `amount`       | Filament to purge, in mm. `0` skips it.                                                        |
+| `line_length`  | Length of the line, in mm. The same filament in a shorter line makes a fatter line.            |
+| `flow`         | Flow during the purge, in mm³/s. Keep it at or below what your hotend can melt.                |
+| `start_height` | Nozzle height where the line starts, in mm. Close to the bed, to wipe the nozzle.              |
+| `end_height`   | Nozzle height where the line ends, in mm. About twice the nozzle diameter.                     |
+| `margin`       | Gap between the line and the objects, in mm. Keep it wider than your skirt or brim.            |
+| `edge`         | How close the line may come to the ends of X and Y travel, in mm.                              |
+| `sides`        | Sides the line may use, such as `'front, left'`. Front is the low-Y side.                      |
+| `tip_distance` | How far your end G-code retracts the filament, pushed back before purging. `0` if it does not. |
+| `retract`      | How far the filament pulls back while leaving the line, in mm. Pushed back out at the print.   |
 
-The line never gets thicker than `max_extrude_cross_section` in your
-`[extruder]` section allows, so Klipper's default limit is enough.
+::: tip Raise max_extrude_cross_section for a short line
+A short line needs more plastic per millimetre than Klipper allows by
+default, so with the default `max_extrude_cross_section` the line is
+stretched to around 200 mm. The console names the value `[extruder]` needs
+for your `line_length`, such as `max_extrude_cross_section: 4.3` for a 0.4 mm
+nozzle and 1.75 mm filament. The line never goes past the limit you set.
+:::
 
 ## What it declares
 
