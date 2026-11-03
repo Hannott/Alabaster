@@ -19,6 +19,7 @@ function entry(raw: string, overrides: Partial<ConsoleEntry> = {}): ConsoleEntry
     kind: classifyResponse(raw),
     raw,
     message: cleanConsoleMessage(raw),
+    text: raw,
     at: 0,
     ...overrides,
   }

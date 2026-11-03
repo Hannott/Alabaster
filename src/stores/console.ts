@@ -133,12 +133,13 @@ export const useConsoleStore = defineStore('console', () => {
    */
   const gcodeHelp = ref<GcodeHelpEntry[]>([])
   /**
-   * Raw messages, which is the shape the leveling and calibration transcripts
-   * consume: both capture an index and slice forward from it to read one
-   * command's output. They want Klipper's own text, prefixes intact, because
-   * they parse it rather than display it.
+   * Plain-text messages, which is the shape the leveling and calibration
+   * transcripts consume: both capture an index and slice forward from it to
+   * read one command's output. They want Klipper's own text, prefixes intact
+   * but any markup reduced to its words, because they parse it rather than
+   * display it.
    */
-  const consoleLines = computed(() => consoleEntries.value.map((entry) => entry.raw))
+  const consoleLines = computed(() => consoleEntries.value.map((entry) => entry.text))
   const disposers: Array<() => void> = []
   let stopAvailabilityWatch: WatchStopHandle | null = null
   let stopPrinterChangeReset: (() => void) | null = null

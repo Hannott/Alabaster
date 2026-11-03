@@ -53,7 +53,7 @@ const lines = computed(() => {
   if (after === null) return []
   return gcodeConsole.consoleEntries
     .filter((entry) => entry.id > after && entry.kind !== 'command')
-    .map((entry) => entry.raw)
+    .map((entry) => entry.text)
 })
 const reading = computed(() => readLoadCell(lines.value))
 const phase = computed(() => reading.value.phase)

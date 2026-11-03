@@ -89,7 +89,7 @@ const calibratingSensorLabel = computed(() => {
 const calibrationTranscript = computed(() =>
   gcodeConsole.consoleEntries
     .filter((entry) => entry.id > calibrationTranscriptStart.value)
-    .map((entry) => entry.raw),
+    .map((entry) => entry.text),
 )
 const transcriptLog = ref<HTMLElement | null>(null)
 const followTranscript = useFollowingLog(transcriptLog, () => calibrationTranscript.value.length)

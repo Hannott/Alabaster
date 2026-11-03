@@ -6,12 +6,13 @@ import { i18n } from '@/i18n'
 import type { ConsoleEntry } from '@/services/console/transcript'
 
 const entries: ConsoleEntry[] = [
-  { id: 1, kind: 'command', raw: 'G28', message: 'G28', at: 1_700_000_000_000 },
+  { id: 1, kind: 'command', raw: 'G28', message: 'G28', text: 'G28', at: 1_700_000_000_000 },
   {
     id: 2,
     kind: 'response',
     raw: '// Klipper state: Ready',
     message: 'Klipper state: Ready',
+    text: '// Klipper state: Ready',
     at: 1_700_000_001_000,
   },
   {
@@ -19,9 +20,17 @@ const entries: ConsoleEntry[] = [
     kind: 'error',
     raw: '!! Move out of range',
     message: 'Move out of range',
+    text: '!! Move out of range',
     at: 1_700_000_002_000,
   },
-  { id: 4, kind: 'debug', raw: '// debug:probe', message: 'probe', at: 1_700_000_003_000 },
+  {
+    id: 4,
+    kind: 'debug',
+    raw: '// debug:probe',
+    message: 'probe',
+    text: '// debug:probe',
+    at: 1_700_000_003_000,
+  },
 ]
 
 function mountTranscript(props: Record<string, unknown> = {}) {
@@ -239,5 +248,66 @@ describe('ConsoleTranscript', () => {
       global: { plugins: [i18n] },
     })
     expect(wrapper.get('.gcode-console__empty').text()).toBe('Nothing from the printer yet.')
+  })
+
+  describe('markup in a response', () => {
+    const marked: ConsoleEntry[] = [
+      {
+        id: 1,
+        kind: 'response',
+        raw: '// Result: <a href="/server/files/logs/plot.png"><img src="/server/files/logs/plot.png"></a>',
+        message:
+          'Result: <a href="/server/files/logs/plot.png"><img src="/server/files/logs/plot.png"></a>',
+        text: 'Result: ',
+        at: 0,
+      },
+      {
+        id: 2,
+        kind: 'command',
+        raw: 'RESPOND MSG="<b>hi</b>"',
+        message: 'RESPOND MSG="<b>hi</b>"',
+        text: 'RESPOND MSG="<b>hi</b>"',
+        at: 0,
+      },
+    ]
+
+    function mountMarked(props: Record<string, unknown> = {}) {
+      return mount(ConsoleTranscript, {
+        props: { entries: marked, linkBase: 'ws://voron.local:7125/websocket', ...props },
+        global: { plugins: [i18n] },
+      })
+    }
+
+    it('renders a link that opens elsewhere and resolves against the printer', () => {
+      const link = mountMarked().get('.gcode-console__link')
+      expect(link.attributes('href')).toBe('http://voron.local:7125/server/files/logs/plot.png')
+      expect(link.attributes('target')).toBe('_blank')
+      expect(link.attributes('rel')).toBe('noopener noreferrer')
+    })
+
+    it('renders an image with a spoken fallback when the macro gave none', () => {
+      const image = mountMarked().get('.gcode-console__image')
+      expect(image.attributes('src')).toBe('http://voron.local:7125/server/files/logs/plot.png')
+      expect(image.attributes('alt')).toBe('Image from the printer')
+    })
+
+    it('drops a relative link when no printer is connected to resolve it', () => {
+      const wrapper = mountMarked({ linkBase: null })
+      expect(wrapper.find('.gcode-console__link').exists()).toBe(false)
+      expect(wrapper.find('.gcode-console__image').exists()).toBe(false)
+      expect(wrapper.text()).toContain('Result:')
+    })
+
+    it('shows the markup literally in raw output, so a broken tag can be read', () => {
+      const wrapper = mountMarked({ rawOutput: true })
+      expect(wrapper.find('.gcode-console__link').exists()).toBe(false)
+      expect(wrapper.text()).toContain('<img src="/server/files/logs/plot.png">')
+    })
+
+    it('never renders markup in a command the user typed', () => {
+      const command = mountMarked().get('.gcode-console__command')
+      expect(command.find('b').exists()).toBe(false)
+      expect(command.text()).toBe('RESPOND MSG="<b>hi</b>"')
+    })
   })
 })

@@ -2,7 +2,9 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import ConsoleMarkup from '@/components/console/ConsoleMarkup'
 import { createTimeFormatter } from '@/i18n/formats'
+import { consoleLinkBase, parseConsoleMarkup } from '@/services/console/markup'
 import type { ConsoleEntry, ConsoleEntryKind } from '@/services/console/transcript'
 
 /**
@@ -39,6 +41,12 @@ const props = withDefaults(
      */
     newestFirst?: boolean
     label?: string
+    /**
+     * The Moonraker endpoint the entries came from, so a relative link or image
+     * in a response resolves against the printer that sent it rather than
+     * against wherever Alabaster happens to be served from.
+     */
+    linkBase?: string | null
   }>(),
   {
     lines: 12,
@@ -47,6 +55,7 @@ const props = withDefaults(
     rawOutput: false,
     follow: true,
     newestFirst: false,
+    linkBase: null,
   },
 )
 
@@ -69,6 +78,17 @@ const isAtFollowEdge = ref(true)
 const rendered = computed(() => (props.newestFirst ? [...props.entries].reverse() : props.entries))
 
 const timeFormat = computed(() => createTimeFormatter(locale.value, { seconds: true }))
+
+const markupBase = computed(() => consoleLinkBase(props.linkBase))
+
+/**
+ * Parsed per row rather than cached on the entry, because the row is already
+ * memoised: an entry never changes, so its markup is built once and rebuilt
+ * only when the display settings or the link base change.
+ */
+function markupFor(entry: ConsoleEntry) {
+  return parseConsoleMarkup(entry.message, markupBase.value)
+}
 
 /*
  * The gutter marker is what keeps a line's kind readable without relying on its
@@ -349,7 +369,7 @@ defineExpose({ scrollToNewest })
     <li
       v-for="entry in rendered"
       :key="entry.id"
-      v-memo="[entry, showTimestamps, rawOutput, locale]"
+      v-memo="[entry, showTimestamps, rawOutput, locale, linkBase]"
       class="gcode-console__line"
       :data-kind="entry.kind"
     >
@@ -379,8 +399,22 @@ defineExpose({ scrollToNewest })
       >
         {{ rawOutput ? entry.raw : entry.message }}
       </button>
+      <!--
+        Raw output shows the line exactly as Klipper sent it, markup included,
+        which is the way to read what a macro actually emitted when its link or
+        image did not come out as intended. An image arriving changes the
+        transcript's height after the line did, so it re-anchors on load the
+        same way a new line does; the box's own resize observer cannot see it,
+        since the box is a fixed number of lines tall.
+      -->
       <span v-else class="gcode-console__message">
-        {{ rawOutput ? entry.raw : entry.message }}
+        <template v-if="rawOutput">{{ entry.raw }}</template>
+        <ConsoleMarkup
+          v-else
+          :nodes="markupFor(entry)"
+          :image-fallback-alt="t('console.imageFallbackAlt')"
+          @image-load="reanchor"
+        />
       </span>
     </li>
   </ol>

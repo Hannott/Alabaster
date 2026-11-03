@@ -2354,6 +2354,7 @@
   "console": {
     "title": "Konsoll",
     "transcriptLabel": "Konsollutdata",
+    "imageFallbackAlt": "Bilde fra skriveren",
     "empty": "Ingenting fra skriveren ennå.",
     "commandLabel": "G-kodekommando",
     "placeholder": "Send G-kode",

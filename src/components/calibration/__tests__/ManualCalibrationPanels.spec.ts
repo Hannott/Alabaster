@@ -351,7 +351,7 @@ describe('LoadCellPanel', () => {
       const id = (gcodeConsole.consoleEntries.at(-1)?.id ?? 0) + 1
       gcodeConsole.consoleEntries = [
         ...gcodeConsole.consoleEntries,
-        { id, raw, message: raw, kind: 'response', at: 0 },
+        { id, raw, message: raw, text: raw, kind: 'response', at: 0 },
       ]
     }
     say('// Starting load cell calibration.')

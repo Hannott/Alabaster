@@ -340,7 +340,14 @@ describe('switching to another printer', () => {
     endstops.readings = [{ name: 'x', state: 'open' }]
     endstops.readAt = 12345
     gcodeConsole.consoleEntries = [
-      { id: 1, kind: 'response', raw: '// hello from printer A', message: 'hello', at: 1 },
+      {
+        id: 1,
+        kind: 'response',
+        raw: '// hello from printer A',
+        message: 'hello',
+        text: '// hello from printer A',
+        at: 1,
+      },
     ]
     gcodeConsole.gcodeHelp = [{ command: 'LOAD_FILAMENT', help: '', params: [] }]
     excludeObject.objects = [{ name: 'cube_1', center: [10, 10], polygon: null, area: 0 }]

@@ -2354,6 +2354,7 @@
   "console": {
     "title": "Console",
     "transcriptLabel": "Console output",
+    "imageFallbackAlt": "Image from the printer",
     "empty": "Nothing from the printer yet.",
     "commandLabel": "G-code command",
     "placeholder": "Send G-code",

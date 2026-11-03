@@ -58,7 +58,7 @@ export const useMeshProbeRunStore = defineStore('meshProbeRun', () => {
   const runStartIndex = computed(() => {
     const entries = gcodeConsole.consoleEntries
     for (let index = entries.length - 1; index >= 0; index -= 1) {
-      if (isMeshCalibrateCommand(entries[index]!.raw)) return index
+      if (isMeshCalibrateCommand(entries[index]!.text)) return index
     }
     return -1
   })
@@ -94,7 +94,7 @@ export const useMeshProbeRunStore = defineStore('meshProbeRun', () => {
     if (!isRunning.value) return []
     const collected: ProbedPoint[] = []
     for (const entry of gcodeConsole.consoleEntries.slice(runStartIndex.value + 1)) {
-      const point = parseProbedPoint(entry.raw)
+      const point = parseProbedPoint(entry.text)
       if (point) collected.push(point)
     }
     return collected

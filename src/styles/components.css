@@ -7491,7 +7491,45 @@ input.z-axis__slider {
 }
 
 .gcode-console__message {
+  flex: 1 1 auto;
   min-width: 0;
+}
+
+/*
+ * A link in a response is prose, not a control: it keeps the line's own colour
+ * and announces itself with the underline, so an error line's link stays red
+ * and a dimmed debug line's stays dimmed.
+ */
+.gcode-console__link {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
+.gcode-console__link:hover,
+.gcode-console__link:focus-visible {
+  color: var(--action-primary);
+}
+
+/*
+ * The transcript decides how big an image gets, not the macro: it never runs
+ * wider than its line and never taller than a readable chart, so a plot a
+ * macro emitted at full resolution cannot push the rest of the transcript out
+ * of the box. Both axes stay `auto` so the cap keeps the aspect ratio.
+ *
+ * Inline-block rather than block: a block image inside the inline link the
+ * calibration macros wrap it in turns the link into a full-width box, so the
+ * empty space beside the plot opens it too. Inline-block keeps the link the
+ * image's own size.
+ */
+.gcode-console__image {
+  display: inline-block;
+  vertical-align: top;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 24rem;
+  margin-block: 0.25rem;
 }
 
 /*

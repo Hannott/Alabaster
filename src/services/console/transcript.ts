@@ -6,6 +6,7 @@
  */
 
 import type { MacroParameter } from '@/dashboard/macroParams'
+import { consoleMarkupText } from '@/services/console/markup'
 
 /**
  * Klipper prefixes its output rather than tagging it, so the kind has to be read
@@ -18,10 +19,17 @@ export interface ConsoleEntry {
   /** Monotonic within a session, so a repeated message still gets a stable key. */
   id: number
   kind: ConsoleEntryKind
-  /** Exactly what Klipper sent, prefixes intact, for the raw-output setting. */
+  /**
+   * Exactly what Klipper sent, prefixes intact, for the raw-output setting. Never
+   * parse it: a response may carry markup (see `markup.ts`), and a regex that
+   * matched `raw` would stop finding a reading the moment a macro wrapped it in
+   * a tag. Parsers read `text`.
+   */
   raw: string
   /** The same text with Klipper's prefixes removed — what is normally shown. */
   message: string
+  /** `raw` with any markup reduced to the words it carries, for parsers. */
+  text: string
   /** Epoch milliseconds. Backfilled entries carry Moonraker's own timestamp. */
   at: number
 }
@@ -33,12 +41,19 @@ export interface ConsoleEntry {
  * working on new output but not on old.
  */
 export function consoleEntryFromResponse(raw: string, id: number, at: number): ConsoleEntry {
-  return { id, kind: classifyResponse(raw), raw, message: cleanConsoleMessage(raw), at }
+  return {
+    id,
+    kind: classifyResponse(raw),
+    raw,
+    message: cleanConsoleMessage(raw),
+    text: consoleMarkupText(raw),
+    at,
+  }
 }
 
 /** Builds the entry for something the user sent. Never cleaned: it is their text. */
 export function consoleEntryFromCommand(raw: string, id: number, at: number): ConsoleEntry {
-  return { id, kind: 'command', raw, message: raw, at }
+  return { id, kind: 'command', raw, message: raw, text: raw, at }
 }
 
 export interface ConsoleFilterOptions {

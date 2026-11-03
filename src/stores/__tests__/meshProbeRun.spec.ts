@@ -18,6 +18,7 @@ async function say(...lines: string[]): Promise<void> {
         raw,
         kind: raw.startsWith('!!') ? 'error' : 'response',
         message: raw,
+        text: raw,
         at: 0,
       },
     ] as never

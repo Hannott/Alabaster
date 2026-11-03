@@ -411,7 +411,7 @@ export const useCalibrationStore = defineStore('calibration', () => {
         if (endsRun(run, entry)) break
         continue
       }
-      lines.push(entry.raw)
+      lines.push(entry.text)
     }
     return lines
   }

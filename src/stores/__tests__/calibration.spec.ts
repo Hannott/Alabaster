@@ -35,7 +35,7 @@ function say(raw: string, kind: 'response' | 'command' = 'response'): void {
   const last = gcodeConsole.consoleEntries.at(-1)?.id ?? 0
   gcodeConsole.consoleEntries = [
     ...gcodeConsole.consoleEntries,
-    { id: last + 1, raw, message: raw, kind, at: 0 },
+    { id: last + 1, raw, message: raw, text: raw, kind, at: 0 },
   ]
 }
 

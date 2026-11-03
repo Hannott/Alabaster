@@ -20,6 +20,7 @@ import {
 } from '@/dashboard/context'
 import { useConfirmationsStore } from '@/stores/confirmations'
 import { useConsoleStore } from '@/stores/console'
+import { useMoonrakerStore } from '@/stores/moonraker'
 import { usePrinterConfigStore } from '@/stores/printerConfig'
 import { usePrinterStore } from '@/stores/printer'
 
@@ -28,6 +29,7 @@ const { t } = useI18n({ useScope: 'global' })
 // flag and error for the `console` command key stay with the printer store's
 // command runner, which is where the dispatch actually happens.
 const gcodeConsole = useConsoleStore()
+const moonraker = useMoonrakerStore()
 const printer = usePrinterStore()
 const printerConfig = usePrinterConfigStore()
 const confirmations = useConfirmationsStore()
@@ -141,6 +143,7 @@ useDashboardModuleHeaderAction(
         :raw-output="rawOutput"
         :follow="followNewest"
         :newest-first="inputOnTop"
+        :link-base="moonraker.endpoint"
         @command="prompt?.fill($event)"
       />
       <div class="console-module__prompt">

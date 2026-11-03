@@ -68,6 +68,25 @@ The console marks commands you sent, errors, and ordinary printer output
 distinctly, so a failure is easy to find when scrolling back through a long
 print.
 
+A macro can hand you more than text. One that writes a plot or a report can
+show the image right in the transcript, or link to it, and the link opens in a
+new tab. Calibration macros that chart their results use this, so you read the
+graph where the run finished instead of hunting for the file.
+
+If you write macros, emit the tags in your `RESPOND` message:
+
+```
+RESPOND MSG="<a href='/server/files/logs/plot.png'><img src='/server/files/logs/plot.png'></a>"
+```
+
+Give the file's path on the printer, as above, rather than a full address.
+Alabaster fills in the address it reached your printer on, so the same macro
+works through a reverse proxy, over a VPN, and on an Alabaster hosted
+somewhere other than the printer. Links, images, line breaks and bold or
+italic text are rendered; anything else is shown as text. Alabaster sizes the
+image to fit the transcript, so leave the size attributes out. Turn on **Show
+Klipper's own prefixes** to see the line exactly as your macro sent it.
+
 A command that takes minutes (heating the bed, calibrating a mesh, a probe
 accuracy run) holds the prompt until the printer answers. The send button
 pulses while it waits. Nothing queues behind it: your next line stays in the

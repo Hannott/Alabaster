@@ -170,6 +170,7 @@ function answer(lines: string[]): void {
       id: last + index + 1,
       raw,
       message: raw.replace(/^\/\/\s?/, ''),
+      text: raw,
       kind: 'response' as const,
       at: 0,
     })),
@@ -610,16 +611,18 @@ describe('Calibration view', () => {
 
     const gcodeConsole = useConsoleStore(pinia)
     gcodeConsole.consoleEntries = [
-      { id: 'a', raw: 'BED_MESH_CALIBRATE', kind: 'command', at: 0 },
+      { id: 'a', raw: 'BED_MESH_CALIBRATE', text: 'BED_MESH_CALIBRATE', kind: 'command', at: 0 },
       {
         id: 'b',
         raw: 'probe: at 10.000,10.000 bed will contact at z=1.000000',
+        text: 'probe: at 10.000,10.000 bed will contact at z=1.000000',
         kind: 'response',
         at: 0,
       },
       {
         id: 'c',
         raw: 'probe: at 50.000,10.000 bed will contact at z=1.040000',
+        text: 'probe: at 50.000,10.000 bed will contact at z=1.040000',
         kind: 'response',
         at: 0,
       },
@@ -660,7 +663,7 @@ describe('Calibration view', () => {
 
     // No mesh has ever been saved, so nothing is drawn yet.
     gcodeConsole.consoleEntries = [
-      { id: 'a', raw: 'BED_MESH_CALIBRATE', kind: 'command', at: 0 },
+      { id: 'a', raw: 'BED_MESH_CALIBRATE', text: 'BED_MESH_CALIBRATE', kind: 'command', at: 0 },
     ] as never
     await flushPromises()
     expect(view.find('.mesh-stage').exists()).toBe(false)
@@ -670,6 +673,7 @@ describe('Calibration view', () => {
       {
         id: 'b',
         raw: 'probe: at 10.000,10.000 bed will contact at z=1.000000',
+        text: 'probe: at 10.000,10.000 bed will contact at z=1.000000',
         kind: 'response',
         at: 0,
       },

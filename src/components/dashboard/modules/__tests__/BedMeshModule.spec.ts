@@ -130,7 +130,7 @@ function mountModule(
 async function say(gcodeConsole: ReturnType<typeof useConsoleStore>, raw: string): Promise<void> {
   gcodeConsole.consoleEntries = [
     ...gcodeConsole.consoleEntries,
-    { id: raw + gcodeConsole.consoleEntries.length, raw, kind: 'response', at: 0 },
+    { id: raw + gcodeConsole.consoleEntries.length, raw, text: raw, kind: 'response', at: 0 },
   ] as never
 }
 

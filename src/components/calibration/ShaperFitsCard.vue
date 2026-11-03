@@ -36,7 +36,7 @@ const fromTranscript = computed(() =>
     : shaperFits(
         gcodeConsole.consoleEntries
           .filter((entry) => entry.kind !== 'command')
-          .map((entry) => entry.raw),
+          .map((entry) => entry.text),
       ),
 )
 const axes = computed(() => (fromRun.value.length > 0 ? fromRun.value : fromTranscript.value))
