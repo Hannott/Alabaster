@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 import AppButton from '@/components/AppButton.vue'
 import AppIcon from '@/components/AppIcon.vue'
 import AvailabilityRegion from '@/components/AvailabilityRegion.vue'
+import ConfigExportDialog from '@/components/ConfigExportDialog.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import ImageViewer from '@/components/ImageViewer.vue'
 import PageHeading from '@/components/PageHeading.vue'
@@ -61,6 +62,7 @@ import { useDocumentationSiteStore } from '@/stores/documentationSite'
 import {
   PRIMARY_CONFIG,
   useMachineFilesStore,
+  type ConfigExportScope,
   type ContentSearchMatch,
   type MachineFileEntry,
   type MachineFileRoot,
@@ -162,6 +164,7 @@ const pendingFileOpen = ref<PendingFileOpen | null>(null)
 const pendingRestartWithUnsaved = ref(false)
 const pendingDiscard = ref(false)
 const pendingSaveAll = ref(false)
+const exportDialogOpen = ref(false)
 const pendingDiscardAll = ref(false)
 /** Whether the explorer column is hidden beside an open file, on a wide screen. */
 const explorerHidden = ref(localStorage.getItem(explorerHiddenStorageKey) === 'true')
@@ -942,17 +945,27 @@ function downloadEntry(entry: MachineFileEntry): void {
   link.remove()
 }
 
-async function exportConfiguration(): Promise<void> {
-  const archive = await machineFiles.exportConfigArchive()
-  if (!archive) return
-  const url = URL.createObjectURL(archive)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = `config-${new Date().toISOString().slice(0, 10)}.zip`
-  document.body.appendChild(link)
-  link.click()
-  link.remove()
-  URL.revokeObjectURL(url)
+function exportConfiguration(scope: ConfigExportScope): void {
+  void machineFiles.exportConfigArchive((archive) => {
+    const url = URL.createObjectURL(archive)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `config-${new Date().toISOString().slice(0, 10)}.zip`
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    URL.revokeObjectURL(url)
+  }, scope)
+  // The store publishes its progress before its first request, so the dialog
+  // is held open by that from here on and the choice state has nothing left
+  // to hold open.
+  exportDialogOpen.value = false
+}
+
+/** Before a choice, Cancel closes the dialog; during the export it stops the export. */
+function cancelExport(): void {
+  machineFiles.cancelExport()
+  exportDialogOpen.value = false
 }
 
 function requestDeleteEntry(entry: MachineFileEntry): void {
@@ -2554,10 +2567,11 @@ onBeforeUnmount(() => {
                 icon-only
                 on-soft
                 icon="download"
+                aria-haspopup="dialog"
                 :disabled="!moonrakerAvailability.isAvailable || machineFiles.isMutating"
                 :aria-label="t('configuration.actions.exportAll')"
                 :title="t('configuration.actions.exportAll')"
-                @click="exportConfiguration"
+                @click="exportDialogOpen = true"
               />
               <input
                 ref="uploadInput"
@@ -2852,6 +2866,13 @@ onBeforeUnmount(() => {
       @confirm="confirmDiscardAll"
       @cancel="pendingDiscardAll = false"
       @skip="confirmations.setSkip('discardAllFiles', true)"
+    />
+
+    <ConfigExportDialog
+      :open="exportDialogOpen || machineFiles.exportProgress !== null"
+      :progress="machineFiles.exportProgress"
+      @export="exportConfiguration"
+      @cancel="cancelExport"
     />
 
     <ConfirmDialog

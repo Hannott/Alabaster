@@ -2428,7 +2428,18 @@
       "newFileDefault": "ny-konfigurasjon.cfg",
       "newFolderPrompt": "Gi den nye mappen et navn",
       "collapseAll": "Fold sammen alle mapper",
-      "exportAll": "Last ned alt som ZIP"
+      "exportAll": "Last ned som ZIP"
+    },
+    "exportDialog": {
+      "title": "Last ned som ZIP",
+      "description": "Leses fra skriveren slik de er, så ulagrede endringer er ikke med. Konfigurasjonsfiler er .cfg og .conf.",
+      "all": "Last ned alle filer",
+      "configOnly": "Last ned bare konfigurasjonsfiler",
+      "listing": "Lister opp filene",
+      "reading": "Leser fil {current} av {total}",
+      "packing": "Pakker arkivet",
+      "handoff": "Starter nedlastingen",
+      "progress": "Eksportframdrift"
     },
     "contextMenu": {
       "label": "Handlinger for {name}",

@@ -3,13 +3,14 @@ import { computed, ref, watch, type WatchStopHandle } from 'vue'
 
 import {
   classifyFileKind,
+  fileExtension,
   isLargeFile,
   PRIMARY_CONFIG,
   type MachineFileKind,
 } from '@/features/machine/fileKind'
 import { withBaseHref } from '@/features/machine/htmlPreview'
 import { isKlippyLogName } from '@/features/machine/klippyLog'
-import { createZipArchive } from '@/features/machine/zipArchive'
+import { createZipArchive, type ZipEntry } from '@/features/machine/zipArchive'
 import {
   addConfigInclude,
   findIncludeRewrite,
@@ -85,6 +86,24 @@ export interface OpenFileOptions {
 
 export type MachineFileError =
   'directory' | 'file' | 'save' | 'saveAll' | 'mutation' | 'restart' | 'export' | null
+
+/** Everything under the config root, or only the `.cfg` and `.conf` files Klipper and Moonraker read. */
+export type ConfigExportScope = 'all' | 'config'
+
+const CONFIG_FILE_EXTENSIONS = new Set(['cfg', 'conf'])
+
+/**
+ * Where a configuration export stands, for the dialog that shows it. `total`
+ * is known only once the listing has answered, so `listing` carries nothing to
+ * draw a bar from; `reading` counts the files already read, with the one in
+ * flight named; `packing` and `handoff` have a total but nothing left to count.
+ */
+export type ConfigExportProgress = { scope: ConfigExportScope } & (
+  | { phase: 'listing' }
+  | { phase: 'reading'; read: number; total: number; path: string }
+  | { phase: 'packing'; total: number }
+  | { phase: 'handoff'; total: number }
+)
 export type MachineFileNotice =
   | 'saved'
   | 'savedRestarting'
@@ -258,6 +277,8 @@ export const useMachineFilesStore = defineStore('machineFiles', () => {
   const isMutating = ref(false)
   const lastError = ref<MachineFileError>(null)
   const notice = ref<MachineFileNotice>(null)
+  const exportProgress = ref<ConfigExportProgress | null>(null)
+  let exportAbort: AbortController | null = null
   let directoryGeneration = 0
   let fileGeneration = 0
   let started = false
@@ -1098,28 +1119,74 @@ export const useMachineFilesStore = defineStore('machineFiles', () => {
    * from the editor's buffers: a backup is what Klipper would load, and an
    * unsaved edit is not part of that. All or nothing — a backup missing a file
    * it appears to contain is worse than no backup — so one failed read reports
-   * an error and returns null.
+   * an error and nothing is delivered.
+   *
+   * The files are read one at a time rather than all at once so that
+   * `exportProgress` can count them. A root of a few dozen files takes long
+   * enough over a Pi's HTTP that the click used to read as a dead button, and
+   * a count is only worth reporting if it is one the reader can watch move.
+   * `deliver` runs while the progress still reads `handoff`, so the dialog
+   * showing it closes only once the browser has been handed the archive.
+   *
+   * The `config` scope keeps only `.cfg` and `.conf`: a root that also holds
+   * resonance plots and KlipperScreen assets is many megabytes of which the
+   * part worth restoring is a few kilobytes of text.
    */
-  async function exportConfigArchive(): Promise<Blob | null> {
-    if (!availability.isMoonrakerConnected || isMutating.value) return null
+  async function exportConfigArchive(
+    deliver: (archive: Blob) => void,
+    scope: ConfigExportScope = 'all',
+  ): Promise<boolean> {
+    if (!availability.isMoonrakerConnected || isMutating.value) return false
     isMutating.value = true
     clearFeedback()
+    const abort = new AbortController()
+    exportAbort = abort
+    const fetcher: typeof fetch = (input, init) => fetch(input, { ...init, signal: abort.signal })
+    exportProgress.value = { scope, phase: 'listing' }
     try {
-      const files = await moonraker.rpcCall('server.files.list', { root: 'config' })
-      const entries = await Promise.all(
-        files.map(async (file) => {
-          const path = normalizeMoonrakerRelativePath(file.path)
-          const data = await fetchMoonrakerBinaryFile('config', path, moonraker.endpoint)
-          return { path, data, modified: file.modified }
-        }),
-      )
-      return createZipArchive(entries)
+      const listed = await moonraker.rpcCall('server.files.list', { root: 'config' })
+      const files = listed
+        .map((file) => ({
+          path: normalizeMoonrakerRelativePath(file.path),
+          modified: file.modified,
+        }))
+        .filter((file) => scope === 'all' || CONFIG_FILE_EXTENSIONS.has(fileExtension(file.path)))
+      const total = files.length
+      const entries: ZipEntry[] = []
+      for (const [index, { path, modified }] of files.entries()) {
+        if (abort.signal.aborted) return false
+        exportProgress.value = { scope, phase: 'reading', read: index, total, path }
+        const data = await fetchMoonrakerBinaryFile('config', path, moonraker.endpoint, fetcher)
+        entries.push({ path, data, modified })
+      }
+      if (abort.signal.aborted) return false
+      // Packing and the hand-off are synchronous; without a yield each phase
+      // would be set and replaced inside one task and never reach the screen.
+      exportProgress.value = { scope, phase: 'packing', total }
+      await yieldToRender()
+      const archive = createZipArchive(entries)
+      exportProgress.value = { scope, phase: 'handoff', total }
+      await yieldToRender()
+      deliver(archive)
+      return true
     } catch {
-      lastError.value = 'export'
-      return null
+      // A cancelled export is the reader's own decision, not a failure to report.
+      if (!abort.signal.aborted) lastError.value = 'export'
+      return false
     } finally {
+      if (exportAbort === abort) exportAbort = null
+      exportProgress.value = null
       isMutating.value = false
     }
+  }
+
+  function yieldToRender(): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, 0))
+  }
+
+  /** Stops an export in progress. The read in flight is abandoned, and nothing is delivered. */
+  function cancelExport(): void {
+    exportAbort?.abort()
   }
 
   /** The buffer for a config file, or undefined if it has never been loaded. */
@@ -1927,6 +1994,8 @@ export const useMachineFilesStore = defineStore('machineFiles', () => {
     discardChangesAt,
     listConfigFiles,
     exportConfigArchive,
+    exportProgress,
+    cancelExport,
     configBuffer,
     loadConfigFiles,
     setConfigBufferContent,

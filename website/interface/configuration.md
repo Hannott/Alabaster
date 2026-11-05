@@ -372,10 +372,13 @@ every one of these operations; Alabaster says so before you attempt it.
 
 ## Back up everything
 
-**Download all as ZIP** in the toolbar packs every file under the config root,
-subfolders included, into one archive. It reads the files as they are on the
-printer, so unsaved edits in the editor are not part of it. If any file cannot
-be read, nothing is downloaded.
+**Download as ZIP** in the toolbar packs the config root, subfolders included,
+into one archive: either every file, or only the `.cfg` and `.conf` files,
+which leaves out resonance plots, screenshots, and other large files kept
+beside the configuration. It reads the files as they are on the printer, so
+unsaved edits in the editor are not part of it. You can follow the files being
+read and cancel before the archive is packed; a cancelled export downloads
+nothing. If any file cannot be read, nothing is downloaded.
 
 ## Save new config
 

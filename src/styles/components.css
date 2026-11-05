@@ -5765,6 +5765,61 @@ input.z-axis__slider {
 }
 
 /*
+ * The configuration export: a choice, then the progress of the export it
+ * started (Shape 9 in dialog-system.md). A fixed width for the reason
+ * `.uploaded-file-dialog` has one — its body becomes a file path that changes
+ * under a reader who is already looking at it, and a box sized to its content
+ * would resize on every file. The frame holds still between the two phases
+ * through the body's own reserved rows rather than a `min-height` on the
+ * dialog: a status line, two lines for the path, and the bar's row are kept
+ * whether or not the current phase fills them, and a path that needs a third
+ * line yields downward, actions intact, the way the upload dialog does.
+ */
+.config-export-dialog {
+  width: min(32rem, calc(100vw - 2rem));
+  max-width: none;
+}
+
+.config-export-dialog__body {
+  display: grid;
+  gap: 0.4rem;
+  padding-block: 1rem 0.25rem;
+}
+
+.config-export-dialog__status {
+  min-height: 1.5em;
+  font-size: var(--text-small-size);
+  color: var(--text-muted);
+}
+
+/* A path is a value, so it takes the mono family; `anywhere` for the same
+   reason the upload dialog's filename does. */
+.config-export-dialog__path {
+  min-height: 3em;
+  overflow-wrap: anywhere;
+  font-family: var(--font-mono);
+  font-size: var(--text-small-size);
+  line-height: 1.5;
+}
+
+/* Reserves the bar's row before the listing has given it a total. */
+.config-export-dialog__progress {
+  min-height: 0.5rem;
+  margin-block-start: 0.45rem;
+}
+
+/*
+ * A stacked multi-choice actions grid, the same shape
+ * `uploaded-file-dialog__actions` is — duplicated rather than shared, because
+ * the dialogs merely look alike.
+ */
+.config-export-dialog__actions {
+  display: grid;
+  gap: 0.5rem;
+  margin-block-start: 1rem;
+}
+
+/*
  * The exact files an action will touch, one per line. Paths are values, so they
  * take the mono family, and a long list scrolls inside its own box rather than
  * growing the dialog past the viewport.

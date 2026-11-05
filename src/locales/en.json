@@ -2428,7 +2428,18 @@
       "newFileDefault": "new-config.cfg",
       "newFolderPrompt": "Name the new folder",
       "collapseAll": "Collapse all folders",
-      "exportAll": "Download all as ZIP"
+      "exportAll": "Download as ZIP"
+    },
+    "exportDialog": {
+      "title": "Download as ZIP",
+      "description": "Read from the printer as it is, so unsaved edits are not included. Config files are .cfg and .conf.",
+      "all": "Download all files",
+      "configOnly": "Download config files only",
+      "listing": "Listing the files",
+      "reading": "Reading file {current} of {total}",
+      "packing": "Packing the archive",
+      "handoff": "Starting the download",
+      "progress": "Export progress"
     },
     "contextMenu": {
       "label": "Actions for {name}",
