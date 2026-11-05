@@ -5,7 +5,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import NonlinearPressureAdvancePanel from '@/components/calibration/NonlinearPressureAdvancePanel.vue'
 import { i18n } from '@/i18n'
 import { useAvailabilityStore } from '@/stores/availability'
+import { consoleEntryFromResponse } from '@/services/console/transcript'
 import { useCalibrationStore } from '@/stores/calibration'
+import { useConsoleStore } from '@/stores/console'
 import { useMoonrakerStore } from '@/stores/moonraker'
 import { usePrinterStore } from '@/stores/printer'
 import { usePrinterConfigStore } from '@/stores/printerConfig'
@@ -155,6 +157,27 @@ describe('NonlinearPressureAdvancePanel', () => {
       'RUN_PA_TEST NOZZLE=0.4 TARGET_TEMP=210 BED_TEMP=60 TESTPARAM=1',
       'calibration',
     )
+  })
+
+  it('shows where a printing tower has got to from the status Kalico answers each step with', async () => {
+    seed(directStart)
+    const gcodeConsole = useConsoleStore(pinia)
+    gcodeConsole.consoleEntries = [
+      consoleEntryFromResponse('// Starting tuning test (start=0.000000 factor=0.010000)', 1, 1),
+      ...[0.05, 0.091].map((offset, index) =>
+        consoleEntryFromResponse(
+          `// pressure_advance_model: recipr\n// linear_advance: 0.000000\n// nonlinear_offset: ${offset}`,
+          index + 2,
+          index + 2,
+        ),
+      ),
+    ]
+    const panel = await mountPanel()
+    expect(tab(panel, 'Offset').attributes('aria-pressed')).toBe('true')
+    const status = panel.find('.calibration-npa__value')
+    expect(status.text()).toContain('nonlinear_offset')
+    expect(status.text()).toContain('0.091')
+    expect(status.text()).toContain('at 9.1 mm · step 2')
   })
 
   it('turns a side height into a value and suggests the next tower', async () => {

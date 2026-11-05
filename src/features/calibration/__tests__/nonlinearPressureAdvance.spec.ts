@@ -14,6 +14,7 @@ import {
   sessionReadings,
   startingChanges,
   suggestFor,
+  towerSweep,
   valueAtHeight,
   type NpaReading,
 } from '@/features/calibration/nonlinearPressureAdvance'
@@ -304,5 +305,53 @@ describe('session', () => {
     expect(sessionReadings(entries)).toEqual([original])
     expect(sessionPath(entries)).toBe('direct')
     expect(readingFromValues(1, { kind: 'reading', path: 'direct' })).toBeNull()
+  })
+})
+
+describe('towerSweep', () => {
+  // Kalico's answer to each step, exactly as the console receives it.
+  const status = (offset: number, advance = 0) => ({
+    kind: 'response',
+    text: [
+      '// pressure_advance_model: tanh',
+      `// linear_advance: ${advance.toFixed(6)}`,
+      `// nonlinear_offset: ${offset.toFixed(6)}`,
+      '// linearization_velocity: 1.000000',
+      '// pressure_advance_smooth_time: 0.020000',
+      '// pressure_advance_time_offset:',
+    ].join('\n'),
+  })
+  const anchor = {
+    kind: 'response',
+    text: '// Starting tuning test (start=0.000000 factor=0.010000)',
+  }
+
+  it('turns the latest step into the height it sits at on the tower', () => {
+    const sweep = towerSweep([anchor, status(0.029), status(0.031), status(0.035)])
+    expect(sweep).toMatchObject({ tower: 'offset', value: 0.035, step: 3 })
+    expect(sweep?.height).toBeCloseTo(3.5)
+  })
+
+  it('still names the value once the anchor has left the transcript', () => {
+    expect(towerSweep([status(0.029, 0.28), status(0.031, 0.28)])).toEqual({
+      tower: 'offset',
+      value: 0.031,
+      height: null,
+      step: null,
+    })
+  })
+
+  it('joins a status that arrives one line per response', () => {
+    const split = (offset: number) =>
+      status(offset)
+        .text.split('\n')
+        .map((text) => ({ kind: 'response', text }))
+    expect(towerSweep([anchor, ...split(0.01), ...split(0.02)])?.height).toBe(2)
+  })
+
+  it('reads nothing before the tower has taken two steps, or from a status that never changes', () => {
+    expect(towerSweep([anchor, status(0.01)])).toBeNull()
+    expect(towerSweep([anchor, status(0.01), status(0.01)])).toBeNull()
+    expect(towerSweep([status(0.2), anchor])).toBeNull()
   })
 })

@@ -579,3 +579,94 @@ export function sessionPath(
   }
   return null
 }
+
+/*
+ * ------------------------------------------------------------------ live sweep
+ *
+ * `TUNING_TOWER` runs `SET_PRESSURE_ADVANCE` at every step of a tower, and
+ * Kalico answers each one with the extruder's whole pressure advance status,
+ * one `option: value` line per coefficient. Read back from the transcript,
+ * that is the value the tower is printing right now.
+ *
+ * The anchor is Klipper's own `Starting tuning test` line rather than the
+ * `RUN_PA_TEST` that was sent: the firmware prints it however the tower was
+ * started, and its `start` and `factor` turn a value straight into a height.
+ * The console's backfill after a reload is only Moonraker's last hundred
+ * lines, which a tower's status blocks outrun long before it finishes; past
+ * the anchor, the swept coefficient is still the one that changes from block
+ * to block, but its height can no longer be worked out.
+ */
+
+export interface TowerSweep {
+  tower: NpaTower
+  /** The swept coefficient at the latest step. */
+  value: number
+  /** Where on the tower that value is, or null once the anchor has left the transcript. */
+  height: number | null
+  /** Steps since the anchor, or null without one. */
+  step: number | null
+}
+
+interface TranscriptLine {
+  kind: string
+  text: string
+}
+
+const tuningStartPattern = /Starting tuning test \(start=(\S+) factor=([^\s)]+)\)/
+const statusLinePattern = /^(?:\/\/\s*)?([a-z_]+):\s*(\S*)\s*$/
+
+/**
+ * Each status block's lines, keyed by option. A block starts at
+ * `pressure_advance_model`, whether Kalico's answer arrives as one multi-line
+ * response or one response per line.
+ */
+function statusBlocks(lines: readonly TranscriptLine[]): Record<string, string>[] {
+  const blocks: Record<string, string>[] = []
+  for (const line of lines) {
+    if (line.kind === 'command') continue
+    for (const text of line.text.split('\n')) {
+      const match = statusLinePattern.exec(text.trim())
+      if (!match) continue
+      const [, option, value] = match as unknown as [string, string, string]
+      if (option === 'pressure_advance_model') blocks.push({})
+      const block = blocks.at(-1)
+      if (block) block[option] = value
+    }
+  }
+  return blocks
+}
+
+/** The tower in the transcript and where it has got to, or null before it has taken two steps. */
+export function towerSweep(lines: readonly TranscriptLine[]): TowerSweep | null {
+  let anchor = -1
+  let start: number | null = null
+  let factor: number | null = null
+  for (let index = lines.length - 1; index >= 0; index -= 1) {
+    const line = lines[index]!
+    if (line.kind === 'command') continue
+    const match = tuningStartPattern.exec(line.text)
+    if (match) {
+      anchor = index
+      start = optionalNumber(match[1])
+      factor = optionalNumber(match[2])
+      break
+    }
+  }
+  const blocks = statusBlocks(lines.slice(anchor + 1))
+  if (blocks.length < 2) return null
+  const latest = blocks.at(-1)!
+  const previous = blocks.at(-2)!
+  const tower = (Object.keys(towerOption) as NpaTower[]).find((candidate) => {
+    const option = towerOption[candidate]
+    return latest[option] !== previous[option] && optionalNumber(latest[option]) !== null
+  })
+  if (tower === undefined) return null
+  const value = optionalNumber(latest[towerOption[tower]])!
+  const anchored = anchor >= 0 && start !== null && factor !== null && factor !== 0
+  return {
+    tower,
+    value,
+    height: anchored ? Math.max(0, (value - start!) / factor!) : null,
+    step: anchor >= 0 ? blocks.length : null,
+  }
+}

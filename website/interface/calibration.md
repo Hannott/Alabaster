@@ -534,6 +534,10 @@ the nonlinear model does not read.
    reading found, also after a reload. **Tower settings** edits the tower's
    size, layers, and test speeds in `[pa_test]` and restarts Klipper. Values
    Kalico would refuse to start with are caught before anything is written.
+   While the tower prints, the panel shows the value it is printing now and
+   the height that value sits at, so you know where to look on the finished
+   tower. This works after a reload and for a tower started from another
+   browser.
 3. Enter the height where the tower looks best, on the left side, the front, or
    both, depending on the tower. The value at that height appears straight
    away.

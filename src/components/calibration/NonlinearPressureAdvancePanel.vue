@@ -36,6 +36,7 @@ import {
   suggestFor,
   towerOption,
   towerReads,
+  towerSweep,
   type NonlinearModel,
   type NpaOption,
   type NpaPath,
@@ -44,6 +45,7 @@ import {
   type NpaSuggestion,
   type NpaTower,
 } from '@/features/calibration/nonlinearPressureAdvance'
+import { formatNumber } from '@/features/calibration/axisRotation'
 import { procedureById } from '@/features/calibration/procedures'
 import {
   paTestChanges,
@@ -56,6 +58,7 @@ import {
 } from '@/features/calibration/paTestSettings'
 import { useCalibrationStore, type PersistActionOutcome } from '@/stores/calibration'
 import { useConfirmationsStore } from '@/stores/confirmations'
+import { useConsoleStore } from '@/stores/console'
 import { usePrinterStore } from '@/stores/printer'
 import { usePrinterConfigStore } from '@/stores/printerConfig'
 
@@ -282,6 +285,27 @@ async function printTower(): Promise<void> {
     printed.value = null
   }
 }
+
+/*
+ * Where the tower has got to, read off Kalico's status answer to each step,
+ * as the height the reader will be looking for on the printed tower.
+ */
+const gcodeConsole = useConsoleStore()
+const sweep = computed(() => towerSweep(gcodeConsole.consoleEntries))
+const sweepNow = computed(() => {
+  const current = sweep.value
+  if (!current || current.tower !== activeTower.value) return null
+  const details = [
+    current.height === null
+      ? null
+      : t('calibration.npa.tower.sweepHeight', { height: formatNumber(current.height, 1) }),
+    current.step === null ? null : t('calibration.npa.tower.sweepStep', { step: current.step }),
+  ]
+  return {
+    value: formatTowerValue(current.tower, current.value),
+    details: details.filter((detail) => detail !== null).join(' · '),
+  }
+})
 
 // A note says what the last write on this tower did; on another tower it describes nothing.
 watch(tab, () => {
@@ -822,6 +846,12 @@ const writeDisabled = computed(
       </div>
       <p v-if="printed === tab" class="calibration-panel__hint" role="status">
         {{ t('calibration.npa.tower.printed') }}
+      </p>
+      <p v-if="sweepNow" class="calibration-npa__value" role="status">
+        <span class="calibration-panel__hint">{{ t('calibration.npa.tower.sweep') }}</span>
+        <span class="calibration-workspace__command">{{ towerOption[tab] }}</span>
+        <span class="calibration-result__number">{{ sweepNow.value }}</span>
+        <span v-if="sweepNow.details" class="calibration-panel__hint">{{ sweepNow.details }}</span>
       </p>
 
       <div class="calibration-step__controls">
