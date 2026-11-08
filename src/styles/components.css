@@ -3531,10 +3531,77 @@ input[type='number']::-webkit-inner-spin-button {
 .preset-row {
   display: grid;
   min-width: 0;
-  grid-template-columns: minmax(0, 1fr) 4rem 4rem 2.25rem;
+  grid-template-columns: 1rem minmax(0, 1fr) 4rem 4rem auto 2.25rem;
   align-items: center;
   gap: 0.35rem;
   margin-bottom: 0.35rem;
+  border-radius: 0.3rem;
+}
+
+/*
+ * The grip alone is the drag source, not the row: a draggable ancestor turns a
+ * mouse drag inside the name field into a row drag instead of a text
+ * selection. Not focusable, for the reason interface-standards.md gives for
+ * every drag handle — the move pair beside it is the keyboard and touch path.
+ */
+.preset-row__grip {
+  display: flex;
+  justify-content: center;
+  color: var(--text-muted);
+  cursor: grab;
+}
+
+.preset-row--dragging {
+  opacity: 0.45;
+}
+
+/* Inset, like `.macro-row--drop-target`, so the list never reflows mid-drag. */
+.preset-row--drop-target {
+  box-shadow: inset 0 0 0 2px var(--action-primary);
+}
+
+/*
+ * Quiet at rest for the macro list's reason: reordering is rare next to
+ * editing a temperature, and an always-visible pair per row would crowd the
+ * fields. Revealed on hover, on keyboard focus within the row, and always where
+ * there is no hover.
+ */
+.preset-row__reorder {
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+  opacity: 0;
+  transition: opacity var(--motion-duration-fast) var(--motion-ease-standard);
+}
+
+.preset-row:hover .preset-row__reorder,
+.preset-row:has(.preset-row__reorder :focus-visible) .preset-row__reorder {
+  opacity: 1;
+}
+
+/*
+ * Native drag fires nothing for touch, so on a touch screen the grip would be
+ * a dead glyph taking width from the name — the move pair is the whole
+ * reorder there.
+ */
+@media (hover: none) {
+  .preset-row {
+    grid-template-columns: minmax(0, 1fr) 4rem 4rem auto 2.25rem;
+  }
+
+  .preset-row__grip {
+    display: none;
+  }
+
+  .preset-row__reorder {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .preset-row__reorder {
+    transition: none;
+  }
 }
 
 /*

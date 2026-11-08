@@ -1640,6 +1640,8 @@
       "presetHotend": "Hotend temperature",
       "presetBed": "Bed temperature",
       "presetRemove": "Remove {preset}",
+      "presetMoveEarlier": "Move {preset} earlier",
+      "presetMoveLater": "Move {preset} later",
       "presetUnnamed": "unnamed preset",
       "presetAdd": "Add preset",
       "presetAddFromCatalogue": "Search catalogue",

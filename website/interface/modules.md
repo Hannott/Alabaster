@@ -194,7 +194,8 @@ so the chart is not empty for the first ten minutes.
 
 Material presets are buttons that set the hot end and bed together. Add your
 own presets, or **search the catalogue** to pull real values for a filament.
-Leave one of a preset's two temperatures blank, and pressing the preset
+Drag a preset by its grip, or use its arrows, to put the ones you use most
+first. Leave one of a preset's two temperatures blank, and pressing the preset
 leaves that heater unchanged. This is useful for a filament that only
 specifies the hot end temperature.
 

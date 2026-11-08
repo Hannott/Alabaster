@@ -1640,6 +1640,8 @@
       "presetHotend": "Dysetemperatur",
       "presetBed": "Bedtemperatur",
       "presetRemove": "Fjern {preset}",
+      "presetMoveEarlier": "Flytt {preset} tidligere",
+      "presetMoveLater": "Flytt {preset} senere",
       "presetUnnamed": "forvalg uten navn",
       "presetAdd": "Legg til forvalg",
       "presetAddFromCatalogue": "Søk i katalogen",

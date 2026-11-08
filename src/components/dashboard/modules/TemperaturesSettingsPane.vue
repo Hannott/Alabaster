@@ -96,6 +96,20 @@ function limitFor(objectName: string): number {
 }
 
 /**
+ * A row identity that survives a reorder. Keyed by index, a moved row's inputs
+ * and buttons stayed where they were and only their contents swapped, so focus
+ * stayed on the move button at the old position — a second press of "earlier"
+ * moved the preset that had just been displaced, back down.
+ */
+type PresetRow = TemperaturePresetDraft & { key: number }
+
+let nextPresetKey = 0
+
+function keyed(draft: TemperaturePresetDraft): PresetRow {
+  return { ...draft, key: nextPresetKey++ }
+}
+
+/**
  * The rows being edited, held here rather than read back out of the card's
  * configuration on every render.
  *
@@ -107,7 +121,7 @@ function limitFor(objectName: string): number {
  * and possible against every fixture. The surface mounts this pane fresh each
  * time it opens, so seeding once is the whole of the synchronisation needed.
  */
-const presetDrafts = ref<TemperaturePresetDraft[]>(readPresetDrafts(config.value))
+const presetDrafts = ref<PresetRow[]>(readPresetDrafts(config.value).map(keyed))
 const presetList = ref<HTMLElement | null>(null)
 
 /**
@@ -124,6 +138,73 @@ function removePreset(index: number): void {
   commitPresets()
 }
 
+function reorderPreset(from: number, to: number): void {
+  if (from === to || to < 0 || to >= presetDrafts.value.length) return
+  const next = [...presetDrafts.value]
+  const [moved] = next.splice(from, 1)
+  if (!moved) return
+  next.splice(to, 0, moved)
+  presetDrafts.value = next
+  commitPresets()
+}
+
+/**
+ * Moving a keyed row moves its DOM node, which drops focus from the button
+ * that was pressed. Put it back on the same button in the row's new place, or
+ * on the other one once the row reaches an end and this one disables.
+ */
+async function movePreset(index: number, direction: -1 | 1): Promise<void> {
+  const key = presetDrafts.value[index]?.key
+  reorderPreset(index, index + direction)
+  await nextTick()
+  const buttons = presetList.value?.querySelectorAll<HTMLButtonElement>(
+    `[data-preset-key="${key}"] .preset-row__reorder button`,
+  )
+  const pressed = buttons?.[direction === -1 ? 0 : 1]
+  const other = buttons?.[direction === -1 ? 1 : 0]
+  ;(pressed && !pressed.disabled ? pressed : other)?.focus()
+}
+
+/**
+ * Native HTML5 drag, as in Macros' settings pane, and for the same reason the
+ * DOM stays put until `drop`: reordering the keyed rows under a live native
+ * drag session cancels it. Only the hovered row is tracked meanwhile.
+ */
+const draggingPreset = ref<number | null>(null)
+const presetDropTarget = ref<number | null>(null)
+
+function onPresetDragStart(key: number, event: DragEvent): void {
+  draggingPreset.value = key
+  presetDropTarget.value = null
+  if (!event.dataTransfer) return
+  event.dataTransfer.setData('text/plain', '')
+  event.dataTransfer.effectAllowed = 'move'
+  // The grip is the drag source, but what is being moved is the whole row.
+  const row = (event.currentTarget as HTMLElement).closest<HTMLElement>('.preset-row')
+  if (row) event.dataTransfer.setDragImage(row, 8, row.offsetHeight / 2)
+}
+
+function onPresetDragOver(key: number, event: DragEvent): void {
+  if (draggingPreset.value === null || draggingPreset.value === key) return
+  event.preventDefault()
+  if (event.dataTransfer) event.dataTransfer.dropEffect = 'move'
+  presetDropTarget.value = key
+}
+
+function onPresetDrop(event: DragEvent): void {
+  event.preventDefault()
+  const keys = presetDrafts.value.map((row) => row.key)
+  const from = draggingPreset.value === null ? -1 : keys.indexOf(draggingPreset.value)
+  const to = presetDropTarget.value === null ? -1 : keys.indexOf(presetDropTarget.value)
+  if (from >= 0 && to >= 0) reorderPreset(from, to)
+  onPresetDragEnd()
+}
+
+function onPresetDragEnd(): void {
+  draggingPreset.value = null
+  presetDropTarget.value = null
+}
+
 /**
  * An unnamed row is not yet a button on the card, so without the caret landing
  * in it the new row is easy to miss and either entry point reads as having
@@ -137,7 +218,7 @@ async function focusNewPresetRow(): Promise<void> {
 }
 
 async function addPreset(): Promise<void> {
-  presetDrafts.value = [...presetDrafts.value, { name: '', extruder: '200', bed: '60' }]
+  presetDrafts.value = [...presetDrafts.value, keyed({ name: '', extruder: '200', bed: '60' })]
   commitPresets()
   await focusNewPresetRow()
 }
@@ -162,11 +243,11 @@ async function addPresetFromCatalogue(filament: {
   catalogueDialogOpen.value = false
   presetDrafts.value = [
     ...presetDrafts.value,
-    {
+    keyed({
       name: filament.name,
       extruder: filament.extruder === null ? '' : String(filament.extruder),
       bed: filament.bed === null ? '' : String(filament.bed),
-    },
+    }),
   ]
   commitPresets()
   await focusNewPresetRow()
@@ -366,7 +447,26 @@ function toggleSeries(objectName: string): void {
     divided
   >
     <div ref="presetList">
-      <div v-for="(draft, index) in presetDrafts" :key="`preset-${index}`" class="preset-row">
+      <div
+        v-for="(draft, index) in presetDrafts"
+        :key="`preset-${draft.key}`"
+        class="preset-row"
+        :data-preset-key="draft.key"
+        :class="{
+          'preset-row--dragging': draggingPreset === draft.key,
+          'preset-row--drop-target': draggingPreset !== null && presetDropTarget === draft.key,
+        }"
+        @dragover="onPresetDragOver(draft.key, $event)"
+        @drop="onPresetDrop($event)"
+      >
+        <span
+          class="preset-row__grip"
+          draggable="true"
+          @dragstart="onPresetDragStart(draft.key, $event)"
+          @dragend="onPresetDragEnd"
+        >
+          <AppIcon name="drag" class="size-4" aria-hidden="true" />
+        </span>
         <input
           v-model="draft.name"
           class="field field--sm"
@@ -403,6 +503,30 @@ function toggleSeries(objectName: string): void {
           data-bwignore
           @change="commitPresets"
         />
+        <div class="preset-row__reorder">
+          <AppButton
+            variant="quiet"
+            size="xs"
+            icon-only
+            icon="up"
+            :disabled="index === 0"
+            :title="t('dashboard.temperature.presetMoveEarlier', { preset: presetLabel(draft) })"
+            :aria-label="
+              t('dashboard.temperature.presetMoveEarlier', { preset: presetLabel(draft) })
+            "
+            @click="movePreset(index, -1)"
+          />
+          <AppButton
+            variant="quiet"
+            size="xs"
+            icon-only
+            icon="down"
+            :disabled="index === presetDrafts.length - 1"
+            :title="t('dashboard.temperature.presetMoveLater', { preset: presetLabel(draft) })"
+            :aria-label="t('dashboard.temperature.presetMoveLater', { preset: presetLabel(draft) })"
+            @click="movePreset(index, 1)"
+          />
+        </div>
         <AppButton
           variant="danger-quiet"
           size="sm"

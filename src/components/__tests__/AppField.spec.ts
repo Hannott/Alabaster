@@ -3,6 +3,7 @@ import { join } from 'node:path'
 
 import { mount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
+import { nextTick } from 'vue'
 
 import AppField from '@/components/AppField.vue'
 import { i18n } from '@/i18n'
@@ -400,6 +401,28 @@ describe('AppField', () => {
 
     expect(wrapper.emitted('commit')).toEqual([[205.5]])
     expect((input.element as HTMLInputElement).value).toBe('205.5')
+  })
+
+  it('selects the committed value so the next one types over it', async () => {
+    // A text field because jsdom reports no selection range on a number input;
+    // the component calls the same `select()` for both.
+    const wrapper = mount(AppField, {
+      props: { label: 'Target X', modelValue: 'a', type: 'text' },
+      global: { plugins: [i18n] },
+      attachTo: document.body,
+    })
+    const input = wrapper.get('input')
+    const element = input.element as HTMLInputElement
+
+    element.focus()
+    await type(input, '150')
+    element.setSelectionRange(3, 3)
+    await pressEnter(input)
+    await nextTick()
+
+    expect(element.selectionStart).toBe(0)
+    expect(element.selectionEnd).toBe(3)
+    wrapper.unmount()
   })
 
   it('renders a text field read-only without pretending it is disabled', () => {

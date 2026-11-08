@@ -53,7 +53,7 @@
  * move the toolhead to whatever was typed on the way to a target the user
  * changed their mind about.
  */
-import { computed, getCurrentInstance, ref, watch } from 'vue'
+import { computed, getCurrentInstance, nextTick, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import AppButton from '@/components/AppButton.vue'
@@ -347,13 +347,22 @@ function onInput(event: Event): void {
  * Enter, not a browser `change` event: `change` fires on blur too, the instant
  * a modified field loses focus, and blur is exactly the case this commits on
  * purpose does *not* — see the class-level comment.
+ *
+ * The committed text is left selected, so the next value types straight over
+ * it: a field that is the command — Movement's axis boxes above all — is
+ * usually committed several times in a row, and a caret parked after the old
+ * number made each new target start with clearing the box by hand.
  */
-function onEnter(): void {
+function onEnter(event: KeyboardEvent): void {
   const parsed = parse(draft.value)
   // A real commit is what advances `committed` for a one-way caller — see its
   // own comment. `null` (an emptied box) commits nothing to advance to.
   if (parsed !== null) committed.value = parsed
   emit('commit', parsed)
+  const input = event.currentTarget as HTMLInputElement
+  void nextTick(() => {
+    if (document.activeElement === input) input.select()
+  })
 }
 
 function onBlur(): void {

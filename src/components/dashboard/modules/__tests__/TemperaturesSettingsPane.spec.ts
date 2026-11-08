@@ -45,6 +45,7 @@ function reading(overrides: Partial<SensorReading> & { objectName: string }): Se
 function mountPane(
   options: {
     config?: Record<string, unknown>
+    attachTo?: HTMLElement
     configure?: (stores: {
       printer: ReturnType<typeof usePrinterStore>
       printerConfig: ReturnType<typeof usePrinterConfigStore>
@@ -65,6 +66,7 @@ function mountPane(
 
   const config = ref<Record<string, unknown>>(options.config ?? {})
   const wrapper = mount(TemperaturesSettingsPane, {
+    attachTo: options.attachTo,
     global: {
       plugins: [pinia, i18n],
       provide: {
@@ -86,6 +88,12 @@ function mountPane(
     },
   })
   return { printer, gcodeConsole, telemetry, printerConfig, wrapper, config, pinia }
+}
+
+function presetNames(wrapper: ReturnType<typeof mountPane>['wrapper']): string[] {
+  return wrapper
+    .findAll('.preset-row')
+    .map((row) => (row.findAll('input')[0]?.element as HTMLInputElement).value)
 }
 
 describe('TemperaturesSettingsPane', () => {
@@ -345,17 +353,65 @@ describe('TemperaturesSettingsPane', () => {
     const { wrapper, config } = mountPane()
     await flushPromises()
 
-    await wrapper.findAll('.preset-row')[1]?.get('button').trigger('click')
+    await wrapper
+      .findAll('.preset-row')[1]
+      ?.get('button[aria-label="Remove PETG"]')
+      .trigger('click')
     await flushPromises()
 
-    expect(
-      wrapper
-        .findAll('.preset-row')
-        .map((row) => (row.findAll('input')[0]?.element as HTMLInputElement).value),
-    ).toEqual(['PLA', 'ABS'])
+    expect(presetNames(wrapper)).toEqual(['PLA', 'ABS'])
     expect((config.value.presets as { name: string }[]).map((preset) => preset.name)).toEqual([
       'PLA',
       'ABS',
+    ])
+  })
+
+  /*
+   * Keyed by index, a moved row's inputs and buttons stayed put and only their
+   * contents swapped, so focus stayed at the old position and a second press of
+   * "earlier" moved the preset that had just been displaced back down.
+   */
+  it('moves a preset with its move buttons, and focus follows the moved row', async () => {
+    const { wrapper, config } = mountPane({ attachTo: document.body })
+    await flushPromises()
+
+    const earlier = wrapper.get('button[aria-label="Move ABS earlier"]')
+    ;(earlier.element as HTMLButtonElement).focus()
+    await earlier.trigger('click')
+    await flushPromises()
+    expect(presetNames(wrapper)).toEqual(['PLA', 'ABS', 'PETG'])
+
+    expect(document.activeElement?.getAttribute('aria-label')).toBe('Move ABS earlier')
+    await wrapper.get('button[aria-label="Move ABS earlier"]').trigger('click')
+    await flushPromises()
+
+    expect(presetNames(wrapper)).toEqual(['ABS', 'PLA', 'PETG'])
+    expect((config.value.presets as { name: string }[]).map((preset) => preset.name)).toEqual([
+      'ABS',
+      'PLA',
+      'PETG',
+    ])
+    expect(
+      wrapper.get('button[aria-label="Move ABS earlier"]').attributes('disabled'),
+    ).toBeDefined()
+    wrapper.unmount()
+  })
+
+  it('moves a preset dropped onto another row by its grip', async () => {
+    const { wrapper, config } = mountPane()
+    await flushPromises()
+
+    const rows = wrapper.findAll('.preset-row')
+    await rows[2]?.get('.preset-row__grip').trigger('dragstart')
+    await rows[0]?.trigger('dragover')
+    await rows[0]?.trigger('drop')
+    await flushPromises()
+
+    expect(presetNames(wrapper)).toEqual(['ABS', 'PLA', 'PETG'])
+    expect((config.value.presets as { name: string }[]).map((preset) => preset.name)).toEqual([
+      'ABS',
+      'PLA',
+      'PETG',
     ])
   })
 
