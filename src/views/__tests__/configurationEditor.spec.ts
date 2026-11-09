@@ -218,6 +218,77 @@ describe('the code editor renders a window, not a file', () => {
     )
   })
 
+  it('offers a value picker on a plain boolean value and flips it in one step', async () => {
+    const view = await openConfigFile({ attach: true })
+    const files = useMachineFilesStore(pinia)
+    files.editorContent = [
+      '[probe]',
+      'deactivate_on_each_sample: True',
+      '[gcode_macro START]',
+      'gcode:',
+      '  {% if true %}',
+      '  {% endif %}',
+    ].join('\n')
+    await nextTick()
+    await nextTick()
+
+    const values = view.findAll('.machine-value-picker__value')
+    expect(values.map((value) => value.text())).toEqual(['True'])
+    await view.find('.machine-value-picker .text-action').trigger('click')
+    await nextTick()
+    const options = [...document.querySelectorAll('.machine-value-picker__panel [role="option"]')]
+    expect(options.map((option) => option.textContent?.trim())).toEqual(['True', 'False'])
+    ;(options[1] as HTMLElement).click()
+    await nextTick()
+
+    expect(files.editorContent.split('\n')[1]).toBe('deactivate_on_each_sample: False')
+    expect(document.querySelector('.machine-value-picker__panel')).toBeNull()
+
+    // Straight back, without touching anything else: the chevron must offer the new value's list.
+    await view.find('.machine-value-picker .text-action').trigger('click')
+    await nextTick()
+    const again = [...document.querySelectorAll('.machine-value-picker__panel [role="option"]')]
+    expect(
+      again.find((option) => option.getAttribute('aria-selected') === 'true')?.textContent?.trim(),
+    ).toBe('False')
+    ;(again[0] as HTMLElement).click()
+    await nextTick()
+    expect(files.editorContent.split('\n')[1]).toBe('deactivate_on_each_sample: True')
+  })
+
+  it('offers no value picker on a file the printer will not let us write', async () => {
+    const view = await openConfigFile()
+    const files = useMachineFilesStore(pinia)
+    files.editorContent = '[probe]\ndeactivate_on_each_sample: True'
+    await nextTick()
+    expect(view.findAll('.machine-value-picker__value')).toHaveLength(1)
+
+    if (files.currentFile) files.currentFile.permissions = 'r'
+    await nextTick()
+    await nextTick()
+    expect(view.findAll('.machine-value-picker__value')).toHaveLength(0)
+  })
+
+  it('pulses the row Reveal in explorer lands on, and lets go when the pulse ends', async () => {
+    const view = await openConfigFile({ attach: true })
+    await view.find('.document-tab--active .document-tab__select').trigger('contextmenu')
+    await nextTick()
+    const reveal = [...document.querySelectorAll<HTMLElement>('.file-context-menu .button')].find(
+      (button) => button.textContent?.trim() === 'Reveal in explorer',
+    )
+    reveal?.click()
+    await flushPromises()
+    await nextTick()
+
+    const row = () => view.find('[data-tree-path="printer.cfg"]')
+    expect(row().classes()).toContain('machine-tree-row--revealed')
+    row().element.dispatchEvent(
+      Object.assign(new Event('animationend'), { animationName: 'machine-tree-row-reveal' }),
+    )
+    await nextTick()
+    expect(row().classes()).not.toContain('machine-tree-row--revealed')
+  })
+
   it('opens the section outline the way this browser last left it', async () => {
     const first = await openConfigFile()
     await first.find('[aria-controls="machine-file-structure"]').trigger('click')

@@ -36,8 +36,14 @@ import {
 import { machineConfigSyntax } from '@/features/machine/editor/language'
 import { machineSearchMarks, setSearchQuery } from '@/features/machine/editor/searchMarks'
 import { machineEditorTheme } from '@/features/machine/editor/theme'
+import {
+  machineValuePicker,
+  setOpenValuePicker,
+  type ValuePickerRequest,
+} from '@/features/machine/editor/valuePicker'
 import type { IndentWidth } from '@/features/machine/indent'
 import { NO_LINE_CHANGE_MARKS, type LineChangeMarks } from '@/features/machine/lineChanges'
+import ValuePickerList from '@/components/machine/ValuePickerList.vue'
 
 export interface EditorContextMenuRequest {
   /** Where to put the menu, in client coordinates. */
@@ -53,7 +59,15 @@ export type MachineEditorLabels = LineChangeLabels & {
   fold: string
   unfold: string
   foldedLines: (count: number) => string
+  /** The value picker's chevron and list, for one option. */
+  changeValue: (option: string) => string
 }
+
+/*
+ * The value picker's list is a second root (teleported), so the class and data
+ * attributes the view sets on the editor are forwarded to the host by hand.
+ */
+defineOptions({ inheritAttrs: false })
 
 const props = defineProps<{
   /** The file's text. Two-way, through `update:modelValue`. */
@@ -84,6 +98,7 @@ const view = shallowRef<EditorView | null>(null)
 const language = new Compartment()
 const editable = new Compartment()
 const indentation = new Compartment()
+const picker = ref<ValuePickerRequest | null>(null)
 
 /*
  * Set while the view is being reloaded from the store, so the update listener
@@ -180,6 +195,10 @@ function createState(doc: string): EditorState {
         describe: (text) => props.describeInclude(text),
         open: (target) => emit('openInclude', target),
       }),
+      machineValuePicker({
+        label: (option) => props.labels.changeValue(option),
+        open: openValuePicker,
+      }),
       machineKeymap(machineCommands.value),
       keymap.of([...defaultKeymap, ...historyKeymap]),
       language.of(props.formatsKlipperConfig ? machineConfigSyntax : []),
@@ -246,6 +265,37 @@ onBeforeUnmount(() => {
   view.value?.destroy()
   view.value = null
 })
+
+function openValuePicker(request: ValuePickerRequest): void {
+  picker.value = request
+  view.value?.dispatch({ effects: setOpenValuePicker.of(request.from) })
+}
+
+function closeValuePicker(refocus = true): void {
+  if (!picker.value) return
+  picker.value = null
+  view.value?.dispatch({ effects: setOpenValuePicker.of(null) })
+  if (refocus) view.value?.focus()
+}
+
+/*
+ * One transaction, and only over the text the list was opened for: an edit
+ * that arrived while the list was open (Quick config writes the same buffer)
+ * leaves it alone rather than overwriting whatever is there now.
+ */
+function chooseValue(value: string): void {
+  const editorView = view.value
+  const request = picker.value
+  closeValuePicker()
+  if (!editorView || !request || editorView.state.readOnly) return
+  if (editorView.state.doc.sliceString(request.from, request.to) !== request.value) return
+  if (value === request.value) return
+  editorView.dispatch({
+    changes: { from: request.from, to: request.to, insert: value },
+    selection: { anchor: request.from + value.length },
+    userEvent: 'input.machine',
+  })
+}
 
 function pushChanges(): void {
   view.value?.dispatch({ effects: setLineChanges.of(props.changes ?? NO_LINE_CHANGE_MARKS) })
@@ -350,5 +400,20 @@ defineExpose({
 </script>
 
 <template>
-  <div ref="host" class="machine-code-editor" role="group" :aria-label="contentLabel"></div>
+  <div
+    ref="host"
+    v-bind="$attrs"
+    class="machine-code-editor"
+    role="group"
+    :aria-label="contentLabel"
+  ></div>
+  <ValuePickerList
+    v-if="picker"
+    :box="picker.box"
+    :choices="picker.choices"
+    :current="picker.value"
+    :label="labels.changeValue(picker.option)"
+    @choose="chooseValue"
+    @close="closeValuePicker()"
+  />
 </template>

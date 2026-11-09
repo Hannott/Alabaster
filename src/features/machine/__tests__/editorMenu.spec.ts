@@ -300,7 +300,24 @@ describe('buildEditorMenu', () => {
   })
 
   it('offers only the general rows on a blank line', () => {
-    expect(ids(menuAt(5, ''))).toEqual(['toggleComment', 'goToLine', 'shortcuts'])
+    expect(ids(menuAt(5, ''))).toEqual(['paste', 'toggleComment', 'goToLine', 'shortcuts'])
+  })
+
+  it('offers Paste wherever the file can take text, and not on a read-only one', () => {
+    expect(ids(menuAt(2, 'corexy'))).toContain('paste')
+    expect(ids(menuAt(2, 'corexy', { readOnly: true }))).not.toContain('paste')
+  })
+
+  it('offers to flip a plain boolean value first, in the file’s own spelling', () => {
+    const lines = ['[probe]', 'deactivate_on_each_sample: True', 'flag: false']
+    const menu = menuAt(1, 'True', { lines })
+    expect(items(menu)[0]).toMatchObject({
+      id: 'setValue',
+      label: { params: { value: 'False' } },
+      action: { type: 'replaceText', line: 1, start: 27, end: 31, expected: 'True', text: 'False' },
+    })
+    expect(item(menuAt(2, 'false', { lines }), 'setValue')?.label.params?.value).toBe('true')
+    expect(ids(menuAt(1, 'True', { lines, readOnly: true }))).not.toContain('setValue')
   })
 })
 

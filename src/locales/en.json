@@ -2571,6 +2571,7 @@
       "selectBlock": "Select block",
       "selectBody": "Select template",
       "selectSection": "Select section",
+      "setValue": "Set to {value}",
       "addOption": "Add option",
       "optionName": "{name}",
       "commentSection": "Comment out section",
@@ -2578,6 +2579,8 @@
       "uncomment": "Uncomment",
       "cut": "Cut",
       "copy": "Copy",
+      "paste": "Paste",
+      "pasteFromBrowserMenu": "Use Shift + right-click to paste.",
       "toggleComment": "Toggle comment",
       "goToLine": "Go to line…",
       "shortcuts": "Keyboard shortcuts",
@@ -2602,6 +2605,7 @@
       "keys": {
         "cut": "Ctrl + X",
         "copy": "Ctrl + C",
+        "paste": "Ctrl + V",
         "shortcuts": "Ctrl + ?"
       }
     },
@@ -2642,6 +2646,7 @@
       "fold": "Collapse",
       "unfold": "Expand",
       "foldedLines": "{count} lines hidden",
+      "changeValue": "Change {option}",
       "otherUnsaved": "Other unsaved files: {count}",
       "filesUnsaved": "Unsaved files: {count}",
       "moreActions": "More file actions",

@@ -2571,6 +2571,7 @@
       "selectBlock": "Merk blokken",
       "selectBody": "Merk malen",
       "selectSection": "Merk seksjonen",
+      "setValue": "Sett til {value}",
       "addOption": "Legg til innstilling",
       "optionName": "{name}",
       "commentSection": "Kommenter ut seksjonen",
@@ -2578,6 +2579,8 @@
       "uncomment": "Fjern kommentering",
       "cut": "Klipp ut",
       "copy": "Kopier",
+      "paste": "Lim inn",
+      "pasteFromBrowserMenu": "Bruk Shift + høyreklikk for å lime inn.",
       "toggleComment": "Kommenter av eller på",
       "goToLine": "Gå til linje …",
       "shortcuts": "Hurtigtaster",
@@ -2602,6 +2605,7 @@
       "keys": {
         "cut": "Ctrl + X",
         "copy": "Ctrl + C",
+        "paste": "Ctrl + V",
         "shortcuts": "Ctrl + ?"
       }
     },
@@ -2642,6 +2646,7 @@
       "fold": "Skjul",
       "unfold": "Vis",
       "foldedLines": "{count} linjer skjult",
+      "changeValue": "Endre {option}",
       "otherUnsaved": "Andre ulagrede filer: {count}",
       "filesUnsaved": "Ulagrede filer: {count}",
       "moreActions": "Flere filhandlinger",

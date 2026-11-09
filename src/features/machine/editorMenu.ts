@@ -23,6 +23,7 @@ import {
   type OptionOccurrence,
 } from '@/features/config/optionLocator'
 import { isPinnableOption, textOf } from '@/features/config/quickConfigFields'
+import { booleanOptionIn, flippedBoolean } from '@/features/machine/booleanValue'
 import {
   commandReferenceUrl,
   configReferenceUrl,
@@ -41,6 +42,7 @@ import { runtimeCommandFor, type RuntimeCommand } from '@/features/machine/runti
 export type EditorMenuAction =
   | { type: 'cut' }
   | { type: 'copy' }
+  | { type: 'paste' }
   | { type: 'toggleComment' }
   | { type: 'commentLines'; range: LineRange }
   | { type: 'selectLines'; range: LineRange }
@@ -59,6 +61,15 @@ export type EditorMenuAction =
   | { type: 'shortcuts' }
   /** Writes `option: value` on a new line after `after`, zero-based. */
   | { type: 'insertOption'; after: number; option: string; value: string }
+  /** Replaces `expected` at columns `start`–`end` of a zero-based line, if it is still there. */
+  | {
+      type: 'replaceText'
+      line: number
+      start: number
+      end: number
+      expected: string
+      text: string
+    }
 
 export interface EditorMenuLabel {
   key: string
@@ -321,6 +332,8 @@ export function buildEditorMenu(context: EditorContext, facts: EditorMenuFacts):
     })
   }
 
+  // Added once the rest is placed, so nothing else unshifted ahead of it can push it down.
+  let flip: EditorMenuItem | null = null
   switch (target.kind) {
     case 'section': {
       heading.push(target.commented ? `#[${target.name}]` : `[${target.name}]`)
@@ -413,6 +426,26 @@ export function buildEditorMenu(context: EditorContext, facts: EditorMenuFacts):
 
     case 'option': {
       heading.push(target.option)
+      /*
+       * The value picker's switch, for the keyboard and touch: the chevron only
+       * answers a pointer. First, since it is what a boolean is clicked for.
+       */
+      const flag = target.commented ? null : booleanOptionIn(facts.lines[context.line] ?? '')
+      if (writable && flag) {
+        const text = flippedBoolean(flag.value)
+        flip = {
+          id: 'setValue',
+          label: { key: 'configuration.editorMenu.setValue', params: { value: text } },
+          action: {
+            type: 'replaceText',
+            line: context.line,
+            start: flag.start,
+            end: flag.end,
+            expected: flag.value,
+            text,
+          },
+        }
+      }
       const section = sectionName
       if (!section) break
       const key = sectionKey(section)
@@ -755,6 +788,7 @@ export function buildEditorMenu(context: EditorContext, facts: EditorMenuFacts):
     case 'plain':
       break
   }
+  if (flip) actions.unshift(flip)
 
   if (context.templateBody && target.kind !== 'section') {
     editing.push({
@@ -801,6 +835,22 @@ export function buildEditorMenu(context: EditorContext, facts: EditorMenuFacts):
             icon: 'copyFile' as const,
             hintKey: 'configuration.editorMenu.keys.copy',
             action: { type: 'copy' as const },
+          },
+        ]
+      : []),
+    /*
+     * Always offered where the file can take text, whether or not anything is
+     * on the clipboard: a page can only look over HTTPS, and the plain-HTTP
+     * printer deployment is exactly where it cannot. There the row points at
+     * the browser's own menu rather than leaving the reader without a Paste.
+     */
+    ...(writable
+      ? [
+          {
+            id: 'paste',
+            label: { key: 'configuration.editorMenu.paste' },
+            hintKey: 'configuration.editorMenu.keys.paste',
+            action: { type: 'paste' as const },
           },
         ]
       : []),

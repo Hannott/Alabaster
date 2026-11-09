@@ -69,6 +69,7 @@ import {
   type OpenMachineFile,
 } from '@/stores/machineFiles'
 import { useQuickConfigStore, type ConfigurationViewMode } from '@/stores/quickConfig'
+import { useToastsStore } from '@/stores/toasts'
 
 type PendingFileOpenReason = 'unsupported' | 'large'
 
@@ -110,6 +111,7 @@ const quickConfig = useQuickConfigStore()
 const viewModes: ConfigurationViewMode[] = ['files', 'quickConfig']
 const confirmations = useConfirmationsStore()
 const documentationSite = useDocumentationSiteStore()
+const toasts = useToastsStore()
 const { availability: moonrakerAvailability } = useAvailability('moonraker')
 const { availability: klipperAvailability } = useAvailability('klipper')
 const {
@@ -543,6 +545,7 @@ const editorLabels = computed(() => ({
   fold: t('configuration.editor.fold'),
   unfold: t('configuration.editor.unfold'),
   foldedLines: (count: number) => t('configuration.editor.foldedLines', { count }),
+  changeValue: (option: string) => t('configuration.editor.changeValue', { option }),
 }))
 const editorCommands = {
   save: (restart: boolean) => void save(restart),
@@ -1346,8 +1349,23 @@ async function revealInExplorer(path: string, { focus = true } = {}): Promise<vo
   showExplorer()
   await machineFiles.revealPath(path)
   treeFocusPath.value = path
+  revealedPath.value = null
   await nextTick()
   if (focus) focusTreeRow(path)
+  // Set after a tick of being clear, so revealing the same file again restarts the pulse.
+  revealedPath.value = path
+}
+
+/*
+ * The row a reveal landed on pulses twice and then lets go. Ended by the
+ * animation itself rather than a timer, so the duration lives in one place.
+ */
+const revealedPath = ref<string | null>(null)
+
+function onTreeRowAnimationEnd(event: AnimationEvent, path: string): void {
+  if (event.animationName.startsWith('machine-tree-row-reveal') && revealedPath.value === path) {
+    revealedPath.value = null
+  }
 }
 
 /*
@@ -1747,6 +1765,31 @@ function copyFromEditor(cut: boolean, context: EditorContext): void {
   view.dispatch({ selection: { anchor: from, head: to } })
 }
 
+/*
+ * Reading the clipboard needs a secure context, which a printer served over
+ * plain HTTP never is; there, and wherever the browser refuses, the reader is
+ * pointed at the browser's own menu instead of the row silently doing nothing.
+ */
+async function pasteIntoEditor(): Promise<void> {
+  const view = codeEditor.value?.view()
+  if (!view || currentFileReadOnly.value) return
+  view.focus()
+  if (!window.isSecureContext || !navigator.clipboard?.readText) {
+    toasts.push(t('configuration.editorMenu.pasteFromBrowserMenu'))
+    return
+  }
+  try {
+    const text = await navigator.clipboard.readText()
+    if (!text || currentFileReadOnly.value) return
+    view.dispatch(view.state.replaceSelection(text), {
+      userEvent: 'input.paste',
+      scrollIntoView: true,
+    })
+  } catch {
+    toasts.push(t('configuration.editorMenu.pasteFromBrowserMenu'))
+  }
+}
+
 async function openLocation(path: string, line: number): Promise<void> {
   if (machineFiles.currentFile?.path !== path) await openFileAtPath(path)
   await nextTick()
@@ -1791,6 +1834,23 @@ async function runEditorMenuAction(action: EditorMenuAction): Promise<void> {
       if (!view || currentFileReadOnly.value) return
       const { from, to } = lineRangeOffsets(action.range)
       applyEditorLineEdit(toggleComment(view.state.doc.toString(), from, to))
+      return
+    }
+    case 'paste':
+      void pasteIntoEditor()
+      return
+    case 'replaceText': {
+      if (!view || currentFileReadOnly.value) return
+      const line = view.state.doc.line(action.line + 1)
+      const from = line.from + action.start
+      const to = line.from + action.end
+      if (view.state.doc.sliceString(from, to) !== action.expected) return
+      view.dispatch({
+        changes: { from, to, insert: action.text },
+        selection: { anchor: from + action.text.length },
+        userEvent: 'input.machine',
+      })
+      view.focus()
       return
     }
     case 'insertOption': {
@@ -2699,6 +2759,7 @@ onBeforeUnmount(() => {
                 :class="{
                   'selection-row--selected': isOpenFile(row.entry),
                   'machine-tree-row--root': row.level === 0 && !isSearching,
+                  'machine-tree-row--revealed': revealedPath === row.entry.path,
                 }"
                 :style="{ '--tree-level': row.level }"
                 :aria-level="row.level + 1"
@@ -2722,6 +2783,7 @@ onBeforeUnmount(() => {
                     ? 'true'
                     : undefined
                 "
+                @animationend="onTreeRowAnimationEnd($event, row.entry.path)"
                 @click="chooseRow(row)"
                 @dblclick="keepRow(row)"
                 @keydown="onTreeKeydown($event, index)"

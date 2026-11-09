@@ -11887,6 +11887,44 @@ body.machine-editor-fullscreen-open {
   --machine-tree-indent: 1rem;
 }
 
+/*
+ * "Reveal in explorer" lands on its row with two pulses of the selection's own
+ * accent, then lets go: the tree may have scrolled and opened folders to get
+ * there, and the eye needs a beat to find which row it was. An inset shadow
+ * rather than a background, so it shows over a row that is already selected —
+ * usually the case, since the revealed file is often the open one. Two pulses
+ * fill the `pending` token: a finite cousin of the quiet repeating wait, listed
+ * among ADR 0004's bounded instances. Reduced motion holds a still wash for the
+ * same time instead of pulsing.
+ */
+.machine-tree-row--revealed {
+  animation: machine-tree-row-reveal calc(var(--motion-duration-pending) / 2)
+    var(--motion-ease-standard) 2;
+}
+
+@keyframes machine-tree-row-reveal {
+  0%,
+  100% {
+    box-shadow: inset 0 0 0 100vmax transparent;
+  }
+
+  50% {
+    box-shadow: inset 0 0 0 100vmax color-mix(in srgb, var(--action-primary) 28%, transparent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .machine-tree-row--revealed {
+    animation: machine-tree-row-reveal-still var(--motion-duration-pending) step-end 1;
+  }
+}
+
+@keyframes machine-tree-row-reveal-still {
+  0% {
+    box-shadow: inset 0 0 0 100vmax color-mix(in srgb, var(--action-primary) 20%, transparent);
+  }
+}
+
 .machine-tree-chevron {
   display: inline-block;
   inline-size: 1rem;
@@ -12871,6 +12909,137 @@ body.machine-editor-fullscreen-open {
  * to hover. Its tooltip is what explains it and offers Ctrl+click to create the
  * missing file.
  */
+/*
+ * The boolean value picker (`editor/valuePicker.ts`). Whole pixels at the
+ * default root size, so no edge lands between two device pixels and blurs: 4px
+ * either side of the value, a 20px chevron square centred in the 24px line.
+ */
+.machine-code-editor .cm-line {
+  --picker-pad: 0.25rem;
+  --picker-square: 1.25rem;
+}
+
+/*
+ * The combobox outline, drawn on the value's own text span rather than
+ * measured from its length, so its edges come from where the text actually
+ * is. Centred on the span, whose half-leading puts its middle on the line's
+ * middle. It is drawing only: no fill to hide the text it overlays, and every
+ * press goes through, so a click on the value places the caret as usual.
+ */
+.machine-value-picker__value {
+  position: relative;
+}
+
+.machine-value-picker__value::before {
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline-start: calc(-1 * var(--picker-pad));
+  inset-inline-end: calc(-1 * (var(--picker-pad) + var(--picker-square)));
+  block-size: var(--picker-square);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--control-radius-xs);
+  content: '';
+  pointer-events: none;
+  translate: 0 -50%;
+}
+
+/*
+ * A zero-width, line-tall anchor right after the value holds the chevron, so
+ * revealing it never shifts the text after the value or the line's height.
+ */
+.machine-value-picker {
+  position: relative;
+  display: inline-block;
+  inline-size: 0;
+  block-size: 1.5rem;
+  vertical-align: top;
+}
+
+/*
+ * `text-action`: the one part that takes a press, and it imposes no height.
+ * Its hit area starts at the value's edge rather than at the divider, so the
+ * pointer travelling from the value to the chevron never crosses a gap that
+ * hovers nothing and hides the picker on the way.
+ */
+.machine-value-picker .text-action {
+  position: absolute;
+  inset-block-start: calc((1.5rem - var(--picker-square)) / 2);
+  inset-inline-start: 0;
+  display: grid;
+  inline-size: calc(var(--picker-pad) + var(--picker-square));
+  block-size: var(--picker-square);
+  padding-inline-start: var(--picker-pad);
+  place-items: center;
+}
+
+.machine-value-picker .text-action::before {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: var(--picker-pad);
+  border-inline-start: 1px solid var(--border-subtle);
+  content: '';
+}
+
+.machine-value-picker .text-action svg {
+  inline-size: 0.875rem;
+  block-size: 0.875rem;
+}
+
+.machine-value-picker__value::before,
+.machine-value-picker .text-action {
+  opacity: 0;
+  transition: opacity var(--motion-duration-quick) var(--motion-ease-standard);
+}
+
+/*
+ * Only the value itself, or the chevron the pointer is reaching for, calls it
+ * up — a whole line's hover would light every boolean the pointer passes —
+ * and it stays while the list is open or the chevron has keyboard focus.
+ */
+.machine-value-picker__value:is(:hover, :has(~ .machine-value-picker:hover))::before,
+.machine-value-picker__value:hover ~ .machine-value-picker .text-action,
+.machine-value-picker:hover .text-action,
+.machine-value-picker__value:has(~ .machine-value-picker [aria-expanded='true'])::before,
+.machine-value-picker__value:has(~ .machine-value-picker :focus-visible)::before,
+.machine-value-picker .text-action:is(:focus-visible, [aria-expanded='true']) {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .machine-value-picker__value::before,
+  .machine-value-picker .text-action {
+    transition: none;
+  }
+}
+
+/*
+ * Open, the box and AppSelect's own panel read as one combobox: the panel
+ * hangs straight off the box at its width (`ValuePickerList.vue`), and the box
+ * gives up its lower corners to it.
+ */
+.machine-value-picker__value:has(~ .machine-value-picker [aria-expanded='true'])::before {
+  border-end-start-radius: 0;
+  border-end-end-radius: 0;
+}
+
+.machine-value-picker__panel {
+  padding: 0;
+  border-start-start-radius: 0;
+  border-start-end-radius: 0;
+  border-end-start-radius: var(--control-radius-xs);
+  border-end-end-radius: var(--control-radius-xs);
+  border-block-start: 0;
+}
+
+/* Rows are editor lines: the editor's face, size and line height, padded like the value. */
+.machine-value-picker__panel .app-select__option {
+  padding: 0 0.25rem;
+  border-radius: 0;
+  font-family: var(--font-mono);
+  font-size: var(--console-editor-text-size);
+  line-height: 1.5rem;
+}
+
 .machine-syntax--includePath-dead {
   text-decoration: underline wavy var(--status-danger-text);
   text-decoration-thickness: 1px;
