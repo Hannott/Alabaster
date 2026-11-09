@@ -62,6 +62,12 @@ describe('documentedSection', () => {
     expect(documentedSection(kalico, 'z_tilt_ng')).toBe('z_tilt_ng')
   })
 
+  it('finds a Kalico section whose heading is prose rather than its bracketed name', () => {
+    expect(documentedSection(kalico, 'danger_options')).toBe('danger-options')
+    expect(documentedSection(kalico, 'constants')).toBe('configuration-references')
+    expect(documentedSection(klipper, 'danger_options')).toBeNull()
+  })
+
   it('has an anchor on both sites for every section Quick config offers by default', () => {
     for (const { section } of defaultQuickConfigPins) {
       expect(documentedSection(klipper, section), section).not.toBeNull()

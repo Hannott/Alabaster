@@ -42,12 +42,18 @@ function headings(markdown) {
   const seen = new Map()
   const result = []
   let fenced = false
+  let awaitingExample = false
   for (const line of markdown.split('\n')) {
     if (/^\s*```/.test(line)) {
       fenced = !fenced
       continue
     }
-    if (fenced) continue
+    if (fenced) {
+      const current = result.at(-1)
+      if (awaitingExample && current) current.example = line.trim()
+      awaitingExample = false
+      continue
+    }
     const match = /^(#{1,6})\s+(.+?)\s*#*\s*$/.exec(line)
     if (!match) continue
     const text = match[2].replace(/`/g, '')
@@ -55,6 +61,7 @@ function headings(markdown) {
     const count = seen.get(base) ?? 0
     seen.set(base, count + 1)
     result.push({ level: match[1].length, text, anchor: count === 0 ? base : `${base}_${count}` })
+    awaitingExample = true
   }
   return result
 }
@@ -77,8 +84,18 @@ async function extract({ repo, branch }) {
     .sort()
 
   const configSections = {}
-  for (const heading of headings(await raw('Config_Reference'))) {
+  const configHeadings = headings(await raw('Config_Reference'))
+  for (const heading of configHeadings) {
     const section = /^\[([^\]]+)\]$/.exec(heading.text.trim())
+    if (section && !(section[1] in configSections)) configSections[section[1]] = heading.anchor
+  }
+  // Kalico titles some sections in prose — "⚠️ Danger Options" documents
+  // `[danger_options]` — so a section no bracketed heading claims takes the
+  // heading whose first example declares it. A named instance is left out:
+  // `[load_cell my_cs1237]` is one chip's example, and as a key it would send
+  // every named `[load_cell]` to that chip's entry.
+  for (const heading of configHeadings) {
+    const section = /^\[([^\]\s]+)\]$/.exec(heading.example ?? '')
     if (section && !(section[1] in configSections)) configSections[section[1]] = heading.anchor
   }
 
