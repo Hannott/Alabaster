@@ -2571,6 +2571,8 @@
       "selectBlock": "Select block",
       "selectBody": "Select template",
       "selectSection": "Select section",
+      "addOption": "Add option",
+      "optionName": "{name}",
       "commentSection": "Comment out section",
       "uncommentSection": "Uncomment section",
       "uncomment": "Uncomment",
@@ -2855,7 +2857,8 @@
     "structure": {
       "title": "File structure",
       "expand": "Expand file structure",
-      "collapse": "Collapse file structure"
+      "collapse": "Collapse file structure",
+      "includes": "Includes"
     },
     "quickConfig": {
       "views": {

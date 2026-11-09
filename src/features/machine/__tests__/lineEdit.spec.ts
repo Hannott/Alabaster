@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import {
   duplicateSelectedLines,
   indentSelection,
+  insertOptionLine,
   moveSelectedLines,
   outdentSelection,
   reindentDocument,
@@ -340,5 +341,21 @@ describe('duplicating lines', () => {
     const edit = duplicateSelectedLines(content, 0, 3, 1)
 
     expect(applied(content, edit)).toBe(['a', 'b', 'a', 'b'].join('\n'))
+  })
+})
+
+describe('insertOptionLine', () => {
+  it('writes the option after the given line and selects its value', () => {
+    const content = '[fan]\npin: PA8\n\n[printer]'
+    const edit = insertOptionLine(content, 1, 'max_power', '1')
+    expect(applied(content, edit)).toBe('[fan]\npin: PA8\nmax_power: 1\n\n[printer]')
+    expect(applied(content, edit).slice(edit.selectionStart, edit.selectionEnd)).toBe('1')
+  })
+
+  it('adds a line at the end of a file with no trailing newline', () => {
+    const content = '[fan]\npin: PA8'
+    expect(applied(content, insertOptionLine(content, 1, 'shutdown_speed', '0'))).toBe(
+      '[fan]\npin: PA8\nshutdown_speed: 0',
+    )
   })
 })

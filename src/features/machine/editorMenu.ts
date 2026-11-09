@@ -57,6 +57,8 @@ export type EditorMenuAction =
   | { type: 'applyRuntime'; command: RuntimeCommand }
   | { type: 'goToLine' }
   | { type: 'shortcuts' }
+  /** Writes `option: value` on a new line after `after`, zero-based. */
+  | { type: 'insertOption'; after: number; option: string; value: string }
 
 export interface EditorMenuLabel {
   key: string
@@ -74,6 +76,8 @@ export interface EditorMenuItem {
   /** A link opens in a new tab; every other row runs `action`. */
   href?: string
   action?: EditorMenuAction
+  /** A row with children opens them beside itself instead of running anything. */
+  children?: EditorMenuItem[]
 }
 
 export interface EditorMenuFact {
@@ -227,6 +231,42 @@ function macroDefinition(
   return index.sections.get(sectionKey(section))?.at(-1) ?? null
 }
 
+const OPTION_KEY_LINE = /^([A-Za-z_][\w.-]*)\s*[:=]/
+
+/**
+ * The options Klipper knows for a section that the section does not set yet,
+ * each with the default Klipper reports for it. Klipper's own resolved
+ * settings are the list, so it is exactly what this printer's firmware reads
+ * for the section — never a bundled schema. An option already set here, or
+ * anywhere else the index has read, is left out: a second line for it would
+ * be an override nobody asked for. A default that cannot be written on one
+ * line (a nested list, multi-line text) is left out too.
+ */
+export function addableOptions(
+  settings: Readonly<Record<string, unknown>>,
+  section: string,
+  lines: readonly string[],
+  range: LineRange,
+  index: ConfigIndex | null,
+): Array<{ option: string; value: string }> {
+  const known = settings[sectionKey(section)]
+  if (typeof known !== 'object' || known === null) return []
+  const present = new Set<string>()
+  for (const line of lines.slice(range.from + 1, range.to + 1)) {
+    const match = OPTION_KEY_LINE.exec(line)
+    if (match?.[1]) present.add(match[1].toLowerCase())
+  }
+  const addable: Array<{ option: string; value: string }> = []
+  for (const [option, setting] of Object.entries(known)) {
+    if (present.has(option) || index?.options.has(optionKey(section, option))) continue
+    if (Array.isArray(setting) && setting.some(Array.isArray)) continue
+    const value = textOf(setting)
+    if (value === null || value.includes('\n')) continue
+    addable.push({ option, value })
+  }
+  return addable.sort((a, b) => a.option.localeCompare(b.option))
+}
+
 /** The first occurrence of a section outside the `SAVE_CONFIG` block. */
 function writtenSection(index: ConfigIndex | null, section: string) {
   return index?.sections.get(sectionKey(section))?.find((entry) => !entry.autosave) ?? null
@@ -330,6 +370,27 @@ export function buildEditorMenu(context: EditorContext, facts: EditorMenuFacts):
       if (counterpart) actions.push(namedGoTo('counterpart', counterpart, counterpart.section))
       if (type.toLowerCase() === 'gcode_macro' && rest.length > 0) search(rest.join(' '))
       reference(target.name)
+      /*
+       * Directly under the reference, in its group: it is the reference's own
+       * list of options for this section, written into the file.
+       */
+      if (writable && context.sectionRange && facts.settingsLoaded) {
+        const range = context.sectionRange
+        const options = addableOptions(facts.settings, target.name, facts.lines, range, index)
+        if (options.length > 0) {
+          docs.push({
+            id: 'addOption',
+            label: { key: 'configuration.editorMenu.addOption' },
+            icon: 'add',
+            children: options.map(({ option, value }) => ({
+              id: `addOption:${option}`,
+              label: { key: 'configuration.editorMenu.optionName', params: { name: option } },
+              hint: value,
+              action: { type: 'insertOption', after: range.to, option, value },
+            })),
+          })
+        }
+      }
       guide(target.name)
       if (writable && context.sectionRange) {
         const range = context.sectionRange

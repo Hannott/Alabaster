@@ -42,7 +42,7 @@ import type { IncludeTargetInfo } from '@/features/machine/editor/includeLinks'
 import { classifyFileKind, isLargeFile } from '@/features/machine/fileKind'
 import { isKlippyLogName } from '@/features/machine/klippyLog'
 import { lineChangeMarks, NO_LINE_CHANGE_MARKS } from '@/features/machine/lineChanges'
-import { toggleComment, type LineEdit } from '@/features/machine/lineEdit'
+import { insertOptionLine, toggleComment, type LineEdit } from '@/features/machine/lineEdit'
 import { fileIcon } from '@/features/machine/fileIcons'
 import {
   isIncludableConfigPath,
@@ -89,6 +89,7 @@ interface PendingMove {
 
 const editorDisplayModeStorageKey = 'alabaster.machine.editorDisplayMode'
 const explorerHiddenStorageKey = 'alabaster.machine.explorerHidden'
+const structureExpandedStorageKey = 'alabaster.machine.structureExpanded'
 
 function initialEditorDisplayMode(): EditorDisplayMode {
   return localStorage.getItem(editorDisplayModeStorageKey) === 'fullscreen'
@@ -136,7 +137,7 @@ const uploadInput = ref<HTMLInputElement | null>(null)
 const codeEditor = ref<InstanceType<typeof MachineCodeEditor> | null>(null)
 const moveDialog = ref<HTMLDialogElement | null>(null)
 const currentEditorLine = ref(1)
-const structureExpanded = ref(false)
+const structureExpanded = ref(localStorage.getItem(structureExpandedStorageKey) === 'true')
 const shortcutsOpen = ref(false)
 /*
  * Whether Ctrl/Cmd is down, which turns every `[include]` path into a link. It
@@ -616,14 +617,53 @@ const includeGeneration = computed(
  * them cost a regex per line across the largest files in the workspace to
  * produce a list of things that are not there.
  */
+interface StructureSection {
+  line: number
+  type: string
+  instance: string
+}
+
+interface StructureInclude {
+  line: number
+  directory: string
+  file: string
+}
+
 const fileStructure = computed(() => {
-  if (!highlightsSyntax.value) return []
-  const structure: Array<{ name: string; line: number }> = []
+  const sections: StructureSection[] = []
+  const includes: StructureInclude[] = []
+  if (!highlightsSyntax.value) return { sections, includes, lines: [] as number[] }
   for (const [index, line] of editorLines.value.entries()) {
-    const match = SECTION_LINE.exec(line)
-    if (match?.[1]) structure.push({ name: match[1], line: index + 1 })
+    const name = SECTION_LINE.exec(line)?.[1]?.trim()
+    if (!name) continue
+    const [type = '', ...rest] = name.split(/\s+/)
+    const instance = rest.join(' ')
+    if (type.toLowerCase() === 'include' && instance) {
+      const slash = instance.lastIndexOf('/') + 1
+      includes.push({
+        line: index + 1,
+        directory: instance.slice(0, slash),
+        file: instance.slice(slash),
+      })
+    } else {
+      sections.push({ line: index + 1, type, instance })
+    }
   }
-  return structure
+  const lines = [...sections, ...includes].map((entry) => entry.line).sort((a, b) => a - b)
+  return { sections, includes, lines }
+})
+const fileStructureCount = computed(() => fileStructure.value.lines.length)
+/*
+ * An `[include]` is a section to configparser too, so the caret belongs to
+ * whichever header is nearest above it, include or not.
+ */
+const caretStructureLine = computed(() => {
+  let nearest = 0
+  for (const line of fileStructure.value.lines) {
+    if (line > currentEditorLine.value) break
+    nearest = line
+  }
+  return nearest
 })
 const dateFormatter = computed(() => createDateTimeFormatter(locale.value, { style: 'short' }))
 const numberFormatter = computed(
@@ -702,6 +742,11 @@ const explorerPeekOpen = explorerPeek.open
 function toggleExplorerPin(): void {
   explorerHidden.value = !explorerHidden.value
   localStorage.setItem(explorerHiddenStorageKey, String(explorerHidden.value))
+}
+
+function toggleStructure(): void {
+  structureExpanded.value = !structureExpanded.value
+  localStorage.setItem(structureExpandedStorageKey, String(structureExpanded.value))
 }
 
 function showExplorer(): void {
@@ -1748,6 +1793,14 @@ async function runEditorMenuAction(action: EditorMenuAction): Promise<void> {
       applyEditorLineEdit(toggleComment(view.state.doc.toString(), from, to))
       return
     }
+    case 'insertOption': {
+      if (!view || currentFileReadOnly.value) return
+      applyEditorLineEdit(
+        insertOptionLine(view.state.doc.toString(), action.after, action.option, action.value),
+      )
+      view.focus()
+      return
+    }
     case 'selectLines': {
       const { from, to } = lineRangeOffsets(action.range)
       codeEditor.value?.selectRange(from, to)
@@ -2196,7 +2249,7 @@ onBeforeUnmount(() => {
               />
 
               <aside
-                v-if="!isCurrentFilePreview && fileStructure.length > 0"
+                v-if="!isCurrentFilePreview && fileStructureCount > 0"
                 class="machine-structure"
                 :class="{ 'machine-structure--expanded': structureExpanded }"
                 :aria-label="t('configuration.structure.title')"
@@ -2222,7 +2275,7 @@ onBeforeUnmount(() => {
                           : 'configuration.structure.expand',
                       )
                     "
-                    @click="structureExpanded = !structureExpanded"
+                    @click="toggleStructure"
                   >
                     <AppIcon
                       :name="structureExpanded ? 'sidebarCollapse' : 'sidebarExpand'"
@@ -2231,23 +2284,57 @@ onBeforeUnmount(() => {
                     />
                     <span>{{ t('configuration.structure.title') }}</span>
                   </AppButton>
+                  <span v-if="structureExpanded" class="machine-structure__count">
+                    {{ fileStructureCount }}
+                  </span>
                 </header>
                 <!-- Mounted on expand, not merely hidden: the outline is one
                      button per section, and a collapsed panel should not be
                      paying for a list nobody has asked to see. -->
                 <nav v-if="structureExpanded" id="machine-file-structure">
                   <AppButton
-                    v-for="section in fileStructure"
-                    :key="`${section.line}:${section.name}`"
+                    v-for="section in fileStructure.sections"
+                    :key="`${section.line}:${section.type}:${section.instance}`"
                     variant="quiet"
                     size="sm"
                     start
                     on-soft
+                    :aria-current="section.line === caretStructureLine ? 'location' : undefined"
                     @click="goToLine(section.line)"
                   >
-                    <span>{{ section.name }}</span>
+                    <span
+                      ><span class="machine-structure__bracket">[</span
+                      ><span class="machine-structure__type">{{ section.type }}</span
+                      ><template v-if="section.instance"
+                        >{{ ' '
+                        }}<span class="machine-structure__instance">{{
+                          section.instance
+                        }}</span></template
+                      ><span class="machine-structure__bracket">]</span></span
+                    >
                     <span class="font-mono text-[0.65rem] text-muted">{{ section.line }}</span>
                   </AppButton>
+                  <template v-if="fileStructure.includes.length > 0">
+                    <div class="machine-structure__group">
+                      {{ t('configuration.structure.includes') }}
+                    </div>
+                    <AppButton
+                      v-for="include in fileStructure.includes"
+                      :key="`${include.line}:${include.directory}${include.file}`"
+                      variant="quiet"
+                      size="sm"
+                      start
+                      on-soft
+                      :aria-current="include.line === caretStructureLine ? 'location' : undefined"
+                      @click="goToLine(include.line)"
+                    >
+                      <span
+                        ><span class="machine-structure__dir">{{ include.directory }}</span
+                        ><span class="machine-structure__file">{{ include.file }}</span></span
+                      >
+                      <span class="font-mono text-[0.65rem] text-muted">{{ include.line }}</span>
+                    </AppButton>
+                  </template>
                 </nav>
               </aside>
             </div>

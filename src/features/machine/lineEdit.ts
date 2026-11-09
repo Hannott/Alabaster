@@ -372,3 +372,31 @@ export function duplicateSelectedLines(
     selectionEnd: end + shift,
   }
 }
+
+/**
+ * Writes `option: value` as a new line after the zero-based `afterLine`, and
+ * selects the value: it is the default Klipper already uses, so the reason to
+ * add the line is to change it, and the selection lets typing replace it.
+ */
+export function insertOptionLine(
+  content: string,
+  afterLine: number,
+  option: string,
+  value: string,
+): LineEdit {
+  let end = -1
+  for (let line = 0; line <= afterLine; line += 1) {
+    const next = content.indexOf('\n', end + 1)
+    end = next === -1 ? content.length : next
+    if (next === -1) break
+  }
+  const head = `${option}: `
+  const valueStart = end + 1 + head.length
+  return {
+    from: end,
+    to: end,
+    text: `\n${head}${value}`,
+    selectionStart: valueStart,
+    selectionEnd: valueStart + value.length,
+  }
+}

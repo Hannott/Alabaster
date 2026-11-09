@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import AppButton from '@/components/AppButton.vue'
@@ -113,6 +113,64 @@ function label(value: EditorMenuLabel): string {
 }
 
 /*
+ * A row with children opens them beside itself, the way a desktop menu does:
+ * on hover, or on click, Enter, or the right arrow, which also moves focus into
+ * it. It is rendered inside the menu rather than teleported, so a press on it
+ * counts as inside the menu and does not close everything. Hovering another
+ * row closes it, and the left arrow or Escape returns to the row.
+ */
+const openSubmenu = ref<EditorMenuItem | null>(null)
+const submenuStyle = ref<Record<string, string>>({})
+const submenu = ref<HTMLElement | null>(null)
+let submenuAnchor: HTMLElement | null = null
+
+async function showSubmenu(item: EditorMenuItem, anchor: HTMLElement, focus = false) {
+  if (openSubmenu.value?.id !== item.id) {
+    openSubmenu.value = item
+    submenuAnchor = anchor
+    submenuStyle.value = { visibility: 'hidden' }
+    await nextTick()
+    placeSubmenu()
+  }
+  if (focus) submenu.value?.querySelector<HTMLElement>('button')?.focus()
+}
+
+/*
+ * Beside the row, flipped to its other side when the viewport has no room on
+ * the right, and moved up as far as it must to stay on screen.
+ */
+function placeSubmenu(): void {
+  const panel = submenu.value
+  if (!panel || !submenuAnchor) return
+  const row = submenuAnchor.getBoundingClientRect()
+  const { width, height } = panel.getBoundingClientRect()
+  const margin = 8
+  const x = row.right + width + margin <= window.innerWidth ? row.right : row.left - width
+  const y = Math.max(margin, Math.min(row.top, window.innerHeight - height - margin))
+  submenuStyle.value = { insetInlineStart: `${Math.max(margin, x)}px`, insetBlockStart: `${y}px` }
+}
+
+function hideSubmenu(refocus = false): void {
+  openSubmenu.value = null
+  if (refocus) submenuAnchor?.focus()
+  submenuAnchor = null
+}
+
+function onSubmenuKeydown(event: KeyboardEvent): void {
+  if (event.key === 'ArrowLeft' || event.key === 'Escape') {
+    event.preventDefault()
+    event.stopPropagation()
+    hideSubmenu(true)
+  } else if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+    event.preventDefault()
+    const buttons = [...(submenu.value?.querySelectorAll<HTMLElement>('button') ?? [])]
+    const current = buttons.indexOf(document.activeElement as HTMLElement)
+    const step = event.key === 'ArrowDown' ? 1 : -1
+    buttons[(current + step + buttons.length) % buttons.length]?.focus()
+  }
+}
+
+/*
  * A view action is handed over while the menu is still open, because the view
  * reads the context it acts on from the menu it is about to close.
  */
@@ -170,12 +228,30 @@ async function run(item: EditorMenuItem): Promise<void> {
           :href="item.href"
           target="_blank"
           rel="noopener noreferrer"
+          @pointerenter="hideSubmenu()"
           @click="emit('close')"
         >
           <AppIcon v-if="item.icon" :name="item.icon" class="size-4" aria-hidden="true" />
           <span>{{ label(item.label) }}</span>
           <AppIcon name="popout" class="editor-context-menu__hint size-4" aria-hidden="true" />
         </a>
+        <AppButton
+          v-else-if="item.children"
+          variant="quiet"
+          size="sm"
+          start
+          block
+          :icon="item.icon"
+          :label="label(item.label)"
+          aria-haspopup="menu"
+          :aria-expanded="openSubmenu?.id === item.id"
+          :data-open="openSubmenu?.id === item.id ? 'true' : undefined"
+          @pointerenter="showSubmenu(item, $event.currentTarget as HTMLElement)"
+          @click="showSubmenu(item, $event.currentTarget as HTMLElement, true)"
+          @keydown.right.prevent="showSubmenu(item, $event.currentTarget as HTMLElement, true)"
+        >
+          <AppIcon name="right" class="editor-context-menu__opens size-4" aria-hidden="true" />
+        </AppButton>
         <AppButton
           v-else
           variant="quiet"
@@ -184,6 +260,7 @@ async function run(item: EditorMenuItem): Promise<void> {
           block
           :icon="item.icon"
           :label="label(item.label)"
+          @pointerenter="hideSubmenu()"
           @click="run(item)"
         >
           <span v-if="item.hint || item.hintKey" class="editor-context-menu__hint">
@@ -192,5 +269,27 @@ async function run(item: EditorMenuItem): Promise<void> {
         </AppButton>
       </template>
     </template>
+    <div
+      v-if="openSubmenu?.children"
+      ref="submenu"
+      class="header-menu__panel file-context-menu editor-context-menu__submenu"
+      :style="submenuStyle"
+      role="menu"
+      :aria-label="label(openSubmenu.label)"
+      @keydown="onSubmenuKeydown"
+    >
+      <AppButton
+        v-for="child in openSubmenu.children"
+        :key="child.id"
+        variant="quiet"
+        size="sm"
+        start
+        block
+        :label="label(child.label)"
+        @click="run(child)"
+      >
+        <span v-if="child.hint" class="editor-context-menu__hint">{{ child.hint }}</span>
+      </AppButton>
+    </div>
   </FileContextMenu>
 </template>

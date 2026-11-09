@@ -192,6 +192,45 @@ describe('the code editor renders a window, not a file', () => {
     expect(view.find('#machine-file-structure').exists()).toBe(true)
   })
 
+  it('lists sections as the file writes them, includes apart, and marks the caret’s', async () => {
+    const view = await openConfigFile()
+    const content = [
+      '[printer]',
+      'kinematics: corexy',
+      '[include hardware/mcu.cfg]',
+      '[gcode_macro START]',
+      'gcode:',
+      '  G28',
+    ].join('\n')
+    useMachineFilesStore(pinia).editorContent = content
+    await nextTick()
+    await view.find('[aria-controls="machine-file-structure"]').trigger('click')
+
+    const entries = () =>
+      view.findAll('#machine-file-structure .button').map((button) => button.text())
+    expect(entries()).toEqual(['[printer]1', '[gcode_macro START]4', 'hardware/mcu.cfg3'])
+    expect(view.find('.machine-structure__group').text()).toBe('Includes')
+
+    editorView(view).dispatch({ selection: { anchor: content.indexOf('G28') } })
+    await nextTick()
+    expect(view.find('#machine-file-structure [aria-current="location"]').text()).toBe(
+      '[gcode_macro START]4',
+    )
+  })
+
+  it('opens the section outline the way this browser last left it', async () => {
+    const first = await openConfigFile()
+    await first.find('[aria-controls="machine-file-structure"]').trigger('click')
+    first.unmount()
+
+    const reopened = await openConfigFile()
+    expect(reopened.find('#machine-file-structure').exists()).toBe(true)
+
+    await reopened.find('[aria-controls="machine-file-structure"]').trigger('click')
+    reopened.unmount()
+    expect((await openConfigFile()).find('#machine-file-structure').exists()).toBe(false)
+  })
+
   it('offers no outline for a file whose brackets are not sections', async () => {
     const view = await openLogFile()
 

@@ -2571,6 +2571,8 @@
       "selectBlock": "Merk blokken",
       "selectBody": "Merk malen",
       "selectSection": "Merk seksjonen",
+      "addOption": "Legg til innstilling",
+      "optionName": "{name}",
       "commentSection": "Kommenter ut seksjonen",
       "uncommentSection": "Fjern kommentering av seksjonen",
       "uncomment": "Fjern kommentering",
@@ -2855,7 +2857,8 @@
     "structure": {
       "title": "Filstruktur",
       "expand": "Utvid filstruktur",
-      "collapse": "Skjul filstruktur"
+      "collapse": "Skjul filstruktur",
+      "includes": "Inkluderte filer"
     },
     "quickConfig": {
       "views": {

@@ -114,6 +114,48 @@ describe('buildEditorMenu', () => {
     expect(ids(menu)).toContain('selectSection')
   })
 
+  it('offers every option the section does not set yet, with its default, after its last line', () => {
+    const menu = menuAt(1, 'printer', {
+      settings: {
+        printer: {
+          kinematics: 'corexy',
+          max_accel: 5000,
+          max_velocity: 300,
+          square_corner_velocity: 5.0,
+          max_z_velocity: 300,
+        },
+      },
+    })
+    const add = item(menu, 'addOption')
+    expect(add?.children?.map((child) => [child.label.params?.name, child.hint])).toEqual([
+      ['max_z_velocity', '300'],
+      ['square_corner_velocity', '5'],
+    ])
+    expect(add?.children?.[0]?.action).toEqual({
+      type: 'insertOption',
+      after: 4,
+      option: 'max_z_velocity',
+      value: '300',
+    })
+    expect(menu.groups.find((group) => group.id === 'docs')?.items.map((row) => row.id)).toEqual([
+      'reference',
+      'addOption',
+    ])
+  })
+
+  it('leaves out options set in another file, defaults that span lines, and read-only files', () => {
+    const settings = {
+      'gcode_macro park': { variable_z_lift: 10, variable_speed: 50, gcode: 'G0 Z10\nG0 X0' },
+    }
+    const park = (overrides: Partial<EditorMenuFacts>) =>
+      menuAt(0, 'PARK', { lines: macrosCfg, path: 'macros.cfg', settings, ...overrides })
+    expect(item(park({}), 'addOption')?.children?.map((child) => child.label.params?.name)).toEqual(
+      ['variable_speed'],
+    )
+    expect(ids(park({ readOnly: true }))).not.toContain('addOption')
+    expect(ids(park({ settingsLoaded: false }))).not.toContain('addOption')
+  })
+
   it('says when Klipper did not load a section', () => {
     const menu = menuAt(6, 'bed_mesh', { settings: {} })
     expect(menu.facts.map((fact) => fact.label.key)).toContain(

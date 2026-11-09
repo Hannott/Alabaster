@@ -370,19 +370,38 @@ function tokenizeTemplate(text: string, state: MachineSyntaxState): MachineSynta
   return tokens
 }
 
+/*
+ * A number standing alone in a value: not glued to a letter, an underscore or
+ * a dot, so `PA1`, `ldc1612` and `tmc2209_stepper_x` stay words while every
+ * figure in `mesh_min: 20, 20` is one.
+ */
+const VALUE_NUMBER = /(?<![\w.-])-?\d+(?:\.\d+)?(?![\w.])/g
+
+function splitValueNumbers(text: string): MachineSyntaxToken[] {
+  const tokens: MachineSyntaxToken[] = []
+  let cursor = 0
+  for (const match of text.matchAll(VALUE_NUMBER)) {
+    appendToken(tokens, 'value', text.slice(cursor, match.index))
+    appendToken(tokens, 'number', match[0])
+    cursor = match.index + match[0].length
+  }
+  appendToken(tokens, 'value', text.slice(cursor))
+  return tokens
+}
+
 // A bare value token that is only a pin modifier or boolean literal gets its
 // own color so the safety-relevant bit (an inverted pin, a flipped flag) isn't
-// lost in the noise.
+// lost in the noise. Numbers are the other thing a reader scans a value for.
 function splitValueWord(text: string): MachineSyntaxToken[] {
   const word = /^(\s*)(\S+)(\s*)$/.exec(text)
-  if (!word) return [{ kind: 'value', text }]
+  if (!word) return splitValueNumbers(text)
   const [, lead, core, trail] = word
   const kind = PIN_PATTERN.test(core ?? '')
     ? 'pin'
     : BOOLEAN_PATTERN.test(core ?? '')
       ? 'boolean'
       : null
-  if (!kind) return [{ kind: 'value', text }]
+  if (!kind) return splitValueNumbers(text)
   return compact([
     { kind: 'value', text: lead ?? '' },
     { kind, text: core ?? '' },

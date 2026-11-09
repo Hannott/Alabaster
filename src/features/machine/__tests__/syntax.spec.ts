@@ -45,8 +45,22 @@ describe('Klipper configuration syntax highlighting', () => {
     ])
     expect(kinds(tokenizeMachineLine('max_velocity = 300 ; tuned'))).toEqual([
       'key:max_velocity =',
-      'value:300',
+      'number:300',
       'comment:; tuned',
+    ])
+  })
+
+  it('colors every standalone number in a plain value, and no number inside a word', () => {
+    expect(kinds(tokenizeMachineLine('mesh_min: 20, -10.5'))).toEqual([
+      'key:mesh_min:',
+      'number:20',
+      'value:,',
+      'number:-10.5',
+    ])
+    expect(kinds(tokenizeMachineLine('sensor_pin: PA1'))).toEqual(['key:sensor_pin:', 'value:PA1'])
+    expect(kinds(tokenizeMachineLine('endstop_pin: tmc2209_stepper_x:virtual_endstop'))).toEqual([
+      'key:endstop_pin:',
+      'value:tmc2209_stepper_x:virtual_endstop',
     ])
   })
 
@@ -301,7 +315,12 @@ describe('Klipper syntax across lines', () => {
     expect(kinds(rows[1] ?? [])).toContain('templateDelimiter:{')
     expect(kinds(rows[2] ?? [])).toEqual(['key:param_t:', 'value:{t}'])
     expect(kinds(rows[4] ?? [])).toEqual(['key:runout_gcode:', 'command:PAUSE'])
-    expect(kinds(rows[6] ?? [])).toEqual(['key:variable_offsets:', 'value:{"x": 1}'])
+    expect(kinds(rows[6] ?? [])).toEqual([
+      'key:variable_offsets:',
+      'value:{"x":',
+      'number:1',
+      'value:}',
+    ])
   })
 
   it('colors a window as though every line above it had been read', () => {
@@ -413,17 +432,17 @@ describe('Klipper configuration syntax highlighting, values and structure', () =
 
 describe('splitTokensForSearch', () => {
   it('leaves tokens untouched, but still marked unmatched, when the query is empty', () => {
-    expect(splitTokensForSearch(tokenizeMachineLine('speed: 100'), '')).toEqual([
-      { kind: 'key', text: 'speed:', matched: false },
-      { kind: 'value', text: ' 100', matched: false },
+    expect(splitTokensForSearch(tokenizeMachineLine('kinematics: corexy'), '')).toEqual([
+      { kind: 'key', text: 'kinematics:', matched: false },
+      { kind: 'value', text: ' corexy', matched: false },
     ])
   })
 
   it('carves the matched substring out of a token while keeping its syntax kind', () => {
-    expect(splitTokensForSearch(tokenizeMachineLine('speed: 100'), 'spe')).toEqual([
-      { kind: 'key', text: 'spe', matched: true },
-      { kind: 'key', text: 'ed:', matched: false },
-      { kind: 'value', text: ' 100', matched: false },
+    expect(splitTokensForSearch(tokenizeMachineLine('kinematics: corexy'), 'kin')).toEqual([
+      { kind: 'key', text: 'kin', matched: true },
+      { kind: 'key', text: 'ematics:', matched: false },
+      { kind: 'value', text: ' corexy', matched: false },
     ])
   })
 
