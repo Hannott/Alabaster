@@ -1288,6 +1288,13 @@
     },
     "printerLabel": "Printer",
     "printerName": "Workshop printer",
+    "heaters": {
+      "reading": "{value}°",
+      "noReading": "–",
+      "target": "/ {value}°",
+      "label": "{name}: {temperature} °C, target {target} °C",
+      "labelNoReading": "{name}: no reading, target {target} °C"
+    },
     "openNavigation": "Open navigation",
     "notifications": {
       "label": "Notifications",

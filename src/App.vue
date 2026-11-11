@@ -10,6 +10,7 @@ import AppIcon, { type AppIconName } from '@/components/AppIcon.vue'
 import BedScrewsDialog from '@/components/BedScrewsDialog.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import HeaderCommandQueue from '@/components/HeaderCommandQueue.vue'
+import HeaderHeaters from '@/components/HeaderHeaters.vue'
 import HeaderMenu from '@/components/HeaderMenu.vue'
 import MachineUpdateConsoleHost from '@/components/MachineUpdateConsoleHost.vue'
 import ManualProbeDialog from '@/components/ManualProbeDialog.vue'
@@ -729,6 +730,7 @@ async function discardPendingConfig(): Promise<void> {
                   t(printerAvailabilityMessageKey)
                 }}</span>
               </div>
+              <HeaderHeaters />
             </div>
           </div>
         </div>

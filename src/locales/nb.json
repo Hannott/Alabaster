@@ -1288,6 +1288,13 @@
     },
     "printerLabel": "Skriver",
     "printerName": "Verkstedskriver",
+    "heaters": {
+      "reading": "{value}°",
+      "noReading": "–",
+      "target": "/ {value}°",
+      "label": "{name}: {temperature} °C, mål {target} °C",
+      "labelNoReading": "{name}: ingen måling, mål {target} °C"
+    },
     "openNavigation": "Åpne navigasjon",
     "notifications": {
       "label": "Varsler",

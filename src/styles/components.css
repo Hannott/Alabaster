@@ -2183,6 +2183,113 @@ input[type='number']::-webkit-inner-spin-button {
 }
 
 /*
+ * One pill per heater with a target above zero (HeaderHeaters.vue), the
+ * connection pill's shape. Unlike that pill the reading is always visible,
+ * because the reading is the point. The target is the part that folds away,
+ * and it stays unfolded while the heater is still climbing or cooling toward
+ * it, so "still heating" is told by the pill's length and the extra number,
+ * not by colour.
+ */
+.header-heater {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  block-size: 2rem;
+  border: 1px solid var(--border-subtle);
+  background: var(--surface-raised);
+  border-radius: 999px;
+  padding-inline: 0.5rem 0.625rem;
+  overflow: hidden;
+  cursor: default;
+  font-variant-numeric: tabular-nums;
+  transition:
+    opacity var(--motion-duration-standard) var(--motion-ease-standard),
+    filter var(--motion-duration-standard) var(--motion-ease-standard);
+}
+
+.header-heater:focus-visible {
+  outline: none;
+  border-color: var(--focus-ring);
+}
+
+.header-heater--recovering {
+  opacity: 0.76;
+  filter: saturate(0.78);
+}
+
+.header-heater--unavailable,
+.header-heater--error {
+  opacity: 0.68;
+  filter: saturate(0.58);
+}
+
+.header-heater__icon {
+  inline-size: 1.25rem;
+  block-size: 1.25rem;
+  flex: 0 0 auto;
+}
+
+/* Reserves three digits so a reading crossing 99° does not shove its neighbours. */
+.header-heater__reading {
+  min-inline-size: 4ch;
+  margin-inline-start: 0.35rem;
+  text-align: end;
+}
+
+.header-heater__target {
+  display: inline-block;
+  max-inline-size: 0;
+  margin-inline-start: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  opacity: 0;
+  color: var(--text-muted);
+  transition:
+    max-inline-size var(--motion-duration-standard) var(--motion-ease-emphasized),
+    margin-inline-start var(--motion-duration-standard) var(--motion-ease-emphasized),
+    opacity var(--motion-duration-fast) var(--motion-ease-standard);
+}
+
+.header-heater:hover .header-heater__target,
+.header-heater:focus-visible .header-heater__target {
+  max-inline-size: 8rem;
+  margin-inline-start: 0.35rem;
+  opacity: 1;
+}
+
+/*
+ * Not below `sm`: two unfolded pills are wider than a phone's identity row, so
+ * the printer name collapses to nothing and the last pill runs past the
+ * clipped inline edge. A tap still unfolds one, through `:hover`.
+ */
+@media (min-width: 40rem) {
+  .header-heater--approaching .header-heater__target {
+    max-inline-size: 8rem;
+    margin-inline-start: 0.35rem;
+    opacity: 1;
+  }
+}
+
+.header-heater-enter-active,
+.header-heater-leave-active {
+  transition: opacity var(--motion-duration-fast) var(--motion-ease-standard);
+}
+
+.header-heater-enter-from,
+.header-heater-leave-to {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .header-heater,
+  .header-heater__target,
+  .header-heater-enter-active,
+  .header-heater-leave-active {
+    transition: none;
+  }
+}
+
+/*
  * The actions never shrink, and on a desktop-width header they never wrap
  * either: `.app-shell` clips horizontal overflow rather than scrolling it, so
  * anything pushed past the inline edge is not merely awkward but silently

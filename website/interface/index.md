@@ -27,13 +27,14 @@ for details.
 
 The header appears on every page. It holds what you need from any page.
 
-| Control           | What it does                                                                                                       |
-| ----------------- | ------------------------------------------------------------------------------------------------------------------ |
-| Printer           | Switches between saved printers, and opens printer management.                                                     |
-| Connection status | The one global status indicator. Ready, printing, paused, needs attention, or not connected.                       |
-| Notifications     | Configuration problems, recent printer activity, and Moonraker's own announcements.                                |
-| Power and service | Restart Klipper, firmware restart, restart Moonraker, reboot or shut down the host, and any device power switches. |
-| Emergency stop    | Shuts down heaters and motion immediately. Asks first, unless you have turned that off.                            |
+| Control           | What it does                                                                                                        |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------- |
+| Printer           | Switches between saved printers, and opens printer management.                                                      |
+| Connection status | The one global status indicator. Ready, printing, paused, needs attention, or not connected.                        |
+| Heaters           | Each heater that is on, with its temperature, readable from any page. The target shows until the heater reaches it. |
+| Notifications     | Configuration problems, recent printer activity, and Moonraker's own announcements.                                 |
+| Power and service | Restart Klipper, firmware restart, restart Moonraker, reboot or shut down the host, and any device power switches.  |
+| Emergency stop    | Shuts down heaters and motion immediately. Asks first, unless you have turned that off.                             |
 
 **Save new config** appears in the header when Klipper is holding changes. It
 summarizes what the changes are.
