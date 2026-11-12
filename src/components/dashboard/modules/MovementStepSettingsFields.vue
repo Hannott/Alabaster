@@ -303,7 +303,9 @@ function commitJogSpeed(key: 'jogSpeedPlanar' | 'jogSpeedVertical', value: numbe
   <div v-if="quick.visible('zOffsetUnit')" class="settings-row">
     <div class="min-w-0">
       <span class="settings-row__label">{{ t('dashboard.movement.zOffsetUnitLabel') }}</span>
-      <p v-if="mode === 'pane'" class="settings-row__hint">{{ t('dashboard.movement.zOffsetUnitHint') }}</p>
+      <p v-if="mode === 'pane'" class="settings-row__hint">
+        {{ t('dashboard.movement.zOffsetUnitHint') }}
+      </p>
     </div>
     <div class="flex items-center gap-2">
       <div class="segmented">
