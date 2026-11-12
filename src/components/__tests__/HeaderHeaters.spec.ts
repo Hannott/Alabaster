@@ -4,7 +4,9 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { nextTick } from 'vue'
 
 import HeaderHeaters from '@/components/HeaderHeaters.vue'
+import { sensorColorVariable } from '@/components/dashboard/modules/temperatureSensors'
 import { i18n } from '@/i18n'
+import { useDashboardLayoutStore } from '@/stores/dashboardLayout'
 import { useTelemetryStore, type SensorReading } from '@/stores/telemetry'
 
 function reading(overrides: Partial<SensorReading> & Pick<SensorReading, 'objectName' | 'kind'>) {
@@ -90,6 +92,21 @@ describe('HeaderHeaters', () => {
     }
     await nextTick()
     expect(wrapper.findAll('.header-heater')).toHaveLength(0)
+  })
+
+  it('draws each icon in the colour the Temperatures card gave that heater', () => {
+    const card = useDashboardLayoutStore().profile.instances.find(
+      (instance) => instance.moduleId === 'temperatures',
+    )!
+    card.config = { ...card.config, sensorColors: { heater_bed: '#ff8800' } }
+    const { wrapper } = mountHeaters([
+      reading({ objectName: 'extruder', kind: 'extruder', temperature: 142, target: 220 }),
+      reading({ objectName: 'heater_bed', kind: 'bed', temperature: 48, target: 60 }),
+    ])
+
+    const icons = wrapper.findAll('.header-heater__icon')
+    expect(icons[0]!.attributes('style')).toContain(`color: ${sensorColorVariable('extruder')}`)
+    expect(icons[1]!.attributes('style')).toContain('color: rgb(255, 136, 0)')
   })
 
   it('is display only', () => {

@@ -3,8 +3,14 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import AppIcon from '@/components/AppIcon.vue'
-import { sensorLabel, sensorRowIcon } from '@/components/dashboard/modules/temperatureSensors'
+import {
+  sensorColorVariable,
+  sensorLabel,
+  sensorRowIcon,
+} from '@/components/dashboard/modules/temperatureSensors'
 import { useAvailability } from '@/composables/useAvailability'
+import { configStringMap } from '@/dashboard/context'
+import { useDashboardLayoutStore } from '@/stores/dashboardLayout'
 import { useTelemetryStore } from '@/stores/telemetry'
 
 /**
@@ -15,6 +21,19 @@ import { useTelemetryStore } from '@/stores/telemetry'
 const { t } = useI18n({ useScope: 'global' })
 const telemetry = useTelemetryStore()
 const { availability } = useAvailability('klipper')
+const dashboardLayout = useDashboardLayoutStore()
+
+/**
+ * The colours the reader picked on the Temperatures card, so a heater is the
+ * same hue here as on its chart line. With more than one Temperatures card the
+ * first one in the profile decides; with none, every heater takes its default.
+ */
+const sensorColors = computed(() => {
+  const instance = dashboardLayout.profile.instances.find(
+    (candidate) => candidate.moduleId === 'temperatures',
+  )
+  return configStringMap(instance?.config ?? {}, 'sensorColors')
+})
 
 /**
  * Wider than the store's 0.5° settle margin on purpose: a heater holding
@@ -39,6 +58,7 @@ const heaters = computed(() =>
       return {
         objectName: sensor.objectName,
         icon: sensorRowIcon(sensor, sensor.temperature),
+        color: sensorColorVariable(sensor.objectName, sensorColors.value),
         reading:
           temperature === null
             ? t('header.heaters.noReading')
@@ -69,7 +89,12 @@ const heaters = computed(() =>
       tabindex="0"
       :aria-label="heater.label"
     >
-      <AppIcon :name="heater.icon" class="header-heater__icon" aria-hidden="true" />
+      <AppIcon
+        :name="heater.icon"
+        class="header-heater__icon"
+        :style="{ color: heater.color }"
+        aria-hidden="true"
+      />
       <span class="header-heater__reading" aria-hidden="true">{{ heater.reading }}</span>
       <span class="header-heater__target" aria-hidden="true">{{ heater.target }}</span>
     </span>
