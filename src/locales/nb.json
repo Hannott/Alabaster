@@ -1736,6 +1736,7 @@
       "planUnknown": "Bedkart. Skriveren har ikke rapportert byggevolumet.",
       "zAxisNozzleAt": "Z-akse. Dysen står i Z {z}.",
       "zAxisNotHomed": "Z-akse. Dysehøyden er ukjent til Z har kjørt til nullpunkt.",
+      "zAxisMax": "maks",
       "park": {
         "center": "Parker i midten",
         "front": "Parker foran"

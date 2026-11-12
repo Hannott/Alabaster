@@ -7,7 +7,12 @@ import { i18n } from '@/i18n'
 import { usePrinterStore } from '@/stores/printer'
 
 function mountAxis(
-  options: { canMove?: boolean; swapDirection?: boolean; isMoving?: boolean } = {},
+  options: {
+    canMove?: boolean
+    swapDirection?: boolean
+    movingPart?: 'nozzle' | 'bed'
+    isMoving?: boolean
+  } = {},
 ) {
   const pinia = createPinia()
   const printer = usePrinterStore(pinia)
@@ -16,6 +21,7 @@ function mountAxis(
     props: {
       canMove: options.canMove ?? true,
       swapDirection: options.swapDirection ?? false,
+      movingPart: options.movingPart ?? 'nozzle',
       isMoving: options.isMoving ?? false,
     },
   })
@@ -73,6 +79,34 @@ describe('MovementZAxis', () => {
     expect(slider.attributes('type')).toBe('range')
     expect(slider.attributes('min')).toBe('0')
     expect(slider.attributes('max')).toBe('250')
+  })
+
+  it('names the travel ends with Z max at the top when Z+ moves the part up', async () => {
+    const { printer, wrapper } = mountAxis()
+    reportTravel(printer)
+    await flushPromises()
+
+    expect(wrapper.findAll('.z-axis__end').map((end) => end.text())).toEqual(['max', '0'])
+  })
+
+  it('puts the bottom of the travel at the top when Z+ moves the part down', async () => {
+    const { printer, wrapper } = mountAxis({ swapDirection: true })
+    printer.buildVolume.minimum = [0, 0, -2]
+    printer.buildVolume.maximum = [300, 200, 250]
+    await flushPromises()
+
+    expect(wrapper.findAll('.z-axis__end').map((end) => end.text())).toEqual(['-2', 'max'])
+  })
+
+  it('draws the thumb as a nozzle only where the nozzle is the part that moves', async () => {
+    const nozzle = mountAxis({ movingPart: 'nozzle' })
+    reportTravel(nozzle.printer)
+    const bed = mountAxis({ movingPart: 'bed' })
+    reportTravel(bed.printer)
+    await flushPromises()
+
+    expect(nozzle.wrapper.get('.z-axis').classes()).toContain('z-axis--nozzle')
+    expect(bed.wrapper.get('.z-axis').classes()).not.toContain('z-axis--nozzle')
   })
 
   it('reflects the live Z position until the user drags it', async () => {

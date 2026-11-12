@@ -4,13 +4,14 @@ import { useI18n } from 'vue-i18n'
 
 import { zExtents, zValue } from '@/dashboard/zAxisPlan'
 import { usePrinterStore } from '@/stores/printer'
+import type { ZMovingPart } from '@/stores/zMotion'
 
 /**
- * A vertical Z slider standing beside the bed plan at the same height. The
- * same control the Part Fan slider is — a native `input[type=range]`,
- * colored by `accent-color` and committed on release — rotated into the one
- * dimension Z has, rather than a bespoke pointer surface like the plan beside
- * it.
+ * A vertical Z slider standing to the left of the bed plan at the same height:
+ * a soft column naming its two travel ends, with the moving part drawn as an
+ * accent bar across it. Underneath it is still a native `input[type=range]`
+ * committed on release, so keyboard input and the `change` contract come from
+ * the browser rather than from a bespoke pointer surface like the plan's.
  */
 
 const { locale, t } = useI18n({ useScope: 'global' })
@@ -33,6 +34,11 @@ const props = defineProps<{
    * is a drawing choice, not a coordinate one.
    */
   swapDirection: boolean
+  /**
+   * The part Z moves (`stores/zMotion.ts`), drawn as the thumb: a nozzle where
+   * the toolhead travels, a flat bar where the bed does.
+   */
+  movingPart: ZMovingPart
   /**
    * Whether the toolhead is actually moving right now, shared from the card
    * rather than recomputed here so the two never disagree on the threshold.
@@ -76,6 +82,24 @@ watch(
   },
   { immediate: true },
 )
+
+const travelEndFormatter = computed(
+  () => new Intl.NumberFormat(locale.value, { maximumFractionDigits: 1 }),
+)
+
+/**
+ * The bottom of the travel is printed as the number it is, because it is 0 on
+ * nearly every machine and a reader recognizes it; the top is a word, because
+ * a three-digit maximum would not fit the column and is not what anyone aims
+ * for by number.
+ */
+const travelEnds = computed(() => {
+  const minimum = travelEndFormatter.value.format(extents.value?.minimum ?? 0)
+  const maximum = t('dashboard.movement.zAxisMax')
+  return props.swapDirection ? [minimum, maximum] : [maximum, minimum]
+})
+const topLabel = computed(() => travelEnds.value[0])
+const bottomLabel = computed(() => travelEnds.value[1])
 
 const isZHomed = computed(() => printer.motion.homedAxes.toUpperCase().includes('Z'))
 
@@ -134,7 +158,9 @@ function clearHover(): void {
 </script>
 
 <template>
-  <div v-if="extents" class="z-axis">
+  <div v-if="extents" class="z-axis" :class="{ 'z-axis--nozzle': movingPart === 'nozzle' }">
+    <span class="z-axis__end" aria-hidden="true">{{ topLabel }}</span>
+    <span class="z-axis__end" aria-hidden="true">{{ bottomLabel }}</span>
     <input
       v-model.number="draft"
       type="range"

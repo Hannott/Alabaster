@@ -1736,6 +1736,7 @@
       "planUnknown": "Bed plan. The printer has not reported its build volume.",
       "zAxisNozzleAt": "Z axis. Nozzle at Z {z}.",
       "zAxisNotHomed": "Z axis. The nozzle height is unknown until Z is homed.",
+      "zAxisMax": "max",
       "park": {
         "center": "Park center",
         "front": "Park front"

@@ -3992,7 +3992,7 @@ input[type='number']::-webkit-inner-spin-button {
  * calculation the way an orthogonal element always does, and that measured
  * against the workshop printer inflated the whole row to several hundred
  * pixels tall — the slider filling it and the plot merely capped inside an
- * oversized, invisible `.bed-plan` box. `.z-axis__track` is given the plot's
+ * oversized, invisible `.bed-plan` box. `.z-axis` is given the plot's
  * own height cap directly instead, so the two match by sharing a number
  * rather than by one measuring the other.
  */
@@ -4000,7 +4000,7 @@ input[type='number']::-webkit-inner-spin-button {
   display: flex;
   min-width: 0;
   align-items: flex-start;
-  gap: 0.5rem;
+  gap: 1rem;
   inline-size: fit-content;
   max-inline-size: 100%;
   margin-inline: auto;
@@ -4233,64 +4233,154 @@ input[type='number']::-webkit-inner-spin-button {
 }
 
 /*
- * The Z axis slider: the one-axis sibling of the bed plan, standing beside it
- * at the same height rather than adding a row of its own. The same control
- * the Part Fan slider is — a native `input[type=range]`, colored by
- * `accent-color` and committed on release — rotated into the one dimension Z
- * has, not a bespoke pointer surface like the plan beside it.
+ * The Z axis slider: the one-axis sibling of the bed plan, standing to its
+ * left at the same height rather than adding a row of its own, drawn as the
+ * Z direction proposal specifies — a soft column with its two travel ends
+ * printed inside it and the moving part as an accent bar across it.
+ *
+ * The column is drawn here rather than by the input's track pseudo-elements,
+ * so the end labels can sit under the input and the thumb passes over them
+ * instead of the words covering the thumb.
+ *
+ * `height` is the plot's own cap (`.bed-plan__plot`'s `max-block-size`, 8rem
+ * here and 12rem once the card is wide enough for the plot and the jog rows to
+ * stand side by side), not a percentage of the row: see `.movement-plan` for
+ * why matching a shared number replaced matching the sibling directly.
+ *
+ * The 1px border is transparent at rest and exists only so focus can recolor
+ * an edge the box already has, the treatment every other control's focus
+ * gets (see `.button:focus-visible` and its list).
  */
 .z-axis {
+  position: relative;
   display: flex;
-  min-width: 0;
+  flex: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  width: 2.2rem;
+  height: 8rem;
+  padding: 0.35rem 0;
+  border: 1px solid transparent;
+  border-radius: 0.3rem;
+  background: var(--surface-soft);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--type-scale-micro);
+  font-weight: var(--font-weight);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.z-axis:has(input:focus-visible) {
+  border-color: var(--focus-ring);
+}
+
+@container movement-card (min-width: 34rem) {
+  .z-axis {
+    height: 12rem;
+  }
+}
+
+.z-axis__end {
+  pointer-events: none;
 }
 
 /*
  * The standards-track way to rotate a range input: the inline axis becomes
- * vertical, so Z reads top-to-bottom or bottom-to-top depending on
- * `direction` — set inline from the "swap Z direction" setting, since a bed
- * that moves rather than a gantry wants its Z 0 at the top of the track
- * rather than the bottom. `-moz-orient` is Firefox's older, still-supported
- * route to the same rotation, kept alongside it rather than instead of it.
+ * vertical, and `direction` (bound inline from `stores/zMotion.ts`) picks
+ * which end reads as the maximum. `-moz-orient` is Firefox's older route to
+ * the same rotation, kept alongside it rather than instead of it.
  *
- * Physical `width`/`height`, not `inline-size`/`block-size`: the two values
- * here are not interchangeable (1rem thin, 8rem tall), and a logical
- * property on an element that itself carries `writing-mode` resolves against
- * *its own* rotated axes — `inline-size` would set the physical height here,
- * and `block-size` the physical width.
- *
- * `width` is the fan slider's own cross-axis size, not a chosen value: a bare
- * `input[type=range]` with no height set of its own rendered at 16px in the
- * workshop printer's Chromium, and 1rem is that measurement, not a guess at
- * it. Tried once as 1.1rem, close enough to look right in isolation but not
- * side by side with the fan slider it is supposed to match.
- *
- * `height` is also the plot's own cap (`.bed-plan__plot`'s `max-block-size`,
- * 8rem here and 12rem once the card is wide enough for both to stand side by
- * side), not a percentage of the row: see `.movement-plan` for why matching a
- * shared number replaced matching the sibling directly.
+ * `appearance: none` hands the track and thumb to this stylesheet: the track
+ * is transparent so the column behind it shows, and the thumb is the bar.
+ * Physical `width`/`height` throughout, not logical sizes: an element that
+ * carries `writing-mode` itself resolves `inline-size` against its own
+ * rotated axes, so `inline-size` would set the physical height here.
  *
  * `input.z-axis__slider` rather than `.z-axis__slider`: the shared
  * `input[type='range']` rule up top carries a type selector as well as an
  * attribute one, which outweighs a bare class selector on specificity alone.
- *
- * No `appearance: none`, and no thumb pseudo-elements. Reshaping the thumb
- * into a bar was tried and reverted: it only takes effect once the input's
- * own native appearance is reset, and that reset is also what hands drawing
- * the track back to this stylesheet — the fan slider's thin native track
- * became a solid pill at the input's full width the moment that happened, and
- * that mismatch is the one this card is trying to avoid, not solve differently.
  */
 input.z-axis__slider {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  appearance: none;
+  background: transparent;
+  outline: none;
   writing-mode: vertical-lr;
   -moz-orient: vertical;
-  width: 1rem;
-  height: 8rem;
 }
 
-@container movement-card (min-width: 34rem) {
-  input.z-axis__slider {
-    height: 12rem;
-  }
+input.z-axis__slider::-webkit-slider-runnable-track {
+  width: 100%;
+  height: 100%;
+  background: transparent;
+}
+
+input.z-axis__slider::-moz-range-track {
+  width: 100%;
+  height: 100%;
+  background: transparent;
+}
+
+/*
+ * The thumb is the part that moves: a flat bar for a bed, a nozzle where the
+ * toolhead travels. The nozzle is the outline Settings' Z motion schematic
+ * draws (`zMovesNozzle` in `AppIcon.vue`, a block with a pointed tip), filled
+ * and cut with `clip-path` so its colour stays a token rather than an image.
+ *
+ * Chromium lays the thumb against the block-start edge of a vertical track —
+ * the left — and neither `auto` block margins nor centering the track as a
+ * flex box moves it, so the gap is set outright: the column's inner width
+ * (2.2rem less its two 1px borders) minus the thumb's width, halved. A
+ * percentage cannot stand in for it, because the pseudo-element inherits the
+ * input's `writing-mode` and resolves margin percentages against the track's
+ * height.
+ */
+.z-axis {
+  --z-axis-thumb-width: 1.7rem;
+  --z-axis-thumb-height: 0.3rem;
+  --z-axis-thumb-radius: 0.15rem;
+  --z-axis-thumb-shape: none;
+}
+
+.z-axis--nozzle {
+  --z-axis-thumb-width: 1rem;
+  --z-axis-thumb-height: 1.125rem;
+  --z-axis-thumb-radius: 0;
+  --z-axis-thumb-shape: polygon(0 0, 100% 0, 100% 55.6%, 50% 100%, 0 55.6%);
+}
+
+input.z-axis__slider::-webkit-slider-thumb {
+  width: var(--z-axis-thumb-width);
+  height: var(--z-axis-thumb-height);
+  margin-left: calc((2.2rem - 2px - var(--z-axis-thumb-width)) / 2);
+  border: 0;
+  border-radius: var(--z-axis-thumb-radius);
+  appearance: none;
+  background: var(--accent-primary);
+  clip-path: var(--z-axis-thumb-shape);
+}
+
+input.z-axis__slider::-moz-range-thumb {
+  width: var(--z-axis-thumb-width);
+  height: var(--z-axis-thumb-height);
+  border: 0;
+  border-radius: var(--z-axis-thumb-radius);
+  background: var(--accent-primary);
+  clip-path: var(--z-axis-thumb-shape);
+}
+
+input.z-axis__slider:disabled::-webkit-slider-thumb {
+  background: var(--text-muted);
+}
+
+input.z-axis__slider:disabled::-moz-range-thumb {
+  background: var(--text-muted);
 }
 
 /*

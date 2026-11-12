@@ -970,9 +970,9 @@ function screwInstruction(screw: (typeof screwResults.value)[number]): string {
         makes internally, so the header's decision and the plan's own
         rendering always agree.
 
-        The Z slider stands beside it rather than adding a setting of its own:
-        it is meaningless without a picture of X and Y to stand next to, so it
-        shares the plan's own toggle and its own precondition. `.z-axis__slider`
+        The Z slider stands to its left rather than adding a setting of its
+        own: it is meaningless without a picture of X and Y to stand next to,
+        so it shares the plan's own toggle and its own precondition. `.z-axis`
         carries the same height cap `.bed-plan__plot` does rather than
         stretching to match it — a rotated `input[type=range]` reports its own
         intrinsic size into a flex row's cross-size the way any orthogonal
@@ -986,19 +986,20 @@ function screwInstruction(screw: (typeof screwResults.value)[number]): string {
         guess which number it was handed.
       -->
         <div v-if="hasBedPlan" class="movement-plan">
+          <MovementZAxis
+            :can-move="canMoveToTarget"
+            :swap-direction="!zMotion.zPlusIsUp"
+            :moving-part="zMotion.movingPart"
+            :is-moving="isMoving"
+            @move="printer.moveTo({ z: $event })"
+            @hover="hoverZ = $event"
+          />
           <MovementBedPlan
             :can-move="canMoveToTarget"
             :keyboard-step="planKeyboardStep"
             :axes-readout="axesReadout"
             @move="printer.moveTo($event)"
             @hover="hoverXY = $event"
-          />
-          <MovementZAxis
-            :can-move="canMoveToTarget"
-            :swap-direction="!zMotion.zPlusIsUp"
-            :is-moving="isMoving"
-            @move="printer.moveTo({ z: $event })"
-            @hover="hoverZ = $event"
           />
         </div>
 
