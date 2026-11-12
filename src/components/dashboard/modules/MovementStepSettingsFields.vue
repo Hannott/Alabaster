@@ -7,7 +7,6 @@ import AppField from '@/components/AppField.vue'
 import AppIcon from '@/components/AppIcon.vue'
 import QuickSettingToggle from '@/components/dashboard/QuickSettingToggle.vue'
 import {
-  offsetMagnitude,
   readJogSpeeds,
   readOffsetSteps,
   readPlanarSteps,
@@ -216,18 +215,6 @@ function commitJogSpeed(key: 'jogSpeedPlanar' | 'jogSpeedVertical', value: numbe
   }
   updateConfig({ [key]: Math.min(value, 1000) })
 }
-
-/**
- * The offset scales preview in the chosen unit rather than through the locale
- * formatter, so the pane and the card agree about what `.005` versus `5` even
- * means. Reads the committed values rather than the raw drafts, so a value
- * mid-edit or left blank does not flicker through the preview line.
- */
-const offsetPreview = computed(() =>
-  readOffsetSteps(config.value)
-    .map((step) => offsetMagnitude(step, offsetUnit.value))
-    .join(' / '),
-)
 </script>
 
 <template>
@@ -282,9 +269,6 @@ const offsetPreview = computed(() =>
           {{ t('dashboard.movement.stepAdd') }}
         </AppButton>
       </div>
-      <p v-if="group.key === 'offsetSteps'" class="surface-section__hint">
-        {{ t('dashboard.movement.zOffsetUnitHint', { steps: offsetPreview }) }}
-      </p>
     </div>
   </template>
 
@@ -317,7 +301,10 @@ const offsetPreview = computed(() =>
   </div>
 
   <div v-if="quick.visible('zOffsetUnit')" class="settings-row">
-    <span class="settings-row__label">{{ t('dashboard.movement.zOffsetUnitLabel') }}</span>
+    <div class="min-w-0">
+      <span class="settings-row__label">{{ t('dashboard.movement.zOffsetUnitLabel') }}</span>
+      <p v-if="mode === 'pane'" class="settings-row__hint">{{ t('dashboard.movement.zOffsetUnitHint') }}</p>
+    </div>
     <div class="flex items-center gap-2">
       <div class="segmented">
         <AppButton

@@ -1599,6 +1599,12 @@ input[type='number']::-webkit-inner-spin-button {
   font-weight: var(--font-weight);
 }
 
+.settings-row__hint {
+  color: var(--text-muted);
+  font-size: var(--text-hint-size);
+  line-height: 1.45;
+}
+
 /*
  * `1.75rem` square, matching the pin button it holds — see
  * `QuickSettingToggle`, which is always `button button--quiet button--xs
