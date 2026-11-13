@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 
 import {
   clampColumn,
@@ -36,6 +36,7 @@ import {
   presetVisibleModules,
   type DashboardPresetId,
 } from '@/dashboard/presets'
+import { usePrintersStore } from '@/stores/printers'
 import { isRecord } from '@/utils/records'
 
 const storageKey = 'alabaster.dashboard.profiles.v3'
@@ -443,6 +444,22 @@ export const useDashboardLayoutStore = defineStore('dashboardLayout', () => {
       .find((candidate) => candidate !== undefined)
     profile.value = existing ?? defaultDashboardProfile()
   }
+
+  /**
+   * The store follows the printer in front by itself, because the settings
+   * bundle reads and writes `profile` from any route. When only the Dashboard
+   * view selected the scope, a page opened anywhere else held the `local`
+   * profile: a sync pull applied the user's profile there, where the dashboard
+   * never looks, and recorded it as applied, so a later login did not try
+   * again; and a push from that page wrote the `local` profile over the
+   * user's real one.
+   */
+  const printers = usePrintersStore()
+  watch(
+    () => printers.activeScopeKeys.join(','),
+    () => selectPrinterScope(printers.activeScopeKeys),
+    { immediate: true },
+  )
 
   function itemsFor(viewport: DashboardViewport): RenderedDashboardInstance[] {
     return profile.value.placements[viewport].flatMap((placement) => {

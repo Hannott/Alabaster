@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 
 import { i18n } from '@/i18n'
 import {
@@ -54,6 +54,31 @@ function writeLastSyncedAt(key: string, updatedAt: string | null): void {
     window.localStorage.setItem(metaStorageKey, JSON.stringify(record))
   } catch {
     // A full or unavailable store costs the status line, never the sync itself.
+  }
+}
+
+const browserSettingsStorageKey = 'alabaster.settingsSync.browserSettings.v1'
+
+/**
+ * What this browser showed for a printer before a user's profile replaced it,
+ * per printer because the bundle carries that printer's dashboard. Every store
+ * keeps writing its own `localStorage` while a user is logged in, so without
+ * this copy a logout would have nothing of the browser's own left to return to.
+ */
+function readBrowserSettingsTable(): Record<string, unknown> {
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(browserSettingsStorageKey) ?? '{}')
+    return isRecord(parsed) ? parsed : {}
+  } catch {
+    return {}
+  }
+}
+
+function writeBrowserSettingsTable(table: Record<string, unknown>): void {
+  try {
+    window.localStorage.setItem(browserSettingsStorageKey, JSON.stringify(table))
+  } catch {
+    // A full store loses the way back to the browser's settings, not the login.
   }
 }
 
@@ -190,26 +215,74 @@ export const useSettingsSyncStore = defineStore('settingsSync', () => {
   }
 
   /**
+   * Applying a profile changes every store it touches, and the snapshot watch
+   * below cannot tell that from the reader editing a setting. Pushing it back
+   * rewrote the profile on every login with whatever the apply left behind —
+   * which, when the dashboard was not reading the scope it was applied to, was
+   * the browser's own defaults.
+   */
+  let applyingProfile = false
+
+  async function applyWithoutPushing(bundle: unknown): Promise<void> {
+    applyingProfile = true
+    try {
+      await applySettingsBundle(bundle)
+      await nextTick()
+    } finally {
+      applyingProfile = false
+    }
+  }
+
+  /**
    * Runs whenever a user's profile becomes reachable — a login, a reconnect, a
-   * printer switch. A user with no profile on this printer yet starts one
-   * from this browser's current settings; an existing one newer than this
-   * browser last applied replaces them, and an older one is left alone, so a
-   * reconnect never rolls back an edit this browser has not pushed yet.
+   * printer switch. Whatever the profile holds replaces what is on screen,
+   * every time, whatever this browser last recorded: a timestamp comparison
+   * here once kept a login from applying a profile this browser had pushed
+   * itself, even though what the browser showed had since drifted from it.
+   * Nothing is written: a user without a profile on this printer gets one from
+   * their first real edit, not from logging in.
    */
   async function syncProfile(): Promise<void> {
     if (!isEnabled.value) return
     const profileKey = activeMetaKey.value
+    const printerId = printers.activeId
+    if (pushDebounceTimer) clearTimeout(pushDebounceTimer)
+    pushDebounceTimer = null
     const remote = await readProfile()
-    if (remote.state === 'unreachable') return
-    if (remote.state === 'missing') {
-      await push()
-      return
+    if (remote.state === 'unreachable' || activeMetaKey.value !== profileKey) return
+
+    const table = readBrowserSettingsTable()
+    if (printerId && table[printerId] === undefined) {
+      writeBrowserSettingsTable({ ...table, [printerId]: collectSettingsBundle() })
     }
     reconciledMetaKey.value = profileKey
-    if (lastSyncedAt.value !== null && remote.bundle.updatedAt <= lastSyncedAt.value) return
-    await applySettingsBundle(remote.bundle)
+    if (remote.state === 'missing') return
+
+    const before = comparableSnapshot()
+    await applyWithoutPushing(remote.bundle)
     recordSynced(remote.bundle.updatedAt)
-    toasts.push(i18n.global.t('backup.sync.restoredToast'))
+    if (comparableSnapshot() !== before) toasts.push(i18n.global.t('backup.sync.restoredToast'))
+  }
+
+  /**
+   * Nobody is logged in on this printer — a logout, or a session that ended
+   * elsewhere — so the browser's own settings come back, as they were when the
+   * user's profile replaced them. `auth.load()` having answered is the gate:
+   * before it has, a session about to be restored from its refresh token also
+   * reads as no user, and returning to the browser's settings for that moment
+   * would flash them on every page load.
+   */
+  async function restoreBrowserSettings(printerId: string): Promise<void> {
+    const table = readBrowserSettingsTable()
+    const saved = table[printerId]
+    if (saved === undefined) return
+    reconciledMetaKey.value = null
+    if (pushDebounceTimer) clearTimeout(pushDebounceTimer)
+    pushDebounceTimer = null
+    await applyWithoutPushing(saved)
+    const remaining = readBrowserSettingsTable()
+    delete remaining[printerId]
+    writeBrowserSettingsTable(remaining)
   }
 
   /**
@@ -244,7 +317,7 @@ export const useSettingsSyncStore = defineStore('settingsSync', () => {
         () => (isEnabled.value && moonraker.isConnected ? comparableSnapshot() : null),
         (value, oldValue) => {
           if (value === null || oldValue === null || value === oldValue) return
-          if (reconciledMetaKey.value !== activeMetaKey.value) return
+          if (applyingProfile || reconciledMetaKey.value !== activeMetaKey.value) return
           scheduleAutoPush()
         },
       ),
@@ -252,6 +325,16 @@ export const useSettingsSyncStore = defineStore('settingsSync', () => {
         () => (moonraker.isConnected ? activeMetaKey.value : null),
         (key) => {
           if (key !== null) void syncProfile()
+        },
+        { immediate: true },
+      ),
+      watch(
+        () =>
+          moonraker.isConnected && auth.info !== null && !auth.isLoading && syncKey.value === null
+            ? printers.activeId
+            : null,
+        (printerId) => {
+          if (printerId) void restoreBrowserSettings(printerId)
         },
         { immediate: true },
       ),

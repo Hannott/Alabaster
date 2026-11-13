@@ -1,5 +1,6 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it } from 'vitest'
+import { nextTick } from 'vue'
 
 import { dashboardModuleIds } from '@/dashboard/layout'
 import { presetVisibleModules } from '@/dashboard/presets'
@@ -9,6 +10,7 @@ import {
   savedLayoutNameIssue,
   useDashboardLayoutStore,
 } from '@/stores/dashboardLayout'
+import { usePrintersStore } from '@/stores/printers'
 
 const legacyFlatStorageKey = 'alabaster.dashboard.layouts.v1'
 const legacySpanStorageKey = 'alabaster.dashboard.profiles.v2'
@@ -667,5 +669,38 @@ describe('saved layouts', () => {
     expect(new Set(kept?.instances.map((instance) => instance.moduleId))).toEqual(
       new Set(dashboardModuleIds),
     )
+  })
+})
+
+/*
+ * Only the Dashboard view used to pick the printer's scope. A settings sync that
+ * applied a user's profile on any other route wrote it under `local`, where the
+ * dashboard never reads, and a push from there sent `local` over the profile.
+ */
+describe('dashboard profile printer scope', () => {
+  beforeEach(() => {
+    window.localStorage.clear()
+    setActivePinia(createPinia())
+  })
+
+  it('follows the active printer without the dashboard selecting it', async () => {
+    const printers = usePrintersStore()
+    const first = printers.addPrinter('ws://printer-a.local:7125/websocket')
+    const layout = useDashboardLayoutStore()
+
+    layout.updateConfig('temperatures', { presets: [{ name: 'PCTG', extruder: 270, bed: 80 }] })
+
+    const second = printers.addPrinter('ws://printer-b.local:7125/websocket')
+    await nextTick()
+    expect(layout.scope).toBe(second?.id)
+    expect(
+      layout.profile.instances.find((instance) => instance.instanceId === 'temperatures')?.config,
+    ).toEqual({})
+
+    printers.selectPrinter(first?.id ?? '')
+    await nextTick()
+    expect(
+      layout.profile.instances.find((instance) => instance.instanceId === 'temperatures')?.config,
+    ).toEqual({ presets: [{ name: 'PCTG', extruder: 270, bed: 80 }] })
   })
 })

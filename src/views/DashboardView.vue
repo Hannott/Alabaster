@@ -38,7 +38,6 @@ import {
   type RenderedDashboardInstance,
 } from '@/stores/dashboardLayout'
 import { useConfirmationsStore } from '@/stores/confirmations'
-import { usePrintersStore } from '@/stores/printers'
 import { useServerCapabilitiesStore } from '@/stores/serverCapabilities'
 
 interface RenderedDashboardModule extends RenderedDashboardInstance {
@@ -46,7 +45,6 @@ interface RenderedDashboardModule extends RenderedDashboardInstance {
 }
 
 const { t } = useI18n({ useScope: 'global' })
-const printers = usePrintersStore()
 const layout = useDashboardLayoutStore()
 const serverCapabilities = useServerCapabilitiesStore()
 const confirmations = useConfirmationsStore()
@@ -113,11 +111,6 @@ const surfaceStacked = computed(
     dockedWidth.value + paneMinimumPx + surfaceChromePx > viewportWidth.value,
 )
 
-watch(
-  () => printers.activeScopeKeys,
-  (scopeKeys) => layout.selectPrinterScope(scopeKeys),
-  { immediate: true },
-)
 watch(activeViewport, (viewport) => {
   if (!editing.value) selectedViewport.value = viewport
 })

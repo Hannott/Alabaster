@@ -279,12 +279,15 @@ Log in to a Moonraker account and your settings and dashboard layout follow
 you: they are saved to your account's profile in the printer's own
 database, and every browser where you log in to that printer picks them up.
 Each account has its own profile, so two people sharing a printer do not
-overwrite each other's settings. The first time you log in on a printer, your
-profile starts from the settings in the browser you are using.
+overwrite each other's settings. Logging in replaces whatever the browser was
+showing with your profile, and saves nothing; your profile only changes when
+you change a setting. If you have no profile on that printer yet, your first
+change creates one from the settings in the browser you are using.
 
 Without a login, nothing is saved to the printer. Each browser keeps its own
 settings, so a screen at the printer and a computer elsewhere can be set up
-differently.
+differently. Logging out returns the browser to the settings it had before
+you logged in.
 
 The card shows when your profile last synced, and **Sync now** syncs on
 demand. **Forget synced data** removes your profile from the printer's

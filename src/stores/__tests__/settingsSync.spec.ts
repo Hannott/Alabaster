@@ -105,7 +105,7 @@ describe('settings sync store', () => {
     settingsSync.stop()
   })
 
-  it("starts a user's profile from this browser's settings when the printer has none yet", async () => {
+  it('writes nothing on login when the printer has no profile for the user yet', async () => {
     const { moonraker } = setup()
     usePrintersStore().addPrinter('voron.local:7125')
     logIn()
@@ -125,20 +125,60 @@ describe('settings sync store', () => {
       namespace: 'alabaster',
       key: 'ada',
     })
+    expect(rpcCall).not.toHaveBeenCalledWith('server.database.post_item', expect.anything())
+
+    // The first real edit is what starts the profile.
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    useTheme().setMode('light')
+    await flushPromises()
+    await vi.advanceTimersByTimeAsync(2000)
+    vi.useRealTimers()
     expect(rpcCall).toHaveBeenCalledWith(
       'server.database.post_item',
       expect.objectContaining({ namespace: 'alabaster', key: 'ada' }),
     )
-    expect(settingsSync.lastSyncedAt).not.toBeNull()
     settingsSync.stop()
   })
 
-  it("applies a logged-in user's existing profile live", async () => {
+  it("applies a logged-in user's existing profile live, without writing it back", async () => {
     const { moonraker } = setup()
     usePrintersStore().addPrinter('voron.local:7125')
     const theme = useTheme()
     theme.setMode('light')
 
+    const remote = emptyRemoteBundle()
+    const rpcCall = vi.spyOn(moonraker, 'rpcCall').mockImplementation((method) => {
+      if (method === 'server.database.get_item') {
+        return Promise.resolve({ namespace: 'alabaster', key: 'ada', value: remote }) as never
+      }
+      if (method === 'server.database.post_item') {
+        return Promise.resolve({ namespace: 'alabaster', key: 'ada', value: {} }) as never
+      }
+      throw new Error(`unexpected method ${String(method)}`)
+    })
+
+    const settingsSync = useSettingsSyncStore()
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    settingsSync.start()
+    logIn()
+    await flushPromises()
+    await vi.advanceTimersByTimeAsync(5000)
+    vi.useRealTimers()
+
+    expect(theme.mode.value).toBe('dark')
+    expect(settingsSync.lastSyncedAt).toBe(remote.updatedAt)
+    expect(rpcCall).not.toHaveBeenCalledWith('server.database.post_item', expect.anything())
+    settingsSync.stop()
+  })
+
+  /*
+   * A login once skipped a profile whose timestamp this browser had already
+   * recorded, so a browser showing something else kept showing it.
+   */
+  it('applies the profile on every login, even one this browser already recorded', async () => {
+    const { moonraker } = setup()
+    usePrintersStore().addPrinter('voron.local:7125')
+    const theme = useTheme()
     const remote = emptyRemoteBundle()
     vi.spyOn(moonraker, 'rpcCall').mockImplementation((method) => {
       if (method === 'server.database.get_item') {
@@ -151,9 +191,77 @@ describe('settings sync store', () => {
     settingsSync.start()
     logIn()
     await flushPromises()
+    expect(settingsSync.lastSyncedAt).toBe(remote.updatedAt)
+
+    useAuthStore().currentUser = null
+    await flushPromises()
+    theme.setMode('light')
+    logIn()
+    await flushPromises()
 
     expect(theme.mode.value).toBe('dark')
-    expect(settingsSync.lastSyncedAt).toBe(remote.updatedAt)
+    settingsSync.stop()
+  })
+
+  it("returns to the browser's own settings on logout", async () => {
+    const { moonraker } = setup()
+    usePrintersStore().addPrinter('voron.local:7125')
+    const auth = useAuthStore()
+    auth.info = { default_source: 'moonraker', available_sources: ['moonraker'] } as never
+    const theme = useTheme()
+    theme.setMode('light')
+    vi.spyOn(moonraker, 'rpcCall').mockImplementation((method) => {
+      if (method === 'server.database.get_item') {
+        return Promise.resolve({
+          namespace: 'alabaster',
+          key: 'ada',
+          value: emptyRemoteBundle(),
+        }) as never
+      }
+      throw new Error(`unexpected method ${String(method)}`)
+    })
+
+    const settingsSync = useSettingsSyncStore()
+    settingsSync.start()
+    logIn()
+    await flushPromises()
+    expect(theme.mode.value).toBe('dark')
+
+    auth.currentUser = null
+    await flushPromises()
+
+    expect(theme.mode.value).toBe('light')
+    settingsSync.stop()
+  })
+
+  it("does not restore the browser's settings while a stored session is still being read", async () => {
+    const { moonraker } = setup()
+    usePrintersStore().addPrinter('voron.local:7125')
+    const auth = useAuthStore()
+    const theme = useTheme()
+    theme.setMode('light')
+    vi.spyOn(moonraker, 'rpcCall').mockImplementation((method) => {
+      if (method === 'server.database.get_item') {
+        return Promise.resolve({
+          namespace: 'alabaster',
+          key: 'ada',
+          value: emptyRemoteBundle(),
+        }) as never
+      }
+      throw new Error(`unexpected method ${String(method)}`)
+    })
+
+    const settingsSync = useSettingsSyncStore()
+    settingsSync.start()
+    logIn()
+    await flushPromises()
+
+    // A reload: the user is not known until `auth.load()` has answered.
+    auth.currentUser = null
+    auth.info = null
+    auth.isLoading = true
+    await flushPromises()
+    expect(theme.mode.value).toBe('dark')
     settingsSync.stop()
   })
 
