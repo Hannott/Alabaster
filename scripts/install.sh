@@ -27,10 +27,7 @@ CONFLICT_MACROS='PAUSE RESUME CANCEL_PRINT SET_PAUSE_AT_LAYER SET_PAUSE_NEXT_LAY
 CONFLICT_SECTIONS='pause_resume display_status respond exclude_object virtual_sdcard'
 
 # >>> installer-ui
-# The terminal presentation both scripts share. It is copied verbatim between
-# the two markers in install.sh and uninstall.sh, because each is fetched and
-# run as a single file; scripts/__tests__/installerUi.spec.ts fails the build
-# when the copies differ.
+# The terminal presentation.
 #
 # Pure bash 4+ and printf: no tput, dialog, whiptail or ncurses, which minimal
 # Klipper host images do not all ship. Three output modes, chosen once:
@@ -40,8 +37,8 @@ CONFLICT_SECTIONS='pause_resume display_status respond exclude_object virtual_sd
 #   plain  stdout is not a terminal, or --plain was given: one line per event,
 #          no colour and no cursor movement, so logs and scripted runs read
 #          the same as they always have
-# Nothing clears the screen or switches to the alternate screen, so the whole
-# run stays in scrollback for the owner to scroll back through and copy from.
+# A person at a terminal gets the installer on the alternate screen, redrawn
+# whole on every change; leaving it restores the terminal as it was.
 
 shopt -s extglob
 
@@ -61,12 +58,15 @@ ui_init() {
         UI_COLOR=none
     fi
 
-    local cols=''
+    local size=''
     if [ "$UI_TTY" -eq 1 ] && [ -r /dev/tty ]; then
-        cols="$(stty size < /dev/tty 2>/dev/null | cut -d' ' -f2 || true)"
+        size="$(stty size < /dev/tty 2>/dev/null || true)"
     fi
-    UI_COLS="${cols:-${COLUMNS:-80}}"
-    case "$UI_COLS" in '' | *[!0-9]*) UI_COLS=80 ;; esac
+    UI_ROWS="${size%% *}"
+    UI_COLS="${size##* }"
+    [ -n "$size" ] || UI_COLS="${COLUMNS:-80}"
+    case "$UI_COLS" in '' | *[!0-9]* | 0) UI_COLS=80 ;; esac
+    case "$UI_ROWS" in '' | *[!0-9]*) UI_ROWS=0 ;; esac
     UI_W=78
     ((UI_COLS < 80)) && UI_W=$((UI_COLS - 2))
     ((UI_W < 48)) && UI_W=48
@@ -299,6 +299,13 @@ ui_banner() {
     [ "$UI_MODE" = plain ] && return 0
     local tagline="${C_DIM}${title}${C_OFF}${note:+   $note}"
 
+    # Every screen is drawn to fit 30 rows; a shorter terminal trades the
+    # seven-row banner for one line rather than losing the bottom of a panel.
+    if ((UI_ROWS > 0 && UI_ROWS < 30)); then
+        printf '\n %sALABASTER%s  %s\n\n' "$C_BOLD" "$C_OFF" "$tagline"
+        return 0
+    fi
+
     if [ "$UI_MODE" = ascii ] || ((UI_COLS < 66)); then
         printf '\n %sA L A B A S T E R%s\n %s\n\n' "$C_BOLD" "$C_OFF" "$tagline"
         return 0
@@ -399,6 +406,38 @@ ui_box_line2() {
         "$frame" "$B_V" "$C_OFF" "$(ui_pad "$2" $((UI_IW - UI_LW - 4)))" \
         "$frame" "$B_V" "$C_OFF"
 }
+
+# One label, mark and value of Home's state column.
+ui_state() { printf '%s%s %s' "$(ui_pad "$1" 12)" "$(ui_mark "$2")" "$3"; }
+
+# Home: actions on the left, state on the right, and under them the outcome
+# of the last action, each entry "mark|text". Arrays are passed by name. An
+# entry carrying colour is drawn on one line, since wrapping would count its
+# escapes as width.
+ui_home() {
+    local title="$1" right="$2" hint="$3"
+    local -n left_ref="$4" state_ref="$5" msg_ref="$6"
+    ui_box_top "$title" "$right"
+    ui_box_split "$B_LT" "$B_TT" "$B_RT"
+    local i n=${#state_ref[@]} entry text
+    ((${#left_ref[@]} > n)) && n=${#left_ref[@]}
+    for ((i = 0; i < n; i++)); do ui_box_line2 "${left_ref[i]:-}" "${state_ref[i]:-}"; done
+    if ((${#msg_ref[@]} == 0)); then
+        ui_box_split "$B_BL" "$B_BT" "$B_BR"
+        return 0
+    fi
+    ui_box_split "$B_LT" "$B_BT" "$B_RT"
+    for entry in "${msg_ref[@]}"; do
+        text="${entry#*|}"
+        case "$text" in
+            *$'\033'*) ui_box_line "$(ui_mark "${entry%%|*}")  ${text}" ;;
+            *) ui_box_para "${entry%%|*}" "$text" ;;
+        esac
+    done
+    ui_box_bottom "$hint"
+}
+
+ui_clear() { printf '\033[H\033[2J'; }
 
 # mark, label, state, detail: the shape of every status row. The detail is
 # plain text and is shortened to fit.
@@ -555,6 +594,12 @@ changed_moonraker=0
 banner_shown=0
 RESTART_LINE=''
 RESTART_ASK=0
+printer_now=''
+mode=install
+# 1 while the installer runs as a place to stay in (see app); 0 for the
+# one-shot run that scripts, logs and --yes get.
+APP=0
+APP_ISOLATED=0
 
 # --------------------------------------------------------------------------
 # Output and prompts
@@ -567,10 +612,20 @@ warn() {
     printf '%s!%s  %s\n' "$C_WARN" "$C_OFF" "$*" >&2
 }
 
-# In a terminal the failure is a panel on the terminal itself (fd 4), since a
-# running step has its own output sent to the log.
+# Inside the installer's own screen a failure ends only the action that hit
+# it: the message goes back to Home (see run_isolated). Otherwise, in a
+# terminal, it is a panel on the terminal itself (fd 4), since a running step
+# has its own output sent to the log.
 die() {
     ui_spin_stop
+    if [ "$APP_ISOLATED" -eq 1 ]; then
+        printf '%s' "$*" > "${work}/error"
+        exit 1
+    fi
+    if [ "$APP" -eq 1 ]; then
+        session_add err "$*"
+        exit 1
+    fi
     if [ "$UI_MODE" = plain ]; then
         printf '%serror:%s %s\n' "$C_ERR" "$C_OFF" "$*" >&2
     else
@@ -648,6 +703,7 @@ Alabaster installer
   --no-include            Do not offer to add the include to printer.cfg
   --no-nginx              Do not offer to configure nginx
   --no-update-manager     Do not offer to add update entries to moonraker.conf
+  --uninstall             Remove Alabaster and what this installer added
   --plain                 Print one line per step, without panels or colour
   --dry-run               Print what would happen and change nothing
   -h, --help              This message
@@ -677,6 +733,7 @@ while [ $# -gt 0 ]; do
         --no-nginx) want_nginx=0; shift ;;
         --no-update-manager) want_update_manager=0; shift ;;
         --plain) shift ;;
+        --uninstall) mode=uninstall; shift ;;
         --dry-run) dry_run=1; shift ;;
         -h|--help) usage; exit 0 ;;
         *) die "Unknown option: $1 (try --help)" ;;
@@ -762,7 +819,14 @@ resolve_target_version() {
     fi
 }
 
+# Runs again after every action on Home, so it starts from nothing.
 detect() {
+    config_dir='' printer_cfg='' moonraker_conf='' include_count=0
+    klipper_state='' moonraker_version='' moonraker_answers=0
+    nginx_present=0 nginx_site='' nginx_site_exists=0 other_site=''
+    current_version='' link_state='none' link_current=''
+    include_present=0 conflicts='' um_app=0 um_pack=0 printer_now=''
+
     host_name="$(hostname 2>/dev/null || printf 'printer')"
     if [ -r /proc/device-tree/model ]; then
         host_model="$(tr -d '\000' < /proc/device-tree/model | sed 's/ Rev .*//')"
@@ -816,7 +880,9 @@ detect() {
     if [ -f "${install_path}/release_info.json" ]; then
         current_version="$(sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "${install_path}/release_info.json" | head -n1)"
     fi
-    target_version="$(resolve_target_version)"
+    # One network lookup per run is enough to know the newest release.
+    [ -n "$target_version" ] || target_version="$(resolve_target_version)"
+    [ "$moonraker_answers" -eq 1 ] && printer_now="$(printer_state)"
 
     if [ -n "$config_dir" ]; then
         local target="${config_dir}/alabaster.cfg"
@@ -1504,9 +1570,13 @@ plan_plain() {
 }
 
 draw_plan() {
-    local static="${1:-0}" right='nothing changes until you press Enter' title='What will happen'
+    local static="${1:-0}" right='nothing changes until you press Enter' title
+    title="Install Alabaster ${installed_version:-${target_version:-}}"
+    [ -n "$current_version" ] && title="Reinstall Alabaster ${installed_version:-${target_version:-}}"
+    [ -n "$current_version" ] && [ -n "$installed_version" ] && [ "$installed_version" != "$current_version" ] \
+        && title="Update to ${installed_version}"
     [ "$static" -eq 1 ] && right=''
-    [ "$dry_run" -eq 1 ] && title='What would happen (dry run)'
+    [ "$dry_run" -eq 1 ] && title+=' (dry run)'
     ui_box_top "$title" "$right"
     ui_box_blank
 
@@ -1607,13 +1677,13 @@ draw_plan() {
     if [ "$static" -eq 1 ]; then
         ui_box_bottom
     else
-        local hint
-        hint="$(ui_key 2-5 toggle)  $(ui_key P port)  $(ui_key Enter install)  $(ui_key Q quit)"
-        [ "$dry_run" -eq 1 ] && hint="$(ui_key 2-5 toggle)  $(ui_key P port)  $(ui_key Enter 'dry run')  $(ui_key Q quit)"
-        ui_box_bottom "$hint"
+        local go=install
+        [ "$dry_run" -eq 1 ] && go='dry run'
+        ui_box_bottom "$(ui_key 2-5 toggle)  $(ui_key P port)  $(ui_key Enter "$go")  $(ui_key Esc back)"
     fi
 }
 
+# Returns 2 for a key the plan loop answers itself: P asks for a port.
 toggle() {
     case "$1" in
         2)
@@ -1625,53 +1695,66 @@ toggle() {
         3) [ "$do_pack" -eq 1 ] && include_available && do_include=$((1 - do_include)) ;;
         4) nginx_available && do_nginx=$((1 - do_nginx)) ;;
         5) updates_available && do_updates=$((1 - do_updates)) ;;
+        p | P) nginx_available && return 2 ;;
     esac
     return 0
 }
 
-plan_interactive() {
-    local key extra=0 reply
-    printf '\n'
-    ui_draw draw_plan 0
+# A plan screen: redraws in place on every key until Enter confirms (0) or
+# Esc goes back without changing anything (1).
+plan_loop() {
+    local draw="$1" toggle_fn="$2" key extra=0 rc reply
+    ui_draw "$draw" 0
     while :; do
         printf '  %s%s%s ' "$C_SKY" "$G_PROMPT" "$C_OFF"
-        IFS= read -rsn1 key < /dev/tty || key=q
+        IFS= read -rsn1 key < /dev/tty || return 1
         case "$key" in
-            '') break ;;
-            q | Q)
-                printf '\n'
-                say 'Nothing was changed.'
-                exit 0
+            '')
+                printf '\r\033[K'
+                return 0
                 ;;
-            p | P)
-                printf '\r\033[K  Port %s[%s]%s %s%s%s ' "$C_DIM" "$port" "$C_OFF" "$C_SKY" "$G_PROMPT" "$C_OFF"
-                read -r reply < /dev/tty || reply=''
-                extra=1
-                if [[ "$reply" =~ ^[0-9]+$ ]] && ((reply > 0 && reply < 65536)); then
-                    port="$reply"
-                    port_given=1
+            $'\033')
+                # A bare Esc; an arrow key arrives as Esc followed by two more.
+                read -rsn2 -t 0.05 _ < /dev/tty || return 1
+                ;;
+            q | Q) return 1 ;;
+            *)
+                rc=0
+                "$toggle_fn" "$key" || rc=$?
+                if [ "$rc" -eq 2 ]; then
+                    printf '\r\033[K  Port %s[%s]%s %s%s%s ' "$C_DIM" "$port" "$C_OFF" "$C_SKY" "$G_PROMPT" "$C_OFF"
+                    read -r reply < /dev/tty || reply=''
+                    extra=1
+                    if [[ "$reply" =~ ^[0-9]+$ ]] && ((reply > 0 && reply < 65536)); then
+                        port="$reply"
+                        port_given=1
+                    fi
                 fi
                 ;;
-            $'\033') read -rsn2 -t 0.05 _ < /dev/tty || true ;;
-            *) toggle "$key" ;;
         esac
-        ui_redraw "$extra" draw_plan 0
+        ui_redraw "$extra" "$draw" 0
         extra=0
     done
-    printf '\r\033[K'
 }
 
+# Asked before a run rather than in the middle of one, so the password prompt
+# never lands inside a panel that is redrawing itself.
+need_sudo() {
+    [ "$dry_run" -eq 0 ] || return 0
+    sudo -n true 2>/dev/null && return 0
+    [ "$UI_MODE" = plain ] || say "  nginx needs sudo; enter your password if asked."
+    sudo -v
+}
+
+# The one-shot path: plain output, --yes, or no terminal to read keys from.
 decide() {
     plan_defaults
     if [ "$UI_MODE" = plain ]; then
         do_pack=0 do_include=0 do_nginx=0 do_updates=0
         plan_plain
-    elif interactive; then
-        plan_interactive
     else
-        # --yes, or no terminal to read from: the plan shows once and runs.
-        # Without --yes the old installer skipped every optional step, so
-        # this keeps doing so.
+        # Without --yes the old installer skipped every optional step when it
+        # could not ask, so this keeps doing so.
         if [ "$assume_yes" -eq 0 ]; then
             do_pack=0 do_include=0 do_nginx=0 do_updates=0
             warn 'Not running interactively and --yes was not given; installing the app only.'
@@ -1681,26 +1764,22 @@ decide() {
     fi
     [ "$link_state" = elsewhere ] && replace_link=$do_pack
 
-    # Asked now rather than in the middle of the run, so the password prompt
-    # never lands inside a panel that is redrawing itself.
-    if [ "$do_nginx" -eq 1 ] && [ "$dry_run" -eq 0 ]; then
-        [ "$UI_MODE" = plain ] || say "  nginx needs sudo; enter your password if asked."
-        if ! sudo -v; then
-            warn 'sudo was refused, so the nginx site will not be configured.'
-            do_nginx=0
-        fi
+    if [ "$do_nginx" -eq 1 ] && ! need_sudo; then
+        warn 'sudo was refused, so the nginx site will not be configured.'
+        do_nginx=0
     fi
     return 0
 }
 
 # --------------------------------------------------------------------------
-# Running the plan
+# Running a plan
 # --------------------------------------------------------------------------
 
 P_LABEL=()
 P_STATE=()
 P_DETAIL=()
 P_FN=()
+PROGRESS_TITLE=''
 
 add_row() {
     P_LABEL+=("$1")
@@ -1709,17 +1788,22 @@ add_row() {
     P_FN+=("${4:-}")
 }
 
+reset_rows() {
+    P_LABEL=()
+    P_STATE=()
+    P_DETAIL=()
+    P_FN=()
+}
+
 draw_progress() {
-    local title="Installing Alabaster ${installed_version:-${target_version:-}}"
-    [ "$dry_run" -eq 1 ] && title='Dry run'
+    local title="${PROGRESS_TITLE:-Installing Alabaster ${installed_version:-${target_version:-}}}"
+    [ "$dry_run" -eq 1 ] && title+=' (dry run)'
     ui_box_top "$title" ''
-    local i done=0 total=0 state
+    local i done=0 total=0 state word
     for i in "${!P_LABEL[@]}"; do
         state="${P_STATE[i]}"
-        local word
         case "$state" in
-            ok) word='done' ;;
-            warn) word='done' ;;
+            ok | warn) word='done' ;;
             skip) word='skipped' ;;
             todo) word='waiting' ;;
             run) word="${C_SKY}working${C_OFF}" ;;
@@ -1769,11 +1853,26 @@ run_row() {
     ui_redraw 0 draw_progress
 }
 
+run_rows() {
+    if [ "$UI_MODE" != plain ]; then
+        ui_cursor hide
+        [ "$APP" -eq 1 ] || printf '\n'
+        ui_draw draw_progress
+    fi
+    local i
+    for i in "${!P_FN[@]}"; do
+        [ -n "${P_FN[i]}" ] && run_row "$i"
+    done
+    ui_cursor show
+}
+
 execute() {
     local pack_source="${work}/contents/klipper/alabaster.cfg"
     local template="${work}/contents/deploy/nginx/alabaster.conf"
     # Steps with nothing to do are reported after the ones that ran.
     local -a already=()
+    reset_rows
+    PROGRESS_TITLE="Installing Alabaster ${installed_version:-${target_version:-}}"
 
     add_row 'Download' ok "${download_size:+${download_size} ${G_SEP} }${checksum_state}"
     add_row 'Install' todo '' "install_release '${work}/alabaster.zip'"
@@ -1836,21 +1935,13 @@ execute() {
         skipped 'update manager not added'
     fi
 
-    if [ "$UI_MODE" != plain ]; then
-        ui_cursor hide
-        printf '\n'
-        ui_draw draw_progress
-    fi
-    local i entry
-    for i in "${!P_FN[@]}"; do
-        [ -n "${P_FN[i]}" ] && run_row "$i"
-    done
+    run_rows
+    local entry
     for entry in "${already[@]}"; do did "$entry"; done
-    ui_cursor show
 }
 
 # --------------------------------------------------------------------------
-# The end
+# The end of a one-shot run
 # --------------------------------------------------------------------------
 
 restart_services() {
@@ -1936,14 +2027,9 @@ draw_done() {
     for entry in "${did_actions[@]}"; do ui_box_para ok "$entry"; done
     for entry in "${warnings[@]}"; do ui_box_para warn "$entry"; done
     for entry in "${skipped_actions[@]}"; do ui_box_para skip "$entry"; done
-    if [ "$RESTART_ASK" -eq 1 ] || [ -n "$RESTART_LINE" ]; then
+    if [ -n "$RESTART_LINE" ]; then
         ui_box_rule
-        if [ "$RESTART_ASK" -eq 1 ]; then
-            ui_box_line "Restart $(restart_what) to load the changes."
-            ui_box_line "${C_DIM}No print is running, so it is safe now.${C_OFF}  Restart now? ${C_BOLD}[Y/n]${C_OFF}"
-        else
-            ui_box_para none "$RESTART_LINE"
-        fi
+        ui_box_para none "$RESTART_LINE"
     fi
     ui_box_bottom
 }
@@ -1956,172 +2042,911 @@ finish() {
     offer_restart
     printf '\n'
     draw_done
-    if [ "$RESTART_ASK" -eq 1 ]; then
-        local reply
-        printf '  %s%s%s ' "$C_SKY" "$G_PROMPT" "$C_OFF"
-        read -r reply < /dev/tty || reply=n
-        case "${reply:-y}" in [Yy]*) do_restart ;; *) say "  Restart $(restart_what) when it suits you." ;; esac
-    fi
 }
 
 # --------------------------------------------------------------------------
-# Run again on a machine that already has it
+# Uninstalling
 # --------------------------------------------------------------------------
 
-menu_status() {
-    local name="$1"
-    case "$name" in
-        app)
-            if [ -n "$target_version" ] && [ "$target_version" != "$current_version" ]; then
-                printf '%s%s  %s %s%s available%s' "$(ui_pad Alabaster 13)" "$current_version" "$(ui_mark warn)" "$C_WARN" "$target_version" "$C_OFF"
-            else
-                printf '%s%s  %s newest' "$(ui_pad Alabaster 13)" "$current_version" "$(ui_mark ok)"
-            fi
-            ;;
-        pack)
-            local tag=''
-            [ -d "${config_repo_path}/.git" ] && tag="$(git -C "$config_repo_path" describe --tags --exact-match 2>/dev/null || true)"
-            case "$link_state" in
-                ours) printf '%s%s linked%s' "$(ui_pad 'Macro pack' 13)" "$(ui_mark ok)" "${tag:+ ${C_DIM}${G_SEP} pinned ${tag}${C_OFF}}" ;;
-                elsewhere) printf '%s%s links elsewhere' "$(ui_pad 'Macro pack' 13)" "$(ui_mark warn)" ;;
-                plain) printf '%s%s plain copy' "$(ui_pad 'Macro pack' 13)" "$(ui_mark warn)" ;;
-                *) printf '%s%s not installed' "$(ui_pad 'Macro pack' 13)" "$(ui_mark skip)" ;;
-            esac
-            ;;
-        include)
-            if [ "$include_present" -eq 1 ]; then
-                printf '%s%s in printer.cfg' "$(ui_pad Include 13)" "$(ui_mark ok)"
-            else
-                printf '%s%s not included' "$(ui_pad Include 13)" "$(ui_mark skip)"
-            fi
-            ;;
-        nginx)
-            if [ "$nginx_site_exists" -eq 1 ]; then
-                printf '%s%s port %s' "$(ui_pad nginx 13)" "$(ui_mark ok)" "$port"
-            else
-                printf '%s%s no site' "$(ui_pad nginx 13)" "$(ui_mark skip)"
-            fi
-            ;;
-        updates)
-            if [ "$um_app" -eq 1 ] && [ "$um_pack" -eq 1 ]; then
-                printf '%s%s Moonraker tracks both' "$(ui_pad Updates 13)" "$(ui_mark ok)"
-            elif [ "$um_app" -eq 1 ]; then
-                printf '%s%s Moonraker tracks the app' "$(ui_pad Updates 13)" "$(ui_mark ok)"
-            else
-                printf '%s%s not tracked' "$(ui_pad Updates 13)" "$(ui_mark skip)"
-            fi
-            ;;
-        printer)
-            local state
-            state="$(printer_state)"
-            printf '%s%s%s%s' "$(ui_pad Printer 13)" "$C_DIM" "${state:-not answering}" "$C_OFF"
-            ;;
-    esac
-}
+u_include=0
+u_link=0
+u_user=0
+u_clone=0
+u_updates=0
+u_nginx=0
 
-MENU_KEYS=()
+user_cfg_exists() { [ -n "$config_dir" ] && [ -f "${config_dir}/alabaster-user.cfg" ]; }
+nginx_site_any() { [ -f /etc/nginx/sites-available/alabaster ] || [ -f /etc/nginx/conf.d/alabaster.conf ] || [ -L /etc/nginx/sites-enabled/alabaster ]; }
+link_exists() { [ "$link_state" != none ]; }
+# printer.cfg still including alabaster.cfg after the file is gone stops
+# Klipper from starting, so the file is only removable with the include.
+link_removable() { link_exists && { [ "$include_present" -eq 0 ] || [ "$u_include" -eq 1 ]; }; }
 
-# Set outside draw_menu, which ui_draw runs in a subshell.
-menu_keys() {
-    MENU_KEYS=(1)
-    [ "$nginx_site_exists" -eq 1 ] && MENU_KEYS+=(2)
-    [ -d "${config_repo_path}/.git" ] && [ -n "$config_dir" ] && MENU_KEYS+=(3)
-    [ -f "${install_path}/scripts/uninstall.sh" ] && MENU_KEYS+=(9)
+# What Alabaster added starts on; what the owner wrote or may have edited —
+# a plain alabaster.cfg, alabaster-user.cfg, the clone — starts off.
+uninstall_defaults() {
+    u_include=$include_present
+    u_link=0
+    case "$link_state" in ours | elsewhere) u_link=1 ;; esac
+    u_user=0
+    u_clone=0
+    u_updates=0
+    if [ "$um_app" -eq 1 ] || [ "$um_pack" -eq 1 ]; then u_updates=1; fi
+    u_nginx=0
+    if nginx_site_any; then u_nginx=1; fi
     return 0
 }
 
-draw_menu() {
-    local -a left=() right=()
-    local key
-    for key in "${MENU_KEYS[@]}"; do
-        case "$key" in
-            1)
-                if [ -n "$target_version" ] && [ "$target_version" != "$current_version" ]; then
-                    left+=("$(ui_key 1 "Update to ${target_version}")")
-                else
-                    left+=("$(ui_key 1 "Reinstall ${current_version}")")
-                fi
-                ;;
-            2) left+=("$(ui_key 2 'Change port')") ;;
-            3) left+=("$(ui_key 3 'Repair macro pack')") ;;
-            9) left+=('' "$(ui_key 9 'Uninstall')") ;;
-        esac
-    done
-    right=("$(menu_status app)" "$(menu_status pack)" "$(menu_status include)" "$(menu_status nginx)" "$(menu_status updates)" "$(menu_status printer)")
-
-    local where
-    where="$(home_path "$install_path")"
-    [ "$nginx_site_exists" -eq 1 ] && where+=" ${G_SEP} port ${port}"
-    ui_box_top 'Alabaster is installed here' "$where"
-    ui_box_split "$B_LT" "$B_TT" "$B_RT"
-    local i n=${#right[@]}
-    ((${#left[@]} > n)) && n=${#left[@]}
-    for ((i = 0; i < n; i++)); do ui_box_line2 "${left[i]:-}" "${right[i]:-}"; done
-    ui_box_split "$B_BL" "$B_BT" "$B_BR"
+uninstall_toggle() {
+    case "$1" in
+        2)
+            [ "$include_present" -eq 1 ] || return 0
+            u_include=$((1 - u_include))
+            link_removable || u_link=0
+            ;;
+        3) link_removable && u_link=$((1 - u_link)) ;;
+        4) user_cfg_exists && u_user=$((1 - u_user)) ;;
+        5) [ -d "$config_repo_path" ] && u_clone=$((1 - u_clone)) ;;
+        6) { [ "$um_app" -eq 1 ] || [ "$um_pack" -eq 1 ]; } && u_updates=$((1 - u_updates)) ;;
+        7) nginx_site_any && u_nginx=$((1 - u_nginx)) ;;
+    esac
+    return 0
 }
 
-change_port() {
-    local reply old="$port"
-    printf '  New port %s[%s]%s %s%s%s ' "$C_DIM" "$old" "$C_OFF" "$C_SKY" "$G_PROMPT" "$C_OFF"
-    read -r reply < /dev/tty || reply=''
-    if ! [[ "$reply" =~ ^[0-9]+$ ]] || ((reply < 1 || reply > 65535)) || [ "$reply" = "$old" ]; then
-        say 'Nothing was changed.'
+draw_uninstall_plan() {
+    local static="${1:-0}" right='nothing changes until you press Enter' title="Uninstall Alabaster ${current_version}"
+    [ "$static" -eq 1 ] && right=''
+    [ "$dry_run" -eq 1 ] && title+=' (dry run)'
+    ui_box_top "$title" "$right"
+    ui_box_blank
+
+    if [ -d "$install_path" ]; then
+        ui_plan_row '' fixed 'Application' "remove $(home_path "$install_path")"
+    else
+        ui_plan_row '' na 'Application' "$(home_path "$install_path") is not there"
+    fi
+
+    if [ "$include_present" -eq 1 ]; then
+        if [ "$u_include" -eq 1 ]; then
+            ui_plan_row 2 on 'printer.cfg include' 'remove the line, with a backup'
+        else
+            ui_plan_row 2 off 'printer.cfg include' 'kept'
+        fi
+    else
+        ui_plan_row '' na 'printer.cfg include' 'not in printer.cfg'
+    fi
+
+    if ! link_exists; then
+        ui_plan_row '' na 'alabaster.cfg' 'not there'
+    elif ! link_removable; then
+        ui_plan_row '' na 'alabaster.cfg' 'kept: printer.cfg still includes it'
+    elif [ "$link_state" = plain ]; then
+        if [ "$u_link" -eq 1 ]; then
+            ui_plan_row 3 on 'alabaster.cfg' 'delete the file, edits included'
+        else
+            ui_plan_row 3 off 'alabaster.cfg' 'kept: a plain file you may have edited'
+        fi
+    elif [ "$u_link" -eq 1 ]; then
+        ui_plan_row 3 on 'alabaster.cfg' 'remove the link'
+    else
+        ui_plan_row 3 off 'alabaster.cfg' 'kept'
+    fi
+
+    if user_cfg_exists; then
+        if [ "$u_user" -eq 1 ]; then
+            ui_plan_row 4 on 'alabaster-user.cfg' 'delete your pack settings'
+        else
+            ui_plan_row 4 off 'alabaster-user.cfg' 'kept: your pack settings'
+        fi
+    else
+        ui_plan_row '' na 'alabaster-user.cfg' 'not there'
+    fi
+
+    if [ -d "$config_repo_path" ]; then
+        if [ "$u_clone" -eq 1 ]; then
+            ui_plan_row 5 on 'Macro pack clone' "delete $(home_path "$config_repo_path")"
+        else
+            ui_plan_row 5 off 'Macro pack clone' "kept: $(home_path "$config_repo_path")"
+        fi
+    else
+        ui_plan_row '' na 'Macro pack clone' 'not there'
+    fi
+
+    if [ "$um_app" -eq 1 ] || [ "$um_pack" -eq 1 ]; then
+        if [ "$u_updates" -eq 1 ]; then
+            ui_plan_row 6 on 'Moonraker updates' 'remove the [update_manager] blocks'
+        else
+            ui_plan_row 6 off 'Moonraker updates' 'kept'
+        fi
+    else
+        ui_plan_row '' na 'Moonraker updates' 'not in moonraker.conf'
+    fi
+
+    if nginx_site_any; then
+        if [ "$u_nginx" -eq 1 ]; then
+            ui_plan_row 7 on 'nginx site' "remove the site on port ${port} ${C_DIM}${G_SEP} sudo${C_OFF}"
+        else
+            ui_plan_row 7 off 'nginx site' "kept on port ${port}"
+        fi
+    else
+        ui_plan_row '' na 'nginx site' 'no site'
+    fi
+
+    ui_box_blank
+    if [ "$static" -eq 1 ]; then
+        ui_box_bottom
+    else
+        local go=uninstall
+        [ "$dry_run" -eq 1 ] && go='dry run'
+        ui_box_bottom "$(ui_key 2-7 toggle)  $(ui_key Enter "$go")  $(ui_key Esc back)"
+    fi
+}
+
+un_app() {
+    step 'Application files'
+    if [ -d "$install_path" ]; then
+        run rm -rf "$install_path"
+        did "removed $(home_path "$install_path")"
+    else
+        skipped "$(home_path "$install_path") was not there"
+    fi
+}
+
+# The include comes out before the file it points at, so the configuration is
+# never left referring to something that has been deleted.
+un_include() {
+    step 'Klipper configuration'
+    if [ "$dry_run" -eq 1 ]; then
+        printf '%s(dry run)%s would remove the include and back up first\n' "$C_DIM" "$C_OFF"
+    else
+        cp "$printer_cfg" "${printer_cfg}.alabaster-backup"
+        grep -vE '^[[:space:]]*\[include[[:space:]]+alabaster\.cfg\]' "$printer_cfg" > "${printer_cfg}.tmp"
+        mv "${printer_cfg}.tmp" "$printer_cfg"
+    fi
+    did "include removed from printer.cfg (backup at $(home_path "${printer_cfg}.alabaster-backup"))"
+    changed_klipper=1
+}
+
+un_link() {
+    local target="${config_dir}/alabaster.cfg"
+    if [ -L "$target" ]; then
+        run rm -f "$target"
+        did 'alabaster.cfg symlink removed'
+    elif [ -f "$target" ]; then
+        run rm -f "$target"
+        did 'alabaster.cfg deleted'
+    fi
+}
+
+un_user() {
+    run rm -f "${config_dir}/alabaster-user.cfg"
+    did 'alabaster-user.cfg deleted'
+}
+
+un_clone() {
+    step 'Macro pack repository'
+    run rm -rf "$config_repo_path"
+    did "$(home_path "$config_repo_path") removed"
+}
+
+# The app (type: web) and the macro pack (type: git_repo) are two independent
+# blocks — see add_update_manager. Backed up once, before either is touched,
+# so removing both cannot let the second backup replace the first.
+un_updates() {
+    local section
+    step 'Moonraker'
+    [ "$dry_run" -eq 0 ] && cp "$moonraker_conf" "${moonraker_conf}.alabaster-backup"
+    for section in alabaster alabaster-config; do
+        grep -qE "^[[:space:]]*\[update_manager[[:space:]]+${section}\]" "$moonraker_conf" || continue
+        if [ "$dry_run" -eq 1 ]; then
+            printf '%s(dry run)%s would remove [update_manager %s]\n' "$C_DIM" "$C_OFF" "$section"
+        else
+            # Drops the section header and its indented body, stopping at the
+            # next section so the other block is untouched.
+            awk -v section="$section" '
+                $0 ~ ("^[[:space:]]*\\[update_manager[[:space:]]+" section "\\]") { skipping = 1; next }
+                skipping && /^[[:space:]]*\[/ { skipping = 0 }
+                !skipping { print }
+            ' "$moonraker_conf" > "${moonraker_conf}.tmp"
+            mv "${moonraker_conf}.tmp" "$moonraker_conf"
+        fi
+        did "[update_manager ${section}] removed"
+    done
+    changed_moonraker=1
+}
+
+un_nginx() {
+    local site
+    step 'Web server'
+    for site in /etc/nginx/sites-available/alabaster /etc/nginx/conf.d/alabaster.conf; do
+        [ -f "$site" ] && run sudo rm -f "$site"
+    done
+    [ -L /etc/nginx/sites-enabled/alabaster ] && run sudo rm -f /etc/nginx/sites-enabled/alabaster
+    did 'nginx site removed'
+    if [ "$dry_run" -eq 0 ] && command -v nginx >/dev/null 2>&1; then
+        if sudo nginx -t >/dev/null 2>&1; then
+            sudo systemctl reload nginx || warn 'nginx accepted the config but would not reload.'
+        else
+            warn 'Reload nginx yourself once its configuration is valid.'
+        fi
+    fi
+    return 0
+}
+
+execute_uninstall() {
+    reset_rows
+    PROGRESS_TITLE="Uninstalling Alabaster ${current_version}"
+    add_row 'Application' todo '' 'un_app'
+    if [ "$u_include" -eq 1 ]; then
+        add_row 'Include' todo '' 'un_include'
+    else
+        add_row 'Include' skip 'kept'
+        [ "$include_present" -eq 1 ] && skipped 'include left in printer.cfg'
+    fi
+    if [ "$u_link" -eq 1 ]; then
+        add_row 'alabaster.cfg' todo '' 'un_link'
+    else
+        add_row 'alabaster.cfg' skip 'kept'
+        link_exists && skipped 'alabaster.cfg kept'
+    fi
+    if [ "$u_user" -eq 1 ]; then
+        add_row 'User settings' todo '' 'un_user'
+    else
+        add_row 'User settings' skip 'kept'
+        user_cfg_exists && skipped 'alabaster-user.cfg kept'
+    fi
+    if [ "$u_clone" -eq 1 ]; then
+        add_row 'Pack clone' todo '' 'un_clone'
+    else
+        add_row 'Pack clone' skip 'kept'
+        [ -d "$config_repo_path" ] && skipped "$(home_path "$config_repo_path") kept"
+    fi
+    if [ "$u_updates" -eq 1 ]; then
+        add_row 'Moonraker' todo '' 'un_updates'
+    else
+        add_row 'Moonraker' skip 'kept'
+    fi
+    if [ "$u_nginx" -eq 1 ]; then
+        add_row 'nginx site' todo '' 'un_nginx'
+    else
+        add_row 'nginx site' skip 'kept'
+    fi
+    run_rows
+}
+
+# The same choices one line at a time, for plain output and --yes.
+uninstall_plain_plan() {
+    if [ "$include_present" -eq 1 ]; then
+        ask "Remove the include line from ${printer_cfg}?" y && u_include=1 || u_include=0
+    fi
+    if link_exists && link_removable; then
+        if [ "$link_state" = plain ]; then
+            ask "Delete ${config_dir}/alabaster.cfg? (any edits you made go with it)" n && u_link=1 || u_link=0
+        else
+            ask "Remove the alabaster.cfg symlink at ${config_dir}/alabaster.cfg?" y && u_link=1 || u_link=0
+        fi
+    elif link_exists; then
+        warn 'Keeping alabaster.cfg, because printer.cfg still includes it and Klipper would not start without it.'
+        u_link=0
+    fi
+    if user_cfg_exists; then
+        ask "Delete ${config_dir}/alabaster-user.cfg? (your macro pack settings)" n && u_user=1 || u_user=0
+    fi
+    if [ -d "$config_repo_path" ]; then
+        ask "Remove ${config_repo_path}? (any edits you made directly in it go with it)" n && u_clone=1 || u_clone=0
+    fi
+    if [ "$um_app" -eq 1 ] || [ "$um_pack" -eq 1 ]; then
+        ask "Remove the [update_manager] blocks for Alabaster and its macro pack from ${moonraker_conf}?" y && u_updates=1 || u_updates=0
+    fi
+    if nginx_site_any; then
+        ask 'Remove the nginx site? (needs sudo)' y && u_nginx=1 || u_nginx=0
+    fi
+}
+
+uninstall_oneshot() {
+    uninstall_defaults
+    if [ "$UI_MODE" = plain ]; then
+        step 'What this will remove'
+        say "  ${install_path}"
+        [ -n "$printer_cfg" ] && say "  the [include alabaster.cfg] line in ${printer_cfg}, if present"
+        [ -n "$config_dir" ] && say "  ${config_dir}/alabaster.cfg, if you say so"
+        [ -n "$config_dir" ] && say "  ${config_dir}/alabaster-user.cfg, if you say so"
+        say "  ${config_repo_path}, if you say so"
+        [ -n "$moonraker_conf" ] && say "  the [update_manager] blocks for Alabaster and its macro pack in ${moonraker_conf}, if present"
+        say '  the nginx site, if present'
+        # Checked against the flag directly rather than through `ask`, whose
+        # default here is deliberately no: running the uninstaller is already
+        # the decision, so --yes must not be turned into "changed nothing".
+        if [ "$assume_yes" -eq 0 ] && ! ask 'Continue?' n; then
+            say 'Nothing was changed.'
+            exit 0
+        fi
+        uninstall_plain_plan
+    else
+        show_banner
+        draw_uninstall_plan 1
+    fi
+    if [ "$u_nginx" -eq 1 ] && ! need_sudo; then
+        warn 'sudo was refused, so the nginx site will not be removed.'
+        u_nginx=0
+    fi
+    execute_uninstall
+
+    if [ "$UI_MODE" = plain ]; then
+        step 'Done'
+        for entry in "${did_actions[@]}"; do say "  done     ${entry}"; done
+        for entry in "${skipped_actions[@]}"; do say "  skipped  ${entry}"; done
+        say ''
+        say 'Restart Klipper if the configuration changed.'
+    else
+        printf '\n'
+        local title="${C_OK}${G_OK}${C_OFF}${C_BOLD} Alabaster is uninstalled"
+        [ "$dry_run" -eq 1 ] && title='Dry run finished, nothing was changed'
+        ui_box_top "$title" ''
+        for entry in "${did_actions[@]}"; do ui_box_para ok "$entry"; done
+        for entry in "${warnings[@]}"; do ui_box_para warn "$entry"; done
+        for entry in "${skipped_actions[@]}"; do ui_box_para skip "$entry"; done
+        ui_box_bottom
+    fi
+}
+
+# --------------------------------------------------------------------------
+# The installer as a place: Home, and the actions that return to it
+# --------------------------------------------------------------------------
+
+HOME_MSG=()
+SESSION=()
+restart_klipper_due=0
+restart_moonraker_due=0
+REPLY_VALUE=''
+
+session_add() { SESSION+=("$1|$2"); }
+
+screen() {
+    ui_clear
+    show_banner
+}
+
+host_line() {
+    local line="$host_name"
+    [ -n "$host_model" ] && line+=" ${G_SEP} ${host_model}"
+    [ -n "$host_arch" ] && line+=" ${G_SEP} ${host_arch}"
+    printf '%s' "$line"
+}
+
+repair_available() { [ -d "${config_repo_path}/.git" ] && [ -n "$config_dir" ]; }
+restart_due() { [ "$restart_klipper_due" -eq 1 ] || [ "$restart_moonraker_due" -eq 1 ]; }
+
+restart_due_what() {
+    if [ "$restart_klipper_due" -eq 1 ] && [ "$restart_moonraker_due" -eq 1 ]; then
+        printf 'Klipper and Moonraker'
+    elif [ "$restart_klipper_due" -eq 1 ]; then
+        printf 'Klipper'
+    else
+        printf 'Moonraker'
+    fi
+}
+
+update_available() { [ -n "$current_version" ] && [ -n "$target_version" ] && [ "$target_version" != "$current_version" ]; }
+
+home_state_rows() {
+    local -n rows_ref="$1"
+    local klipper moonraker nginx config app pack include site updates
+    case "$klipper_state" in
+        running) klipper="$(ui_state Klipper ok running)" ;;
+        stopped) klipper="$(ui_state Klipper warn stopped)" ;;
+        *) klipper="$(ui_state Klipper todo 'no service')" ;;
+    esac
+    if [ "$moonraker_answers" -eq 1 ]; then
+        moonraker="$(ui_state Moonraker ok "${moonraker_version:-answering} ${C_DIM}${G_SEP} ${moonraker_address}${C_OFF}")"
+    else
+        moonraker="$(ui_state Moonraker warn "not answering ${C_DIM}${G_SEP} ${moonraker_address}${C_OFF}")"
+    fi
+    if [ "$nginx_present" -eq 1 ]; then
+        nginx="$(ui_state nginx ok "installed${other_site:+ ${C_DIM}${G_SEP} also ${other_site}${C_OFF}}")"
+    else
+        nginx="$(ui_state nginx todo 'not installed')"
+    fi
+    if [ -n "$config_dir" ]; then
+        config="$(ui_state Config ok "$(home_path "$config_dir")")"
+    else
+        config="$(ui_state Config warn 'no Klipper config folder')"
+    fi
+    if update_available; then
+        app="$(ui_state Alabaster ok "${current_version}  $(ui_mark warn) ${C_WARN}${target_version} available${C_OFF}")"
+    elif [ -n "$current_version" ]; then
+        app="$(ui_state Alabaster ok "$current_version")"
+    else
+        app="$(ui_state Alabaster todo 'not installed')"
+    fi
+    local tag=''
+    [ -d "${config_repo_path}/.git" ] && tag="$(git -C "$config_repo_path" describe --tags --exact-match 2>/dev/null || true)"
+    case "$link_state" in
+        ours) pack="$(ui_state 'Macro pack' ok "linked${tag:+ ${C_DIM}${G_SEP} pinned ${tag}${C_OFF}}")" ;;
+        elsewhere) pack="$(ui_state 'Macro pack' warn "links to $(home_path "$link_current")")" ;;
+        plain) pack="$(ui_state 'Macro pack' warn 'a plain copy')" ;;
+        *) pack="$(ui_state 'Macro pack' todo 'not installed')" ;;
+    esac
+    if [ "$include_present" -eq 1 ]; then
+        include="$(ui_state Include ok 'in printer.cfg')"
+    elif [ -n "$conflicts" ]; then
+        include="$(ui_state Include skip "blocked by $(conflict_files)")"
+    else
+        include="$(ui_state Include todo 'not in printer.cfg')"
+    fi
+    if [ "$nginx_site_exists" -eq 1 ]; then
+        site="$(ui_state 'nginx site' ok "port ${port}")"
+    else
+        site="$(ui_state 'nginx site' todo 'none')"
+    fi
+    if [ "$um_app" -eq 1 ] && [ "$um_pack" -eq 1 ]; then
+        updates="$(ui_state Updates ok 'Moonraker tracks both')"
+    elif [ "$um_app" -eq 1 ]; then
+        updates="$(ui_state Updates ok 'Moonraker tracks the app')"
+    else
+        updates="$(ui_state Updates todo 'not tracked')"
+    fi
+    rows_ref=("$klipper" "$moonraker" "$nginx" "$config" ''
+        "$app" "$pack" "$include" "$site" "$updates"
+        "$(ui_state Printer todo "${C_DIM}${printer_now:-not answering}${C_OFF}")")
+}
+
+draw_home() {
+    local hint="${1:-}"
+    local -a top=() bottom=() left=() state=()
+    if [ -n "$current_version" ]; then
+        if update_available; then
+            top+=("$(ui_key 1 "Update to ${target_version}")")
+        else
+            top+=("$(ui_key 1 "Reinstall ${current_version}")")
+        fi
+        [ "$nginx_site_exists" -eq 1 ] && top+=("$(ui_key 2 'Change port')")
+        repair_available && top+=("$(ui_key 3 'Repair macro pack')")
+    else
+        top+=("$(ui_key 1 "Install${target_version:+ ${target_version}}")")
+    fi
+    if restart_due; then
+        local short
+        short="$(restart_due_what)"
+        [ "$short" = 'Klipper and Moonraker' ] && short='both'
+        top+=("$(ui_key R "Restart ${short}")")
+    fi
+    [ -n "$current_version" ] && bottom+=("$(ui_key 9 'Uninstall')")
+    [ -s "$log" ] && bottom+=("$(ui_key L 'Show log')")
+    bottom+=("$(ui_key Q 'Quit')")
+
+    home_state_rows state
+    local n=${#state[@]} i
+    left=("${top[@]}")
+    while ((${#left[@]} < n - ${#bottom[@]})); do left+=(''); done
+    left+=("${bottom[@]}")
+
+    local -a msg=("${HOME_MSG[@]}")
+    # Room is kept for the rest of the screen: a long outcome is cut, and the
+    # log holds all of it.
+    if ((${#msg[@]} > 4)); then
+        msg=("${msg[@]:0:3}" "none|${C_DIM}$((${#msg[@]} - 3)) more in the log${C_OFF}")
+    fi
+    ui_home 'Alabaster installer' "$(host_line)" "$hint" left state msg
+}
+
+home_prompt() { printf '  %s%s%s ' "$C_SKY" "$G_PROMPT" "$C_OFF"; }
+
+reset_action() {
+    did_actions=()
+    skipped_actions=()
+    warnings=()
+    changed_klipper=0
+    changed_moonraker=0
+    replace_link=0
+    HOME_MSG=()
+    : > "$log"
+    keep_log=0
+}
+
+# Every action runs in a subshell, so a failure deep in a step (die, or a
+# command set -e stops on) ends that action and comes back to Home instead
+# of ending the installer. What the action recorded comes back through a file.
+dump_state() {
+    {
+        declare -p did_actions skipped_actions warnings | sed 's/^declare -a /declare -ga /'
+        printf 'changed_klipper=%s\nchanged_moonraker=%s\nport=%q\nport_given=%s\n' \
+            "$changed_klipper" "$changed_moonraker" "$port" "$port_given"
+        printf 'installed_version=%q\ndownload_size=%q\nchecksum_state=%q\n' \
+            "$installed_version" "$download_size" "$checksum_state"
+    } > "${work}/state" 2>/dev/null
+}
+
+# usage: run_isolated <quiet:0|1> command...
+run_isolated() {
+    local quiet="$1" rc=0
+    shift
+    rm -f "${work}/error" "${work}/state"
+    # Off out here so a failing action does not end the installer, and on
+    # again inside, where every step still relies on it.
+    set +e
+    if [ "$quiet" -eq 1 ]; then
+        (
+            set -e
+            APP_ISOLATED=1
+            trap dump_state EXIT
+            "$@"
+        ) >>"$log" 2>&1
+    else
+        (
+            set -e
+            APP_ISOLATED=1
+            trap dump_state EXIT
+            "$@"
+        )
+    fi
+    rc=$?
+    set -e
+    # shellcheck disable=SC1091
+    [ -f "${work}/state" ] && . "${work}/state"
+    return "$rc"
+}
+
+isolated_error() {
+    if [ -s "${work}/error" ]; then
+        cat "${work}/error"
+    else
+        printf 'it stopped unexpectedly. L shows the log.'
+    fi
+}
+
+# What the outcome strip and the session summary say after an action that
+# may have left a restart due.
+note_restart() {
+    [ "$changed_klipper" -eq 1 ] && restart_klipper_due=1
+    [ "$changed_moonraker" -eq 1 ] && restart_moonraker_due=1
+    if [ "$dry_run" -eq 0 ] && restart_due; then
+        HOME_MSG+=("none|${C_DIM}Restart $(restart_due_what) to load the changes.${C_OFF}")
+    fi
+    return 0
+}
+
+download_and_unpack() {
+    download
+    mkdir -p "${work}/contents"
+    unzip -q -o "${work}/alabaster.zip" -d "${work}/contents" >>"$log" 2>&1 || die 'The archive could not be read.'
+    installed_version="$(sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "${work}/contents/release_info.json" 2>/dev/null | head -n1 || true)"
+}
+
+action_install() {
+    reset_action
+    if [ ! -f "${work}/contents/release_info.json" ]; then
+        screen
+        if ! run_isolated 0 download_and_unpack; then
+            HOME_MSG=("err|Download stopped: $(isolated_error)")
+            keep_log=1
+            return 0
+        fi
+    fi
+
+    screen
+    plan_defaults
+    if ! plan_loop draw_plan toggle; then
         return 0
     fi
-    crowsnest_port "$reply" && warn "Port ${reply} is also a crowsnest camera port."
-    [ "$dry_run" -eq 1 ] && { say "(dry run) would move ${nginx_site} from port ${old} to ${reply}"; return 0; }
-    say '  nginx needs sudo; enter your password if asked.'
-    sudo sed -i -E "s/^([[:space:]]*listen[[:space:]]+(\[::\]:)?)${old}([[:space:];])/\1${reply}\3/" "$nginx_site" \
+    [ "$link_state" = elsewhere ] && replace_link=$do_pack
+    if [ "$do_nginx" -eq 1 ] && ! need_sudo; then
+        do_nginx=0
+        warn 'sudo was refused, so the nginx site was not configured.'
+    fi
+
+    local conflict_note=''
+    [ -n "$conflicts" ] && [ "$do_pack" -eq 1 ] && [ "$want_include" -eq 1 ] \
+        && conflict_note="Include not added: $(conflict_files) defines the same macros."
+
+    screen
+    if run_isolated 0 execute; then
+        if [ "$dry_run" -eq 1 ]; then
+            HOME_MSG=("ok|Dry run finished: nothing was changed.")
+        else
+            HOME_MSG=("ok|Installed ${installed_version} at ${C_SKY}${C_BOLD}$(url)${C_OFF}")
+        fi
+        local entry
+        for entry in "${did_actions[@]}"; do session_add ok "$entry"; done
+        for entry in "${warnings[@]}"; do
+            HOME_MSG+=("warn|${entry}")
+            session_add warn "$entry"
+        done
+        if [ -n "$conflict_note" ]; then
+            HOME_MSG+=("warn|${conflict_note}")
+            session_add warn "$conflict_note"
+        fi
+    else
+        HOME_MSG=("err|Install stopped: $(isolated_error)")
+        session_add err "Install stopped: $(isolated_error)"
+        keep_log=1
+    fi
+    note_restart
+    detect
+}
+
+# A digits-only field typed where the cursor already is. Esc cancels.
+read_digits() {
+    local ch value=''
+    REPLY_VALUE=''
+    while :; do
+        IFS= read -rsn1 ch < /dev/tty || return 1
+        case "$ch" in
+            '') break ;;
+            $'\033')
+                read -rsn2 -t 0.05 _ < /dev/tty || return 1
+                ;;
+            $'\177' | $'\b')
+                if [ -n "$value" ]; then
+                    value="${value%?}"
+                    printf '\b \b'
+                fi
+                ;;
+            [0-9])
+                if ((${#value} < 5)); then
+                    value+="$ch"
+                    printf '%s' "$ch"
+                fi
+                ;;
+        esac
+    done
+    REPLY_VALUE="$value"
+}
+
+port_change() {
+    local new="$1" old="$port"
+    if [ "$dry_run" -eq 1 ]; then
+        did "(dry run) would move the nginx site from port ${old} to ${new}"
+        return 0
+    fi
+    sudo sed -i -E "s/^([[:space:]]*listen[[:space:]]+(\[::\]:)?)${old}([[:space:];])/\1${new}\3/" "$nginx_site" \
         || die "Could not rewrite ${nginx_site}."
     if sudo nginx -t >/dev/null 2>&1; then
         sudo systemctl reload nginx || warn 'nginx accepted the config but would not reload.'
-        port="$reply"
-        say "  $(ui_mark ok)  Alabaster is now at ${C_SKY}${C_BOLD}$(url)${C_OFF}"
+        port="$new"
+        port_given=1
+        did "nginx serves Alabaster on port ${new}"
     else
-        sudo sed -i -E "s/^([[:space:]]*listen[[:space:]]+(\[::\]:)?)${reply}([[:space:];])/\1${old}\3/" "$nginx_site" || true
-        die "nginx rejected port ${reply}, so the site was put back on ${old}. Run \"sudo nginx -t\" to see why."
+        sudo sed -i -E "s/^([[:space:]]*listen[[:space:]]+(\[::\]:)?)${new}([[:space:];])/\1${old}\3/" "$nginx_site" || true
+        die "nginx refused port ${new}, so the site was put back on ${old}. Run \"sudo nginx -t\" to see why."
     fi
 }
 
-repair_pack() {
+action_port() {
+    reset_action
+    local label="New port ${C_DIM}[${port}]${C_OFF} ${C_SKY}${G_PROMPT}${C_OFF} "
+    HOME_MSG=("none|${label}")
+    screen
+    draw_home "$(ui_key Enter save)  $(ui_key Esc cancel)"
+    ui_visible "$label"
+    # The field is the line above the bottom border; the cursor is on the
+    # line below it.
+    printf '\033[2A\r\033[%dC' $((3 + 3 + UI_LEN))
+    local new
+    if ! read_digits; then
+        HOME_MSG=()
+        return 0
+    fi
+    new="$REPLY_VALUE"
+    HOME_MSG=()
+    if [ -z "$new" ] || [ "$new" = "$port" ]; then
+        return 0
+    fi
+    if ((new < 1 || new > 65535)); then
+        HOME_MSG=("warn|${new} is not a port. Nothing was changed.")
+        return 0
+    fi
+    sudo -n true 2>/dev/null || ui_clear
+    if ! need_sudo; then
+        HOME_MSG=("err|sudo was refused, so the port was not changed.")
+        return 0
+    fi
+    if run_isolated 1 port_change "$new"; then
+        if [ "$dry_run" -eq 1 ]; then
+            HOME_MSG=("ok|${did_actions[0]:-Dry run finished: nothing was changed.}")
+        else
+            HOME_MSG=("ok|Alabaster is now at ${C_SKY}${C_BOLD}$(url)${C_OFF}")
+            session_add ok "nginx serves Alabaster on port ${port}"
+        fi
+        crowsnest_port "$new" && HOME_MSG+=("warn|Port ${new} is also a crowsnest camera port; that camera may not show.")
+    else
+        HOME_MSG=("err|$(isolated_error)")
+        keep_log=1
+    fi
+    detect
+}
+
+repair_steps() {
     replace_link=0
     repair_config_repo
     link_macro_pack || true
-    local entry
-    for entry in "${did_actions[@]}"; do say "  $(ui_mark ok)  ${entry}"; done
-    for entry in "${skipped_actions[@]}"; do say "  $(ui_mark skip)  ${entry}"; done
-    [ ${#did_actions[@]} -gt 0 ] || [ ${#skipped_actions[@]} -gt 0 ] || say "  $(ui_mark ok)  The macro pack is already in the shape Moonraker can update."
 }
 
-# Shown only to a person at a terminal re-running the installer with no
-# explicit release in mind; --yes, --version and --from-zip keep the old
-# behaviour of installing over the top.
-menu() {
-    [ -n "$current_version" ] || return 0
-    [ "$UI_MODE" != plain ] && interactive || return 0
-    [ -z "$version" ] && [ -z "$from_zip" ] || return 0
+action_repair() {
+    reset_action
+    HOME_MSG=("run|${C_SKY}Repairing the macro pack${C_OFF}")
+    screen
+    draw_home
+    ui_cursor hide
+    ui_spin_start 2 3
+    local rc=0
+    run_isolated 1 repair_steps || rc=$?
+    ui_spin_stop
+    ui_cursor show
 
-    show_banner
-    menu_keys
-    ui_draw draw_menu
+    HOME_MSG=()
+    if [ "$rc" -ne 0 ]; then
+        HOME_MSG=("err|Repair stopped: $(isolated_error)")
+        keep_log=1
+        return 0
+    fi
+    local entry changed=0
+    for entry in "${did_actions[@]}"; do
+        case "$entry" in
+            Repaired* | 'Macro pack linked'*)
+                HOME_MSG+=("ok|${entry}")
+                session_add ok "$entry"
+                changed=1
+                ;;
+        esac
+    done
+    for entry in "${skipped_actions[@]}"; do
+        case "$entry" in
+            'alabaster.cfg still links to '*)
+                HOME_MSG+=("warn|alabaster.cfg links to ${entry#alabaster.cfg still links to } instead. Reinstall can replace that link.")
+                ;;
+        esac
+    done
+    for entry in "${warnings[@]}"; do HOME_MSG+=("warn|${entry}"); done
+    if [ "$changed" -eq 0 ] && ((${#HOME_MSG[@]} == 0)); then
+        HOME_MSG=("ok|Macro pack checked: $(home_path "$config_repo_path") is on main and tracks origin, and alabaster.cfg links to it. Nothing needed repairing.")
+    fi
+    note_restart
+    detect
+}
+
+action_restart() {
+    reset_action
+    local state what
+    what="$(restart_due_what)"
+    state="$(printer_state)"
+    case "$state" in
+        printing | paused)
+            local doing=running
+            [ "$state" = paused ] && doing=paused
+            HOME_MSG=("warn|A print is ${doing}. Restart ${what} after it finishes.")
+            return 0
+            ;;
+        '')
+            HOME_MSG=("err|Moonraker does not answer at ${moonraker_address}, so nothing was restarted.")
+            return 0
+            ;;
+    esac
+    changed_klipper=$restart_klipper_due
+    changed_moonraker=$restart_moonraker_due
+    if restart_services; then
+        HOME_MSG=("ok|Restarted ${what}.")
+        session_add ok "Restarted ${what}"
+        restart_klipper_due=0
+        restart_moonraker_due=0
+    else
+        HOME_MSG=("err|Moonraker did not accept the restart. Restart ${what} from the Machine page.")
+    fi
+    changed_klipper=0
+    changed_moonraker=0
+    detect
+}
+
+action_uninstall() {
+    reset_action
+    uninstall_defaults
+    screen
+    if ! plan_loop draw_uninstall_plan uninstall_toggle; then
+        return 0
+    fi
+    if [ "$u_nginx" -eq 1 ] && ! need_sudo; then
+        u_nginx=0
+        warn 'sudo was refused, so the nginx site was not removed.'
+    fi
+    screen
+    if run_isolated 0 execute_uninstall; then
+        if [ "$dry_run" -eq 1 ]; then
+            HOME_MSG=("ok|Dry run finished: nothing was changed.")
+        else
+            HOME_MSG=("ok|Alabaster is uninstalled.")
+        fi
+        local entry kept=()
+        for entry in "${did_actions[@]}"; do session_add ok "$entry"; done
+        for entry in "${warnings[@]}"; do
+            HOME_MSG+=("warn|${entry}")
+            session_add warn "$entry"
+        done
+        [ "$u_user" -eq 0 ] && user_cfg_exists && kept+=('alabaster-user.cfg')
+        [ "$u_clone" -eq 0 ] && [ -d "$config_repo_path" ] && kept+=("$(home_path "$config_repo_path")")
+        if ((${#kept[@]} > 0)); then
+            local list
+            list="$(printf '%s, ' "${kept[@]}")"
+            HOME_MSG+=("none|Kept: ${list%, }")
+        fi
+    else
+        HOME_MSG=("err|Uninstall stopped: $(isolated_error)")
+        session_add err "Uninstall stopped: $(isolated_error)"
+        keep_log=1
+    fi
+    # The work folder keeps the release just downloaded, so Install can put
+    # it straight back.
+    note_restart
+    detect
+}
+
+action_log() {
+    screen
+    ui_box_top 'Log of the last action' "$log"
+    local line room=$((UI_ROWS > 0 ? UI_ROWS - 14 : 16))
+    ((room < 6)) && room=6
+    ((room > 20)) && room=20
+    while IFS= read -r line; do
+        ui_box_line "${C_DIM}$(ui_fit "$line" $((UI_IW - 3)))${C_OFF}"
+    done < <(tail -n "$room" "$log")
+    ui_box_bottom "$(ui_key 'any key' back)"
+    local key
+    IFS= read -rsn1 key < /dev/tty || true
+}
+
+app_summary() {
+    printf '\n%sAlabaster installer%s %s this session\n' "$C_BOLD" "$C_OFF" "$G_SEP"
+    if ((${#SESSION[@]} == 0)); then
+        printf '  Nothing was changed.\n'
+    else
+        local entry
+        for entry in "${SESSION[@]}"; do
+            printf '  %s  %s\n' "$(ui_mark "${entry%%|*}")" "${entry#*|}"
+        done
+    fi
+    if restart_due; then
+        printf '  %s  Restart %s to load the changes.\n' "$(ui_mark warn)" "$(restart_due_what)"
+    fi
+    if [ "$keep_log" -eq 1 ]; then
+        printf '  Log: %s\n' "$log"
+    fi
+    if [ -n "$current_version" ] && [ "$nginx_site_exists" -eq 1 ]; then
+        printf '\n  Open %s%s%s%s\n' "$C_SKY" "$C_BOLD" "$(url)" "$C_OFF"
+    fi
+    printf '\n'
+}
+
+app() {
+    APP=1
+    printf '\033[?1049h'
+    screen
+    printf '  %s  Checking this machine\n' "$(ui_mark run 0)"
+    ui_cursor hide
+    ui_spin_start 1 2
+    detect 2>/dev/null
+    ui_spin_stop
+    ui_cursor show
+
+    if [ "$mode" = uninstall ] && [ -n "$current_version" ]; then
+        action_uninstall
+    fi
+
     local key
     while :; do
-        printf '  %s  %s%s%s ' "$(ui_key Q quit)" "$C_SKY" "$G_PROMPT" "$C_OFF"
+        screen
+        draw_home
+        home_prompt
         IFS= read -rsn1 key < /dev/tty || key=q
-        case " ${MENU_KEYS[*]} q Q " in
-            *" ${key} "*) break ;;
+        case "$key" in
+            1) action_install ;;
+            2) [ "$nginx_site_exists" -eq 1 ] && action_port ;;
+            3) repair_available && action_repair ;;
+            r | R) restart_due && action_restart ;;
+            9) [ -n "$current_version" ] && action_uninstall ;;
+            l | L) [ -s "$log" ] && action_log ;;
+            q | Q) break ;;
+            $'\033') read -rsn2 -t 0.05 _ < /dev/tty || true ;;
         esac
-        printf '\r\033[K'
     done
-    printf '%s\n' "$key"
-    case "$key" in
-        1) return 0 ;;
-        2) change_port ;;
-        3) repair_pack ;;
-        9) exec bash "${install_path}/scripts/uninstall.sh" --path "$install_path" --config-repo-path "$config_repo_path" ;;
-        *) say 'Nothing was changed.' ;;
-    esac
-    exit 0
 }
 
 # --------------------------------------------------------------------------
@@ -2129,6 +2954,10 @@ menu() {
 cleanup() {
     ui_spin_stop
     ui_cursor show
+    if [ "$APP" -eq 1 ]; then
+        printf '\033[?1049l'
+        app_summary
+    fi
     rm -rf "${work:-}"
     if [ -n "$log" ] && [ "$keep_log" -eq 0 ]; then rm -f "$log"; fi
 }
@@ -2138,9 +2967,20 @@ main() {
     work="$(mktemp -d)"
     log="$(mktemp "${TMPDIR:-/tmp}/alabaster-install.XXXXXX")"
     trap cleanup EXIT
+    trap 'exit 130' INT TERM
+
+    # A person at a terminal gets the installer as a place to stay in; a
+    # script, a log or --yes gets the one-shot run it always had.
+    if [ "$UI_MODE" != plain ] && interactive; then
+        app
+        return 0
+    fi
 
     detect
-    menu
+    if [ "$mode" = uninstall ]; then
+        uninstall_oneshot
+        return 0
+    fi
     show_machine
 
     download

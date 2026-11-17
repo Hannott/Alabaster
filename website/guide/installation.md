@@ -11,11 +11,17 @@ Run this on the machine running Klipper, as the user that owns it, not as root:
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/Hannott/Alabaster/main/scripts/install.sh)"
 ```
 
-This downloads the latest release and verifies its checksum. Before it
-changes anything, it checks the machine and lays out every change it would
-make outside its own directory, so you decide all of them at once. After you
-confirm, it runs to the end without stopping to ask again. Each of these is
-optional:
+The installer stays open until you quit it. It shows what is on the machine
+and what you can do: install, update, move the nginx site to another port,
+repair the macro pack's clone, restart Klipper or Moonraker, or uninstall.
+After each one you are back where you started, with its result, so you can
+do the next thing without running the command again. When you quit, it lists
+everything the session changed.
+
+Installing downloads the latest release and verifies its checksum. Before it
+changes anything, it lays out every change it would make outside its own
+directory, so you decide all of them at once. After you confirm, it runs to
+the end without stopping to ask again. Each of these is optional:
 
 1. **The macro pack.** Clones `alabaster.cfg` from this same repository,
    links it in, and pins the clone to the exact release you are installing.
@@ -30,17 +36,19 @@ optional:
    pack was cloned, adds a second entry for it. Both then appear on the
    Machine page alongside Klipper's and Moonraker's own entries.
 
-If the install changed Klipper's or Moonraker's configuration, it offers to
-restart them for you. It only offers when no print is running or paused.
+If the install changed Klipper's or Moonraker's configuration, the installer
+can restart them for you. It refuses while a print is running or paused.
 
 Then open `http://<your-printer>.local:8090`.
 
 ::: tip Safe to run again
-Run the installer again to update. On a machine that already has Alabaster,
-it first offers to update, move the nginx site to another port, repair the
-macro pack's clone, or uninstall. It never adds a duplicate include and never
-overwrites an `alabaster.cfg` you have edited.
+Run the installer again to update. It never adds a duplicate include and
+never overwrites an `alabaster.cfg` you have edited.
 :::
+
+With `--yes`, with `--plain`, or when its output goes to a file, the installer
+runs once from start to finish instead, printing one line per step. That suits
+scripts and logs.
 
 ### Options
 
@@ -55,6 +63,7 @@ overwrites an `alabaster.cfg` you have edited.
 | `--yes`                                                            | Do not prompt; take each prompt's default. Defaults never overwrite a file you have edited. |
 | `--dry-run`                                                        | Print what would happen and change nothing.                                                 |
 | `--plain`                                                          | Print one line per step, without panels or colour. Suits logs and screen readers.           |
+| `--uninstall`                                                      | Open straight on the uninstall plan.                                                        |
 | `--no-config`, `--no-include`, `--no-nginx`, `--no-update-manager` | Skip that step entirely.                                                                    |
 
 ## Choose where it runs
@@ -132,12 +141,13 @@ directory an app update replaces.
 bash ~/alabaster/scripts/uninstall.sh
 ```
 
-Or choose Uninstall when you run the installer again, or fetch the
-uninstaller the same way as the installer. It lists everything it will touch
-before it starts. It asks separately about the include, the symlink or file,
-the macro pack's clone, the nginx site, and each `moonraker.conf` block. It
-removes the include before the file it points at, so your configuration
-never references a deleted file.
+Or choose Uninstall in the installer, or fetch the uninstaller the same way as
+the installer. Before anything is removed, you choose what goes: the include,
+the symlink or file, your `alabaster-user.cfg`, the macro pack's clone, the
+`moonraker.conf` blocks, and the nginx site. Your own settings file and the
+clone are kept unless you choose otherwise. The include is removed before the
+file it points at, and the file stays while the include does, so Klipper
+never refers to a file that is gone.
 
 Settings stay in the browser until you clear its site data.
 
