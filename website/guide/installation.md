@@ -11,28 +11,35 @@ Run this on the machine running Klipper, as the user that owns it, not as root:
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/Hannott/Alabaster/main/scripts/install.sh)"
 ```
 
-This downloads the latest release and verifies its checksum. It asks before
-each change it makes outside its own directory:
+This downloads the latest release and verifies its checksum. Before it
+changes anything, it checks the machine and lays out every change it would
+make outside its own directory, so you decide all of them at once. After you
+confirm, it runs to the end without stopping to ask again. Each of these is
+optional:
 
-1. **Install the macro pack?** Clones `alabaster.cfg` from this same
-   repository, links it in, and pins the clone to the exact release you are
-   installing. This step is optional. See [Macros](/guide/macros) for more
-   information.
-2. **Add the include to `printer.cfg`?** Only offered when nothing already
-   defines the same macros.
-3. **Configure nginx?** Serves Alabaster, Moonraker, and up to four crowsnest
+1. **The macro pack.** Clones `alabaster.cfg` from this same repository,
+   links it in, and pins the clone to the exact release you are installing.
+   See [Macros](/guide/macros) for more information.
+2. **The include in `printer.cfg`.** Only offered when nothing already
+   defines the same macros. If something does, you see which macros and which
+   file before anything is installed.
+3. **An nginx site.** Serves Alabaster, Moonraker, and up to four crowsnest
    cameras on a port you choose. crowsnest uses ports `8080` to `8083` for
    its cameras, so pick a port outside that range.
-4. **Let Moonraker manage updates?** Adds an entry for the app. If the macro
+4. **Updates through Moonraker.** Adds an entry for the app. If the macro
    pack was cloned, adds a second entry for it. Both then appear on the
    Machine page alongside Klipper's and Moonraker's own entries.
+
+If the install changed Klipper's or Moonraker's configuration, it offers to
+restart them for you. It only offers when no print is running or paused.
 
 Then open `http://<your-printer>.local:8090`.
 
 ::: tip Safe to run again
-Run the installer again to update. It installs over the existing copy, never
-adds a duplicate include, and never overwrites an `alabaster.cfg` you have
-edited.
+Run the installer again to update. On a machine that already has Alabaster,
+it first offers to update, move the nginx site to another port, repair the
+macro pack's clone, or uninstall. It never adds a duplicate include and never
+overwrites an `alabaster.cfg` you have edited.
 :::
 
 ### Options
@@ -47,6 +54,7 @@ edited.
 | `--from-zip FILE`                                                  | Install a local archive instead of downloading.                                             |
 | `--yes`                                                            | Do not prompt; take each prompt's default. Defaults never overwrite a file you have edited. |
 | `--dry-run`                                                        | Print what would happen and change nothing.                                                 |
+| `--plain`                                                          | Print one line per step, without panels or colour. Suits logs and screen readers.           |
 | `--no-config`, `--no-include`, `--no-nginx`, `--no-update-manager` | Skip that step entirely.                                                                    |
 
 ## Choose where it runs
@@ -124,7 +132,8 @@ directory an app update replaces.
 bash ~/alabaster/scripts/uninstall.sh
 ```
 
-Or fetch it the same way as the installer. It lists everything it will touch
+Or choose Uninstall when you run the installer again, or fetch the
+uninstaller the same way as the installer. It lists everything it will touch
 before it starts. It asks separately about the include, the symlink or file,
 the macro pack's clone, the nginx site, and each `moonraker.conf` block. It
 removes the include before the file it points at, so your configuration
