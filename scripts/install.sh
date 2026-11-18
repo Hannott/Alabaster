@@ -146,7 +146,7 @@ ui_glyphs() {
         B_LT='+' B_RT='+' B_TT='+' B_BT='+'
         G_OK='+' G_WARN='!' G_ERR='x' G_SKIP='-' G_TODO='.'
         G_ON='x' G_BAR_DONE='#' G_BAR_TODO='.' G_SEP='-' G_PROMPT='>' G_ELLIPSIS='...'
-        G_SPIN=('|' '/' '-' '\')
+        G_SPIN=('|' '/' '-' "\\")
     fi
 }
 
