@@ -1578,6 +1578,7 @@
       "readingAt": "Avlesning {time}",
       "isolateSensor": "Vis bare {sensor} i grafen",
       "chartLabel": "Temperaturhistorikk for de valgte sensorene",
+      "chartLabelWithPower": "Temperatur- og varmeeffekthistorikk for de valgte sensorene",
       "showChart": "Vis historikkgrafen",
       "passive": "Kun måling",
       "presetDetail": "Dyse {hotend}{unit}, bed {bed}{unit}",
@@ -1652,7 +1653,12 @@
       "presetUnnamed": "forvalg uten navn",
       "presetAdd": "Legg til forvalg",
       "presetAddFromCatalogue": "Søk i katalogen",
-      "chartShowPower": "Tegn varmeeffekt",
+      "chartPower": "Varmeeffekt",
+      "chartPowerOption": {
+        "off": "Av",
+        "overlay": "Overlagt",
+        "separate": "Separat"
+      },
       "chartShowTargets": "Tegn måltemperaturer",
       "confirmationsTitle": "Bekreftelser",
       "skipCalibrationWarning": "Start en kalibrering uten bekreftelse",

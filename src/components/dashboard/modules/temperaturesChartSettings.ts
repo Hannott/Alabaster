@@ -1,4 +1,4 @@
-import { configNumber, configString } from '@/dashboard/context'
+import { configBoolean, configNumber, configString } from '@/dashboard/context'
 
 /**
  * The temperature chart's sized options — each option list, its fallback, and
@@ -18,6 +18,35 @@ export function readChartHeight(config: Record<string, unknown>): ChartHeightOpt
   return (chartHeightOptions as readonly string[]).includes(stored)
     ? (stored as ChartHeightOption)
     : 'compact'
+}
+
+/**
+ * The height of the separate heater-power strip for each chart height, in rem.
+ * Added below the temperature plot rather than taken from it, so a preset
+ * keeps meaning the same temperature plot whichever way power is drawn.
+ */
+export const chartPowerStripRem: Record<ChartHeightOption, number> = {
+  compact: 2,
+  standard: 2.5,
+  tall: 3.25,
+}
+
+/** Where heater duty is drawn: nowhere, over the temperatures, or in a strip below them. */
+export const chartPowerModeOptions = ['off', 'overlay', 'separate'] as const
+
+export type ChartPowerMode = (typeof chartPowerModeOptions)[number]
+
+/**
+ * A profile saved before the strip existed stored a boolean `chartShowPower`,
+ * which only ever meant the overlay. Read as that until the reader picks a mode,
+ * so a synced profile does not change appearance on its own.
+ */
+export function readChartPowerMode(config: Record<string, unknown>): ChartPowerMode {
+  const legacy: ChartPowerMode = configBoolean(config, 'chartShowPower', false) ? 'overlay' : 'off'
+  const stored = configString(config, 'chartPowerMode', legacy)
+  return (chartPowerModeOptions as readonly string[]).includes(stored)
+    ? (stored as ChartPowerMode)
+    : legacy
 }
 
 /** Minutes of history the plot holds on screen. */

@@ -176,6 +176,31 @@ describe('TemperaturesSettingsPane', () => {
     expect(config.value.showChartTargets).toBe(false)
   })
 
+  /*
+   * Heater power was a checkbox that only ever meant the overlay. A synced
+   * profile carrying it must keep looking the way it did until its reader
+   * picks a mode, and picking one is stored under the new key.
+   */
+  it('reads a profile saved with the old power checkbox as the overlay, and stores the mode chosen', async () => {
+    const { wrapper, config } = mountPane({ config: { chartShowPower: true } })
+    await flushPromises()
+
+    const row = wrapper
+      .findAll('.settings-row')
+      .find((candidate) => candidate.text().includes('Heater power'))
+    expect(row).toBeDefined()
+    const pressed = row
+      ?.findAll('.segmented button')
+      .filter((b) => b.attributes('aria-pressed') === 'true')
+    expect(pressed?.map((button) => button.text())).toEqual(['Overlaid'])
+
+    await row
+      ?.findAll('.segmented button')
+      .find((button) => button.text() === 'Separate')
+      ?.trigger('click')
+    expect(config.value.chartPowerMode).toBe('separate')
+  })
+
   it('drops the chart shape settings when the card is not showing a chart, but keeps its own toggle', async () => {
     const { wrapper } = mountPane({ config: { showChart: false } })
     await flushPromises()

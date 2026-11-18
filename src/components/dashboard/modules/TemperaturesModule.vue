@@ -14,7 +14,9 @@ import {
   sensorRowIcon,
 } from '@/components/dashboard/modules/temperatureSensors'
 import {
+  chartPowerStripRem,
   readChartHeight,
+  readChartPowerMode,
   readChartWindowMinutes,
   type ChartHeightOption,
 } from '@/components/dashboard/modules/temperaturesChartSettings'
@@ -104,7 +106,7 @@ const presets = computed(() => readPresets(config.value))
  * saturated and still not climbing — and the rail beside each name already
  * shows it live, so the trace is for the case where the history matters.
  */
-const chartShowPower = computed(() => configBoolean(config.value, 'chartShowPower', false))
+const chartPowerMode = computed(() => readChartPowerMode(config.value))
 
 /** Colors the user has chosen, over the stable default each sensor derives. */
 const sensorColors = computed(() => configStringMap(config.value, 'sensorColors'))
@@ -891,7 +893,8 @@ const hasJobLoaded = computed(() => printer.hasActivePrint)
           :window-seconds="chartWindowMinutes * 60"
           :height-rem="chartHeightRem[chartHeight]"
           :show-targets="showChartTargets"
-          :show-power="chartShowPower"
+          :power-mode="chartPowerMode"
+          :power-height-rem="chartPowerStripRem[chartHeight]"
           :lock-to-zero="chartZeroBaseline"
           :fixed-maximum="chartFixedMaximum"
           :wall-clock-offset-seconds="wallClockOffsetSeconds"

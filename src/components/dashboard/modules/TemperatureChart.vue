@@ -10,6 +10,7 @@ import {
   valueScale,
   type TimedValue,
 } from '@/dashboard/chartGeometry'
+import type { ChartPowerMode } from '@/components/dashboard/modules/temperaturesChartSettings'
 
 export interface TemperatureChartSeries {
   objectName: string
@@ -19,7 +20,7 @@ export interface TemperatureChartSeries {
   points: TimedValue[]
   /** Dashed: what it was asked for. Empty when the heater was never on. */
   targetPoints: TimedValue[]
-  /** Dotted, against the right-hand axis. Empty for a sensor with no heater. */
+  /** Duty, 0–1, overlaid or in the strip below. Empty for a sensor with no heater. */
   powerPoints: TimedValue[]
   /** The live target, so an active setpoint is inside the axis before the trace reaches it. */
   activeTarget: number | null
@@ -30,8 +31,10 @@ const props = defineProps<{
   windowSeconds: number
   heightRem: number
   showTargets: boolean
-  /** Draw heater duty against a second axis. */
-  showPower: boolean
+  /** Heater duty: not drawn, over the temperatures on a right-hand axis, or in a strip below. */
+  powerMode: ChartPowerMode
+  /** The strip's plot height when `powerMode` is `separate`, added below the temperature plot. */
+  powerHeightRem: number
   /** Anchor the floor at zero rather than under the coldest reading. */
   lockToZero: boolean
   /** A ceiling from the machine's configuration, used instead of fitting to the data. */
@@ -80,9 +83,24 @@ onBeforeUnmount(() => {
   observer = null
 })
 
-const height = computed(() => props.heightRem * 16)
-/** Room for the value labels, which are the widest thing outside the plot. */
-const gutterStart = 30
+const powerOverlay = computed(() => props.powerMode === 'overlay')
+/**
+ * A strip only when something in it would draw: a chart narrowed to a sensor
+ * with no heater has no duty to show, and an empty strip would only push the
+ * time labels down.
+ */
+const powerStrip = computed(
+  () =>
+    props.powerMode === 'separate' && props.series.some((series) => series.powerPoints.length > 0),
+)
+const drawsPower = computed(() => powerOverlay.value || powerStrip.value)
+/** Between the temperature plot's frame and the strip's. */
+const powerStripGap = 12
+const powerStripHeight = computed(() => (powerStrip.value ? props.powerHeightRem * 16 : 0))
+
+const height = computed(
+  () => props.heightRem * 16 + (powerStrip.value ? powerStripGap + powerStripHeight.value : 0),
+)
 /**
  * The gap between the plot and the duty labels beside it, matching the one the
  * value labels keep on the other side so both axes hug the plot equally.
@@ -91,23 +109,39 @@ const powerLabelGap = 5
 /**
  * Room reserved for the widest duty label, which is always `100%`.
  *
- * Measured, not chosen to look right. At the label's 8.5px mono `100%` renders
- * 20.4px wide in JetBrains Mono, and the gutter this replaces left 0.6px
- * between the `%` and the edge of the SVG — no margin at all, so the glyph
- * read as clipped. A mono face is not one width, which the jog matrix already
- * learned the same way (the same string measures 26.4px in Consolas and 28.8px
- * in Liberation Mono), so this carries enough headroom for a wider face rather
- * than fitting the one the developer happens to have installed.
+ * Measured, not chosen to look right. At the label's 12.8px mono `100%`
+ * renders 30.7px wide in Source Code Pro, 29.9px in Liberation Mono and 28.2px
+ * in Consolas. A mono face is not one width, which the jog matrix already
+ * learned the same way, so this carries headroom for a wider face rather than
+ * fitting the one the developer happens to have installed. The strip's labels
+ * sit in the left gutter and need the same room there: in the 30px the
+ * degrees get by with, `100%` lost its first digit off the edge of the card.
  */
 const powerLabelReserve = 35
-/** The right-hand duty axis needs its own labels; without it the plot runs on. */
-const gutterEnd = computed(() => (props.showPower ? powerLabelGap + powerLabelReserve : 4))
+/** Room for the value labels on the left, and for the strip's duty labels when it is drawn. */
+const gutterStart = computed(() => (powerStrip.value ? powerLabelGap + powerLabelReserve : 30))
+/**
+ * The overlaid duty axis needs its own labels on the right; the strip labels
+ * its axis in the left gutter, and without either the plot runs on.
+ */
+const gutterEnd = computed(() => (powerOverlay.value ? powerLabelGap + powerLabelReserve : 4))
 const gutterTop = 7
 /** One line of time labels. */
 const gutterBottom = 15
 
-const plotWidth = computed(() => Math.max(0, width.value - gutterStart - gutterEnd.value))
-const plotHeight = computed(() => Math.max(0, height.value - gutterTop - gutterBottom))
+const plotWidth = computed(() => Math.max(0, width.value - gutterStart.value - gutterEnd.value))
+/** The temperature plot, which keeps the height its preset names whether or not the strip is drawn. */
+const plotHeight = computed(() => Math.max(0, props.heightRem * 16 - gutterTop - gutterBottom))
+const powerStripTop = computed(() => gutterTop + plotHeight.value + powerStripGap)
+/**
+ * Everything the time axis scrolls, from the top of the temperature plot to
+ * the bottom of the strip. One box spanning both rather than one per plot, so
+ * the strip costs the compositor nothing: the same two layers move, just
+ * taller.
+ */
+const scrolledHeight = computed(() =>
+  powerStrip.value ? powerStripTop.value + powerStripHeight.value - gutterTop : plotHeight.value,
+)
 
 const time = computed(() =>
   timeScale({
@@ -357,7 +391,7 @@ const drawnSeries = computed(() =>
     targetPoints: props.showTargets
       ? downsample(series.targetPoints, Math.max(4, Math.round(plotWidth.value * 2)))
       : [],
-    powerPoints: props.showPower
+    powerPoints: drawsPower.value
       ? downsample(series.powerPoints, Math.max(4, Math.round(plotWidth.value * 2)))
       : [],
   })),
@@ -369,11 +403,25 @@ const drawnSeries = computed(() =>
  * would lie flat along the bottom of the plot.
  */
 function projectPower(fraction: number): number {
-  return gutterTop + plotHeight.value - Math.min(1, Math.max(0, fraction)) * plotHeight.value
+  const clamped = Math.min(1, Math.max(0, fraction))
+  if (powerStrip.value) {
+    return powerStripTop.value + powerStripHeight.value - clamped * powerStripHeight.value
+  }
+  return gutterTop + plotHeight.value - clamped * plotHeight.value
 }
 
 const powerTicks = computed(() =>
-  props.showPower ? [0, 0.5, 1].map((fraction) => ({ fraction, y: projectPower(fraction) })) : [],
+  drawsPower.value ? [0, 0.5, 1].map((fraction) => ({ fraction, y: projectPower(fraction) })) : [],
+)
+
+/** The strip's frame is already its 0% and 100% lines; gridlines there would double its edges. */
+const stripGridTicks = computed(() =>
+  powerTicks.value.filter((tick) => tick.fraction > 0 && tick.fraction < 1),
+)
+
+/** Overlaid, the duty labels stand right of the plot; in the strip, in the left gutter under the degrees. */
+const powerLabelX = computed(() =>
+  powerStrip.value ? gutterStart.value - 5 : gutterStart.value + plotWidth.value + powerLabelGap,
 )
 
 /** Zero is "off", not a setpoint — see `isSetpoint` and `valueScale`. */
@@ -454,8 +502,8 @@ const values = computed(() => {
 
 function projectX(eventtime: number): number {
   const span = time.value.end - time.value.start
-  if (span <= 0) return gutterStart + plotWidth.value
-  return gutterStart + ((eventtime - time.value.start) / span) * plotWidth.value
+  if (span <= 0) return gutterStart.value + plotWidth.value
+  return gutterStart.value + ((eventtime - time.value.start) / span) * plotWidth.value
 }
 
 function projectY(value: number): number {
@@ -486,6 +534,24 @@ const timeLines = computed(() =>
 )
 
 /**
+ * The vertical extent of each plot: what each one's frame encloses, and what
+ * a time gridline crosses. Gridlines are drawn per plot rather than once
+ * through both, so the gap between the two frames stays empty.
+ */
+const timeSpans = computed(() => [
+  { key: 'temperature', top: gutterTop, bottom: gutterTop + plotHeight.value },
+  ...(powerStrip.value
+    ? [
+        {
+          key: 'power',
+          top: powerStripTop.value,
+          bottom: powerStripTop.value + powerStripHeight.value,
+        },
+      ]
+    : []),
+])
+
+/**
  * How much of the plot's width each end of the label band fades over, as a
  * gradient offset. Roughly half a label, so one leaving is gone before it
  * reaches the value axis and one arriving is legible by the time it clears
@@ -504,10 +570,10 @@ const labelFade = computed(() => (plotWidth.value > 0 ? Math.min(0.35, 16 / plot
  * Time also runs left to right here whatever the reading direction does.
  */
 const plotBox = computed(() => ({
-  left: `${gutterStart}px`,
+  left: `${gutterStart.value}px`,
   top: `${gutterTop}px`,
   width: `${plotWidth.value}px`,
-  height: `${plotHeight.value}px`,
+  height: `${scrolledHeight.value}px`,
 }))
 
 /**
@@ -519,7 +585,7 @@ const plotBox = computed(() => ({
  * clip from silently winning over the first's.
  */
 const traceLayerBox = computed(() => ({
-  left: `${-gutterStart}px`,
+  left: `${-gutterStart.value}px`,
   top: `${-gutterTop}px`,
 }))
 
@@ -532,24 +598,26 @@ const traceLayerBox = computed(() => ({
  * stylesheet as lengths rather than built here, so the gradient itself stays
  * where the rest of the chart's paint lives.
  */
+const labelBandTop = computed(() => gutterTop + scrolledHeight.value)
+
 const labelBandBox = computed(() => {
-  const bandTop = gutterTop + plotHeight.value
+  const bandTop = labelBandTop.value
   const fadeWidth = labelFade.value * plotWidth.value
   return {
     left: '0px',
     top: `${bandTop}px`,
     width: `${width.value}px`,
     height: `${Math.max(0, height.value - bandTop)}px`,
-    '--chart-label-start': `${gutterStart}px`,
-    '--chart-label-fade-in': `${gutterStart + fadeWidth}px`,
-    '--chart-label-fade-out': `${gutterStart + plotWidth.value - fadeWidth}px`,
-    '--chart-label-end': `${gutterStart + plotWidth.value}px`,
+    '--chart-label-start': `${gutterStart.value}px`,
+    '--chart-label-fade-in': `${gutterStart.value + fadeWidth}px`,
+    '--chart-label-fade-out': `${gutterStart.value + plotWidth.value - fadeWidth}px`,
+    '--chart-label-end': `${gutterStart.value + plotWidth.value}px`,
   }
 })
 
 const labelLayerBox = computed(() => ({
   left: '0px',
-  top: `${-(gutterTop + plotHeight.value)}px`,
+  top: `${-labelBandTop.value}px`,
 }))
 
 const paths = computed(() =>
@@ -570,7 +638,7 @@ const paths = computed(() =>
         color: series.color,
         kind: 'target',
       })
-    const power = props.showPower ? linePath(series.powerPoints, projectX, projectPower) : ''
+    const power = drawsPower.value ? linePath(series.powerPoints, projectX, projectPower) : ''
     if (power)
       entries.push({
         key: `${series.objectName}-power`,
@@ -641,11 +709,26 @@ const cursor = computed(() => {
   return {
     x: projectX(anchor.eventtime),
     eventtime: anchor.eventtime,
+    bottom: gutterTop + scrolledHeight.value,
     dots: drawnSeries.value.flatMap((series) => {
       const point = nearestTo(series.points, anchor.eventtime)
-      return point
-        ? [{ key: series.objectName, color: series.color, y: projectY(point.value) }]
-        : []
+      // Overlaid duty gets no dot: its value is already in the table, and a
+      // second dot on the same plot would read as a second temperature.
+      const power = powerStrip.value ? nearestTo(series.powerPoints, anchor.eventtime) : null
+      return [
+        ...(point
+          ? [{ key: series.objectName, color: series.color, y: projectY(point.value) }]
+          : []),
+        ...(power
+          ? [
+              {
+                key: `${series.objectName}-power`,
+                color: series.color,
+                y: projectPower(power.value),
+              },
+            ]
+          : []),
+      ]
     }),
   }
 })
@@ -664,7 +747,7 @@ function eventtimeAt(clientX: number): number | null {
   if (span <= 0 || plotWidth.value <= 0) return null
   // Backing out the scroll shift, since the pointer lands on where the axis is
   // drawn rather than on where it was laid out.
-  const fraction = (local - scrollOffsetPx - gutterStart) / plotWidth.value
+  const fraction = (local - scrollOffsetPx - gutterStart.value) / plotWidth.value
   return time.value.start + Math.min(1, Math.max(0, fraction)) * span
 }
 
@@ -747,7 +830,11 @@ function clockLabel(wallSeconds: number): string {
  * already in the table above it as live text — so this names what is plotted
  * rather than trying to narrate a shape.
  */
-const description = computed(() => t('dashboard.temperature.chartLabel'))
+const description = computed(() =>
+  powerStrip.value
+    ? t('dashboard.temperature.chartLabelWithPower')
+    : t('dashboard.temperature.chartLabel'),
+)
 </script>
 
 <template>
@@ -822,12 +909,38 @@ const description = computed(() => t('dashboard.temperature.chartLabel'))
           {{ line.label }}
         </text>
 
+        <template v-if="powerStrip">
+          <line
+            v-for="tick in stripGridTicks"
+            :key="`power-grid-${tick.fraction}`"
+            :x1="gutterStart"
+            :y1="tick.y"
+            :x2="gutterStart + plotWidth"
+            :y2="tick.y"
+            class="temperature-chart__grid"
+          />
+        </template>
+        <!--
+          Inset half a pixel so each 1px edge lands on one device row instead of
+          smearing across two, and drawn under the traces so a heater at 100%
+          runs along the strip's top edge rather than disappearing behind it.
+        -->
+        <rect
+          v-for="frame in timeSpans"
+          :key="`frame-${frame.key}`"
+          :x="gutterStart + 0.5"
+          :y="frame.top + 0.5"
+          :width="Math.max(0, plotWidth - 1)"
+          :height="Math.max(0, frame.bottom - frame.top - 1)"
+          rx="3"
+          class="temperature-chart__frame"
+        />
         <text
           v-for="tick in powerTicks"
           :key="`power-${tick.fraction}`"
-          :x="gutterStart + plotWidth + powerLabelGap"
+          :x="powerLabelX"
           :y="tick.y + 3"
-          text-anchor="start"
+          :text-anchor="powerStrip ? 'end' : 'start'"
           class="temperature-chart__label"
         >
           {{ Math.round(tick.fraction * 100) }}%
@@ -852,21 +965,26 @@ const description = computed(() => t('dashboard.temperature.chartLabel'))
           :width="width"
           :height="height"
         >
-          <line
-            v-for="line in timeLines"
-            :key="`time-grid-${line.key}`"
-            :x1="line.x"
-            :y1="gutterTop"
-            :x2="line.x"
-            :y2="gutterTop + plotHeight"
-            class="temperature-chart__grid temperature-chart__grid--time"
-          />
+          <template v-for="span in timeSpans" :key="span.key">
+            <line
+              v-for="line in timeLines"
+              :key="`time-grid-${span.key}-${line.key}`"
+              :x1="line.x"
+              :y1="span.top"
+              :x2="line.x"
+              :y2="span.bottom"
+              class="temperature-chart__grid temperature-chart__grid--time"
+            />
+          </template>
           <path
             v-for="path in paths"
             :key="path.key"
             :d="path.d"
             class="temperature-chart__series"
-            :class="`temperature-chart__series--${path.kind}`"
+            :class="[
+              `temperature-chart__series--${path.kind}`,
+              { 'temperature-chart__series--power-separate': path.kind === 'power' && powerStrip },
+            ]"
             :style="{ stroke: path.color }"
           />
           <template v-if="cursor">
@@ -874,7 +992,7 @@ const description = computed(() => t('dashboard.temperature.chartLabel'))
               :x1="cursor.x"
               :y1="gutterTop"
               :x2="cursor.x"
-              :y2="gutterTop + plotHeight"
+              :y2="cursor.bottom"
               class="temperature-chart__cursor"
               :class="{ 'temperature-chart__cursor--pinned': pinned }"
             />

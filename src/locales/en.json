@@ -1578,6 +1578,7 @@
       "readingAt": "Reading at {time}",
       "isolateSensor": "Show only {sensor} on the chart",
       "chartLabel": "Temperature history for the selected sensors",
+      "chartLabelWithPower": "Temperature and heater power history for the selected sensors",
       "showChart": "Show the history chart",
       "passive": "Reports only",
       "presetDetail": "Hotend {hotend}{unit}, bed {bed}{unit}",
@@ -1652,7 +1653,12 @@
       "presetUnnamed": "unnamed preset",
       "presetAdd": "Add preset",
       "presetAddFromCatalogue": "Search catalogue",
-      "chartShowPower": "Draw heater power",
+      "chartPower": "Heater power",
+      "chartPowerOption": {
+        "off": "Off",
+        "overlay": "Overlaid",
+        "separate": "Separate"
+      },
       "chartShowTargets": "Draw target temperatures",
       "confirmationsTitle": "Confirmations",
       "skipCalibrationWarning": "Start a calibration without confirming",

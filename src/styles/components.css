@@ -5474,6 +5474,32 @@ input.z-axis__slider:disabled::-moz-range-thumb {
   stroke-width: 1;
 }
 
+/*
+ * Each plot framed on its own, the gutters left open: the frame says where a
+ * plot's axis runs, and the labels outside it belong to the axis. Without
+ * frames the heater-power strip's 100% gridline read as one more temperature
+ * gridline and the two plots ran together. Gridlines already use
+ * --border-subtle, so a frame in it would read as one more gridline too; this
+ * is drawn in the axis labels' own colour, held well below them.
+ */
+.temperature-chart__frame {
+  fill: none;
+  stroke: var(--text-muted);
+  stroke-width: 1;
+  opacity: 0.35;
+}
+
+/*
+ * Below the temperatures, duty no longer shares a plot with anything it could
+ * be mistaken for, so it is drawn as a reading rather than as context: solid,
+ * close to the weight of the trace it explains.
+ */
+.temperature-chart__series--power-separate {
+  opacity: 0.85;
+  stroke-dasharray: none;
+  stroke-width: 1.4;
+}
+
 .temperature-chart__series--target {
   opacity: 0.55;
   stroke-dasharray: 5 4;

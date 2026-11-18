@@ -68,7 +68,8 @@ async function mountChart(props: Partial<InstanceType<typeof TemperatureChart>['
       windowSeconds: 300,
       heightRem: 9,
       showTargets: true,
-      showPower: false,
+      powerMode: 'off',
+      powerHeightRem: 2.5,
       lockToZero: false,
       fixedMaximum: null,
       wallClockOffsetSeconds: 23 * 3600 + 7 * 60,
@@ -447,7 +448,7 @@ describe('TemperatureChart', () => {
       off.findAll('.temperature-chart__label').filter((l) => l.text().endsWith('%')),
     ).toHaveLength(0)
 
-    const on = await mountChart({ showPower: true })
+    const on = await mountChart({ powerMode: 'overlay' })
     expect(on.findAll('.temperature-chart__series--power')).toHaveLength(1)
     const percentages = on
       .findAll('.temperature-chart__label')
@@ -466,7 +467,7 @@ describe('TemperatureChart', () => {
    * step if a change to the gutter or the gap is made knowing about the other.
    */
   it('reserves room to the right of the duty labels for the widest of them', async () => {
-    const wrapper = await mountChart({ showPower: true })
+    const wrapper = await mountChart({ powerMode: 'overlay' })
     const label = wrapper
       .findAll('text.temperature-chart__label')
       .find((candidate) => candidate.text().endsWith('%'))
@@ -474,6 +475,113 @@ describe('TemperatureChart', () => {
 
     expect(Number.isFinite(labelX)).toBe(true)
     expect(chartWidth - labelX).toBeGreaterThanOrEqual(27)
+  })
+
+  /*
+   * The strip is added below the temperature plot, never carved out of it: a
+   * height preset has to keep meaning the same temperature plot whichever way
+   * power is drawn, or switching modes would rescale every trace.
+   */
+  it('draws duty in a strip below the temperatures, adding to the chart rather than taking from it', async () => {
+    const off = await mountChart()
+    const separate = await mountChart({ powerMode: 'separate', powerHeightRem: 2.5 })
+
+    expect(separate.get('svg').attributes('height')).toBe(String(144 + 12 + 40))
+    expect(separate.findAll('.temperature-chart__series--power-separate')).toHaveLength(1)
+
+    const temperatureGrid = (wrapper: ReturnType<typeof mount>) =>
+      wrapper
+        .findAll('.temperature-chart__static .temperature-chart__grid')
+        .slice(0, 3)
+        .map((line) => line.attributes('y1'))
+    expect(temperatureGrid(separate)).toEqual(temperatureGrid(off))
+
+    const plot = separate.get('.temperature-chart__plot').attributes('style') ?? ''
+    expect(plot).toContain(`height: ${144 - 7 - 15 + 12 + 40}px`)
+    expect(separate.get('.temperature-chart').attributes('aria-label')).toBe(
+      'Temperature and heater power history for the selected sensors',
+    )
+  })
+
+  /*
+   * Without frames, the strip's 100% gridline read as one more temperature
+   * gridline and the two plots ran together. Each plot is framed on its own
+   * and the gutters stay outside, so no label is ever inside a frame — and
+   * the frame belongs to the chart, not the strip, so every mode has one.
+   */
+  it('frames each plot, never its gutters, in every mode', async () => {
+    const frames = (wrapper: ReturnType<typeof mount>) =>
+      wrapper.findAll('.temperature-chart__frame').map((frame) => ({
+        x: Number(frame.attributes('x')),
+        y: Number(frame.attributes('y')),
+        width: Number(frame.attributes('width')),
+        height: Number(frame.attributes('height')),
+      }))
+
+    expect(frames(await mountChart())).toEqual([
+      { x: 30.5, y: 7.5, width: chartWidth - 30 - 4 - 1, height: 144 - 7 - 15 - 1 },
+    ])
+    expect(frames(await mountChart({ powerMode: 'overlay' }))).toHaveLength(1)
+
+    const separate = frames(await mountChart({ powerMode: 'separate' }))
+    expect(separate).toHaveLength(2)
+    expect(separate[1]).toEqual({
+      x: 40.5,
+      y: 144 - 15 + 12 + 0.5,
+      width: chartWidth - 40 - 4 - 1,
+      height: 40 - 1,
+    })
+  })
+
+  it('leaves the strip’s 0% and 100% to its frame rather than doubling them with gridlines', async () => {
+    const wrapper = await mountChart({ powerMode: 'separate' })
+    const strip = 144 - 15 + 12
+    const stripGrid = wrapper
+      .findAll('.temperature-chart__static line.temperature-chart__grid')
+      .map((line) => Number(line.attributes('y1')))
+      .filter((y) => y >= strip)
+    expect(stripGrid).toEqual([strip + 20])
+  })
+
+  /*
+   * The strip labels its axis in the left gutter and the plot gets back the
+   * right-hand room the overlaid axis needs. The gutter widens to hold `100%`:
+   * end-anchored in the 30px the degrees get by with, it shipped with its first
+   * digit off the edge of the card. jsdom lays nothing out, so this pins the
+   * room left of the label's anchor, the mirror of the overlaid axis's test.
+   */
+  it('labels the strip on the left, with room for its widest label, and gives the plot the rest', async () => {
+    const wrapper = await mountChart({ powerMode: 'separate' })
+    const percentages = wrapper
+      .findAll('text.temperature-chart__label')
+      .filter((label) => label.text().endsWith('%'))
+
+    expect(percentages.map((label) => label.text())).toEqual(['0%', '50%', '100%'])
+    for (const label of percentages) {
+      expect(label.attributes('text-anchor')).toBe('end')
+      expect(Number(label.attributes('x'))).toBeGreaterThanOrEqual(35)
+    }
+    const plot = wrapper.get('.temperature-chart__plot').attributes('style') ?? ''
+    expect(plot).toContain('left: 40px')
+    expect(plot).toContain(`width: ${chartWidth - 40 - 4}px`)
+  })
+
+  it('carries the cursor through the strip with a dot on each duty line', async () => {
+    const wrapper = await mountChart({ powerMode: 'separate', cursorEventtime: 30 })
+    expect(wrapper.findAll('.temperature-chart__cursor-dot')).toHaveLength(2)
+    const rule = wrapper.get('.temperature-chart__cursor')
+    expect(Number(rule.attributes('y2'))).toBe(144 + 12 + 40 - 15)
+  })
+
+  it('leaves the strip out when nothing charted has a heater', async () => {
+    const wrapper = await mountChart({
+      powerMode: 'separate',
+      series: [series({ objectName: 'temperature_sensor chamber', powerPoints: [] })],
+    })
+    expect(wrapper.get('svg').attributes('height')).toBe('144')
+    expect(
+      wrapper.findAll('.temperature-chart__label').filter((l) => l.text().endsWith('%')),
+    ).toHaveLength(0)
   })
 
   /*

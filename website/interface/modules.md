@@ -185,7 +185,7 @@ Turn on the history chart and choose what it draws.
 | Draw target temperatures | The setpoint each trace is climbing toward, as a dashed line.                                          |
 | Scale to current values  | Or keep the scale fixed to the printer's configured maximums.                                          |
 | Start the scale at 0     | For reading absolute values rather than differences.                                                   |
-| Draw heater power        | Each heater's duty, on its own axis up the right-hand side.                                            |
+| Heater power             | Each heater's duty: overlaid on the temperatures, or in a separate graph below them.                   |
 
 History is seeded from Moonraker's own temperature store when you connect,
 so the chart is not empty for the first ten minutes.

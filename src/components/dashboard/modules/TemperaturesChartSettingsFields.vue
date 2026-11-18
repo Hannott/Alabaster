@@ -6,8 +6,10 @@ import AppButton from '@/components/AppButton.vue'
 import QuickSettingToggle from '@/components/dashboard/QuickSettingToggle.vue'
 import {
   chartHeightOptions,
+  chartPowerModeOptions,
   chartWindowOptions,
   readChartHeight,
+  readChartPowerMode,
   readChartWindowMinutes,
 } from '@/components/dashboard/modules/temperaturesChartSettings'
 import { configBoolean, useDashboardModule } from '@/dashboard/context'
@@ -47,7 +49,7 @@ const chartWindowMinutes = computed(() => readChartWindowMinutes(config.value))
 const showChartTargets = computed(() => configBoolean(config.value, 'showChartTargets', true))
 const chartAutoScale = computed(() => configBoolean(config.value, 'chartAutoScale', true))
 const chartZeroBaseline = computed(() => configBoolean(config.value, 'chartZeroBaseline', false))
-const chartShowPower = computed(() => configBoolean(config.value, 'chartShowPower', false))
+const chartPowerMode = computed(() => readChartPowerMode(config.value))
 </script>
 
 <template>
@@ -133,21 +135,32 @@ const chartShowPower = computed(() => configBoolean(config.value, 'chartShowPowe
       />
     </div>
 
+    <!--
+      Promoted under the row's original id, `chartShowPower`, from when this
+      was a checkbox: a quick-settings list is stored per card, and renaming
+      the id would silently unpin the row from every card that had pinned it.
+    -->
     <div v-if="quick.visible('chartShowPower')" class="settings-row">
-      <label class="check-row">
-        <input
-          type="checkbox"
-          :checked="chartShowPower"
-          @change="updateConfig({ chartShowPower: !chartShowPower })"
+      <span class="settings-row__label">{{ t('dashboard.temperature.chartPower') }}</span>
+      <div class="flex items-center gap-2">
+        <div class="segmented">
+          <AppButton
+            v-for="option in chartPowerModeOptions"
+            :key="option"
+            size="sm"
+            :aria-pressed="chartPowerMode === option"
+            @click="updateConfig({ chartPowerMode: option })"
+          >
+            {{ t(`dashboard.temperature.chartPowerOption.${option}`) }}
+          </AppButton>
+        </div>
+        <QuickSettingToggle
+          v-if="mode === 'pane'"
+          :label="t('dashboard.temperature.chartPower')"
+          :shown="quick.isQuick('chartShowPower')"
+          @toggle="quick.setQuick('chartShowPower', $event)"
         />
-        <span>{{ t('dashboard.temperature.chartShowPower') }}</span>
-      </label>
-      <QuickSettingToggle
-        v-if="mode === 'pane'"
-        :label="t('dashboard.temperature.chartShowPower')"
-        :shown="quick.isQuick('chartShowPower')"
-        @toggle="quick.setQuick('chartShowPower', $event)"
-      />
+      </div>
     </div>
 
     <div v-if="quick.visible('chartAutoScale')">
