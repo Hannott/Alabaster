@@ -573,6 +573,8 @@ moonraker_answers=0
 nginx_present=0
 nginx_site=''
 nginx_site_exists=0
+nginx_site_private=0
+repair_site=0
 other_site=''
 current_version=''
 target_version=''
@@ -823,7 +825,7 @@ resolve_target_version() {
 detect() {
     config_dir='' printer_cfg='' moonraker_conf='' include_count=0
     klipper_state='' moonraker_version='' moonraker_answers=0
-    nginx_present=0 nginx_site='' nginx_site_exists=0 other_site=''
+    nginx_present=0 nginx_site='' nginx_site_exists=0 nginx_site_private=0 other_site=''
     current_version='' link_state='none' link_current=''
     include_present=0 conflicts='' um_app=0 um_pack=0 printer_now=''
 
@@ -867,6 +869,7 @@ detect() {
         nginx_present=1
         nginx_site="$(nginx_site_path)"
         [ -f "$nginx_site" ] && nginx_site_exists=1
+        [ "$nginx_site_exists" -eq 1 ] && [ ! -r "$nginx_site" ] && nginx_site_private=1
         other_site="$(find_other_site || true)"
     fi
     # A reinstall keeps the port the existing site already listens on, so the
@@ -1454,6 +1457,28 @@ configure_nginx() {
     fi
 }
 
+# Earlier installers wrote the site 0600, and KIAUH stops with a traceback
+# when it cannot read every file in sites-enabled.
+decide_site_repair() {
+    repair_site=0
+    [ "$do_nginx" -eq 0 ] && [ "$want_nginx" -eq 1 ] && [ "$nginx_site_private" -eq 1 ] || return 0
+    [ "$UI_MODE" = plain ] && say "${nginx_site} is readable only by root; sudo makes it readable."
+    if need_sudo; then
+        repair_site=1
+    else
+        warn "sudo was refused, so ${nginx_site} is still readable only by root."
+    fi
+}
+
+repair_site_mode() {
+    step 'Web server'
+    if run sudo chmod 644 "$nginx_site"; then
+        did "nginx site on port ${port} made readable"
+    else
+        warn "Could not make ${nginx_site} readable. Run: sudo chmod 644 ${nginx_site}"
+    fi
+}
+
 
 # Two independent blocks, since the app (a downloaded release, type: web) and
 # the macro pack (a git clone, type: git_repo) are tracked by Moonraker in
@@ -1646,6 +1671,8 @@ draw_plan() {
             s=on
             detail="port ${C_BOLD}${port}${C_OFF} ${C_DIM}${G_SEP} asks for sudo once${C_OFF}"
             [ "$nginx_site_exists" -eq 1 ] && detail="replace the site, port ${C_BOLD}${port}${C_OFF} ${C_DIM}${G_SEP} sudo${C_OFF}"
+        elif [ "$nginx_site_private" -eq 1 ]; then
+            detail="keep the site on port ${port}, make it readable ${C_DIM}${G_SEP} sudo${C_OFF}"
         elif [ "$nginx_site_exists" -eq 1 ]; then
             detail="keep the existing site on port ${port}"
         else
@@ -1767,6 +1794,9 @@ decide() {
     if [ "$do_nginx" -eq 1 ] && ! need_sudo; then
         warn 'sudo was refused, so the nginx site will not be configured.'
         do_nginx=0
+    fi
+    if [ "$UI_MODE" = plain ] || [ "$assume_yes" -eq 1 ]; then
+        decide_site_repair
     fi
     return 0
 }
@@ -1912,6 +1942,8 @@ execute() {
     elif [ "$nginx_present" -eq 0 ]; then
         add_row 'nginx site' skip 'nginx not installed'
         skipped 'nginx not installed, site not configured'
+    elif [ "$repair_site" -eq 1 ]; then
+        add_row 'nginx site' todo '' 'repair_site_mode'
     elif [ "$nginx_site_exists" -eq 1 ]; then
         add_row 'nginx site' skip "kept on port ${port}"
         skipped 'nginx site left unchanged'
@@ -2634,6 +2666,7 @@ action_install() {
         do_nginx=0
         warn 'sudo was refused, so the nginx site was not configured.'
     fi
+    decide_site_repair
 
     local conflict_note=''
     [ -n "$conflicts" ] && [ "$do_pack" -eq 1 ] && [ "$want_include" -eq 1 ] \
