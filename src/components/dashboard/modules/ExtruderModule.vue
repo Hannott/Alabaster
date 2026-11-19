@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import AppButton from '@/components/AppButton.vue'
@@ -7,6 +7,7 @@ import AppField from '@/components/AppField.vue'
 import AppIcon from '@/components/AppIcon.vue'
 import AppSlider from '@/components/AppSlider.vue'
 import AppDashboardModule from '@/components/dashboard/AppDashboardModule.vue'
+import ExtruderFlowReadout from '@/components/dashboard/modules/ExtruderFlowReadout.vue'
 import ExtruderQuickSettings from '@/components/dashboard/modules/ExtruderQuickSettings.vue'
 import {
   readExtruderCardSetting,
@@ -15,7 +16,7 @@ import {
 import {
   extrudedBeadLength,
   feedrateForFlow,
-  isExtruderMoving,
+  useFilamentDiameter,
   volumetricFlow,
 } from '@/components/dashboard/modules/extruderFlow'
 import {
@@ -34,12 +35,13 @@ import {
   useDashboardModule,
 } from '@/dashboard/context'
 import { formatMacroLabel, useMacrosStore } from '@/stores/macros'
-import { useSpoolStore } from '@/stores/spool'
 import { usePrinterStore } from '@/stores/printer'
 import { usePrinterConfigStore } from '@/stores/printerConfig'
 import { useQuickConfigStore, type PersistResult } from '@/stores/quickConfig'
 import { useToastsStore } from '@/stores/toasts'
 import { useTelemetryStore } from '@/stores/telemetry'
+
+defineProps<{ flowInHeader?: boolean }>()
 
 const { locale, t } = useI18n({ useScope: 'global' })
 const printer = usePrinterStore()
@@ -48,7 +50,6 @@ const quickConfig = useQuickConfigStore()
 const toasts = useToastsStore()
 const telemetry = useTelemetryStore()
 const macros = useMacrosStore()
-const spool = useSpoolStore()
 const extruderContext = useDashboardModule('extruder')
 const { config, updateConfig, isSettingsOpen, openSurface } = extruderContext
 /** A section the host of this card asked for — every one, on the dashboard. See `sections` in the registry. */
@@ -103,9 +104,7 @@ const feedrate = computed(() => configNumber(config.value, 'feedrate', 5))
  * configured with. Volume is what is conserved between filament and bead, so
  * this — not the nozzle — is what turns mm/s of filament into mm³/s.
  */
-const filamentDiameter = computed(
-  () => spool.activeSpool?.filament?.diameter ?? printerConfig.extruderGeometry.filamentDiameter,
-)
+const filamentDiameter = useFilamentDiameter()
 
 /**
  * Whether the speed field is set in mm³/s. Only while a diameter is known:
@@ -454,110 +453,6 @@ const extrusionPreview = computed(() => {
   if (beadLength === null || sentFlow === null || nozzleDiameter === null) return null
   return { beadLength, flow: sentFlow, speed: sentFeedrate.value, nozzleDiameter }
 })
-
-/**
- * `motion_report` pushes a change only when the value actually changes, so a
- * printer holding one exact extrusion speed across a long straight segment
- * never re-fires the reading at all. A hold keyed to "when did a sample last
- * arrive" would read that silence as the flow having stopped and decay to
- * zero while the extruder is still running exactly as before — which is the
- * "drops to 0" this once did. Judged against the printer's current reported
- * value on every tick instead, so a sustained reading keeps re-crediting
- * itself rather than aging out for having never changed.
- */
-const peakWindowMs = 1000
-const peakExtruderVelocity = ref(0)
-let peakSetAt = 0
-
-/** Below this the toolhead is not meaningfully moving — Movement's own threshold for `live_velocity`. */
-const toolheadMovingThreshold = 0.5
-
-/**
- * Whether the current reading is even eligible to be shown.
- *
- * A bare E-only move — retract or unretract, with no X/Y/Z component — pulls
- * filament back through the bowden tube rather than melting it through the
- * nozzle, so it runs at whatever speed `firmware_retraction` was configured
- * with, which is easily double or triple a real print's flow and would read
- * as an absurd melt rate if credited at face value. Excluded only while a
- * print is running, because that is the only time an E-only move is
- * retraction rather than this card's own manual Extrude/Retract buttons —
- * which move the extruder the same way, and whose whole reason for having a
- * live reading is to show that they are doing it.
- */
-function isCreditableSample(toolheadVelocity: number): boolean {
-  return !printer.isPrinting || toolheadVelocity >= toolheadMovingThreshold
-}
-
-/**
- * A negative-zero reading. Klipper reports a retract's tail-end velocity with
- * the sign of its own direction, so a settled retract can report exactly
- * `-0` — a value `Intl.NumberFormat` prints as "-0", a distinct-looking
- * reading for something that means precisely zero. Checked against the same
- * rounding the display itself uses, since a value that only rounds to zero —
- * `-0.02` at one decimal place — hits the same defect.
- */
-function withoutNegativeZero(value: number, fractionDigits: number): number {
-  return Number(value.toFixed(fractionDigits)) === 0 ? 0 : value
-}
-
-function tick(): void {
-  const now = Date.now()
-  const credible = isCreditableSample(printer.motion.liveVelocity)
-  const candidate = withoutNegativeZero(credible ? printer.motion.liveExtruderVelocity : 0, 1)
-  const stillHolding = now - peakSetAt < peakWindowMs
-  if (stillHolding && Math.abs(candidate) < Math.abs(peakExtruderVelocity.value)) return
-  peakExtruderVelocity.value = candidate
-  peakSetAt = now
-}
-
-watch(() => [printer.motion.liveExtruderVelocity, printer.motion.liveVelocity], tick, {
-  immediate: true,
-})
-
-let peakTimer: ReturnType<typeof setInterval> | undefined
-onMounted(() => {
-  peakTimer = setInterval(tick, 100)
-})
-onUnmounted(() => {
-  if (peakTimer !== undefined) clearInterval(peakTimer)
-})
-
-/*
- * What the extruder is doing at this instant, held over the trailing second.
- *
- * Without it a slow purge and an extrude Klipper silently refused look
- * identical — the same defect Movement named for the toolhead and fixed only
- * there. It remains visible at rest so a refused move and an idle extruder do
- * not collapse into the same blank state; the too-cold warning joins it only
- * when the user has something actionable to resolve.
- *
- * It never animates. ADR 0004 forbids animating telemetry at its own update
- * frequency; the number changes when the peak-hold above says it changed.
- */
-const isMoving = computed(() => isExtruderMoving(peakExtruderVelocity.value))
-
-/**
- * Volumetric flow from the loaded spool's diameter, falling back to the
- * printer's configured filament diameter when Spoolman has no more specific
- * answer. Absent otherwise rather than computed from an assumed 1.75 mm,
- * since flow scales with the square of the diameter and this is a figure
- * people compare against a hotend's rated limit.
- */
-const flowValue = computed(() => volumetricFlow(peakExtruderVelocity.value, filamentDiameter.value))
-
-/**
- * The volumetric-flow number this card shows. Without either a spool or
- * configured filament diameter the value is unavailable rather than replaced
- * with a differently dimensioned linear-speed reading. Re-checked for
- * negative zero here too: multiplying the peak by the filament's cross-section
- * can round a value that was already clean back into one that isn't.
- */
-const readoutValue = computed(() =>
-  flowValue.value === null
-    ? t('dashboard.unavailableValue')
-    : numberFormatter.value.format(withoutNegativeZero(flowValue.value, 1)),
-)
 </script>
 
 <template>
@@ -575,7 +470,7 @@ const readoutValue = computed(() =>
       controls below, while the temperature in the too-cold sentence is the
       threshold the user needs rather than a second hotend readout.
     -->
-    <div class="extruder-status">
+    <div v-if="!canExtrude || !flowInHeader" class="extruder-status">
       <p v-if="!canExtrude" class="flex items-center gap-1.5 text-alert-inline">
         <AppIcon name="emergency" class="size-3.5 shrink-0" aria-hidden="true" />
         {{
@@ -585,26 +480,7 @@ const readoutValue = computed(() =>
           })
         }}
       </p>
-      <!--
-        What the extruder is doing outranks what it is allowed to do, so it is
-        always on screen rather than only while turning — the same posture
-        Movement's own feed-rate readout takes, dimming rather than
-        disappearing at rest so a stalled move never looks identical to an
-        idle one. It remains volumetric flow; without a reported filament
-        diameter the value is unavailable rather than changing dimensions.
-        `text-value-micro` is Movement's own feed-rate size, not `text-value`,
-        so the two read as the same kind of number, and
-        `text-value-slot` reserves the same fixed digit width Movement's own
-        readout does, so the number never shifts as its own digit count
-        changes. No decorative icon here, unlike Movement's readout: every
-        candidate glyph tried for "material flowing" read as clutter at this
-        size rather than adding meaning. No transition: telemetry moves, it
-        does not animate.
-      -->
-      <p class="text-value-micro" :class="isMoving ? 'text-data-sky' : 'text-muted'">
-        <span class="text-value-slot">{{ readoutValue }}</span>
-        {{ t('dashboard.extruder.cubicMillimetresPerSecondUnit') }}
-      </p>
+      <ExtruderFlowReadout v-if="!flowInHeader" />
     </div>
 
     <!--

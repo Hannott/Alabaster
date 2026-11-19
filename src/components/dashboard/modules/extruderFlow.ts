@@ -1,3 +1,16 @@
+import { computed } from 'vue'
+
+import { usePrinterConfigStore } from '@/stores/printerConfig'
+import { useSpoolStore } from '@/stores/spool'
+
+export function useFilamentDiameter() {
+  const spool = useSpoolStore()
+  const printerConfig = usePrinterConfigStore()
+  return computed(
+    () => spool.activeSpool?.filament?.diameter ?? printerConfig.extruderGeometry.filamentDiameter,
+  )
+}
+
 /**
  * What the extruder is doing right now, derived from `motion_report`.
  *

@@ -7,6 +7,7 @@ import AppIcon from '@/components/AppIcon.vue'
 import AvailabilityRegion from '@/components/AvailabilityRegion.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import DashboardModuleCard from '@/components/dashboard/DashboardModuleCard.vue'
+import ExtruderFlowReadout from '@/components/dashboard/modules/ExtruderFlowReadout.vue'
 import DashboardModuleHost from '@/components/dashboard/DashboardModuleHost.vue'
 import DashboardModulePlaceholder from '@/components/dashboard/DashboardModulePlaceholder.vue'
 import SettingsSurface from '@/components/dashboard/SettingsSurface.vue'
@@ -900,6 +901,9 @@ function setColumnWidth(width: DashboardColumnWidth): void {
                 @remove="remove"
                 @rename="(instanceId, title) => layout.renameInstance(instanceId, title)"
               >
+                <template v-if="item.instance.moduleId === 'extruder'" #meta>
+                  <ExtruderFlowReadout in-header />
+                </template>
                 <!--
                 `surface-open` was never passed, so `isSurfaceOpen` read false for
                 every module's whole life — the boolean half of the documented
@@ -912,6 +916,9 @@ function setColumnWidth(width: DashboardColumnWidth): void {
                   :instance-id="item.instance.instanceId"
                   :module-id="item.instance.moduleId"
                   :component="item.definition.component"
+                  :component-props="
+                    item.instance.moduleId === 'extruder' ? { flowInHeader: true } : undefined
+                  "
                   :settings-open="openSettings === item.instance.instanceId"
                   :surface-open="dockedInstance === item.instance.instanceId"
                   @open-settings="openSettings = $event"

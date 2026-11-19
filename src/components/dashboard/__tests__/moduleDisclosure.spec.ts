@@ -11,6 +11,8 @@ import { i18n } from '@/i18n'
 import { useAvailabilityStore } from '@/stores/availability'
 import { useDashboardLayoutStore } from '@/stores/dashboardLayout'
 import { useMoonrakerStore } from '@/stores/moonraker'
+import { usePrinterStore } from '@/stores/printer'
+import { usePrinterConfigStore } from '@/stores/printerConfig'
 import { useWebcamsStore } from '@/stores/webcams'
 
 enableAutoUnmount(afterEach)
@@ -83,6 +85,55 @@ async function mountDashboard() {
  * card.
  */
 describe('module disclosure', () => {
+  it('keeps the Extruder header flow live when the card collapses', async () => {
+    const wrapper = await mountDashboard()
+    const layout = useDashboardLayoutStore()
+    const printer = usePrinterStore()
+    usePrinterConfigStore().settings = { extruder: { filament_diameter: 1.75 } }
+    layout.setCollapsed('desktop', 'extruder', false)
+    printer.motion.extrusionFactor = 0.8
+    printer.motion.liveExtruderVelocity = 4
+    await flushPromises()
+
+    const card = wrapper.get('[data-instance-id="extruder"]')
+    const summary = card.get('.dashboard-module__summary')
+    expect(summary.text()).toBe('9.6 mm³/s')
+    expect(card.text().match(/mm³\/s/g)).toHaveLength(1)
+
+    layout.setCollapsed('desktop', 'extruder', true)
+    printer.motion.liveExtruderVelocity = 5
+    await flushPromises()
+
+    expect(card.get('.dashboard-module__summary').element).toBe(summary.element)
+    expect(summary.text()).toBe('12 mm³/s')
+    layout.setCollapsed('desktop', 'extruder', false)
+  })
+
+  it('hides zero flow after one second and shows the next nonzero reading', async () => {
+    const wrapper = await mountDashboard()
+    vi.useFakeTimers()
+    try {
+      const layout = useDashboardLayoutStore()
+      layout.setCollapsed('desktop', 'extruder', true)
+      usePrinterConfigStore().settings = { extruder: { filament_diameter: 1.75 } }
+      await flushPromises()
+
+      const card = wrapper.get('[data-instance-id="extruder"]')
+      const summarySelector = '.dashboard-module__summary'
+      await vi.advanceTimersByTimeAsync(999)
+      expect(card.get(summarySelector).text()).toBe('0 mm³/s')
+      await vi.advanceTimersByTimeAsync(1)
+      expect(card.find(summarySelector).exists()).toBe(false)
+
+      usePrinterStore().motion.liveExtruderVelocity = 4
+      await flushPromises()
+      expect(card.get(summarySelector).text()).toBe('9.6 mm³/s')
+      layout.setCollapsed('desktop', 'extruder', false)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('names both settings components for every module with a disclosure layer', () => {
     /*
      * The layer always ends with a link into the surface, so a module with a

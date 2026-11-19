@@ -360,20 +360,6 @@ export const dashboardModuleRegistry: readonly DashboardModuleDefinition[] = [
         reading.temperature < reading.target - 2
       return isHeating ? 'nozzleHeat' : 'nozzle'
     },
-    // The extrusion factor, and deliberately not the hotend temperature:
-    // Temperatures already collapses to `telemetry.readings.extruder`, and two
-    // cards showing one number is worse than one card showing nothing.
-    //
-    // Never null, unlike every other summary here. Klipper always has a factor
-    // and carries it silently from one job into the next, so the state most
-    // worth catching from a collapsed card is exactly the one where it is not
-    // 100% — and a reading that always exists has no "nothing yet" case a
-    // placeholder could misreport.
-    summary: () => {
-      const printer = usePrinterStore()
-      const percent = Math.round(printer.motion.extrusionFactor * 100)
-      return `${percent}${i18n.global.t('dashboard.percentUnit')}`
-    },
   },
   {
     id: 'spool',

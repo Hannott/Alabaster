@@ -11,6 +11,7 @@ const props = withDefaults(
     moduleId: DashboardModuleId
     /** Omitted by a host whose children come from its slot instead. */
     component?: Component
+    componentProps?: Record<string, unknown> | undefined
     settingsOpen: boolean
     /** True for the host mounted inside the settings surface. */
     surfaceOpen?: boolean
@@ -56,7 +57,7 @@ provide(dashboardSurfaceGroupSwitchKey, {
 </script>
 
 <template>
-  <component :is="component" v-if="component" />
+  <component :is="component" v-if="component" v-bind="componentProps" />
   <!--
     The surface puts two components in one host — the card's quick settings and
     the module's pane — so they share the one context this host provides rather
