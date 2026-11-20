@@ -203,8 +203,9 @@ specifies the hot end temperature.
 
 ### Heater calibration
 
-**Calibrate PID** and **Calibrate MPC** run from the card, on the heater and
-at the temperature you choose (usually the material you print most).
+**Calibrate PID** runs from the card, on the heater and at the temperature you
+choose (usually the material you print most). A heater that uses Kalico's MPC
+control gets **Calibrate MPC** instead.
 
 The output appears as it runs. Once calibration finishes, the new model is
 staged in Klipper and the card prompts you to save the new config to keep
@@ -434,13 +435,16 @@ in whichever included file that is, without restarting. If that file has
 other unsaved edits in Configuration, the value is added there for you to save
 instead of saving those edits along with it.
 
-If the model is set in `printer.cfg` instead, the card reads the values
-rather than adjusting them.
+On Kalico's `bleeding-edge-v2` branch, a
+[nonlinear pressure advance](/interface/calibration#nonlinear-pressure-advance)
+model set in `printer.cfg` is shown instead: the card reads its values rather
+than adjusting them.
 
 ### Firmware retraction
 
 If `[firmware_retraction]` is configured, the card shows retract length and
-speed, unretract extra length and speed, and Z hop height.
+speed, and unretract extra length and speed. On Kalico, it also shows Z hop
+height.
 
 ## Spool
 

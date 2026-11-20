@@ -27,8 +27,7 @@ command is the record that it ran.
   and keep typing its value. If a command takes more than one parameter,
   <kbd>Tab</kbd> and <kbd>Shift</kbd>+<kbd>Tab</kbd> step through the ones
   you haven't filled in, so you can set them in any order. This works for
-  every macro you wrote, and for every built-in command on a Kalico
-  bleeding-edge printer, which reports what its commands accept.
+  every macro you wrote.
 - <kbd>Shift</kbd>+<kbd>Enter</kbd> adds a line. Use it to send a short script
   in one go instead of one command at a time.
 - Click any command in the transcript to put it back in the prompt. Adjust one

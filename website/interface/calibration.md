@@ -52,7 +52,8 @@ and whether it moves the toolhead, heats, or probes.
   how an accelerometer board plugged in or pulled gets re-detected, starts
   that over. An accelerometer on its own USB board, such as a BTT ADXL or
   LIS2DW board, is a board Klipper can see directly: the condition names it as
-  connected, and says so the moment Klipper reports it unplugged.
+  connected. On Kalico, it also says so the moment the board is reported
+  unplugged.
 - **Values** you might change, such as a mesh profile name or a heater's
   target, are fields with Klipper's default shown. The command they build is
   shown under them. What you typed or recorded in a calibration stays while
@@ -340,6 +341,9 @@ result counts the samples and says the temperature the next one waits for;
 **Abort** ends the calibration with nothing staged. The run stays open through
 those steps.
 
+It appears on printers with a `[temperature_probe]` section, which Klipper
+has and Kalico does not.
+
 ## Load cell
 
 Scales a load cell, or a load cell probe, with a weight of known mass: start,
@@ -431,8 +435,8 @@ firmware restart loads the new values.
 
 ## Heater models
 
-**Heater model** runs `PID_CALIBRATE` or `MPC_CALIBRATE`, whichever the heater
-is configured for. Choose the heater and the target; tune at the temperature
+**Heater model** runs `PID_CALIBRATE`, or `MPC_CALIBRATE` for a heater that
+uses Kalico's MPC control. Choose the heater and the target; tune at the temperature
 you print at. The run takes several minutes. The temperature chart sits beside
 it, because the climb curve is how you see the heater behaving. The result
 shows the new constants next to the current ones.

@@ -41,8 +41,8 @@ host are also available from the header's power menu, on every page. See
 
 This section lists every MCU Klipper is talking to, with its chip, firmware
 version, and load, then the serial, USB, and CAN devices attached to the host.
-A board that has dropped off is marked **Disconnected**, rather than showing
-its last-known numbers as current.
+On Kalico, a board that has dropped off is marked **Disconnected**, rather
+than showing its last-known numbers as current.
 
 **Find the path for an `[mcu]` section without an SSH session.** Each serial
 device is named after the board it belongs to, says which `[mcu]` section
