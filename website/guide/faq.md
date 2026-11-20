@@ -109,9 +109,8 @@ No. Alabaster works without it. Controls that need it hide themselves instead
 of failing.
 
 Installing it adds a pause that lifts and parks the nozzle instead of leaving
-it on the print, plus the pause-at-layer controls and load and unload filament
-macros. See [Macros](/guide/macros) for more information on what it does and
-how to tune it.
+it on the print, plus the pause-at-layer controls. See [Macros](/guide/macros)
+for more information on what it does and how to tune it.
 
 ## I already use another interface's macro pack
 

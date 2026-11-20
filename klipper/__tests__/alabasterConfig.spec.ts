@@ -20,7 +20,13 @@ const config = readFileSync(join(process.cwd(), 'klipper', 'alabaster.cfg'), 'ut
 const userTemplate = readFileSync(join(process.cwd(), 'klipper', 'alabaster-user.cfg'), 'utf8')
 
 /** The settings blocks: the pack's defaults, mirrored in the user template. */
-const settingsMacros = ['_ALABASTER', '_ALABASTER_FILAMENT', '_ALABASTER_PURGE']
+const settingsMacros = ['_ALABASTER']
+
+/**
+ * Settings blocks the pack no longer uses, which the `alabaster-user.cfg`
+ * created by releases 0.9.0 to 0.9.2 still opens.
+ */
+const retiredSettingsMacros = ['_ALABASTER_FILAMENT', '_ALABASTER_PURGE']
 
 /** `variable_` name to raw value, from lines that may be commented out with `#`. */
 function variables(body: string, commented: boolean): Map<string, string> {
@@ -159,9 +165,7 @@ describe('alabaster.cfg', () => {
      * the picker worse for everyone who installs it. `isSelectableMacroObject`
      * is the interface's own rule, so this asks the question the picker will.
      */
-    const userFacing = new Set(['LOAD_FILAMENT', 'UNLOAD_FILAMENT', 'ADAPTIVE_PURGE'])
     for (const name of macros) {
-      if (userFacing.has(name)) continue
       expect(
         isSelectableMacroObject(`gcode_macro ${name}`),
         `${name} would appear in the macro picker; prefix it with _ or exclude it`,
@@ -169,42 +173,24 @@ describe('alabaster.cfg', () => {
     }
   })
 
-  it('offers the filament macros the Extruder card expects', () => {
-    for (const name of ['LOAD_FILAMENT', 'UNLOAD_FILAMENT']) {
-      expect(macros).toContain(name)
-      expect(isSelectableMacroObject(`gcode_macro ${name}`)).toBe(true)
-    }
-  })
-
-  it('sizes the purge from the printer it runs on', () => {
+  it('keeps every settings block an installed user file can open', () => {
     /*
-     * The adaptive purges this replaces hard-coded what they should have read:
-     * clamping at 0 instead of the axis limits sent a line past X max and
-     * stopped the print, and a fixed 5 mm² cross-section delivered half the
-     * requested flow on 1.75 mm filament. Each of these is a value Klipper
-     * already knows; the purge must ask rather than assume.
+     * Klipper merges a section the user file opens into the pack's own, and
+     * refuses to start on a `[gcode_macro]` that ends up with no `gcode`. The
+     * installer creates the user file once and never rewrites it, while the
+     * pack updates on its own — so a block dropped from the pack stops Klipper
+     * on every printer whose user file still opens it.
      */
-    const purge = macroBody(config, '_ALABASTER_PURGE_LINE')
-    for (const source of [
-      'printer.toolhead.axis_minimum',
-      'printer.toolhead.axis_maximum',
-      'config.max_extrude_cross_section',
-      'config.filament_diameter',
-      'config.nozzle_diameter',
-      'printer.exclude_object.objects',
-    ]) {
-      expect(purge, `_ALABASTER_PURGE_LINE must read ${source}`).toContain(source)
+    const opened = [...definedMacros(userTemplate), ...retiredSettingsMacros]
+    for (const name of opened) {
+      expect(macroBody(config, name), `${name} must keep a gcode key`).toMatch(/^gcode:/m)
     }
   })
 
-  it('checks the hotend before the purge plans a single move', () => {
-    // ADAPTIVE_PURGE waits for temperature and then calls the planner, so
-    // can_extrude is read after the wait. Planning in the same macro would
-    // read it before M109 had run.
-    const purge = macroBody(config, 'ADAPTIVE_PURGE')
-    expect(purge.indexOf('M109')).toBeGreaterThanOrEqual(0)
-    expect(purge.indexOf('M109')).toBeLessThan(purge.indexOf('_ALABASTER_PURGE_LINE'))
-    expect(macroBody(config, '_ALABASTER_PURGE_LINE')).toContain('can_extrude')
+  it('leaves the retired settings blocks out of the user template', () => {
+    for (const name of retiredSettingsMacros) {
+      expect(definedMacros(userTemplate)).not.toContain(name)
+    }
   })
 
   it('lists every setting in the user template, at its default', () => {

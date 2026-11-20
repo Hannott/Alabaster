@@ -61,7 +61,7 @@ fetches the latest published release.
 ## Macro pack
 
 `alabaster.cfg` ships with Alabaster, and the installer offers to add it. It
-provides the pause, resume, cancel, layer-pause, and filament macros described
+provides the pause, resume, cancel, and layer-pause macros described
 in [Macros](/guide/macros).
 
 The macro pack is optional. Controls that need it hide themselves on a
