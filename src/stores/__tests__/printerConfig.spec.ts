@@ -70,6 +70,21 @@ describe('printer configuration store', () => {
     expect(printerConfig.controlKindFor('temperature_sensor missing')).toBeNull()
   })
 
+  it('offers no calibration for a temperature fan, which is not a heater to Klipper', async () => {
+    mockQuery({
+      eventtime: 1,
+      status: {
+        configfile: {
+          settings: { ...settings, 'temperature_fan electronics': { control: 'pid', pid_kp: 1 } },
+        },
+      },
+    })
+    const printerConfig = usePrinterConfigStore()
+    await printerConfig.refresh()
+
+    expect(printerConfig.controlKindFor('temperature_fan electronics')).toBeNull()
+  })
+
   it('offers only the leveling actions the machine is configured for', async () => {
     mockQuery({
       eventtime: 1,

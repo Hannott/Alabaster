@@ -438,7 +438,14 @@ export const usePrinterConfigStore = defineStore('printerConfig', () => {
     return power !== null && power > 0 ? power : 1
   }
 
+  /**
+   * The control scheme of a heater, which decides whether it has constants to
+   * calibrate. A `[temperature_fan]` carries a `control` option as well, but
+   * Klipper registers it as a sensor, and `PID_CALIBRATE` answers "Unknown
+   * heater" for one, so it reports nothing here.
+   */
   function controlKindFor(objectName: string): HeaterControlKind | null {
+    if (objectName.startsWith('temperature_fan ')) return null
     const control = section(objectName)?.control
     return control === 'pid' || control === 'mpc' || control === 'watermark' ? control : null
   }
