@@ -1,7 +1,12 @@
 import { defineStore } from 'pinia'
 import { computed, ref, watch, type WatchStopHandle } from 'vue'
 
-import { moonrakerFileUrl } from '@/services/moonraker'
+import {
+  fileChangeTouchesRoot,
+  moonrakerFileUrl,
+  parseFileListChange,
+  type JsonRpcNotification,
+} from '@/services/moonraker'
 import { useAvailabilityStore } from '@/stores/availability'
 import { useMoonrakerStore } from '@/stores/moonraker'
 
@@ -203,7 +208,13 @@ export const useTimelapseStore = defineStore('timelapse', () => {
     // A render finishing writes into this root, so the gallery follows the same
     // notification the file workspaces do rather than waiting for a revisit.
     try {
-      stopFileNotifications = moonraker.onNotification('notify_filelist_changed', scheduleRefresh)
+      stopFileNotifications = moonraker.onNotification(
+        'notify_filelist_changed',
+        (notification: JsonRpcNotification) => {
+          const change = parseFileListChange(notification.params)
+          if (!change || fileChangeTouchesRoot(change, 'timelapse')) scheduleRefresh()
+        },
+      )
     } catch {
       stopFileNotifications = null
     }

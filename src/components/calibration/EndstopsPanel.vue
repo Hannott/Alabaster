@@ -39,13 +39,13 @@ const timeFormatter = computed(() => createTimeFormatter(locale.value))
     </template>
 
     <!--
-      Said once for the whole panel rather than per row: while a print runs the
-      poll stops, so every reading below is equally old.
+      Said once for the whole panel rather than per row: while a print or any
+      other G-code runs the poll stops, so every reading below is equally old.
     -->
     <p v-if="endstops.isStale" class="calibration-notice" role="status">
       <AppIcon name="warning" class="size-4 shrink-0" aria-hidden="true" />
       <span>
-        {{ t('calibration.endstops.paused') }}
+        {{ t(endstops.isBusy ? 'calibration.endstops.busy' : 'calibration.endstops.paused') }}
         <template v-if="endstops.readAt">
           {{ t('calibration.endstops.readAt', { time: timeFormatter.format(endstops.readAt) }) }}
         </template>

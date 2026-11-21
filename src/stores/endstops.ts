@@ -1,9 +1,15 @@
 import { defineStore } from 'pinia'
 import { computed, ref, watch, type WatchStopHandle } from 'vue'
 
+import type {
+  JsonRpcNotification,
+  ObjectSnapshotHandler,
+  PrinterObjectSnapshot,
+} from '@/services/moonraker'
 import { useAvailabilityStore } from '@/stores/availability'
 import { useMoonrakerStore } from '@/stores/moonraker'
 import { usePrinterStore } from '@/stores/printer'
+import { isRecord } from '@/utils/records'
 
 /**
  * Endstop states, from `printer.query_endstops.status`.
@@ -15,6 +21,15 @@ import { usePrinterStore } from '@/stores/printer'
  * A query during a print competes with the motion queue for the same MCU, and a
  * reading nobody is watching is not worth that. While a print runs, the last
  * reading stays on screen and is marked stale.
+ *
+ * "Idle" is Klipper's own word, not merely "no print": the query takes the
+ * G-code mutex and processes the toolhead's lookahead queue
+ * (`query_endstops.py`), so a poll during a macro, a heat soak or a run of jog
+ * moves waits behind it and splits the moves it lands between. Polling is
+ * therefore held while `idle_timeout` reports `Printing`, which Klipper reports
+ * whenever G-code is executing, print or not. `query_endstops.last_query` is
+ * subscribed alongside it, so a read anyone else asks for — `QUERY_ENDSTOPS`
+ * in the console, another browser — shows here without a request of ours.
  */
 
 export type EndstopState = 'triggered' | 'open' | 'unknown'
@@ -27,6 +42,21 @@ export interface EndstopReading {
 
 /** How often an idle printer is asked again. */
 export const endstopPollIntervalMs = 2000
+
+const subscriptionKey = 'alabaster.calibration.endstops'
+
+/** `last_query`'s values are the MCU's raw answer, a boolean or 0/1, not the RPC's words. */
+function readQueriedState(value: unknown): EndstopState {
+  if (typeof value === 'boolean') return value ? 'triggered' : 'open'
+  if (value === 0 || value === 1) return value === 1 ? 'triggered' : 'open'
+  return 'unknown'
+}
+
+function sortedReadings(entries: Array<[string, EndstopState]>): EndstopReading[] {
+  return entries
+    .map(([name, state]) => ({ name, state }))
+    .sort((left, right) => left.name.localeCompare(right.name, undefined, { numeric: true }))
+}
 
 function readState(value: unknown): EndstopState {
   if (typeof value !== 'string') return 'unknown'
@@ -52,14 +82,20 @@ export const useEndstopsStore = defineStore('endstops', () => {
   let started = false
   let stopWatch: WatchStopHandle | null = null
   let stopPrinterChangeReset: (() => void) | null = null
+  let stopSubscriptionWatch: WatchStopHandle | null = null
+  const disposers: Array<() => void> = []
+  /** `idle_timeout.state`: `Idle`, `Ready`, or `Printing` while any G-code runs. */
+  const idleState = ref<string | null>(null)
 
   const hasReadings = computed(() => readings.value.length > 0)
+  /** Whether Klipper is executing G-code outside a print, which holds polling. */
+  const isBusy = computed(() => idleState.value === 'Printing' && !printer.hasActivePrint)
   /**
    * Whether the shown readings are known to be current. Polling stops while a
    * print runs, so what is on screen then describes the machine as it was before
    * the print started.
    */
-  const isStale = computed(() => hasReadings.value && printer.hasActivePrint)
+  const isStale = computed(() => hasReadings.value && (printer.hasActivePrint || isBusy.value))
   const isPolling = computed(() => pollTimer !== null)
 
   /**
@@ -81,9 +117,9 @@ export const useEndstopsStore = defineStore('endstops', () => {
     try {
       const result = await moonraker.rpcCall('printer.query_endstops.status')
       if (current !== generation) return false
-      readings.value = Object.entries(result ?? {})
-        .map(([name, value]) => ({ name, state: readState(value) }))
-        .sort((left, right) => left.name.localeCompare(right.name, undefined, { numeric: true }))
+      readings.value = sortedReadings(
+        Object.entries(result ?? {}).map(([name, value]) => [name, readState(value)]),
+      )
       readAt.value = Date.now()
       failed.value = false
       return true
@@ -113,8 +149,32 @@ export const useEndstopsStore = defineStore('endstops', () => {
    * the new printer may not even have. The next poll tick repopulates once
    * the new printer is ready.
    */
+  function mergeStatus(status: unknown): void {
+    if (!isRecord(status)) return
+    const idle = status.idle_timeout
+    if (isRecord(idle) && typeof idle.state === 'string') idleState.value = idle.state
+    const query = status.query_endstops
+    if (!isRecord(query) || !isRecord(query.last_query)) return
+    const entries = Object.entries(query.last_query)
+    if (entries.length === 0) return
+    // A read of our own that is still answering is about to say the same, and newer.
+    if (isLoading.value) return
+    readings.value = sortedReadings(entries.map(([name, value]) => [name, readQueriedState(value)]))
+    readAt.value = Date.now()
+    failed.value = false
+  }
+
+  function handleSnapshot(snapshot: PrinterObjectSnapshot): void {
+    mergeStatus(snapshot.status)
+  }
+
+  function handleStatusUpdate(notification: JsonRpcNotification): void {
+    mergeStatus(notification.params[0])
+  }
+
   function printerChanged(): void {
     generation += 1
+    idleState.value = null
     readings.value = []
     readAt.value = null
     isLoading.value = false
@@ -125,8 +185,29 @@ export const useEndstopsStore = defineStore('endstops', () => {
     if (started) return
     started = true
     stopPrinterChangeReset = moonraker.onPrinterChange(printerChanged)
+    try {
+      disposers.push(
+        moonraker.onObjectSnapshot(handleSnapshot as ObjectSnapshotHandler),
+        moonraker.onNotification('notify_status_update', handleStatusUpdate),
+      )
+    } catch {
+      // Without a client nothing reports a status; polling alone keeps the readings.
+    }
+    stopSubscriptionWatch = watch(
+      () => availability.isKlipperReady,
+      (ready) => {
+        if (!ready) return
+        void moonraker
+          .setObjectSubscription(subscriptionKey, {
+            idle_timeout: ['state'],
+            query_endstops: ['last_query'],
+          })
+          .catch(() => undefined)
+      },
+      { immediate: true },
+    )
     stopWatch = watch(
-      () => availability.isKlipperReady && !printer.hasActivePrint,
+      () => availability.isKlipperReady && !printer.hasActivePrint && !isBusy.value,
       (shouldPoll) => {
         if (shouldPoll) {
           void refresh()
@@ -147,6 +228,11 @@ export const useEndstopsStore = defineStore('endstops', () => {
     stopPolling()
     stopWatch?.()
     stopWatch = null
+    stopSubscriptionWatch?.()
+    stopSubscriptionWatch = null
+    while (disposers.length > 0) disposers.pop()?.()
+    void moonraker.removeObjectSubscription(subscriptionKey).catch(() => undefined)
+    idleState.value = null
     stopPrinterChangeReset?.()
     stopPrinterChangeReset = null
   }
@@ -156,6 +242,7 @@ export const useEndstopsStore = defineStore('endstops', () => {
     hasReadings,
     isLoading,
     isStale,
+    isBusy,
     isPolling,
     failed,
     readAt,

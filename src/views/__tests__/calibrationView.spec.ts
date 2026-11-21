@@ -1511,7 +1511,7 @@ describe('Calibration view', () => {
    */
   it('reports runout sensor states with a word, not a color alone', async () => {
     const moonraker = useMoonrakerStore(pinia)
-    let snapshotHandler: ((snapshot: { eventtime: number; status: unknown }) => void) | undefined
+    const snapshotHandlers: Array<(snapshot: { eventtime: number; status: unknown }) => void> = []
     vi.spyOn(moonraker, 'rpcCall').mockImplementation(((method: string) => {
       if (method === 'printer.objects.list') {
         return Promise.resolve({
@@ -1521,7 +1521,7 @@ describe('Calibration view', () => {
       return Promise.resolve({ x: 'TRIGGERED', y: 'open' })
     }) as never)
     vi.spyOn(moonraker, 'onObjectSnapshot').mockImplementation(((handler: never) => {
-      snapshotHandler = handler
+      snapshotHandlers.push(handler)
       return () => undefined
     }) as never)
     vi.spyOn(moonraker, 'onNotification').mockReturnValue(() => undefined)
@@ -1532,10 +1532,12 @@ describe('Calibration view', () => {
     await flushPromises()
 
     const view = await mountView('extrusion')
-    snapshotHandler?.({
-      eventtime: 1,
-      status: { 'filament_switch_sensor runout': { enabled: true, filament_detected: true } },
-    })
+    for (const handler of snapshotHandlers) {
+      handler({
+        eventtime: 1,
+        status: { 'filament_switch_sensor runout': { enabled: true, filament_detected: true } },
+      })
+    }
     await flushPromises()
 
     const row = view.get('.calibration-sensor')

@@ -2,10 +2,12 @@ import { defineStore } from 'pinia'
 import { computed, ref, watch, type WatchStopHandle } from 'vue'
 
 import {
+  fileChangeTouchesRoot,
   isPrintableGcodeFilename,
   listThumbnailPath,
   normalizeMoonrakerRelativePath,
   uploadMoonrakerFile,
+  parseFileListChange,
   type JsonRpcNotification,
   type MoonrakerDirectoryFile,
   type MoonrakerGcodeMetadata,
@@ -428,7 +430,8 @@ export const useGcodeFilesStore = defineStore('gcodeFiles', () => {
    * already works around for its own trigger.
    */
   function handleFilelistChanged(notification: JsonRpcNotification): void {
-    scheduleRefresh()
+    const parsed = parseFileListChange(notification.params)
+    if (!parsed || fileChangeTouchesRoot(parsed, 'gcodes')) scheduleRefresh()
     const change = notification.params[0]
     if (!isRecord(change)) return
     if (change.action !== 'create_file' && change.action !== 'modify_file') return

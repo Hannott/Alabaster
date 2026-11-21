@@ -1,6 +1,7 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import type { JsonRpcNotification, NotificationHandler } from '@/services/moonraker'
 import { useAvailabilityStore } from '@/stores/availability'
 import { endstopPollIntervalMs, useEndstopsStore } from '@/stores/endstops'
 import { useMoonrakerStore } from '@/stores/moonraker'
@@ -164,6 +165,74 @@ describe('endstops store', () => {
     await expect(endstops.refresh()).resolves.toBe(false)
 
     expect(rpcCall).not.toHaveBeenCalled()
+    endstops.stop()
+  })
+
+  function captureStatusUpdates(): (status: Record<string, unknown>) => void {
+    const moonraker = useMoonrakerStore()
+    const handlers: NotificationHandler[] = []
+    vi.spyOn(moonraker, 'onObjectSnapshot').mockReturnValue(() => undefined)
+    vi.spyOn(moonraker, 'onNotification').mockImplementation((method, handler) => {
+      if (method === 'notify_status_update') handlers.push(handler)
+      return () => undefined
+    })
+    vi.spyOn(moonraker, 'setObjectSubscription').mockResolvedValue()
+    return (status) =>
+      handlers.forEach((handler) =>
+        handler({
+          jsonrpc: '2.0',
+          method: 'notify_status_update',
+          params: [status, 0],
+        } as JsonRpcNotification),
+      )
+  }
+
+  /**
+   * The query takes Klipper's G-code mutex and processes the lookahead queue,
+   * so a poll during a macro or a run of jog moves waits behind it and splits
+   * the moves it lands between. `idle_timeout` reports `Printing` whenever
+   * G-code runs, print or not.
+   */
+  it('holds the poll while Klipper is running G-code outside a print', async () => {
+    const pushStatus = captureStatusUpdates()
+    const moonraker = useMoonrakerStore()
+    const rpcCall = vi.spyOn(moonraker, 'rpcCall').mockResolvedValue({ x: 'open' } as never)
+    const endstops = useEndstopsStore()
+
+    endstops.start()
+    await vi.advanceTimersByTimeAsync(0)
+    pushStatus({ idle_timeout: { state: 'Printing' } })
+    await vi.advanceTimersByTimeAsync(0)
+    const callsWhenBusy = rpcCall.mock.calls.length
+
+    await vi.advanceTimersByTimeAsync(endstopPollIntervalMs * 3)
+    expect(rpcCall.mock.calls.length).toBe(callsWhenBusy)
+    expect(endstops.isBusy).toBe(true)
+    expect(endstops.isStale).toBe(true)
+
+    pushStatus({ idle_timeout: { state: 'Ready' } })
+    await vi.advanceTimersByTimeAsync(0)
+    expect(rpcCall.mock.calls.length).toBe(callsWhenBusy + 1)
+    expect(endstops.isStale).toBe(false)
+
+    endstops.stop()
+  })
+
+  it("shows a read someone else asked for, from Klipper's last_query", async () => {
+    const pushStatus = captureStatusUpdates()
+    const moonraker = useMoonrakerStore()
+    vi.spyOn(moonraker, 'rpcCall').mockResolvedValue({ x: 'open' } as never)
+    const endstops = useEndstopsStore()
+    endstops.start()
+    await vi.advanceTimersByTimeAsync(0)
+
+    pushStatus({ query_endstops: { last_query: { y: 1, x: 0, z: true } } })
+
+    expect(endstops.readings).toEqual([
+      { name: 'x', state: 'open' },
+      { name: 'y', state: 'triggered' },
+      { name: 'z', state: 'triggered' },
+    ])
     endstops.stop()
   })
 

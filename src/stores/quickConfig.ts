@@ -23,6 +23,14 @@ import {
   normalizeQuickConfigColumns,
   type QuickConfigColumns,
 } from '@/features/config/quickConfigLayout'
+import {
+  fileChangePathsIn,
+  fileChangeTouchesRoot,
+  isPathWithin,
+  parseFileListChange,
+  type FileListChange,
+  type JsonRpcNotification,
+} from '@/services/moonraker'
 import { useAvailabilityStore } from '@/stores/availability'
 import { useMachineFilesStore } from '@/stores/machineFiles'
 import { useMoonrakerStore } from '@/stores/moonraker'
@@ -33,6 +41,39 @@ import { usePrintersStore } from '@/stores/printers'
 import { isRecord } from '@/utils/records'
 
 export type ConfigurationViewMode = 'files' | 'quickConfig'
+
+/**
+ * Whether a `notify_filelist_changed` can change what Quick config read: a
+ * file it loaded changed, moved, or went away, or a new file landed where one
+ * of the loaded files' includes would now pick it up. Anything else in the
+ * config root — `SAVE_VARIABLE`'s file, Shake&Tune's graphs, a backup — is not
+ * part of the configuration Klipper reads, and reloading for it walked the
+ * whole root and downloaded every included file again.
+ */
+export function fileChangeReachesConfig(
+  change: FileListChange,
+  loadedPaths: readonly string[],
+  textOf: (path: string) => string | undefined,
+): boolean {
+  if (!fileChangeTouchesRoot(change, 'config')) return false
+  if (change.action === 'root_update' || change.action === 'move_dir') return true
+  const within = change.action === 'delete_dir'
+  const touched = fileChangePathsIn(change, 'config')
+  if (
+    touched.some((path) =>
+      loadedPaths.some((loaded) => loaded === path || (within && isPathWithin(loaded, path))),
+    )
+  ) {
+    return true
+  }
+  if (change.item.root !== 'config') return false
+  if (change.action !== 'create_file' && change.action !== 'move_file') return false
+  const candidate = change.item.path
+  return loadedPaths.some((path) => {
+    const text = textOf(path)
+    return text !== undefined && includedConfigFiles(path, text, [candidate]).includes(candidate)
+  })
+}
 
 /**
  * What writing a running value to the config did. `buffered` means the file
@@ -265,6 +306,21 @@ export const useQuickConfigStore = defineStore('quickConfig', () => {
       reloadTimer = null
       void load()
     }, 150)
+  }
+
+  function handleFileListChanged(notification: JsonRpcNotification): void {
+    const change = parseFileListChange(notification.params)
+    if (
+      !change ||
+      !hasLoaded.value ||
+      fileChangeReachesConfig(
+        change,
+        loadedPaths.value,
+        (path) => machineFiles.configBuffer(path)?.content,
+      )
+    ) {
+      scheduleReload()
+    }
   }
 
   function fieldKey(pin: QuickConfigPin): string {
@@ -500,7 +556,7 @@ export const useQuickConfigStore = defineStore('quickConfig', () => {
       ),
     )
     try {
-      disposers.push(moonraker.onNotification('notify_filelist_changed', scheduleReload))
+      disposers.push(moonraker.onNotification('notify_filelist_changed', handleFileListChanged))
     } catch {
       // Without file notifications the values still load; they refresh on the next visit.
     }

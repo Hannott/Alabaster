@@ -23,10 +23,17 @@ import { moveBeside, type TabDropPlacement } from '@/features/machine/tabRows'
 import {
   fetchMoonrakerBinaryFile,
   fetchMoonrakerTextFile,
+  fileChangePathsIn,
+  fileChangeTouchesRoot,
+  isPathWithin,
   moonrakerFileUrl,
   normalizeMoonrakerRelativePath,
+  parentFolder,
+  parseFileListChange,
   uploadMoonrakerFile,
   validMoonrakerFilename,
+  type FileListChange,
+  type JsonRpcNotification,
   type MoonrakerDirectoryResult,
 } from '@/services/moonraker'
 import { useAvailabilityStore } from '@/stores/availability'
@@ -167,6 +174,86 @@ export function firstContentMatch(content: string, needle: string): ContentSearc
   return { line, column: index - lineStart, length: needle.length }
 }
 
+/** How many files a content search reads from the printer at once. */
+export const CONTENT_SEARCH_CONCURRENCY = 4
+/** Roughly how much fetched text content search keeps between queries, in UTF-16 code units. */
+export const CONTENT_SEARCH_CACHE_LIMIT = 16 * 1024 * 1024
+
+/**
+ * The search index for `root` with one `notify_filelist_changed` applied, or
+ * null when the change cannot be applied from what it names — a folder moved
+ * in from another root, or a whole root replaced — and the index has to be
+ * listed again.
+ */
+export function applyFileChangeToIndex(
+  files: readonly OpenMachineFile[],
+  change: FileListChange,
+  root: string,
+): OpenMachineFile[] | null {
+  if (!fileChangeTouchesRoot(change, root)) return [...files]
+  const { action, item, source } = change
+  const sourceInRoot = source?.root === root ? source.path : null
+  const itemInRoot = item.root === root
+  switch (action) {
+    case 'create_dir':
+      return [...files]
+    case 'root_update':
+      return null
+    case 'delete_file':
+      return files.filter((file) => file.path !== item.path)
+    case 'delete_dir':
+      return files.filter((file) => !isPathWithin(file.path, item.path))
+    case 'move_dir': {
+      if (itemInRoot && sourceInRoot === null) return null
+      const moved =
+        sourceInRoot === null ? [] : files.filter((file) => isPathWithin(file.path, sourceInRoot))
+      const kept =
+        sourceInRoot === null
+          ? [...files]
+          : files.filter((file) => !isPathWithin(file.path, sourceInRoot))
+      if (!itemInRoot) return kept
+      return [
+        ...kept,
+        ...moved.map((file) => ({
+          ...file,
+          path: item.path + file.path.slice(sourceInRoot!.length),
+        })),
+      ]
+    }
+    case 'create_file':
+    case 'modify_file':
+    case 'move_file': {
+      const previous = files.find((file) => file.path === item.path)
+      const kept = files.filter((file) => file.path !== item.path && file.path !== sourceInRoot)
+      if (!itemInRoot) return kept
+      return [
+        ...kept,
+        {
+          kind: 'file',
+          name: item.path.slice(item.path.lastIndexOf('/') + 1),
+          path: item.path,
+          modified: item.modified ?? previous?.modified ?? 0,
+          size: item.size ?? previous?.size ?? 0,
+          permissions: item.permissions ?? previous?.permissions ?? 'r',
+        },
+      ]
+    }
+  }
+}
+
+/** Runs `task` over `items`, never more than `limit` at a time. */
+async function forEachLimited<T>(
+  items: readonly T[],
+  limit: number,
+  task: (item: T) => Promise<void>,
+): Promise<void> {
+  let next = 0
+  const worker = async (): Promise<void> => {
+    while (next < items.length) await task(items[next++]!)
+  }
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker))
+}
+
 function joinPath(...parts: string[]): string {
   return normalizeMoonrakerRelativePath(parts.filter(Boolean).join('/'))
 }
@@ -232,6 +319,22 @@ export const useMachineFilesStore = defineStore('machineFiles', () => {
   const contentSearchQuery = ref('')
   const isSearchingFileContents = ref(false)
   let contentSearchGeneration = 0
+  let contentSearchAbort: AbortController | null = null
+  /*
+   * Text a content search already read, keyed by path in the browsed root and
+   * valid only while the search index still reports the same `modified`: the
+   * index follows `notify_filelist_changed`, so a save, rename, or delete from
+   * any client retires an entry without this having to be told. Without it
+   * every query downloaded every file in the root again.
+   */
+  const contentCache = new Map<string, { modified: number; content: string }>()
+  let contentCacheSize = 0
+  /*
+   * Changes that arrived while the index was being listed. The listing may or
+   * may not already include them, so they are replayed onto it once it lands;
+   * every change applies idempotently.
+   */
+  let indexChangesInFlight: FileListChange[] | null = null
   /**
    * A config file and zero-based line another surface asked Configuration to
    * open, cleared once it has. A request rather than a route query, so the
@@ -508,7 +611,6 @@ export const useMachineFilesStore = defineStore('machineFiles', () => {
       })
       if (generation !== directoryGeneration) return false
       applyDirectoryResult(currentPath.value, result)
-      if (searchFilesLoaded.value) void refreshSearchFiles(true)
       return true
     } catch {
       if (generation === directoryGeneration) lastError.value = 'directory'
@@ -578,10 +680,15 @@ export const useMachineFilesStore = defineStore('machineFiles', () => {
       return Promise.resolve()
     }
     if (searchFilesRequest && !force) return searchFilesRequest
-    searchFilesRequest = (async () => {
+    const root = currentRoot.value
+    const changes: FileListChange[] = []
+    indexChangesInFlight = changes
+    let request: Promise<void> | null = null
+    request = (async () => {
       try {
-        const files = await moonraker.rpcCall('server.files.list', { root: currentRoot.value })
-        searchFiles.value = files.map((file) => {
+        const files = await moonraker.rpcCall('server.files.list', { root })
+        if (root !== currentRoot.value || indexChangesInFlight !== changes) return
+        let indexed: OpenMachineFile[] | null = files.map((file) => {
           const path = normalizeMoonrakerRelativePath(file.path)
           const segments = path.split('/')
           return {
@@ -593,14 +700,70 @@ export const useMachineFilesStore = defineStore('machineFiles', () => {
             permissions: file.permissions ?? permissionsByPath.get(path) ?? 'r',
           }
         })
+        for (const change of changes) {
+          indexed = indexed && applyFileChangeToIndex(indexed, change, root)
+        }
+        if (!indexed) return
+        searchFiles.value = indexed
         searchFilesLoaded.value = true
       } catch {
         // Directory browsing remains available when the optional search index is unavailable.
       } finally {
-        searchFilesRequest = null
+        if (indexChangesInFlight === changes) indexChangesInFlight = null
+        if (searchFilesRequest === request) searchFilesRequest = null
       }
     })()
-    return searchFilesRequest
+    searchFilesRequest = request
+    return request
+  }
+
+  /*
+   * Keeps the index current from the change Moonraker reported rather than
+   * listing the root again. Listing is a walk of the whole root on Moonraker's
+   * event loop, and it used to run after every folder refresh, which every
+   * file change anywhere in the root triggered.
+   */
+  function applyIndexChange(change: FileListChange): void {
+    const root = currentRoot.value
+    if (!fileChangeTouchesRoot(change, root)) return
+    for (const path of fileChangePathsIn(change, root)) forgetContent(path, change.action)
+    indexChangesInFlight?.push(change)
+    if (!searchFilesLoaded.value) return
+    const next = applyFileChangeToIndex(searchFiles.value, change, root)
+    if (next) searchFiles.value = next
+    else void refreshSearchFiles(true)
+  }
+
+  function forgetContent(path: string, action: FileListChange['action']): void {
+    const within = action === 'delete_dir' || action === 'move_dir'
+    for (const [cached, entry] of contentCache) {
+      if (cached === path || (within && isPathWithin(cached, path))) {
+        contentCache.delete(cached)
+        contentCacheSize -= entry.content.length
+      }
+    }
+  }
+
+  function clearContentCache(): void {
+    contentCache.clear()
+    contentCacheSize = 0
+  }
+
+  function rememberContent(path: string, modified: number, content: string): void {
+    if (content.length > CONTENT_SEARCH_CACHE_LIMIT) return
+    const previous = contentCache.get(path)
+    if (previous) {
+      contentCache.delete(path)
+      contentCacheSize -= previous.content.length
+    }
+    contentCache.set(path, { modified, content })
+    contentCacheSize += content.length
+    // A Map iterates in insertion order, so the first key is the longest unread.
+    for (const [oldest, entry] of contentCache) {
+      if (contentCacheSize <= CONTENT_SEARCH_CACHE_LIMIT) break
+      contentCache.delete(oldest)
+      contentCacheSize -= entry.content.length
+    }
   }
 
   /**
@@ -626,7 +789,9 @@ export const useMachineFilesStore = defineStore('machineFiles', () => {
     // would answer questions about one root with facts about the other.
     searchFiles.value = []
     searchFilesLoaded.value = false
+    indexChangesInFlight = null
     clearContentSearch()
+    clearContentCache()
     permissionsByPath.clear()
     directoryListings.value = new Map()
     const restored = tabsByRoot.get(root)
@@ -646,6 +811,8 @@ export const useMachineFilesStore = defineStore('machineFiles', () => {
 
   function clearContentSearch(): void {
     contentSearchGeneration += 1
+    contentSearchAbort?.abort()
+    contentSearchAbort = null
     contentSearchQuery.value = ''
     contentSearchMatches.value = new Map()
     isSearchingFileContents.value = false
@@ -653,15 +820,18 @@ export const useMachineFilesStore = defineStore('machineFiles', () => {
 
   /**
    * Extends the name-only match `filteredEntries` does client-side to the text
-   * of every reasonably small text file under the current root. Content is read
-   * from `fileBuffers` first, so a match reflects an unsaved edit the same way
-   * the editor is currently showing it, and is fetched from Moonraker only for
-   * a path with nothing buffered — never cached past that, since a save,
-   * rename, or delete would otherwise need to know to invalidate it.
+   * of every reasonably small text file under the current root. Moonraker has
+   * no search of its own, so the text has to come to the browser; what keeps
+   * that affordable on a printer's host is that each file is read at most once
+   * per version (`contentCache`), a few at a time, and a query the reader has
+   * already typed past stops reading. Content is taken from `fileBuffers`
+   * first, so a match reflects an unsaved edit the way the editor shows it.
    */
   async function searchFileContents(query: string): Promise<void> {
     const trimmed = query.trim()
     const generation = ++contentSearchGeneration
+    contentSearchAbort?.abort()
+    contentSearchAbort = null
     if (!trimmed) {
       contentSearchQuery.value = ''
       contentSearchMatches.value = new Map()
@@ -670,30 +840,36 @@ export const useMachineFilesStore = defineStore('machineFiles', () => {
     }
     await ensureSearchFiles()
     if (generation !== contentSearchGeneration) return
+    const abort = new AbortController()
+    contentSearchAbort = abort
+    const fetcher: typeof fetch = (input, init) => fetch(input, { ...init, signal: abort.signal })
+    const root = currentRoot.value
     const needle = trimmed.toLocaleLowerCase()
     const candidates = searchFiles.value.filter(
       (file) => classifyFileKind(file.name) === 'text' && !isLargeFile('text', file.size),
     )
     isSearchingFileContents.value = true
     const matches = new Map<string, ContentSearchMatch>()
-    await Promise.all(
-      candidates.map(async (file) => {
-        const buffered = isRootEditable.value
-          ? fileBuffers.value.get(file.path)?.content
-          : undefined
-        let content = buffered
-        if (content === undefined) {
-          try {
-            content = await fetchMoonrakerTextFile(currentRoot.value, file.path, moonraker.endpoint)
-          } catch {
-            return
-          }
+    await forEachLimited(candidates, CONTENT_SEARCH_CONCURRENCY, async (file) => {
+      if (abort.signal.aborted) return
+      let content = isRootEditable.value ? fileBuffers.value.get(file.path)?.content : undefined
+      if (content === undefined) {
+        const cached = contentCache.get(file.path)
+        if (cached && cached.modified === file.modified) content = cached.content
+      }
+      if (content === undefined) {
+        try {
+          content = await fetchMoonrakerTextFile(root, file.path, moonraker.endpoint, fetcher)
+        } catch {
+          return
         }
-        const match = firstContentMatch(content, needle)
-        if (match) matches.set(file.path, match)
-      }),
-    )
+        if (root === currentRoot.value) rememberContent(file.path, file.modified, content)
+      }
+      const match = firstContentMatch(content, needle)
+      if (match) matches.set(file.path, match)
+    })
     if (generation !== contentSearchGeneration) return
+    if (contentSearchAbort === abort) contentSearchAbort = null
     contentSearchQuery.value = trimmed
     contentSearchMatches.value = matches
     isSearchingFileContents.value = false
@@ -721,7 +897,6 @@ export const useMachineFilesStore = defineStore('machineFiles', () => {
       if (generation !== directoryGeneration) return false
       currentPath.value = normalized
       applyDirectoryResult(normalized, result)
-      if (searchFilesLoaded.value) void refreshSearchFiles(true)
       return true
     } catch {
       if (generation === directoryGeneration) lastError.value = 'directory'
@@ -1782,13 +1957,57 @@ export const useMachineFilesStore = defineStore('machineFiles', () => {
     if (currentFile.value && !isDirty.value) void openFileByPath(currentFile.value)
   }
 
-  function scheduleRefresh(): void {
+  let pendingDirectoryRefresh = false
+  let pendingIncludesRefresh = false
+
+  function scheduleRefresh(directory: boolean, includes: boolean): void {
+    pendingDirectoryRefresh ||= directory
+    pendingIncludesRefresh ||= includes
+    if (!pendingDirectoryRefresh && !pendingIncludesRefresh) return
     if (refreshTimer) clearTimeout(refreshTimer)
     refreshTimer = setTimeout(() => {
       refreshTimer = null
-      void refreshDirectory()
-      void refreshIncludedConfigPaths()
+      const refreshListing = pendingDirectoryRefresh
+      const refreshIncludes = pendingIncludesRefresh
+      pendingDirectoryRefresh = false
+      pendingIncludesRefresh = false
+      if (refreshListing) void refreshDirectory()
+      if (refreshIncludes) void refreshIncludedConfigPaths()
     }, 120)
+  }
+
+  /** Whether the change lands in a folder the explorer is showing. */
+  function changeReachesListing(change: FileListChange): boolean {
+    const root = currentRoot.value
+    if (!fileChangeTouchesRoot(change, root)) return false
+    if (change.action === 'root_update') return true
+    return fileChangePathsIn(change, root).some((path) => {
+      const folder = parentFolder(path)
+      return folder === currentPath.value || directoryListings.value.has(folder)
+    })
+  }
+
+  /*
+   * Only the folders a change lands in are listed again, and printer.cfg is
+   * read again only when it is what changed. Every change used to refresh
+   * every listing and re-read printer.cfg — `SAVE_VARIABLE` rewriting its file
+   * during a print, Shake&Tune writing a graph, a slicer uploading to the
+   * gcodes root.
+   */
+  function handleFileListChanged(notification: JsonRpcNotification): void {
+    const change = parseFileListChange(notification.params)
+    if (!change) {
+      scheduleRefresh(true, true)
+      return
+    }
+    applyIndexChange(change)
+    const touchesPrimary =
+      fileChangeTouchesRoot(change, 'config') &&
+      (change.action === 'root_update' ||
+        fileChangePathsIn(change, 'config').some(
+          (path) => path === PRIMARY_CONFIG || isPathWithin(PRIMARY_CONFIG, path),
+        ))
+    scheduleRefresh(changeReachesListing(change), touchesPrimary)
   }
 
   /**
@@ -1817,6 +2036,9 @@ export const useMachineFilesStore = defineStore('machineFiles', () => {
     entries.value = []
     searchFiles.value = []
     searchFilesLoaded.value = false
+    indexChangesInFlight = null
+    clearContentSearch()
+    clearContentCache()
     permissionsByPath.clear()
     diskUsage.value = { total: 0, used: 0, free: 0 }
     rootPermissions.value = 'r'
@@ -1878,6 +2100,8 @@ export const useMachineFilesStore = defineStore('machineFiles', () => {
           void refreshDirectory()
           void refreshIncludedConfigPaths()
           refreshCleanCurrentFile()
+          // Changes made while disconnected were never reported.
+          if (searchFilesLoaded.value) void refreshSearchFiles(true)
         } else {
           directoryGeneration += 1
           fileGeneration += 1
@@ -1900,7 +2124,10 @@ export const useMachineFilesStore = defineStore('machineFiles', () => {
       },
     )
     try {
-      stopFileNotifications = moonraker.onNotification('notify_filelist_changed', scheduleRefresh)
+      stopFileNotifications = moonraker.onNotification(
+        'notify_filelist_changed',
+        handleFileListChanged,
+      )
     } catch {
       stopFileNotifications = null
     }

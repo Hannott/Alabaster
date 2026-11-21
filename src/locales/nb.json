@@ -327,6 +327,7 @@
       "failed": "Siste avlesning ble avvist. Verdiene under er fra forrige avlesning.",
       "failedEmpty": "Avlesningen ble avvist eller svarte ikke, så ingenting er kjent ennå. Les nå spør igjen.",
       "paused": "Avlesning er satt på pause mens en utskrift kjører, så disse er ikke ferske.",
+      "busy": "Avlesning er satt på pause mens skriveren kjører kommandoer, så disse er ikke ferske.",
       "readAt": "Lest {time}.",
       "state": {
         "triggered": "Utløst",

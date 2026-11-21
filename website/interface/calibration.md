@@ -457,8 +457,12 @@ Shows the live state of every endstop the printer reports: **Triggered**,
 Klipper reports endstop state only when asked. Alabaster asks every couple
 of seconds while the printer is idle. **Read now** asks immediately.
 
-- **Polling stops during a print.** Querying endstops mid-print is not free,
-  so readings pause and are labeled as not current.
+- **Polling stops while the printer is working.** During a print, and while a
+  macro, homing or any other command runs, readings pause and are labeled as
+  not current. Klipper answers an endstop query in turn with the commands it
+  is running, so asking mid-macro would only wait behind it.
+- **Reads from anywhere show here.** `QUERY_ENDSTOPS` typed in the console,
+  or a read from another browser, updates the readings too.
 - **A failed read does not clear the last good reading.** If a read fails,
   the previous values stay on screen, and the page states that the last read
   failed.

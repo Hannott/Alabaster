@@ -1,7 +1,13 @@
 import { defineStore } from 'pinia'
 import { computed, ref, watch, type WatchStopHandle } from 'vue'
 
-import { moonrakerFileUrl } from '@/services/moonraker'
+import {
+  fileChangePathsIn,
+  isPathWithin,
+  moonrakerFileUrl,
+  parseFileListChange,
+  type JsonRpcNotification,
+} from '@/services/moonraker'
 import { useAvailabilityStore } from '@/stores/availability'
 import { useMoonrakerStore } from '@/stores/moonraker'
 import { usePrinterConfigStore } from '@/stores/printerConfig'
@@ -250,7 +256,21 @@ export const useShakeTuneStore = defineStore('shakeTune', () => {
     // A tuning macro just run from the console changes this listing, same as
     // any other file change — Moonraker does not distinguish which root.
     try {
-      stopFileNotifications = moonraker.onNotification('notify_filelist_changed', scheduleRefresh)
+      stopFileNotifications = moonraker.onNotification(
+        'notify_filelist_changed',
+        (notification: JsonRpcNotification) => {
+          const change = parseFileListChange(notification.params)
+          const resultsRoot = resolveResultsRoot(printerConfig)
+          if (
+            !change ||
+            change.action === 'root_update' ||
+            (resultsRoot !== null &&
+              fileChangePathsIn(change, 'config').some((path) => isPathWithin(path, resultsRoot)))
+          ) {
+            scheduleRefresh()
+          }
+        },
+      )
     } catch {
       stopFileNotifications = null
     }

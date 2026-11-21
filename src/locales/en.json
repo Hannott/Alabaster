@@ -327,6 +327,7 @@
       "failed": "The last read was refused. The readings below are the ones before it.",
       "failedEmpty": "The read was refused or did not answer, so nothing is known yet. Read now asks again.",
       "paused": "Reading is paused while a print runs, so these are not current.",
+      "busy": "Reading is paused while the printer runs commands, so these are not current.",
       "readAt": "Read at {time}.",
       "state": {
         "triggered": "Triggered",
